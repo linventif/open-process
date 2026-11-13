@@ -68,6 +68,21 @@ Les modules choisissent un pictogramme dans `icons.rs`, puis l’accueil et le
 sélecteur l’affichent sans déduire la notation de sa position. Ce module UI
 contient également le curseur de sélection commun aux éditeurs graphiques.
 
+L’accueil place **Reprendre votre travail** avant les cartes de création. Les
+documents ouverts sont présentés dans une grille de cartes avec leur nom, type,
+état de sauvegarde et aperçu PNG. Le composant commun de `home.rs` reprend le
+document existant par son UID, sans créer de copie.
+
+[`app/thumbnails.rs`](../crates/op-app/src/app/thumbnails.rs) capture le rendu réel
+de la vue et produit des PNG de 320 × 180 pixels, en conservant les proportions.
+Les éditeurs graphiques exposent leur canvas via `EditorBackend::thumbnail_rect` ;
+le repli pour les vues tabulaires ou textuelles est le panneau affiché. La capture
+ne modifie ni le modèle ni les caméras. Une seule capture est en attente à la fois ;
+une navigation, un dialogue ou un changement de géométrie invalide son résultat
+différé. Les révisions du document évitent de recalculer les aperçus à chaque image.
+Le cache se restaure séparément de la session ; un document jamais capturé utilise
+son pictogramme jusqu’à l’affichage de sa vue.
+
 `Session<E>` conserve un éditeur et son historique uniques, avec un état typé par
 instance de panneau. Les caméras (y compris celle du graphe Petri) et inspecteurs se sauvegardent séparément du
 modèle. Les identifiants de vues sont des chaînes extensibles ; les anciennes

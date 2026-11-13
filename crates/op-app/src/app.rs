@@ -9,6 +9,7 @@ use op_core::document::Document;
 use op_core::i18n::{tr, trf};
 
 mod new_document;
+mod thumbnails;
 
 #[cfg(test)]
 use crate::{bpmn_editor::BpmnEditor, petri_editor::PetriEditor, uml_editor::UmlEditor};
@@ -47,6 +48,7 @@ pub struct OpenProcessApp {
     confirm_close: Option<usize>,
     show_home: bool,
     new_picker: Option<new_document::Picker>,
+    thumbnails: thumbnails::Thumbnails,
     persistence_ready: bool,
 }
 
@@ -66,6 +68,7 @@ impl OpenProcessApp {
             confirm_close: None,
             show_home: true,
             new_picker: None,
+            thumbnails: thumbnails::Thumbnails::default(),
             persistence_ready: true,
         };
         if let Some(storage) = cc.storage {
@@ -122,6 +125,7 @@ impl OpenProcessApp {
                     }
                 }
                 app.active = p.active;
+                app.thumbnails.restore(storage, &cc.egui_ctx, &map, &app.docs);
             }
         }
         for f in files {
@@ -331,6 +335,8 @@ impl OpenProcessApp {
                     kind: kind.into(),
                     color,
                     dirty: doc.dirty(),
+                    icon: self.registry.find(doc.editor.kind()).map(|d| d.icon).unwrap_or(crate::icons::note),
+                    thumbnail: self.thumbnails.texture(doc.uid),
                 }
             })
             .collect::<Vec<_>>();
@@ -350,6 +356,17 @@ impl OpenProcessApp {
             }
             None => {}
         }
+    }
+
+    fn thumbnail_capture_blocked(&self, ctx: &egui::Context) -> bool {
+        self.show_home
+            || self.new_picker.is_some()
+            || self.show_about
+            || self.show_shortcuts
+            || self.confirm_close.is_some()
+            || egui::Popup::is_any_open(ctx)
+            || ctx.memory(|m| m.top_modal_layer().is_some())
+            || ctx.input(|i| i.pointer.any_down())
     }
 
     fn handle_dock_event(&mut self, ev: DockEvent) {
@@ -766,6 +783,7 @@ struct DockBehavior<'a> {
     docs: &'a mut Vec<Doc>,
     active_uid: Option<u64>,
     events: Vec<DockEvent>,
+    previews: Vec<thumbnails::Source>,
 }
 
 impl DockBehavior<'_> {
@@ -776,6 +794,7 @@ impl DockBehavior<'_> {
 
 impl egui_tiles::Behavior<Pane> for DockBehavior<'_> {
     fn pane_ui(&mut self, ui: &mut Ui, _tile_id: egui_tiles::TileId, pane: &mut Pane) -> egui_tiles::UiResponse {
+        let pane_rect = ui.max_rect().intersect(ui.clip_rect());
         if ui.rect_contains_pointer(ui.max_rect()) && ui.input(|i| i.pointer.any_pressed()) && self.active_uid != Some(pane.doc) {
             self.events.push(DockEvent::Activate(pane.doc));
             self.active_uid = Some(pane.doc);
@@ -791,6 +810,16 @@ impl egui_tiles::Behavior<Pane> for DockBehavior<'_> {
         for event in doc.editor.render(ui, _tile_id.0, view) {
             self.events.push(DockEvent::Host(pane.doc, event));
         }
+        let rect = if view == "editor" {
+            doc.editor.thumbnail_rect().unwrap_or(pane_rect).intersect(pane_rect)
+        } else {
+            pane_rect
+        };
+        self.previews.push(thumbnails::Source {
+            uid: pane.doc,
+            rect,
+            view: view.to_string(),
+        });
         egui_tiles::UiResponse::None
     }
 
@@ -988,6 +1017,8 @@ impl egui_tiles::Behavior<Pane> for DockBehavior<'_> {
 
 impl eframe::App for OpenProcessApp {
     fn ui(&mut self, ui: &mut Ui, _frame: &mut eframe::Frame) {
+        self.thumbnails.poll(ui.ctx(), &self.docs);
+        let preview_was_blocked = self.thumbnail_capture_blocked(ui.ctx());
         for (name, bytes) in self.io.poll() {
             self.load_bytes(name, &bytes);
         }
@@ -1026,6 +1057,7 @@ impl eframe::App for OpenProcessApp {
         }
 
         if self.show_home {
+            self.thumbnails.invalidate_scene();
             egui::CentralPanel::default()
                 .frame(egui::Frame::new().fill(panel))
                 .show(ui, |ui| self.home(ui));
@@ -1038,6 +1070,7 @@ impl eframe::App for OpenProcessApp {
             docs: &mut self.docs,
             active_uid,
             events: Vec::new(),
+            previews: Vec::new(),
         };
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(panel).inner_margin(egui::Margin {
@@ -1048,6 +1081,7 @@ impl eframe::App for OpenProcessApp {
             }))
             .show(ui, |ui| self.tree.ui(&mut behavior, ui));
         let events = std::mem::take(&mut behavior.events);
+        let previews = std::mem::take(&mut behavior.previews);
         for ev in events {
             self.handle_dock_event(ev);
         }
@@ -1063,6 +1097,8 @@ impl eframe::App for OpenProcessApp {
             doc.editor.retain_views(&instances);
         }
         self.dialogs(ui);
+        let blocked = preview_was_blocked || self.thumbnail_capture_blocked(ui.ctx());
+        self.thumbnails.capture(ui.ctx(), &self.docs, previews, blocked);
     }
 
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
@@ -1078,6 +1114,7 @@ impl eframe::App for OpenProcessApp {
         };
         if self.persistence_ready {
             storage.set_string(persistence::KEY, serde_json::to_string(&p).expect("workspace is serializable"));
+            self.thumbnails.save(storage, &self.docs);
         }
         crate::i18n::save(storage);
     }

@@ -18,6 +18,8 @@ pub struct Document {
     pub kind: String,
     pub color: Color32,
     pub dirty: bool,
+    pub icon: crate::icons::Icon,
+    pub thumbnail: Option<egui::TextureId>,
 }
 
 struct Process {
@@ -83,26 +85,19 @@ pub fn show(ui: &mut Ui, docs: &[Document], registry: &crate::editor::DiagramReg
                 });
                 ui.add_space(26.0);
 
-                if let Some(chosen) = process_grid(ui, &processes, registry) {
-                    action = Some(chosen);
+                if !docs.is_empty() {
+                    ui.heading(tr("workspace.continue_work"));
+                    ui.add_space(10.0);
+                    if let Some(uid) = document_grid(ui, docs) {
+                        action = Some(Action::Resume(uid));
+                    }
+                    ui.add_space(26.0);
+                    ui.heading(tr("file.new_document"));
+                    ui.add_space(10.0);
                 }
 
-                if !docs.is_empty() {
-                    ui.add_space(24.0);
-                    ui.heading(tr("workspace.continue_work"));
-                    ui.add_space(6.0);
-                    theme::card(ui).show(ui, |ui| {
-                        ui.set_width((width - 32.0).max(0.0));
-                        for doc in docs {
-                            ui.horizontal(|ui| {
-                                ui.label(RichText::new(&doc.kind).font(theme::semibold(10.5)).color(doc.color));
-                                let title = if doc.dirty { format!("{} *", doc.name) } else { doc.name.clone() };
-                                if ui.add(egui::Button::new(title).frame(false).wrap()).clicked() {
-                                    action = Some(Action::Resume(doc.uid));
-                                }
-                            });
-                        }
-                    });
+                if let Some(chosen) = process_grid(ui, &processes, registry) {
+                    action = Some(chosen);
                 }
 
                 ui.add_space(30.0);
@@ -110,6 +105,110 @@ pub fn show(ui: &mut Ui, docs: &[Document], registry: &crate::editor::DiagramReg
         });
     });
     action
+}
+
+fn document_grid(ui: &mut Ui, docs: &[Document]) -> Option<u64> {
+    let gap = 16.0;
+    let columns = ((ui.available_width() + gap) / (240.0 + gap)).floor().clamp(1.0, 4.0) as usize;
+    let width = ((ui.available_width() - gap * (columns - 1) as f32) / columns as f32).max(1.0);
+    let mut chosen = None;
+    egui::Grid::new("resume_document_cards")
+        .num_columns(columns)
+        .spacing(vec2(gap, gap))
+        .show(ui, |ui| {
+            for (i, doc) in docs.iter().enumerate() {
+                if document_card(ui, doc, width) {
+                    chosen = Some(doc.uid);
+                }
+                if (i + 1) % columns == 0 {
+                    ui.end_row();
+                }
+            }
+        });
+    chosen
+}
+
+fn document_card(ui: &mut Ui, doc: &Document, width: f32) -> bool {
+    let preview_height = (width - 16.0).max(1.0) * 9.0 / 16.0;
+    let (rect, response) = ui.allocate_exact_size(vec2(width, preview_height + 76.0), Sense::click());
+    let label = if doc.dirty { format!("{} *", doc.name) } else { doc.name.clone() };
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, &label));
+    if ui.is_rect_visible(rect) {
+        let p = ui.painter().with_clip_rect(rect);
+        let emphasized = response.hovered() || response.has_focus();
+        let accent = theme::accent(ui.visuals().dark_mode);
+        p.rect_filled(
+            rect,
+            12.0,
+            if emphasized {
+                ui.visuals().selection.bg_fill.gamma_multiply(0.12)
+            } else {
+                ui.visuals().window_fill
+            },
+        );
+        p.rect_stroke(
+            rect,
+            12.0,
+            if emphasized {
+                Stroke::new(1.5, accent)
+            } else {
+                ui.visuals().widgets.noninteractive.bg_stroke
+            },
+            StrokeKind::Inside,
+        );
+        let preview = Rect::from_min_size(rect.min + vec2(8.0, 8.0), vec2((width - 16.0).max(1.0), preview_height));
+        if let Some(texture) = doc.thumbnail {
+            egui::Image::new((texture, preview.size())).corner_radius(6).paint_at(ui, preview);
+        } else {
+            p.rect_filled(preview, 6.0, doc.color.gamma_multiply(0.09));
+            (doc.icon)(&p, Rect::from_center_size(preview.center(), vec2(64.0, 64.0)), doc.color);
+        }
+        let title_y = preview.bottom() + 20.0;
+        (doc.icon)(
+            &p,
+            Rect::from_center_size(pos2(rect.left() + 23.0, title_y), vec2(20.0, 20.0)),
+            doc.color,
+        );
+        let mut title = egui::text::LayoutJob::simple(
+            doc.name.clone(),
+            theme::semibold(13.5),
+            ui.visuals().text_color(),
+            (width - 58.0).max(1.0),
+        );
+        title.wrap.max_rows = 1;
+        title.wrap.break_anywhere = true;
+        let galley = p.layout_job(title);
+        p.galley(
+            pos2(rect.left() + 40.0, title_y - galley.size().y / 2.0),
+            galley,
+            ui.visuals().text_color(),
+        );
+        p.text(
+            rect.left_bottom() + vec2(14.0, -18.0),
+            egui::Align2::LEFT_CENTER,
+            &doc.kind,
+            theme::medium(10.5),
+            doc.color,
+        );
+        if doc.dirty {
+            p.text(
+                rect.right_bottom() - vec2(14.0, 18.0),
+                egui::Align2::RIGHT_CENTER,
+                tr("workspace.unsaved"),
+                theme::medium(10.5),
+                ui.visuals().weak_text_color(),
+            );
+        }
+    }
+    let tooltip = if doc.dirty {
+        format!("{}\n{} · {}", doc.name, doc.kind, tr("workspace.unsaved"))
+    } else {
+        format!("{}\n{}", doc.name, doc.kind)
+    };
+    response
+        .on_hover_cursor(egui::CursorIcon::PointingHand)
+        .on_hover_text(tooltip)
+        .clicked()
 }
 
 /// The creation picker and home page share their cards, sizing and breakpoints.

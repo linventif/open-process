@@ -72,6 +72,9 @@ pub trait EditorSession {
     fn snapshot(&self) -> StoredDocument;
     fn revisions(&self) -> Revisions;
     fn render(&mut self, ui: &mut Ui, instance: u64, view: &str) -> Vec<HostEvent>;
+    fn thumbnail_rect(&self) -> Option<egui::Rect> {
+        None
+    }
     fn retain_views(&mut self, instances: &[u64]);
     fn workspace(&self) -> serde_json::Value;
     fn restore_workspace(&mut self, state: &serde_json::Value);
@@ -123,6 +126,10 @@ pub trait EditorBackend: 'static {
     }
     fn cancel_edit(&mut self) {}
     fn ui(&mut self, ui: &mut Ui, view: &str) -> Vec<HostEvent>;
+    /// Rendered content to capture; table/text editors can use the whole pane.
+    fn thumbnail_rect(&self) -> Option<egui::Rect> {
+        None
+    }
     fn commands(&self) -> &'static [CommandDescriptor];
     fn enabled(&self, command: &str) -> bool;
     fn execute(&mut self, command: &str, time: f64) -> Vec<HostEvent>;
@@ -223,6 +230,9 @@ impl<E: EditorBackend> EditorSession for Session<E> {
         if self.active.is_some_and(|id| !instances.contains(&id)) {
             self.active = instances.first().copied();
         }
+    }
+    fn thumbnail_rect(&self) -> Option<egui::Rect> {
+        self.editor.thumbnail_rect()
     }
     fn workspace(&self) -> serde_json::Value {
         serde_json::to_value(self.views.iter().map(|(id, state)| (*id, E::save_view(state))).collect::<Vec<_>>()).unwrap()

@@ -493,3 +493,44 @@ Les vérifications native et WebAssembly de `op-app`, `cargo fmt --all -- --chec
 les 156 liens locaux de documentation et `git diff --check` réussissent.
 Le site n’a pas changé ; aucun nouveau test navigateur ou build release
 n’a été exécuté pour ce déplacement.
+
+## Cartes de reprise et aperçus PNG
+
+La section **Reprendre votre travail** utilise des cartes avec une capture PNG
+du document, son nom, son type et son état de sauvegarde. Les quatre nouveaux
+scénarios couvrent :
+
+- La génération de PNG distincts de 320 × 180 pixels pour BPMN, Petri, DMN,
+  base de données, dessin libre et journal, sans modifier leurs modèles ;
+  la mise à jour après édition et la reprise du même document sans duplication.
+- Le recadrage à la densité de pixels de la capture et les régions hors limites.
+- Le rejet d’une capture différée après un changement d’écran.
+- La restauration avec remappage des UID, le refus d’un cache périmé ou corrompu
+  et l’indépendance du cache vis-à-vis du schéma de session.
+
+Commandes exécutées :
+
+```sh
+cargo test --locked --offline --workspace -- --test-threads=1
+cargo check --locked --offline -p op-app
+cargo check --locked --offline -p op-app --target wasm32-unknown-unknown
+cargo fmt --all -- --check
+git diff --check
+cd website
+CARGO_NET_OFFLINE=true bun run build:app
+bun test
+```
+
+Les suites Rust et les **9 tests Bun**, les compilations native/WebAssembly et
+le build web release réussissent. Les cartes sont exercées à 1 400, 720 et
+280 px ; les captures `target/screenshots/home_resume_cards_1400.png` et
+`home_resume_cards_280.png` ont été inspectées, ainsi que le rendu français.
+
+Un contrôle ponctuel dans Firefox sans interface, sur le livrable local sous
+`/app/`, a ouvert l’exemple BPMN, affiché sa carte de reprise et contrôlé la
+signature PNG de l’entrée conservée dans `localStorage`. Après rechargement,
+l’aperçu a été restauré sur l’accueil avant toute réouverture du document.
+Les captures navigateur avant et après rechargement ont été inspectées.
+
+Les liens locaux ont été vérifiés. Les contrôles Windows/macOS et la matrice CI
+complète n’ont pas été exécutés pour cette évolution.

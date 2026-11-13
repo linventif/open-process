@@ -35,6 +35,9 @@ const VIEWS: &[ViewDescriptor] = &[ViewDescriptor {
     label: key("database.sql_ddl"),
 }];
 impl EditorBackend for DatabaseEditor {
+    fn thumbnail_rect(&self) -> Option<egui::Rect> {
+        Some(self.state.canvas)
+    }
     type ViewState = DatabaseView;
     fn capture_view(&self) -> Self::ViewState {
         self.state.clone()

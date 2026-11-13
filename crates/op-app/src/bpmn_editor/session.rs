@@ -41,6 +41,9 @@ const COMMANDS: &[CommandDescriptor] = &[
 const VIEWS: &[ViewDescriptor] = &[];
 
 impl EditorBackend for BpmnEditor {
+    fn thumbnail_rect(&self) -> Option<egui::Rect> {
+        Some(self.last_canvas)
+    }
     type ViewState = BpmnEditorView;
     fn capture_view(&self) -> Self::ViewState {
         self.capture_state()

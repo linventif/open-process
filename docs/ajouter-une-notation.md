@@ -38,6 +38,11 @@ et les options propres à la notation. La hauteur de barre, les marges, le zoom
 et le passage au menu compact restent définis dans ce composant commun.
 Les actions métier supplémentaires peuvent occuper l'emplacement `tools`.
 
+Pour les cartes de reprise de l’accueil, `EditorBackend::thumbnail_rect` peut
+renvoyer le rectangle du canvas déjà rendu. Le repli est le panneau complet,
+adapté aux vues textuelles et tabulaires. La capture et l’encodage PNG restent
+dans le shell ; le module ne gère pas de fichiers d’aperçu ni de copie du modèle.
+
 Conserver `snap`, l'ouverture d'inspecteur et les éventuels indicateurs de problèmes
 dans l'état de vue capturé et restauré ; leur sérialisation est indépendante du
 modèle. Les anciennes valeurs booléennes d'inspecteur restent lisibles. Les styles

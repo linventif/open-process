@@ -1350,6 +1350,7 @@ pub const TABLE: &[(&str, &str)] = &[
     ),
     ("workspace.no_matching_diagram_types", "Aucun type de diagramme ne correspond."),
     ("workspace.start_example", "Partir d'un exemple"),
+    ("workspace.unsaved", "Non enregistré"),
     ("workspace.what_would_you_like_do", "Que souhaitez-vous faire ?"),
     ("workspace.workspace", "VOTRE ESPACE DE TRAVAIL"),
 ];

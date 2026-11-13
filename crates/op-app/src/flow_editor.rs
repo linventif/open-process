@@ -567,6 +567,9 @@ const COMMANDS: &[CommandDescriptor] = &[
     },
 ];
 impl<K: Notation> EditorBackend for FlowEditor<K> {
+    fn thumbnail_rect(&self) -> Option<egui::Rect> {
+        Some(self.state.canvas)
+    }
     type ViewState = FlowView<K>;
     fn capture_view(&self) -> Self::ViewState {
         self.state.clone()

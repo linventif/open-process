@@ -55,6 +55,21 @@ workflow gardent leur action principale. Choisir un exemple ferme le sélecteur
 et conserve le groupe d’onglets à l’origine de l’ouverture. Ouvrir le menu
 d’exemples ne crée pas de document vierge.
 
+Dans l’accueil, **Reprendre votre travail** apparaît avant **Nouveau document**
+lorsque des documents sont ouverts. Chaque carte présente un aperçu PNG, le nom
+sur une ligne, l’icône et le type de notation, ainsi que **Non enregistré** quand
+des modifications restent à sauvegarder. Le nom complet est accessible au survol.
+Un clic ou une activation clavier reprend le document et son historique existants.
+La grille utilise une à quatre colonnes selon la largeur disponible.
+
+Les aperçus sont des captures locales du contenu affiché, réduites à 320 × 180
+pixels avec conservation des proportions. Les vues graphiques capturent leur
+canvas ; les tables et journaux utilisent leur panneau. Ils reflètent la vue
+affichée, avec ses éventuelles sélections et palettes, sans imposer de recadrage
+à l’utilisateur. Une icône remplace l’aperçu avant la première capture. Les PNG
+sont réutilisés et conservés avec les préférences de l’application, dans un cache
+séparé des documents.
+
 Les pictogrammes des cartes représentent leur notation : événement/tâche/passerelle
 BPMN, places et transition Petri, classes reliées, acteur/cas d’utilisation,
 table DMN, chaîne EPC, branche d’activité UML, tables relationnelles ou crayon.

@@ -153,6 +153,71 @@ fn home_responsive_grid() {
     }
 }
 
+#[test]
+fn home_document_cards_capture_pngs_reflow_and_resume_the_same_document() {
+    let mut h = harness(false);
+    for example in ["petri.mutex", "dmn.discount", "database.shop", "whiteboard.ideas", "log.first"] {
+        h.state_mut().open_example(example);
+        let before = h.state().docs.last().unwrap().snapshot();
+        h.run_steps(8);
+        assert_eq!(
+            h.state().docs.last().unwrap().snapshot(),
+            before,
+            "capturing must not edit the document"
+        );
+    }
+    let snapshots: Vec<_> = h.state().docs.iter().map(|d| d.snapshot()).collect();
+    let names: Vec<_> = h.state().docs.iter().map(|d| format!("{} *", d.name())).collect();
+    let uids: Vec<_> = h.state().docs.iter().map(|d| d.uid).collect();
+    let mut images = std::collections::HashSet::new();
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/screenshots");
+    std::fs::create_dir_all(&dir).unwrap();
+    for doc in &h.state().docs {
+        let png = h
+            .state()
+            .thumbnails
+            .png(doc.uid)
+            .expect("each displayed document has a generated PNG");
+        assert_eq!(&png[..8], b"\x89PNG\r\n\x1a\n");
+        assert_eq!(image::load_from_memory(png).unwrap().into_rgba8().dimensions(), (320, 180));
+        assert!(images.insert(png.to_vec()), "previews show the content of each document");
+        std::fs::write(dir.join(format!("home_thumbnail_{}.png", doc.editor.kind().replace('.', "_"))), png).unwrap();
+    }
+    h.get_by_label("Home").click();
+    h.run_steps(5);
+    for width in [1400.0, 720.0, 280.0] {
+        h.set_size(egui::vec2(width, 1000.0));
+        h.ctx.set_theme(if width == 720.0 { egui::Theme::Dark } else { egui::Theme::Light });
+        h.run_steps(6);
+        let first = h.get_by_label(&names[0]).rect();
+        let second = h.get_by_label(&names[1]).rect();
+        assert!(first.left() >= 0.0 && first.right() <= width);
+        if width >= 720.0 {
+            assert!((first.top() - second.top()).abs() < 1.0);
+        } else {
+            assert!(second.top() > first.bottom());
+        }
+        shot(&mut h, &format!("home_resume_cards_{width}"));
+    }
+    assert_eq!(h.state().docs.iter().map(|d| d.snapshot()).collect::<Vec<_>>(), snapshots);
+    h.get_by_label(&names[0]).click();
+    h.run_steps(5);
+    assert!(!h.state().show_home);
+    assert_eq!(h.state().docs[h.state().active].uid, uids[0]);
+    assert_eq!(h.state().docs.len(), uids.len(), "resuming must not duplicate a document");
+    let old = h.state().thumbnails.png(uids[0]).unwrap().to_vec();
+    h.state_mut().docs[0]
+        .editor
+        .as_any_mut()
+        .downcast_mut::<BpmnEditor>()
+        .unwrap()
+        .diagram
+        .nodes[0]
+        .name = "Changed thumbnail content".into();
+    h.run_steps(8);
+    assert_ne!(h.state().thumbnails.png(uids[0]).unwrap(), old, "edits refresh the PNG");
+}
+
 fn shot(h: &mut Harness<'static, OpenProcessApp>, name: &str) {
     h.run_steps(if name.contains("animation") { 0 } else { 4 });
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/screenshots");

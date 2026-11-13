@@ -31,6 +31,9 @@ const COMMANDS: &[CommandDescriptor] = &[
     },
 ];
 impl EditorBackend for WhiteboardEditor {
+    fn thumbnail_rect(&self) -> Option<egui::Rect> {
+        Some(self.state.canvas)
+    }
     type ViewState = BoardView;
     fn capture_view(&self) -> BoardView {
         self.state.clone()

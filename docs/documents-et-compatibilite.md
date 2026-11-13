@@ -111,6 +111,21 @@ module sans perdre le document. La destination d'un fichier n'est pas une preuve
 qu'il a été sauvegardé : les documents restaurés restent signalés à sauvegarder
 si leur état réellement sauvegardé n'est pas connu.
 
+## Cache des aperçus de l’accueil
+
+La clé facultative `open-process-thumbnails-v1` contient les aperçus PNG des
+documents ouverts. Elle est distincte de `open-process-v3` et des fichiers `.opx`.
+Le cache est limité à 64 entrées et 512 Kio de PNG à la sauvegarde. Les identifiants
+sont remappés lors de la restauration de session ; une empreinte du contenu évite
+de réutiliser l’aperçu d’une autre version du document.
+
+Un cache absent, mal formé, périmé ou contenant un PNG invalide est ignoré. Les
+dimensions des images sont vérifiées avant leur décodage. L’accueil affiche alors
+le pictogramme du type ; l’aperçu est généré lors du prochain affichage de la vue.
+Ces images sont des données dérivées : leur absence ne bloque ni la restauration
+des documents ni leur sauvegarde. Le schéma de session et le format `.opx` restent
+ceux décrits plus haut.
+
 ## Garanties vérifiées par la migration
 
 - Fixtures `.opx` v1 pour BPMN, Petri, logs et les deux types UML, avec données significatives.
