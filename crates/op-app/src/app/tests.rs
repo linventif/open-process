@@ -59,6 +59,7 @@ fn home_navigation() {
         ("Model an EPC", "epc"),
         ("Design an activity diagram", "uml.activity"),
         ("Design a database", "database.schema"),
+        ("Sketch freely", "whiteboard"),
     ] {
         h.get_by_label(label).scroll_to_me();
         h.run_steps(12);
@@ -947,6 +948,160 @@ fn active_view_settings(h: &Harness<'static, OpenProcessApp>) -> serde_json::Val
     views.into_iter().find(|(id, _)| *id == pane.0).unwrap().1
 }
 
+fn whiteboard<'a>(h: &'a Harness<'static, OpenProcessApp>) -> &'a crate::whiteboard_editor::WhiteboardEditor {
+    h.state().docs[h.state().active]
+        .editor
+        .as_any()
+        .downcast_ref::<crate::whiteboard_editor::WhiteboardEditor>()
+        .unwrap()
+}
+
+#[test]
+fn whiteboard_creation_tools_text_and_vector_export_roundtrip() {
+    use op_core::geom::Pos;
+    use op_core::whiteboard::Kind;
+    let mut h = harness(false);
+    h.get_by_label("New document").click();
+    h.run_steps(5);
+    h.get_by_label("Search diagram types").type_text("whiteboard");
+    h.run_steps(4);
+    h.get_by_label("New free drawing").click();
+    h.run_steps(5);
+    assert_eq!(h.state().docs.last().unwrap().editor.kind(), "whiteboard");
+    for (i, kind) in Kind::ALL.into_iter().enumerate() {
+        h.get_by_label(tr(kind.label())).click();
+        h.run_steps(3);
+        let x = 80.0 + (i % 4) as f32 * 220.0;
+        let y = 80.0 + (i / 4) as f32 * 240.0;
+        let from = whiteboard(&h).screen_point(Pos::new(x, y));
+        let to = whiteboard(&h).screen_point(Pos::new(x + 160.0, y + 100.0));
+        drag(&mut h, from, to);
+        h.run_steps(4);
+        assert_eq!(whiteboard(&h).board.elements.len(), i + 1, "{kind:?}");
+        assert_eq!(whiteboard(&h).board.elements.last().unwrap().kind, kind);
+    }
+    h.get_by_label("Element text").focus();
+    h.run_steps(2);
+    h.get_by_label("Element text").type_text("Review <idea> & discuss\nNext step");
+    h.run_steps(3);
+    h.get_by_label("Select").click();
+    h.run_steps(4);
+    let original = h.state().docs.last().unwrap().snapshot();
+    let svg = h.state().docs.last().unwrap().editor.export().unwrap();
+    assert_eq!(svg.suffix, "svg");
+    assert!(
+        std::str::from_utf8(&svg.bytes)
+            .unwrap()
+            .contains("Review &lt;idea&gt; &amp; discuss")
+    );
+    assert!(
+        whiteboard(&h)
+            .board
+            .elements
+            .iter()
+            .find(|e| e.kind == Kind::Freehand)
+            .unwrap()
+            .points
+            .len()
+            > 2
+    );
+    whiteboard(&h).board.validate().unwrap();
+    h.state_mut().docs.last_mut().unwrap().editor.execute(UNDO, 0.0);
+    h.run_steps(4);
+    assert_ne!(h.state().docs.last().unwrap().snapshot(), original);
+    h.state_mut().docs.last_mut().unwrap().editor.execute(REDO, 0.0);
+    h.run_steps(4);
+    assert_eq!(h.state().docs.last().unwrap().snapshot(), original);
+    shot(&mut h, "whiteboard_all_tools_light");
+    let bytes = original.bytes();
+    h.state_mut().load_bytes("drawing.opx".into(), &bytes);
+    h.run_steps(4);
+    assert_eq!(h.state().docs.last().unwrap().snapshot(), original);
+    assert!(!h.state().docs.last().unwrap().dirty());
+}
+
+#[test]
+fn whiteboard_moving_resizing_duplication_and_cancel_are_undoable() {
+    use op_core::geom::Pos;
+    let mut h = harness(true);
+    h.state_mut().open_example("whiteboard.ideas");
+    h.run_steps(5);
+    let index = h.state().active;
+    let id = whiteboard(&h).board.elements[0].id;
+    let original = h.state().docs[index].snapshot();
+    let from = whiteboard(&h).element_screen_center(id);
+    drag(&mut h, from, from + egui::vec2(40.0, 30.0));
+    h.run_steps(4);
+    let moved = h.state().docs[index].snapshot();
+    assert_ne!(moved, original);
+    let b = whiteboard(&h).board.element(id).unwrap().bounds;
+    let corner = whiteboard(&h).screen_point(Pos::new(b.right(), b.bottom()));
+    drag(&mut h, corner, corner + egui::vec2(45.0, 25.0));
+    h.run_steps(4);
+    assert!(whiteboard(&h).board.element(id).unwrap().bounds.w > b.w);
+    h.state_mut().docs[index].editor.execute(UNDO, 0.0);
+    h.run_steps(4);
+    assert_eq!(h.state().docs[index].snapshot(), moved);
+    h.state_mut().docs[index].editor.execute("whiteboard.duplicate", 0.0);
+    h.run_steps(4);
+    assert_eq!(whiteboard(&h).board.elements.len(), 5);
+    h.state_mut().docs[index].editor.execute(DELETE, 0.0);
+    h.run_steps(4);
+    assert_eq!(whiteboard(&h).board.elements.len(), 4);
+    let deleted = h.state().docs[index].snapshot();
+    let from = whiteboard(&h).element_screen_center(id);
+    click(&mut h, from);
+    press(&mut h, from, true);
+    h.hover_at(from + egui::vec2(90.0, 45.0));
+    h.run_steps(3);
+    assert_ne!(h.state().docs[index].snapshot(), deleted);
+    key(&mut h, Key::Escape);
+    press(&mut h, from + egui::vec2(90.0, 45.0), false);
+    h.run_steps(4);
+    assert_eq!(h.state().docs[index].snapshot(), deleted);
+    h.state_mut().docs[index].editor.execute(UNDO, 0.0);
+    h.run_steps(4);
+    // The last committed operation was deletion; cancelling the drag added no history step.
+    assert_eq!(whiteboard(&h).board.elements.len(), 5);
+    h.state_mut().docs[index].editor.execute(REDO, 0.0);
+    h.run_steps(4);
+    assert_eq!(h.state().docs[index].snapshot(), deleted);
+    shot(&mut h, "whiteboard_example_dark");
+}
+
+#[test]
+fn whiteboard_group_selection_keeps_mixed_fills_and_pencil_click_draws_a_dot() {
+    use op_core::geom::Pos;
+    use op_core::whiteboard::Kind;
+    let mut h = harness(false);
+    h.state_mut().open_example("whiteboard.ideas");
+    h.run_steps(5);
+    let fills: Vec<_> = whiteboard(&h).board.elements.iter().map(|e| e.paint.fill).collect();
+    let bounds = whiteboard(&h).board.bounds().unwrap();
+    // Begin beside the floating palette, while still enclosing the leftmost element.
+    let from = whiteboard(&h).screen_point(Pos::new(bounds.x - 8.0, bounds.y - 20.0));
+    let to = whiteboard(&h).screen_point(Pos::new(bounds.right() + 20.0, bounds.bottom() + 20.0));
+    drag(&mut h, from, to);
+    h.run_steps(4);
+    assert!(h.query_by_label("4 selected").is_some());
+    h.get_by_label("Hand-drawn (sketch)").click();
+    h.run_steps(4);
+    assert!(whiteboard(&h).board.elements.iter().all(|e| !e.paint.sketch));
+    assert_eq!(
+        whiteboard(&h).board.elements.iter().map(|e| e.paint.fill).collect::<Vec<_>>(),
+        fills
+    );
+    h.get_by_label("Freehand").click();
+    h.run_steps(3);
+    let point = whiteboard(&h).screen_point(Pos::new(300.0, 320.0));
+    click(&mut h, point);
+    let dot = whiteboard(&h).board.elements.last().unwrap();
+    assert_eq!(dot.kind, Kind::Freehand);
+    assert!(dot.bounds.w <= 1.0 && dot.bounds.h <= 1.0);
+    assert_eq!(whiteboard(&h).board.elements.len(), 5);
+    whiteboard(&h).board.validate().unwrap();
+}
+
 #[test]
 fn new_document_picker_is_a_responsive_registry_grid() {
     for width in [1400.0, 420.0, 280.0] {
@@ -1047,6 +1202,7 @@ fn file_exports_are_grouped_and_follow_the_active_document() {
         ("dmn.table", vec!["Export DMN XML (.dmn)…", "Export decision table (.csv)…"], false),
         ("epc", vec!["Export SVG (.svg)…", "Export Graphviz (.dot)…"], true),
         ("database.schema", vec!["Export SQL DDL (.sql)…"], true),
+        ("whiteboard", vec!["Export SVG (.svg)…"], true),
     ] {
         let mut h = harness(false);
         h.state_mut().new_document(kind, None);
@@ -1359,6 +1515,7 @@ fn new_notation_workspace_restores_multiple_independent_views() {
         ("epc", "epc.order"),
         ("uml.activity", "uml.activity.order"),
         ("dmn.table", "dmn.discount"),
+        ("whiteboard", "whiteboard.ideas"),
     ] {
         let mut h = harness(false);
         h.state_mut().open_example(example);
@@ -1409,6 +1566,7 @@ fn diagram_editors_share_configuration_controls_in_wide_and_narrow_panes() {
         ("epc", false),
         ("uml.activity", true),
         ("database.schema", false),
+        ("whiteboard", true),
     ] {
         for width in [1400.0, 420.0, 280.0] {
             let mut h = harness_sized(dark, [width, 860.0]);
@@ -1416,7 +1574,8 @@ fn diagram_editors_share_configuration_controls_in_wide_and_narrow_panes() {
             h.run_steps(5);
             let original = h.state().docs.last().unwrap().snapshot();
             let settings = active_view_settings(&h);
-            assert_eq!(settings["snap"], true);
+            let initially_snapped = kind != "whiteboard";
+            assert_eq!(settings["snap"], initially_snapped);
             let zoom_in = h.get_by_label("Zoom in").rect();
             let zoom_out = h.get_by_label("Zoom out").rect();
             assert!(
@@ -1452,7 +1611,7 @@ fn diagram_editors_share_configuration_controls_in_wide_and_narrow_panes() {
             }
             h.get_by_label("Snap to grid").click();
             h.run_steps(3);
-            assert_eq!(active_view_settings(&h)["snap"], false, "{kind} at {width}px");
+            assert_eq!(active_view_settings(&h)["snap"], !initially_snapped, "{kind} at {width}px");
             key(&mut h, Key::Escape);
             if width < 360.0 {
                 h.get_by_label("Options").click();

@@ -11,6 +11,7 @@ pub fn registry() -> &'static DiagramRegistry {
         crate::flow_editor::register(&mut registry);
         crate::dmn_editor::register(&mut registry);
         crate::database_editor::register(&mut registry);
+        crate::whiteboard_editor::register(&mut registry);
         crate::mining_editor::register(&mut registry);
         registry.validate().expect("built-in identifiers are unique");
         registry

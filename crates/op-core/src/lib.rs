@@ -23,4 +23,5 @@ pub mod petri;
 pub mod pnml;
 pub mod style;
 pub mod uml;
+pub mod whiteboard;
 pub mod xml;
