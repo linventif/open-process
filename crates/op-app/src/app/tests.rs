@@ -85,11 +85,29 @@ fn home_navigation() {
     shot(&mut h, "home_dark");
     h.get_by_label("Language").click();
     h.run_steps(4);
+    assert!(h.query_by_label("Model a process").is_some());
+    for language in ["English", "Français", "Español"] {
+        assert!(h.query_by_label(language).is_some());
+    }
+    shot(&mut h, "language_dropdown");
+    h.get_by_label("Español").click();
+    h.run_steps(4);
+    assert!(h.query_by_label("Modelar un proceso").is_some());
+    assert_eq!(op_core::i18n::lang(), op_core::i18n::Lang::Es);
+    assert!(h.query_by_label("Français").is_none());
+    shot(&mut h, "home_spanish");
+    h.get_by_label("Idioma").click();
+    h.run_steps(4);
+    h.get_by_label("Français").click();
+    h.run_steps(4);
     assert!(h.query_by_label("Modéliser un processus").is_some());
     h.ctx.set_theme(egui::Theme::Light);
     shot(&mut h, "home_french");
     h.get_by_label("Langue").click();
     h.run_steps(4);
+    h.get_by_label("English").click();
+    h.run_steps(4);
+    assert!(h.query_by_label("Model a process").is_some());
 }
 
 #[test]
@@ -221,9 +239,17 @@ fn glyph_coverage() {
         // Parser input aliases are not necessarily displayed. Keep the original
         // core formatting sources, plus every UI module including extracted files.
         if file.contains("op-core/src/")
-            && !["i18n/fr.rs", "mining.rs", "analysis.rs", "convert.rs", "bpmn.rs"]
-                .iter()
-                .any(|name| file.ends_with(name))
+            && ![
+                "i18n/en.rs",
+                "i18n/fr.rs",
+                "i18n/es.rs",
+                "mining.rs",
+                "analysis.rs",
+                "convert.rs",
+                "bpmn.rs",
+            ]
+            .iter()
+            .any(|name| file.ends_with(name))
         {
             continue;
         }

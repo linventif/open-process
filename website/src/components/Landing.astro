@@ -1,5 +1,5 @@
 ---
-import { messages, type Language } from "../lib/messages";
+import { messages, languages, languageNames, languagePaths, type Language } from "../lib/messages";
 import { cloudApp } from "../lib/site";
 interface Props { lang: Language }
 const { lang } = Astro.props;
@@ -20,7 +20,12 @@ const releaseCopy = {
         <a href="https://github.com/linventif/open-process" class="nav-github">GitHub <span aria-hidden="true">↗</span></a>
       </nav>
       <div class="header-actions">
-        <a id="language-toggle" class="language-toggle" href={lang === "en" ? "/fr/" : "/"} hreflang={lang === "en" ? "fr" : "en"} lang={lang === "en" ? "fr" : "en"} aria-label={lang === "en" ? "Passer en français" : "Switch to English"}><span aria-hidden="true">◎</span><span>{lang === "en" ? "FR" : "EN"}</span></a>
+        <details class="language-dropdown" id="language-dropdown">
+          <summary class="language-toggle" aria-label={t.language}><span aria-hidden="true">◎</span><span>{lang.toUpperCase()}</span><span class="language-chevron" aria-hidden="true">▾</span></summary>
+          <ul class="language-options">
+            {languages.map(language => <li><a href={languagePaths[language]} hreflang={language} lang={language} aria-current={language === lang ? "page" : undefined}><span>{languageNames[language]}</span>{language === lang && <span aria-hidden="true">✓</span>}</a></li>)}
+          </ul>
+        </details>
         <a class="button button-small button-dark" href={appPath}><span>{t.getApp}</span><span aria-hidden="true">↗</span></a>
       </div>
     </div>

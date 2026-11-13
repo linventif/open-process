@@ -4,6 +4,7 @@ Un seul projet Cloudflare Pages sert la vitrine et l’application :
 
 - <https://open-process.linv.dev/> : présentation anglaise, générée en HTML par Astro.
 - <https://open-process.linv.dev/fr/> : présentation française, avec sa propre URL.
+- `/es/` : présentation espagnole, générée avec les mêmes composants et traductions typées.
 - <https://open-process.linv.dev/app/> : application Rust compilée en WebAssembly.
 
 ## Développement
@@ -34,7 +35,8 @@ Sur Windows ou macOS, installer Rust et Trunk avant le premier build.
 
 `bun run build:site` et `bun run build:app` permettent de reconstruire chaque
 partie séparément ; le premier recrée `dist/`, il faut donc le lancer avant le second.
-L’aperçu sert le dossier final : la vitrine à `/`, le français à `/fr/`, l’app à `/app/`.
+L’aperçu sert le dossier final : l’anglais à `/`, le français à `/fr/`, l’espagnol
+à `/es/` et l’app à `/app/`.
 
 ## Cloudflare Pages
 
@@ -66,16 +68,19 @@ et [configuration des builds Pages](https://developers.cloudflare.com/pages/conf
 
 ## SEO et contenu
 
-- HTML anglais et français généré au build : titres, descriptions, contenu et liens
+- HTML anglais, français et espagnol généré au build : titres, descriptions, contenu et liens
   restent lisibles sans JavaScript.
-- URL canoniques, `hreflang` anglais/français/x-default, Open Graph et cartes Twitter.
+- URL canoniques, `hreflang` anglais/français/espagnol/x-default, Open Graph et cartes Twitter.
 - Données structurées `SoftwareApplication` avec licence, gratuité et lien vers l’app.
 - `sitemap-index.xml`, sitemap localisé et `robots.txt` générés au build ; l’app et la
   page 404 sont exclus du sitemap, et `/app/` porte un en-tête `noindex`.
 - CSS et TypeScript regroupés avec noms de fichiers versionnés, captures WebP,
   dimensions d’images explicites, police Inter locale et cache des assets.
-- Navigation clavier, onglets de captures et agrandissement conservés. Le bouton de
-  langue est un vrai lien vers l’autre URL, qui fonctionne aussi sans JavaScript.
+- Navigation clavier, onglets de captures et agrandissement conservés. Un menu
+  déroulant de langue (`details`/`summary`) affiche EN, FR ou ES et propose les
+  trois langues avec leur nom natif et la langue active cochée. Ses liens
+  fonctionnent sans JavaScript ; avec JavaScript, Échap ou un clic extérieur
+  referme le menu.
 
 Les traductions sont dans `src/lib/messages.ts`, le contenu dans
 `src/components/Landing.astro`, les métadonnées dans `src/layouts/Page.astro` et les
@@ -112,7 +117,9 @@ les releases natives. Chaque push sur `main` publie une release
 Les tags `v*` restent pris en charge. Cloudflare Pages construit et déploie le site
 avec son intégration Git ; l’ancien déploiement GitHub Pages est remplacé.
 
-Les tests Bun vérifient les liens de releases, les métadonnées des deux langues,
+Les tests Bun vérifient les liens de releases, les métadonnées des trois langues,
 le sitemap et la présence de l’app dans le dossier final. Les tests sur le dossier
 final se lancent après le build. La validation visuelle couvre aussi les onglets,
 la navigation FR/EN, le dialogue de capture, les téléchargements et le mobile.
+L’ajout de l’espagnol et des liens EN/FR/ES est vérifié par le build et les tests
+HTML ; aucune nouvelle validation visuelle dans un navigateur n’a été exécutée.

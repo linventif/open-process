@@ -336,7 +336,6 @@ pub const TABLE: &[(&str, &str)] = &[
     ),
     ("{} — drag to move or split", "{} — glisser pour déplacer ou diviser"),
     ("Language", "Langue"),
-    ("Language: {} → {}", "Langue : {} → {}"),
     ("All files", "Tous les fichiers"),
     // ---- Panes and canvas
     ("Analysis", "Analyse"),

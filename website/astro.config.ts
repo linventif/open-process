@@ -10,11 +10,11 @@ export default defineConfig({
   vite: { build: { assetsInlineLimit: 0 } },
   i18n: {
     defaultLocale: "en",
-    locales: ["en", "fr"],
+    locales: ["en", "fr", "es"],
     routing: { prefixDefaultLocale: false },
   },
   integrations: [sitemap({
     filter: (page) => !page.endsWith("/404/"),
-    i18n: { defaultLocale: "en", locales: { en: "en", fr: "fr" } },
+    i18n: { defaultLocale: "en", locales: { en: "en", fr: "fr", es: "es" } },
   })],
 });

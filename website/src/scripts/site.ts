@@ -10,6 +10,18 @@ const tabs = [...document.querySelectorAll<HTMLButtonElement>("[data-view]")];
 const image = element<HTMLImageElement>("#preview-image");
 const dialog = element<HTMLDialogElement>("#preview-dialog");
 const macArchitecture = element<HTMLSelectElement>("#mac-architecture");
+const languageDropdown = element<HTMLDetailsElement>("#language-dropdown");
+document.addEventListener("click", (event) => {
+  if (event.target instanceof Node && !languageDropdown.contains(event.target)) {
+    languageDropdown.open = false;
+  }
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && languageDropdown.open) {
+    languageDropdown.open = false;
+    languageDropdown.querySelector("summary")?.focus();
+  }
+});
 let view = 0;
 
 function updatePreview() {

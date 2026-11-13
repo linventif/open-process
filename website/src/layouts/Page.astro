@@ -1,5 +1,5 @@
 ---
-import { messages, type Language } from "../lib/messages";
+import { messages, languages, languagePaths, languageLocales, type Language } from "../lib/messages";
 import { cloudApp, repository } from "../lib/site";
 import { isPreview } from "../lib/deployment";
 import "../styles/global.css";
@@ -7,7 +7,7 @@ import "../styles/global.css";
 interface Props { lang: Language; title?: string; description?: string; noindex?: boolean }
 const { lang, title = messages[lang].title, description = messages[lang].description, noindex = false } = Astro.props;
 const site = Astro.site!;
-const canonical = new URL(lang === "fr" ? "/fr/" : "/", site);
+const canonical = new URL(languagePaths[lang], site);
 const image = new URL("/assets/bpmn.webp", site);
 const robots = noindex || isPreview ? "noindex, nofollow" : "index, follow, max-image-preview:large";
 const structuredData = {
@@ -40,8 +40,7 @@ const structuredData = {
     <meta name="robots" content={robots} />
     {!noindex && <>
       <link rel="canonical" href={canonical} />
-      <link rel="alternate" hreflang="en" href={new URL("/", site)} />
-      <link rel="alternate" hreflang="fr" href={new URL("/fr/", site)} />
+      {languages.map(language => <link rel="alternate" hreflang={language} href={new URL(languagePaths[language], site)} />)}
       <link rel="alternate" hreflang="x-default" href={new URL("/", site)} />
     </>}
     <meta property="og:type" content="website" />
@@ -49,8 +48,8 @@ const structuredData = {
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical.href} />
-    <meta property="og:locale" content={lang === "fr" ? "fr_FR" : "en_GB"} />
-    <meta property="og:locale:alternate" content={lang === "fr" ? "en_GB" : "fr_FR"} />
+    <meta property="og:locale" content={languageLocales[lang]} />
+    {languages.filter(language => language !== lang).map(language => <meta property="og:locale:alternate" content={languageLocales[language]} />)}
     <meta property="og:image" content={image.href} />
     <meta property="og:image:width" content="1400" />
     <meta property="og:image:height" content="860" />

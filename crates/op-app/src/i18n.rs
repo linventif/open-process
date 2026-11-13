@@ -1,10 +1,10 @@
-//! Language switch (English / French) of the user interface.
+//! Language switch (English / French / Spanish) of the user interface.
 //!
 //! The translation tables live in [`op_core::i18n`]; this module adds the
-//! painted flag button of the top bar and the persistence of the choice.
+//! language dropdown of the top bar and the persistence of the choice.
 
 use egui::{Color32, Rect, Stroke, Ui, pos2, vec2};
-use op_core::i18n::{self, Lang, tr, trf};
+use op_core::i18n::{self, Lang, tr};
 
 pub const STORAGE_KEY: &str = "open-process-lang";
 
@@ -17,27 +17,43 @@ pub fn save(storage: &mut dyn eframe::Storage) {
     eframe::set_value(storage, STORAGE_KEY, &i18n::lang());
 }
 
-/// Flag button showing the current language; a click switches to the next one.
-pub fn lang_toggle(ui: &mut Ui) {
+/// Dropdown showing the current language and allowing a direct selection.
+pub fn language_menu(ui: &mut Ui) {
     let lang = i18n::lang();
-    let (rect, resp) = ui.allocate_exact_size(vec2(28.0, 28.0), egui::Sense::click());
-    if resp.hovered() {
-        ui.painter().rect_filled(rect, 7.0, ui.visuals().widgets.hovered.bg_fill);
-    }
-    let flag = Rect::from_center_size(rect.center(), vec2(20.0, 13.0));
+    let resp = ui
+        .menu_button(format!("       {} ▾", lang.code().to_uppercase()), |ui| {
+            for choice in Lang::ALL {
+                if ui.selectable_label(choice == lang, choice.native_name()).clicked() {
+                    i18n::set_lang(choice);
+                    ui.close();
+                    ui.ctx().request_repaint();
+                }
+            }
+        })
+        .response
+        .on_hover_text(tr("Language"));
+    let flag = Rect::from_center_size(pos2(resp.rect.left() + 15.0, resp.rect.center().y), vec2(20.0, 13.0));
     paint_flag(ui, lang, flag);
-    let next = lang.next();
-    let resp = resp.on_hover_text(trf("Language: {} → {}", &[&lang.native_name(), &next.native_name()]));
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tr("Language")));
-    if resp.clicked() {
-        i18n::set_lang(next);
-        ui.ctx().request_repaint();
-    }
 }
 
 pub fn paint_flag(ui: &Ui, lang: Lang, r: Rect) {
     let p = ui.painter().with_clip_rect(r);
     match lang {
+        Lang::Es => {
+            // Spanish flag, with horizontal bands in a 1:2:1 ratio.
+            let red = Color32::from_rgb(170, 21, 27);
+            let yellow = Color32::from_rgb(241, 191, 0);
+            p.rect_filled(r, 0.0, red);
+            p.rect_filled(
+                Rect::from_min_max(
+                    pos2(r.left(), r.top() + r.height() / 4.0),
+                    pos2(r.right(), r.bottom() - r.height() / 4.0),
+                ),
+                0.0,
+                yellow,
+            );
+        }
         Lang::Fr => {
             let w = r.width() / 3.0;
             for (k, c) in [Color32::from_rgb(0, 85, 164), Color32::WHITE, Color32::from_rgb(239, 65, 53)]
@@ -77,9 +93,40 @@ pub fn paint_flag(ui: &Ui, lang: Lang, r: Rect) {
 
 #[cfg(test)]
 mod tests {
+    use super::{STORAGE_KEY, load, save};
     use op_core::i18n::{Lang, placeholders};
 
-    /// The string literals passed to `tr(`, `trf(` or `key(`.
+    #[test]
+    fn language_choice_is_restored() {
+        #[derive(Default)]
+        struct Storage(std::collections::HashMap<String, String>);
+        impl eframe::Storage for Storage {
+            fn get_string(&self, key: &str) -> Option<String> {
+                self.0.get(key).cloned()
+            }
+            fn set_string(&mut self, key: &str, value: String) {
+                self.0.insert(key.to_owned(), value);
+            }
+            fn remove_string(&mut self, key: &str) {
+                self.0.remove(key);
+            }
+            fn flush(&mut self) {}
+        }
+
+        let mut storage = Storage::default();
+        for lang in Lang::ALL {
+            op_core::i18n::set_lang(lang);
+            save(&mut storage);
+            assert_eq!(eframe::get_value::<Lang>(&storage, STORAGE_KEY), Some(lang));
+            op_core::i18n::set_lang(Lang::En);
+            load(Some(&storage));
+            assert_eq!(op_core::i18n::lang(), lang);
+        }
+        load(None);
+        assert_eq!(op_core::i18n::lang(), Lang::En);
+    }
+
+    /// Stable message keys passed to `tr(`, `trf(` or `key(`.
     fn translatable(src: &str) -> Vec<String> {
         let src = src.split("\n#[cfg(test)]\nmod tests").next().unwrap_or(src);
         let mut out = Vec::new();

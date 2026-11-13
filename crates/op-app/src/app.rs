@@ -653,7 +653,7 @@ impl OpenProcessApp {
             });
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 theme_toggle(ui);
-                crate::i18n::lang_toggle(ui);
+                crate::i18n::language_menu(ui);
             });
         });
     }

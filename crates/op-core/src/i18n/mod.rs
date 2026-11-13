@@ -8,6 +8,7 @@
 //! Texts kept in tables and translated later (palette entries, labels…) are
 //! marked with [`key`] so the completeness test can find them.
 
+mod es;
 mod fr;
 
 use serde::{Deserialize, Serialize};
@@ -21,15 +22,17 @@ pub enum Lang {
     #[default]
     En,
     Fr,
+    Es,
 }
 
 impl Lang {
-    pub const ALL: [Lang; 2] = [Lang::En, Lang::Fr];
+    pub const ALL: [Lang; 3] = [Lang::En, Lang::Fr, Lang::Es];
 
     pub fn code(self) -> &'static str {
         match self {
             Lang::En => "en",
             Lang::Fr => "fr",
+            Lang::Es => "es",
         }
     }
 
@@ -38,6 +41,7 @@ impl Lang {
         match self {
             Lang::En => "English",
             Lang::Fr => "Français",
+            Lang::Es => "Español",
         }
     }
 
@@ -52,6 +56,7 @@ impl Lang {
         match self {
             Lang::En => None,
             Lang::Fr => Some(fr::TABLE),
+            Lang::Es => Some(es::TABLE),
         }
     }
 }
@@ -62,6 +67,7 @@ static LANG: AtomicU8 = AtomicU8::new(0);
 pub fn lang() -> Lang {
     match LANG.load(Ordering::Relaxed) {
         1 => Lang::Fr,
+        2 => Lang::Es,
         _ => Lang::En,
     }
 }
@@ -71,6 +77,7 @@ pub fn set_lang(lang: Lang) {
         match lang {
             Lang::En => 0,
             Lang::Fr => 1,
+            Lang::Es => 2,
         },
         Ordering::Relaxed,
     );
@@ -89,10 +96,16 @@ pub fn tr(en: &'static str) -> &'static str {
 /// Translates an English text into the given language.
 pub fn translate(lang: Lang, en: &'static str) -> &'static str {
     static FR: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
+    static ES: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
     match lang {
         Lang::En => en,
         Lang::Fr => FR
             .get_or_init(|| fr::TABLE.iter().copied().collect())
+            .get(en)
+            .copied()
+            .unwrap_or(en),
+        Lang::Es => ES
+            .get_or_init(|| es::TABLE.iter().copied().collect())
             .get(en)
             .copied()
             .unwrap_or(en),
@@ -162,6 +175,19 @@ pub fn placeholders(template: &str) -> Vec<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn language_cycle_and_serialization() {
+        assert_eq!(Lang::Es.code(), "es");
+        assert_eq!(Lang::Es.native_name(), "Español");
+        assert_eq!(Lang::En.next(), Lang::Fr);
+        assert_eq!(Lang::Fr.next(), Lang::Es);
+        assert_eq!(Lang::Es.next(), Lang::En);
+        for (lang, stored) in [(Lang::En, "\"En\""), (Lang::Fr, "\"Fr\""), (Lang::Es, "\"Es\"")] {
+            assert_eq!(serde_json::to_string(&lang).unwrap(), stored);
+            assert_eq!(serde_json::from_str::<Lang>(stored).unwrap(), lang);
+        }
+    }
 
     #[test]
     fn fill_placeholders() {
