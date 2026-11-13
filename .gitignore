@@ -13,3 +13,6 @@ __pycache__/
 
 # Personal course material (not part of the project)
 /cours
+
+# Generated icon previews; original sources are archived in assets/icons.
+/output/
