@@ -37,6 +37,10 @@ test("all three languages are rendered with crawlable content and complete SEO m
     for (const [otherLang, otherRoute, name] of [["en", "/", "English"], ["fr", "/fr/", "Français"], ["es", "/es/", "Español"]]) {
       expect(dropdown).toContain(`href="${otherRoute}" hreflang="${otherLang}" lang="${otherLang}"`);
       expect(dropdown).toContain(`<span>${name}</span>`);
+      const option = dropdown!.match(new RegExp(`<a\\b[^>]*hreflang="${otherLang}"[^>]*>(.*?)<\\/a>`, "s"))?.[1];
+      expect(option).toContain(`src="/flags/${otherLang}.svg"`);
+      expect(option).toContain('alt=""');
+      expect(existsSync(`${dist}flags/${otherLang}.svg`)).toBe(true);
     }
   }
 });

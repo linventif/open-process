@@ -453,3 +453,20 @@ par rectangle commence à côté de la palette ; création, édition, déplaceme
 redimensionnements, styles et annulation restent fonctionnels. L’instantané des
 fonctionnalités terminées passe les **123 tests Rust** pendant la préparation
 des commits, indépendamment de la migration des clés de traduction encore en cours.
+
+## Drapeaux dans les menus de langue
+
+Les choix English, Français et Español affichent leur drapeau dans l’application
+et sur la vitrine, avec le même visuel dans le bouton de langue active. La capture
+`target/screenshots/language_dropdown.png` a été inspectée. Le test d’accueil
+existant vérifie toujours les noms accessibles et le changement de langue.
+
+La suite séquentielle passe les **124 tests Rust** (50 application, 69 cœur et
+5 intégration). Les vérifications native/WebAssembly, le formatage, le build Astro
+et le build web release réussissent. Les **9 tests Bun** passent ; le contrôle du
+HTML vérifie désormais les drapeaux décoratifs et leurs fichiers SVG pour chaque
+option des trois pages. Les trois SVG ont été parsés et les 156 liens locaux de
+la documentation contrôlés, sans erreur. `git diff --check` réussit.
+
+Aucun nouveau test interactif dans un navigateur ni contrôle Windows/macOS
+n’a été exécuté pour cet ajout.

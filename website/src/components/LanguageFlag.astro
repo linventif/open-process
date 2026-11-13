@@ -1,0 +1,8 @@
+---
+import type { Language } from "../lib/messages";
+
+interface Props { lang: Language }
+const { lang } = Astro.props;
+---
+
+<img class="language-flag" src={`/flags/${lang}.svg`} width="20" height="13" alt="" aria-hidden="true" />

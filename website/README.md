@@ -78,7 +78,10 @@ et [configuration des builds Pages](https://developers.cloudflare.com/pages/conf
   dimensions d’images explicites, police Inter locale et cache des assets.
 - Navigation clavier, onglets de captures et agrandissement conservés. Un menu
   déroulant de langue (`details`/`summary`) affiche EN, FR ou ES et propose les
-  trois langues avec leur nom natif et la langue active cochée. Ses liens
+  trois langues avec leur drapeau, leur nom natif et la langue active cochée. Le
+  bouton reprend le drapeau actif. Les images SVG locales de `public/flags/`
+  sont affichées par le composant commun `LanguageFlag.astro` et restent
+  décoratives pour les lecteurs d’écran. Ses liens
   fonctionnent sans JavaScript ; avec JavaScript, Échap ou un clic extérieur
   referme le menu.
 
