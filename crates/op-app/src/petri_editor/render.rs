@@ -127,7 +127,7 @@ impl PetriEditor {
             } else {
                 painter.circle(c, r, pal.fill, stroke);
             }
-            draw_tokens(painter, c, z * 0.5, marking[i], pal.token);
+            draw_tokens(painter, c, r, marking[i], pal.token);
             canvas::text_below(
                 painter,
                 c + vec2(0.0, r + 4.0 * z),

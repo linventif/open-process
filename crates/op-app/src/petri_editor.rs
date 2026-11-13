@@ -20,7 +20,7 @@ use op_core::geom::{Pos, dist_to_polyline};
 use op_core::i18n::{tr, trf};
 use op_core::petri::{ArcKind, Id, Marking, NodeRef, OMEGA, PetriNet};
 
-const PLACE_R: f32 = 11.0;
+const PLACE_R: f32 = 5.5;
 const TRANS_W: f32 = 14.0;
 const TRANS_H: f32 = 44.0;
 const GRID: f32 = 10.0;
@@ -1005,7 +1005,9 @@ fn csv(title: &str, rows: &[String], cols: &[String], vals: &[Vec<String>]) -> S
     out
 }
 
-fn draw_tokens(painter: &Painter, c: Pos2, z: f32, k: u32, color: Color32) {
+fn draw_tokens(painter: &Painter, c: Pos2, place_radius: f32, k: u32, color: Color32) {
+    // Keep token positions and sizes proportional when the place size changes.
+    let z = place_radius / 22.0;
     let r = 3.6 * z;
     let o = 6.8 * z;
     let pts: &[(f32, f32)] = match k {
