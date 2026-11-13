@@ -65,10 +65,10 @@ Les noms de fichiers correspondent au workflow `.github/workflows/release.yml` :
 | macOS Apple Silicon | `open-process-aarch64-apple-darwin` |
 | macOS Intel | `open-process-x86_64-apple-darwin` |
 
-Le lien navigateur mène aux instructions du README, car l’URL publique de
-l’application n’a pas pu être vérifiée à la reprise. Une fois GitHub Pages actif,
-il peut pointer vers `https://linventif.github.io/open-process/`. L’hébergement du
-site vitrine n’installe pas automatiquement l’application WebAssembly.
+Le bouton « Ouvrir la version cloud » mène à
+<https://open-process.linv.dev>. La session de l’application est conservée
+localement dans le navigateur. L’hébergement du site vitrine n’installe pas
+automatiquement l’application WebAssembly.
 
 Les nouveaux binaires sont construits par GitHub Actions quand un tag `v*` est
 poussé. Sur Linux et macOS, il peut être nécessaire d’autoriser l’exécution du

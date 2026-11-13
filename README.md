@@ -82,6 +82,11 @@ Linux needs the usual windowing libraries (`libxkbcommon`, X11 or Wayland).
 
 ### Browser
 
+Open the cloud app at [open-process.linv.dev](https://open-process.linv.dev).
+Your session is saved locally in your browser.
+
+To run it locally:
+
 ```sh
 rustup target add wasm32-unknown-unknown
 cargo install --locked trunk
