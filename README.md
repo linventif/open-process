@@ -94,6 +94,11 @@ trunk serve --release      # http://127.0.0.1:8080
 
 ## Project layout
 
+The product website lives in [`website/`](website/). It is a standalone static
+site with English/French content, application screenshots and GitHub release
+downloads. See [`website/README.md`](website/README.md) for local preview and
+Cloudflare Pages deployment settings.
+
 ```
 crates/
   op-core/   GUI-independent library (models, algorithms, file formats) — native & wasm
