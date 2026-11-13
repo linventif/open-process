@@ -275,7 +275,10 @@ impl BpmnEditor {
                             ui.label(tr("Task type"));
                             egui::ComboBox::from_id_salt("tt").selected_text(t.label()).show_ui(ui, |ui| {
                                 for x in TaskType::ALL {
-                                    ui.selectable_value(t, x, x.label());
+                                    if node_option(ui, x.label(), NodeKind::Task(x), Some(*t == x)).clicked() {
+                                        *t = x;
+                                        ui.close();
+                                    }
                                 }
                             });
                             ui.end_row();
@@ -284,7 +287,10 @@ impl BpmnEditor {
                             ui.label(tr("Gateway type"));
                             egui::ComboBox::from_id_salt("gt").selected_text(g.label()).show_ui(ui, |ui| {
                                 for x in GatewayType::ALL {
-                                    ui.selectable_value(g, x, x.label());
+                                    if node_option(ui, x.label(), NodeKind::Gateway(x), Some(*g == x)).clicked() {
+                                        *g = x;
+                                        ui.close();
+                                    }
                                 }
                             });
                             ui.end_row();

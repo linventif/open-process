@@ -609,6 +609,52 @@ fn trigger_combo(ui: &mut Ui, t: &mut EventTrigger, options: &[EventTrigger]) {
     });
 }
 
+/// Decorative icon inside a standard egui menu button: the label, focus,
+/// selection and hit area remain those of the button.
+fn node_icon(kind: NodeKind) -> egui::Atom<'static> {
+    egui::Atom::paint(vec2(26.0, 26.0), move |ui, args| {
+        let color = args.fallback_text_color;
+        let rect = args.rect.shrink(2.0);
+        match kind {
+            NodeKind::Task(TaskType::Abstract) => {
+                ui.painter()
+                    .rect_stroke(rect.shrink2(vec2(0.0, 4.0)), 3.0, Stroke::new(1.4, color), StrokeKind::Inside);
+            }
+            NodeKind::Task(task) => {
+                ui.painter().text(
+                    rect.center(),
+                    egui::Align2::CENTER_CENTER,
+                    task_marker(task),
+                    FontId::proportional(20.0),
+                    color,
+                );
+            }
+            _ => paint_tool_icon(ui.painter(), rect, color, Tool::Create(kind)),
+        }
+    })
+}
+
+fn node_option(ui: &mut Ui, label: &str, kind: NodeKind, selected: Option<bool>) -> egui::Response {
+    let mut button = egui::Button::new((node_icon(kind), label));
+    if let Some(selected) = selected {
+        button = button.selected(selected);
+    }
+    ui.add(button)
+}
+
+fn task_marker(task: TaskType) -> &'static str {
+    match task {
+        TaskType::Abstract => "",
+        TaskType::User => "👤",
+        TaskType::Manual => "✋",
+        TaskType::Service => "⚙",
+        TaskType::Script => "📜",
+        TaskType::Send => "✉",
+        TaskType::Receive => "📨",
+        TaskType::BusinessRule => "▦",
+    }
+}
+
 fn vertical_text(painter: &Painter, center: Pos2, text: &str, size: f32, color: Color32) {
     if text.is_empty() {
         return;
@@ -737,16 +783,7 @@ pub fn paint_node(painter: &Painter, r: Rect, kind: NodeKind, name: &str, z: f32
                 if mono.is_some() { fill } else { pal.task_fill },
                 Stroke::new(1.4 * zz, col(pal.ink)),
             );
-            let icon = match t {
-                TaskType::Abstract => "",
-                TaskType::User => "👤",
-                TaskType::Manual => "✋",
-                TaskType::Service => "⚙",
-                TaskType::Script => "📜",
-                TaskType::Send => "✉",
-                TaskType::Receive => "📨",
-                TaskType::BusinessRule => "▦",
-            };
+            let icon = task_marker(t);
             if !icon.is_empty() {
                 painter.text(
                     r.min + vec2(5.0, 4.0) * zz,

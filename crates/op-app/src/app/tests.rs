@@ -601,6 +601,71 @@ fn bpmn_editing_by_mouse() {
     assert_eq!(bpmn(&h).diagram.nodes.len(), 4);
     assert_eq!(bpmn(&h).diagram.flows.len(), 3);
     shot(&mut h, "bpmn_edited");
+
+    // The icon + label rows remain clickable and preserve a single undo step.
+    use op_core::bpmn::{GatewayType, NodeKind, TaskType};
+    for dark in [false, true] {
+        h.ctx.set_theme(if dark { egui::Theme::Dark } else { egui::Theme::Light });
+        h.run_steps(4);
+        for (point, menu, options, chosen, label) in [
+            (
+                b,
+                "Task type",
+                TaskType::ALL.map(|t| t.label()).to_vec(),
+                NodeKind::Task(TaskType::User),
+                "User task",
+            ),
+            (
+                egui::pos2(580.0, 400.0),
+                "Gateway type",
+                GatewayType::ALL.map(|g| g.label()).to_vec(),
+                NodeKind::Gateway(GatewayType::Parallel),
+                "Parallel (AND)",
+            ),
+        ] {
+            let before = h.state().docs.last().unwrap().snapshot();
+            h.hover_at(point);
+            h.run_steps(2);
+            for pressed in [true, false] {
+                h.event(egui::Event::PointerButton {
+                    pos: point,
+                    button: egui::PointerButton::Secondary,
+                    pressed,
+                    modifiers: Modifiers::NONE,
+                });
+            }
+            h.run_steps(4);
+            h.get_by_role_and_label(egui::accesskit::Role::Button, menu).click();
+            h.run_steps(4);
+            for option in options {
+                assert!(
+                    h.query_by_role_and_label(egui::accesskit::Role::Button, option).is_some(),
+                    "{menu}: {option}"
+                );
+            }
+            shot(
+                &mut h,
+                &format!(
+                    "bpmn_{}_menu_{}",
+                    if menu == "Task type" { "task" } else { "gateway" },
+                    if dark { "dark" } else { "light" }
+                ),
+            );
+            h.get_by_role_and_label(egui::accesskit::Role::Button, label).click();
+            h.run_steps(5);
+            assert!(bpmn(&h).diagram.nodes.iter().any(|n| n.kind == chosen));
+            let after = h.state().docs.last().unwrap().snapshot();
+            assert_ne!(before, after);
+            h.state_mut().docs.last_mut().unwrap().editor.execute(UNDO, 0.0);
+            h.run_steps(3);
+            assert_eq!(h.state().docs.last().unwrap().snapshot(), before);
+            h.state_mut().docs.last_mut().unwrap().editor.execute(REDO, 0.0);
+            h.run_steps(3);
+            assert_eq!(h.state().docs.last().unwrap().snapshot(), after);
+            h.state_mut().docs.last_mut().unwrap().editor.execute(UNDO, 0.0);
+            h.run_steps(3);
+        }
+    }
 }
 
 #[test]

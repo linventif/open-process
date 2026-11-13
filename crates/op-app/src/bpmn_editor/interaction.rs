@@ -427,10 +427,10 @@ impl BpmnEditor {
                     ui.close();
                 }
                 let kind = self.diagram.node(id).map(|n| n.kind);
-                if let Some(NodeKind::Task(_)) = kind {
-                    ui.menu_button(tr("Task type"), |ui| {
+                if let Some(NodeKind::Task(current)) = kind {
+                    ui.menu_button((node_icon(NodeKind::Task(current)), tr("Task type")), |ui| {
                         for t in TaskType::ALL {
-                            if ui.button(t.label()).clicked() {
+                            if node_option(ui, t.label(), NodeKind::Task(t), Some(t == current)).clicked() {
                                 if let Some(n) = self.diagram.node_mut(id) {
                                     n.kind = NodeKind::Task(t);
                                 }
@@ -439,10 +439,10 @@ impl BpmnEditor {
                         }
                     });
                 }
-                if let Some(NodeKind::Gateway(_)) = kind {
-                    ui.menu_button(tr("Gateway type"), |ui| {
+                if let Some(NodeKind::Gateway(current)) = kind {
+                    ui.menu_button((node_icon(NodeKind::Gateway(current)), tr("Gateway type")), |ui| {
                         for g in GatewayType::ALL {
-                            if ui.button(g.label()).clicked() {
+                            if node_option(ui, g.label(), NodeKind::Gateway(g), Some(g == current)).clicked() {
                                 if let Some(n) = self.diagram.node_mut(id) {
                                     n.kind = NodeKind::Gateway(g);
                                 }
@@ -498,7 +498,7 @@ impl BpmnEditor {
                     (NodeKind::StartEvent(EventTrigger::None), tr("Add start event here")),
                     (NodeKind::EndEvent(EventTrigger::None), tr("Add end event here")),
                 ] {
-                    if ui.button(label).clicked() {
+                    if node_option(ui, label, kind, None).clicked() {
                         let id = self.diagram.add_node(kind, self.snap(w));
                         self.selection = Some(Sel::Node(id));
                         ui.close();
