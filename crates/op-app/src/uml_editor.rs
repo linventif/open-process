@@ -148,17 +148,17 @@ impl UmlEditor {
                             }
                         }
                     });
-                ui.menu_button(tr("Arrange"), |ui| {
+                ui.menu_button(tr("bpmn.arrange"), |ui| {
                     if self.group.len() < 2 {
                         ui.disable();
                     }
                     for (label, horizontal, edge) in [
-                        (tr("Left"), true, -1),
-                        (tr("Center horizontally"), true, 0),
-                        (tr("Right"), true, 1),
-                        (tr("Top"), false, -1),
-                        (tr("Center vertically"), false, 0),
-                        (tr("Bottom"), false, 1),
+                        (tr("common.left"), true, -1),
+                        (tr("canvas.center_horizontal"), true, 0),
+                        (tr("common.right"), true, 1),
+                        (tr("common.top"), false, -1),
+                        (tr("canvas.center_vertical"), false, 0),
+                        (tr("common.bottom"), false, 1),
                     ] {
                         if ui.button(label).clicked() {
                             self.align(horizontal, edge);
@@ -166,21 +166,24 @@ impl UmlEditor {
                         }
                     }
                     if ui
-                        .add_enabled(self.group.len() > 2, egui::Button::new(tr("Distribute horizontally")))
+                        .add_enabled(self.group.len() > 2, egui::Button::new(tr("canvas.distribute_horizontal")))
                         .clicked()
                     {
                         self.distribute(true);
                         ui.close();
                     }
                     if ui
-                        .add_enabled(self.group.len() > 2, egui::Button::new(tr("Distribute vertically")))
+                        .add_enabled(self.group.len() > 2, egui::Button::new(tr("canvas.distribute_vertical")))
                         .clicked()
                     {
                         self.distribute(false);
                         ui.close();
                     }
                 });
-                if ui.add_enabled(!self.group.is_empty(), egui::Button::new(tr("Duplicate"))).clicked() {
+                if ui
+                    .add_enabled(!self.group.is_empty(), egui::Button::new(tr("common.duplicate")))
+                    .clicked()
+                {
                     let fragment = self.diagram.fragment(&self.group);
                     self.paste(&fragment);
                 }
@@ -199,11 +202,11 @@ impl UmlEditor {
         let detail = if !self.status.is_empty() {
             self.status.clone()
         } else if self.group.len() > 1 {
-            trf("{} elements selected", &[&self.group.len()])
+            trf("uml.elements_selected", &[&self.group.len()])
         } else if self.tool == Tool::Connect {
-            tr("Drag between elements, or click source then target. Escape cancels.").into()
+            tr("flow.drag_between_elements_click_source_then_target").into()
         } else {
-            tr("Double-click to rename · Shift to select several · Drag empty space to select").into()
+            tr("uml.double_click_rename_shift_select_several_drag").into()
         };
         let status = FooterStatus {
             detail,

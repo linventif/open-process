@@ -7,7 +7,7 @@ use crate::petri::{NodeRef, PetriNet};
 
 /// Process P from the process-evaluation exercise: A1; AND(A2; XOR(A5,A6), A3; A4, A7); A8.
 pub fn evaluation_process() -> BpmnDiagram {
-    let mut d = BpmnDiagram::new(tr("Process P – evaluation"));
+    let mut d = BpmnDiagram::new(tr("example.process_p_evaluation"));
     let positions = [
         (160.0, 180.0),
         (400.0, 100.0),
@@ -63,16 +63,16 @@ pub fn evaluation_process() -> BpmnDiagram {
 
 /// Order handling process with a pool, two lanes, XOR and AND gateways.
 pub fn order_process() -> BpmnDiagram {
-    let mut d = BpmnDiagram::new(tr("Order handling"));
+    let mut d = BpmnDiagram::new(tr("example.order_handling"));
     let pool = d.add_pool(Pos::new(0.0, 0.0));
     d.add_lane(pool);
     {
         let p = d.pool_mut(pool).unwrap();
-        p.name = tr("Online shop").into();
+        p.name = tr("example.online_shop").into();
         p.width = 1140.0;
-        p.lanes[0].name = tr("Sales").into();
+        p.lanes[0].name = tr("example.sales").into();
         p.lanes[0].height = 200.0;
-        p.lanes[1].name = tr("Warehouse").into();
+        p.lanes[1].name = tr("example.warehouse").into();
         p.lanes[1].height = 200.0;
     }
     let node = |d: &mut BpmnDiagram, kind, x, y, name: &str| {
@@ -85,18 +85,36 @@ pub fn order_process() -> BpmnDiagram {
         NodeKind::StartEvent(EventTrigger::Message),
         90.0,
         100.0,
-        tr("Order received"),
+        tr("epc.order_received"),
     );
-    let check = node(&mut d, NodeKind::Task(TaskType::User), 200.0, 100.0, tr("Check order"));
-    let ok = node(&mut d, NodeKind::Gateway(GatewayType::Exclusive), 330.0, 100.0, tr("Order valid?"));
-    let reject = node(&mut d, NodeKind::Task(TaskType::Send), 460.0, 40.0, tr("Notify rejection"));
-    let e_rej = node(&mut d, NodeKind::EndEvent(EventTrigger::None), 600.0, 40.0, tr("Order rejected"));
+    let check = node(&mut d, NodeKind::Task(TaskType::User), 200.0, 100.0, tr("activity.check_order"));
+    let ok = node(
+        &mut d,
+        NodeKind::Gateway(GatewayType::Exclusive),
+        330.0,
+        100.0,
+        tr("example.order_valid"),
+    );
+    let reject = node(&mut d, NodeKind::Task(TaskType::Send), 460.0, 40.0, tr("example.notify_rejection"));
+    let e_rej = node(
+        &mut d,
+        NodeKind::EndEvent(EventTrigger::None),
+        600.0,
+        40.0,
+        tr("example.order_rejected"),
+    );
     let split = node(&mut d, NodeKind::Gateway(GatewayType::Parallel), 460.0, 300.0, "");
-    let invoice = node(&mut d, NodeKind::Task(TaskType::Service), 600.0, 140.0, tr("Send invoice"));
-    let pack = node(&mut d, NodeKind::Task(TaskType::Manual), 600.0, 300.0, tr("Pack goods"));
-    let ship = node(&mut d, NodeKind::Task(TaskType::Manual), 760.0, 300.0, tr("Ship goods"));
+    let invoice = node(&mut d, NodeKind::Task(TaskType::Service), 600.0, 140.0, tr("example.send_invoice"));
+    let pack = node(&mut d, NodeKind::Task(TaskType::Manual), 600.0, 300.0, tr("example.pack_goods"));
+    let ship = node(&mut d, NodeKind::Task(TaskType::Manual), 760.0, 300.0, tr("example.ship_goods"));
     let join = node(&mut d, NodeKind::Gateway(GatewayType::Parallel), 900.0, 300.0, "");
-    let e_ok = node(&mut d, NodeKind::EndEvent(EventTrigger::None), 1040.0, 300.0, tr("Order fulfilled"));
+    let e_ok = node(
+        &mut d,
+        NodeKind::EndEvent(EventTrigger::None),
+        1040.0,
+        300.0,
+        tr("example.order_fulfilled"),
+    );
     for (a, b) in [
         (s, check),
         (check, ok),
@@ -114,10 +132,10 @@ pub fn order_process() -> BpmnDiagram {
     }
     for f in &mut d.flows {
         if f.from == ok && f.to == reject {
-            f.name = tr("no").into();
+            f.name = tr("common.no").into();
         }
         if f.from == ok && f.to == split {
-            f.name = tr("yes").into();
+            f.name = tr("common.yes").into();
         }
     }
     d
@@ -143,7 +161,7 @@ fn named_transition(n: &mut PetriNet, name: &str, x: f32, y: f32) -> NodeRef {
 
 /// Two processes sharing a critical section protected by a mutex.
 pub fn mutual_exclusion() -> PetriNet {
-    let mut n = PetriNet::new(tr("Mutual exclusion"));
+    let mut n = PetriNet::new(tr("example.mutual_exclusion"));
     let mtx = named_place(&mut n, "mutex", 420.0, 200.0, 1);
     // Each process is a cycle drawn as a diamond: idle → enter → critical → leave → idle,
     // with the critical section on the side of the shared mutex.
@@ -169,7 +187,7 @@ pub fn mutual_exclusion() -> PetriNet {
 
 /// Producer / consumer with a bounded buffer of size 3 (complementary place).
 pub fn producer_consumer() -> PetriNet {
-    let mut n = PetriNet::new(tr("Producer / consumer"));
+    let mut n = PetriNet::new(tr("example.producer_consumer"));
     let ready_p = named_place(&mut n, "ready to produce", 80.0, 100.0, 1);
     let produce = named_transition(&mut n, "produce", 180.0, 40.0);
     let ready_d = named_place(&mut n, "ready to deliver", 80.0, 260.0, 0);
@@ -202,7 +220,7 @@ pub fn producer_consumer() -> PetriNet {
 
 /// Classic dining philosophers (3 philosophers): has a deadlock.
 pub fn dining_philosophers() -> PetriNet {
-    let mut n = PetriNet::new(tr("Dining philosophers"));
+    let mut n = PetriNet::new(tr("example.dining_philosophers"));
     let k = 3;
     let (cx, cy) = (420.0f32, 420.0f32);
     let angle = |i: usize| -std::f32::consts::FRAC_PI_2 + i as f32 * std::f32::consts::TAU / k as f32;
@@ -250,10 +268,12 @@ pub fn dining_philosophers() -> PetriNet {
 /// UML class diagram illustrating interfaces, composition and multiplicities.
 pub fn uml_classes() -> crate::uml::UmlDiagram {
     use crate::uml::{DiagramKind, NodeKind, RelationKind, UmlDiagram};
-    let mut d = UmlDiagram::new(tr("UML – Order classes"), DiagramKind::Class);
-    let customer = d.add_node(NodeKind::Class, Pos::new(20.0, 210.0), tr("Customer")).unwrap();
-    let order = d.add_node(NodeKind::Class, Pos::new(380.0, 210.0), tr("Order")).unwrap();
-    let item = d.add_node(NodeKind::Class, Pos::new(760.0, 210.0), tr("Order item")).unwrap();
+    let mut d = UmlDiagram::new(tr("uml.uml_order_classes"), DiagramKind::Class);
+    let customer = d.add_node(NodeKind::Class, Pos::new(20.0, 210.0), tr("example.customer")).unwrap();
+    let order = d.add_node(NodeKind::Class, Pos::new(380.0, 210.0), tr("example.order")).unwrap();
+    let item = d
+        .add_node(NodeKind::Class, Pos::new(760.0, 210.0), tr("example.order_item"))
+        .unwrap();
     let payable = d.add_node(NodeKind::Interface, Pos::new(380.0, -40.0), "Payable").unwrap();
     d.nodes[0].attributes = "- name: String\n- email: String".into();
     d.nodes[0].operations = "+ placeOrder(): Order".into();
@@ -275,17 +295,19 @@ pub fn uml_classes() -> crate::uml::UmlDiagram {
 /// UML use cases with a system boundary, mandatory inclusion and optional extension.
 pub fn uml_use_cases() -> crate::uml::UmlDiagram {
     use crate::uml::{DiagramKind, NodeKind, RelationKind, UmlDiagram};
-    let mut d = UmlDiagram::new(tr("UML – Online shop use cases"), DiagramKind::UseCase);
-    d.add_node(NodeKind::System, Pos::new(260.0, 0.0), tr("Online shop"));
+    let mut d = UmlDiagram::new(tr("uml.uml_online_shop_use_cases"), DiagramKind::UseCase);
+    d.add_node(NodeKind::System, Pos::new(260.0, 0.0), tr("example.online_shop"));
     d.nodes[0].bounds.w = 650.0;
     d.nodes[0].bounds.h = 450.0;
-    let customer = d.add_node(NodeKind::Actor, Pos::new(30.0, 150.0), tr("Customer")).unwrap();
-    let order = d.add_node(NodeKind::UseCase, Pos::new(320.0, 170.0), tr("Place an order")).unwrap();
+    let customer = d.add_node(NodeKind::Actor, Pos::new(30.0, 150.0), tr("example.customer")).unwrap();
+    let order = d
+        .add_node(NodeKind::UseCase, Pos::new(320.0, 170.0), tr("example.place_order"))
+        .unwrap();
     let pay = d
-        .add_node(NodeKind::UseCase, Pos::new(670.0, 75.0), tr("Pay for the order"))
+        .add_node(NodeKind::UseCase, Pos::new(670.0, 75.0), tr("example.pay_order"))
         .unwrap();
     let discount = d
-        .add_node(NodeKind::UseCase, Pos::new(670.0, 300.0), tr("Apply a discount"))
+        .add_node(NodeKind::UseCase, Pos::new(670.0, 300.0), tr("example.apply_discount"))
         .unwrap();
     d.connect(customer, order, RelationKind::Association);
     d.connect(order, pay, RelationKind::Include);

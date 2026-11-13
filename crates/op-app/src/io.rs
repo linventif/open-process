@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 /// A file picked by the user: (file name, content).
 pub type Loaded = (String, Vec<u8>);
 
-const FILTER_NAME: &str = key("Supported files");
+const FILTER_NAME: &str = key("file.supported_files");
 
 #[derive(Default, Clone)]
 pub struct FileIo {
@@ -30,7 +30,7 @@ impl FileIo {
     pub fn open_dialog(&self, _ctx: &egui::Context, extensions: Vec<&'static str>) {
         if let Some(path) = rfd::FileDialog::new()
             .add_filter(tr(FILTER_NAME), &extensions)
-            .add_filter(tr("All files"), &["*"])
+            .add_filter(tr("file.all_files"), &["*"])
             .pick_file()
         {
             match std::fs::read(&path) {
@@ -147,7 +147,7 @@ pub fn poll_png_export(ctx: &egui::Context) -> Option<Result<String, String>> {
         Err(e) => return Some(Err(e)),
     };
     Some(match save_file(&name, &bytes) {
-        Ok(Some(p)) => Ok(trf("Exported {}", &[&(file_name(&p))])),
+        Ok(Some(p)) => Ok(trf("app.exported", &[&(file_name(&p))])),
         Ok(None) => Ok(String::new()),
         Err(e) => Err(e),
     })

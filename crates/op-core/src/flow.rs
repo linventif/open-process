@@ -201,7 +201,7 @@ impl<K: FlowKind> Diagram<K> {
                         "{} (#{}): {}",
                         tr(n.kind.label()),
                         n.id,
-                        tr(key("Check incoming and outgoing flows."))
+                        tr(key("flow.check_incoming_outgoing_flows"))
                     )
                 })
             })

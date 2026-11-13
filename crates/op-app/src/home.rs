@@ -66,21 +66,17 @@ pub fn show(ui: &mut Ui, docs: &[Document], registry: &crate::editor::DiagramReg
                 crate::brand::show(ui, 64.0);
                 ui.add_space(8.0);
                 ui.label(
-                    RichText::new(tr("YOUR WORKSPACE"))
+                    RichText::new(tr("workspace.workspace"))
                         .font(theme::semibold(10.5))
                         .color(theme::accent(ui.visuals().dark_mode))
                         .extra_letter_spacing(1.5),
                 );
                 ui.add_space(6.0);
-                ui.label(RichText::new(tr("What would you like to do?")).font(theme::semibold(30.0)));
-                ui.label(
-                    RichText::new(tr("Model, discover and understand your processes."))
-                        .size(15.0)
-                        .weak(),
-                );
+                ui.label(RichText::new(tr("workspace.what_would_you_like_do")).font(theme::semibold(30.0)));
+                ui.label(RichText::new(tr("workspace.model_discover_understand_processes")).size(15.0).weak());
                 ui.add_space(14.0);
                 ui.horizontal_wrapped(|ui| {
-                    if ui.add(theme::primary_button(ui, tr("Open a file…"))).clicked() {
+                    if ui.add(theme::primary_button(ui, tr("file.open_file"))).clicked() {
                         action = Some(Action::Open);
                     }
                     ui.label(RichText::new(".opx · .bpmn · .pnml · .xes · .csv · .txt").small().weak());
@@ -93,7 +89,7 @@ pub fn show(ui: &mut Ui, docs: &[Document], registry: &crate::editor::DiagramReg
 
                 if !docs.is_empty() {
                     ui.add_space(24.0);
-                    ui.heading(tr("Continue your work"));
+                    ui.heading(tr("workspace.continue_work"));
                     ui.add_space(6.0);
                     theme::card(ui).show(ui, |ui| {
                         ui.set_width((width - 32.0).max(0.0));
@@ -110,7 +106,7 @@ pub fn show(ui: &mut Ui, docs: &[Document], registry: &crate::editor::DiagramReg
                 }
 
                 ui.add_space(24.0);
-                ui.heading(tr("Start with an example"));
+                ui.heading(tr("workspace.start_example"));
                 ui.add_space(6.0);
                 ui.horizontal_wrapped(|ui| {
                     for e in &registry.examples {
@@ -152,7 +148,7 @@ pub fn diagram_grid(ui: &mut Ui, registry: &crate::editor::DiagramRegistry, quer
         .collect();
     processes.sort_by_key(|p| p.order);
     if processes.is_empty() {
-        ui.label(tr("No matching diagram types."));
+        ui.label(tr("workspace.no_matching_diagram_types"));
         return None;
     }
     match process_grid(ui, &processes) {
@@ -245,7 +241,7 @@ fn process_card(ui: &mut Ui, process: &Process, width: f32) -> bool {
         p.text(
             rect.left_bottom() + vec2(18.0, -22.0),
             egui::Align2::LEFT_CENTER,
-            tr("Get started"),
+            tr("workspace.get_started"),
             theme::medium(12.5),
             process.color,
         );

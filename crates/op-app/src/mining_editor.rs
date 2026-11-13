@@ -58,9 +58,7 @@ case 1 : task D\ncase 3 : task C\ncase 3 : task D\ncase 4 : task B\ncase 5 : tas
 
 pub const EXAMPLE_2: &str = "ABCD\nACBD\nAED\n";
 
-const FORMATS: &str = key(
-    "Accepted formats:\n• Case 1, Task A   (one event per line, or several columns per line)\n• words of one-letter activities: ABCD  ACBD  EF\n• one trace per line: register -> check -> pay\n• CSV with a header (case, activity), or an XES file (ProM)\nLines starting with # are comments.",
-);
+const FORMATS: &str = key("mining.accepted_formats_case_1_task_one_event");
 
 impl MiningEditor {
     pub fn new(doc: op_core::document::LogDocument) -> Self {
@@ -86,7 +84,7 @@ impl MiningEditor {
         }
         let result = EventLog::parse(&self.text).and_then(|log| {
             if log.traces.is_empty() {
-                return Err(tr("No trace found").to_string());
+                return Err(tr("mining.no_trace_found").to_string());
             }
             let r = alpha(&log);
             Ok((log, r))
@@ -162,10 +160,10 @@ impl MiningEditor {
 
     fn input_panel(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
-            ui.label(RichText::new(tr("Event log")).font(theme::semibold(16.0)));
+            ui.label(RichText::new(tr("mining.event_log")).font(theme::semibold(16.0)));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.menu_button(tr("Examples ▾"), |ui| {
-                    if ui.button(tr("ABCD, ACBD, EF  (case / task lines)")).clicked() {
+                ui.menu_button(tr("mining.examples"), |ui| {
+                    if ui.button(tr("mining.abcd_acbd_ef_case_task_lines")).clicked() {
                         self.text = EXAMPLE_1.into();
                     }
                     if ui.button("ABCD, ACBD, AED").clicked() {
@@ -174,12 +172,12 @@ impl MiningEditor {
                 });
             });
         });
-        theme::section_title(ui, tr("Name"));
-        let lbl = ui.label(RichText::new(tr("Name of the log")).small().weak());
+        theme::section_title(ui, tr("common.name"));
+        let lbl = ui.label(RichText::new(tr("mining.name_log")).small().weak());
         ui.add(egui::TextEdit::singleline(&mut self.name).desired_width(f32::INFINITY))
             .labelled_by(lbl.id);
-        theme::section_title(ui, tr("Traces"));
-        let lbl = ui.label(RichText::new(tr("One event or trace per line")).small().weak());
+        theme::section_title(ui, tr("mining.traces"));
+        let lbl = ui.label(RichText::new(tr("mining.one_event_trace_per_line")).small().weak());
         let help_h = 120.0;
         let h = (ui.available_height() - help_h).max(120.0);
         egui::ScrollArea::vertical().id_salt("log_text").max_height(h).show(ui, |ui| {
@@ -193,7 +191,7 @@ impl MiningEditor {
             .labelled_by(lbl.id);
         });
         ui.add_space(6.0);
-        egui::CollapsingHeader::new(RichText::new(tr("Accepted formats")).small())
+        egui::CollapsingHeader::new(RichText::new(tr("mining.accepted_formats")).small())
             .default_open(false)
             .show(ui, |ui| {
                 ui.label(RichText::new(tr(FORMATS)).small().weak());
@@ -350,10 +348,10 @@ fn relation_table(ui: &mut Ui, f: &op_core::mining::Footprint, pal: &Palette) ->
         let (a, b) = (i - 1, j - 1);
         let (x, y) = (&f.activities[a], &f.activities[b]);
         let hint = match f.rel[a][b] {
-            Relation::Causal => trf("{}→{}: {}>{} and not {}>{}", &[&x, &y, &x, &y, &y, &x]),
-            Relation::Reverse => trf("{}←{}: {}>{} and not {}>{}", &[&x, &y, &y, &x, &x, &y]),
-            Relation::Parallel => trf("{}||{}: {}>{} and {}>{}", &[&x, &y, &x, &y, &y, &x]),
-            Relation::Independent => trf("{}#{}: neither {}>{} nor {}>{}", &[&x, &y, &x, &y, &y, &x]),
+            Relation::Causal => trf("mining.relation.causal_reason", &[&x, &y, &x, &y, &y, &x]),
+            Relation::Reverse => trf("mining.relation.reverse_causal_reason", &[&x, &y, &y, &x, &x, &y]),
+            Relation::Parallel => trf("mining.relation.parallel_reason", &[&x, &y, &x, &y, &y, &x]),
+            Relation::Independent => trf("mining.relation.independence_reason", &[&x, &y, &x, &y, &y, &x]),
         };
         resp.on_hover_text_at_pointer(hint);
     }
@@ -366,26 +364,26 @@ fn relation_table(ui: &mut Ui, f: &op_core::mining::Footprint, pal: &Palette) ->
 fn verdict_ui(ui: &mut Ui, v: &Verdict, pal: &Palette) {
     match v {
         Verdict::Correct => {
-            chip(ui, tr("✔ correct"), pal.ok);
+            chip(ui, tr("mining.answer.correct"), pal.ok);
         }
         Verdict::Empty => {
-            chip(ui, tr("nothing written yet"), pal.muted);
+            chip(ui, tr("mining.nothing_written_yet"), pal.muted);
         }
         Verdict::Invalid(e) => {
-            chip(ui, &trf("⚠ can't read: {}", &[&e]), pal.warn);
+            chip(ui, &trf("mining.can_t_read", &[&e]), pal.warn);
         }
         Verdict::Wrong { missing, extra } => {
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing = egui::vec2(4.0, 4.0);
                 chip(ui, "✖", pal.bad);
                 if !missing.is_empty() {
-                    ui.label(RichText::new(trf("missing ({}):", &[&missing.len()])).color(pal.bad));
+                    ui.label(RichText::new(trf("mining.missing", &[&missing.len()])).color(pal.bad));
                     for m in missing {
                         chip(ui, m, pal.bad);
                     }
                 }
                 if !extra.is_empty() {
-                    ui.label(RichText::new(trf("wrong / extra ({}):", &[&extra.len()])).color(pal.warn));
+                    ui.label(RichText::new(trf("mining.wrong_extra", &[&extra.len()])).color(pal.warn));
                     for e in extra {
                         chip(ui, e, pal.warn);
                     }
@@ -418,10 +416,14 @@ fn answer_row(
         };
         let r = ui.add(te.desired_width(w.max(160.0)).font(egui::FontId::monospace(13.0)).hint_text(hint));
         r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, key));
-        if ui.button(tr("Check")).clicked() {
+        if ui.button(tr("common.check")).clicked() {
             st.checked.insert(key.to_string());
         }
-        if ui.button(tr("Fill for me")).on_hover_text(tr("Write the model answer")).clicked() {
+        if ui
+            .button(tr("mining.fill_me"))
+            .on_hover_text(tr("mining.write_model_answer"))
+            .clicked()
+        {
             *text = solution();
             st.checked.insert(key.to_string());
         }
@@ -461,15 +463,15 @@ fn manual_sections(
     card_section(
         ui,
         "2",
-        tr("Relations between activities"),
-        tr("e.g.  A>B, A>C   ·   A→B (or A->B)   ·   B||C   ·   A#D"),
+        tr("mining.relations_between_activities"),
+        tr("mining.e_g_b_c_b_b_b"),
         |ui| {
             for list in RelationList::ALL {
                 let label = match list {
-                    RelationList::Succession => tr("Direct succession  x>y"),
-                    RelationList::Causality => tr("Causality  x→y"),
-                    RelationList::Parallel => tr("Parallelism  x||y"),
-                    RelationList::Independence => tr("Independence  x#y"),
+                    RelationList::Succession => tr("mining.direct_succession_x_y"),
+                    RelationList::Causality => tr("mining.causality_x_y"),
+                    RelationList::Parallel => tr("mining.parallelism_x_y"),
+                    RelationList::Independence => tr("mining.independence_x_y"),
                 };
                 ui.label(RichText::new(label).font(theme::medium(13.0)));
                 let key = format!("rel:{}", list.key());
@@ -494,16 +496,16 @@ fn manual_sections(
     card_section(
         ui,
         "3",
-        tr("Relation matrix"),
-        tr("click a cell to cycle  →  ←  ||  #   (right-click goes back)"),
+        tr("mining.relation_matrix"),
+        tr("mining.click_cell_cycle_right_click_goes_back"),
         |ui| {
             let mut check = st.checked.contains("matrix");
             ui.horizontal(|ui| {
-                if ui.button(tr("Check")).clicked() {
+                if ui.button(tr("common.check")).clicked() {
                     st.checked.insert("matrix".into());
                     check = true;
                 }
-                if ui.button(tr("Fill for me")).clicked() {
+                if ui.button(tr("mining.fill_me")).clicked() {
                     for a in 0..f.len() {
                         for b in 0..f.len() {
                             answers.insert(format!("m:{}:{}", f.activities[a], f.activities[b]), f.cell(a, b).to_string());
@@ -512,7 +514,7 @@ fn manual_sections(
                     st.checked.insert("matrix".into());
                     check = true;
                 }
-                if ui.button(tr("Clear")).clicked() {
+                if ui.button(tr("common.clear")).clicked() {
                     answers.retain(|k, _| !k.starts_with("m:"));
                     st.checked.remove("matrix");
                     check = false;
@@ -523,9 +525,9 @@ fn manual_sections(
             if check {
                 ui.add_space(6.0);
                 if wrong == 0 {
-                    chip(ui, tr("✔ the matrix is correct"), pal.ok);
+                    chip(ui, tr("mining.matrix_correct"), pal.ok);
                 } else {
-                    chip(ui, &trf("✖ {} wrong cell(s), in red (hover them for a hint)", &[&wrong]), pal.bad);
+                    chip(ui, &trf("mining.wrong_cell_s_red_hover_them_hint", &[&wrong]), pal.bad);
                 }
                 tally(Some(wrong == 0));
             }
@@ -533,42 +535,33 @@ fn manual_sections(
     );
 
     // ---- 4. algorithm steps
-    card_section(
-        ui,
-        "4",
-        tr("Alpha algorithm"),
-        tr("notations: {A,B}   ({A},{B,E}) or (A,BE)   P(A,BE)   iw ow   (iw,A)"),
-        |ui| {
-            for step in Step::ALL {
-                let (title, hint, multi) = match step {
-                    Step::Tw => (tr("1. TW — all activities"), "{A,B,C,…}", false),
-                    Step::Ti => (tr("2. TI — initial activities"), "{A}", false),
-                    Step::To => (tr("3. TO — final activities"), "{D}", false),
-                    Step::Xw => (tr("4. XW — causal relations between sets"), "({A},{B}), ({A},{B,E}), …", true),
-                    Step::Yw => (tr("5. YW — maximal pairs of XW"), "({A},{B,E}), …", true),
-                    Step::Pw => (tr("6. PW — places"), "P(A,BE), …, iw, ow", true),
-                    Step::Fw => (tr("7. FW — arcs"), "(iw,A), (A,P(A,BE)), (P(A,BE),B), …", true),
-                };
-                ui.label(RichText::new(title).font(theme::medium(13.0)));
-                tally(answer_row(
-                    ui,
-                    &format!("step:{}", step.key()),
-                    hint,
-                    multi,
-                    answers,
-                    st,
-                    || ans::solution(r, step),
-                    |t| ans::check(r, step, t),
-                    pal,
-                ));
-                ui.add_space(6.0);
-            }
-            ui.label(
-                RichText::new(tr("8. α(W) = (PW, TW, FW): your net is drawn below from your TI, TO and YW."))
-                    .color(ui.visuals().weak_text_color()),
-            );
-        },
-    );
+    card_section(ui, "4", tr("mining.alpha_algorithm"), tr("mining.notations_b_b_e_p_iw_ow"), |ui| {
+        for step in Step::ALL {
+            let (title, hint, multi) = match step {
+                Step::Tw => (tr("mining.1_tw_all_activities"), "{A,B,C,…}", false),
+                Step::Ti => (tr("mining.2_ti_initial_activities"), "{A}", false),
+                Step::To => (tr("mining.3_final_activities"), "{D}", false),
+                Step::Xw => (tr("mining.4_xw_causal_relations_between_sets"), "({A},{B}), ({A},{B,E}), …", true),
+                Step::Yw => (tr("mining.5_yw_maximal_pairs_xw"), "({A},{B,E}), …", true),
+                Step::Pw => (tr("mining.6_pw_places"), "P(A,BE), …, iw, ow", true),
+                Step::Fw => (tr("mining.7_fw_arcs"), "(iw,A), (A,P(A,BE)), (P(A,BE),B), …", true),
+            };
+            ui.label(RichText::new(title).font(theme::medium(13.0)));
+            tally(answer_row(
+                ui,
+                &format!("step:{}", step.key()),
+                hint,
+                multi,
+                answers,
+                st,
+                || ans::solution(r, step),
+                |t| ans::check(r, step, t),
+                pal,
+            ));
+            ui.add_space(6.0);
+        }
+        ui.label(RichText::new(tr("mining.8_alpha_w_pw_tw_fw_net")).color(ui.visuals().weak_text_color()));
+    });
 
     // ---- 5. the student's net
     let get = |k: &str| answers.get(k).cloned().unwrap_or_default();
@@ -581,13 +574,13 @@ fn manual_sections(
     card_section(
         ui,
         "5",
-        tr("Your Petri net"),
-        tr("built from your TI, TO and YW (steps 6–8)"),
+        tr("mining.petri_net"),
+        tr("mining.built_from_ti_yw_steps_6_8"),
         |ui| match &mut st.preview {
             Some((_, Ok(p))) if !p.net.transitions.is_empty() && !yw_empty => {
-                if ui.button(tr("Open my net in the Petri editor")).clicked() {
+                if ui.button(tr("mining.open_my_net_petri_editor")).clicked() {
                     let mut net = p.net.clone();
-                    net.name = trf("{} – my α(W)", &[&name]);
+                    net.name = trf("mining.custom_net_name", &[&name]);
                     *action = Some(MiningAction::OpenPetri(net));
                 }
                 let w = ui.available_width();
@@ -597,20 +590,24 @@ fn manual_sections(
                 chip(ui, &format!("⚠ {e}"), pal.warn);
             }
             _ => {
-                ui.label(RichText::new(tr("Fill TI, TO and YW (step 4) to see your net.")).color(ui.visuals().weak_text_color()));
+                ui.label(RichText::new(tr("mining.fill_ti_yw_step_4_see_net")).color(ui.visuals().weak_text_color()));
             }
         },
     );
 
     // ---- 6. word check on the student's net
-    card_section(ui, "6", tr("Word check"), tr("replay of every trace on your net"), |ui| {
-        match &st.preview {
+    card_section(
+        ui,
+        "6",
+        tr("mining.word_check"),
+        tr("mining.replay_every_trace_net"),
+        |ui| match &st.preview {
             Some((_, Ok(p))) if !p.net.transitions.is_empty() && !yw_empty => {
                 egui::Grid::new("replay_manual").num_columns(2).spacing([14.0, 8.0]).show(ui, |ui| {
                     for (t, _) in log.variants() {
                         ui.label(RichText::new(log.format_trace(&t)).monospace());
                         match replay(&p.net, &t) {
-                            Ok(()) => chip(ui, tr("✔ ok"), pal.ok),
+                            Ok(()) => chip(ui, tr("mining.answer.ok"), pal.ok),
                             Err(e) => chip(ui, &format!("✖ {e}"), pal.bad),
                         };
                         ui.end_row();
@@ -618,29 +615,29 @@ fn manual_sections(
                 });
             }
             _ => {
-                ui.label(RichText::new(tr("Your net is not built yet.")).color(ui.visuals().weak_text_color()));
+                ui.label(RichText::new(tr("mining.net_not_built_yet")).color(ui.visuals().weak_text_color()));
             }
-        }
-    });
+        },
+    );
 
     // ---- progress
     ui.add_space(12.0);
     theme::card(ui).show(ui, |ui| {
         ui.set_width(ui.available_width());
         ui.horizontal(|ui| {
-            ui.label(RichText::new(tr("Progress")).font(theme::semibold(15.0)));
+            ui.label(RichText::new(tr("mining.progress")).font(theme::semibold(15.0)));
             if score.1 == 0 {
-                ui.label(RichText::new(tr("check your answers to see your score")).color(ui.visuals().weak_text_color()));
+                ui.label(RichText::new(tr("mining.check_answers_see_score")).color(ui.visuals().weak_text_color()));
             } else {
                 let color = if score.0 == score.1 { pal.ok } else { pal.warn };
-                chip(ui, &trf("{} / {} checked answers correct", &[&score.0, &score.1]), color);
+                chip(ui, &trf("mining.checked_answers_correct", &[&score.0, &score.1]), color);
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.button(tr("Clear all my answers")).clicked() {
+                if ui.button(tr("mining.clear_all_my_answers")).clicked() {
                     answers.clear();
                     st.checked.clear();
                 }
-                if ui.button(tr("Check all")).clicked() {
+                if ui.button(tr("mining.check_all")).clicked() {
                     st.checked.insert("matrix".into());
                     for l in RelationList::ALL {
                         st.checked.insert(format!("rel:{}", l.key()));
@@ -759,14 +756,14 @@ fn editable_relation_table(
                     let (x, y) = (&f.activities[a], &f.activities[b]);
                     let (xy, yx) = (f.succ[a][b], f.succ[b][a]);
                     hint = Some(trf(
-                        "{}>{} is {}, {}>{} is {} — so {} {} {}",
+                        "mining.relation.explanation",
                         &[
                             &x,
                             &y,
-                            &(if xy { tr("true") } else { tr("false") }),
+                            &(if xy { tr("common.true") } else { tr("common.false") }),
                             &y,
                             &x,
-                            &(if yx { tr("true") } else { tr("false") }),
+                            &(if yx { tr("common.true") } else { tr("common.false") }),
                             &x,
                             &(if expected.is_empty() { "#" } else { expected }),
                             &y,
@@ -801,7 +798,7 @@ fn editable_relation_table(
         );
     }
     p.rect_stroke(rect, 8.0, egui::Stroke::new(1.0, border), egui::StrokeKind::Inside);
-    resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Grid, true, tr("Relation matrix (editable)")));
+    resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Grid, true, tr("mining.relation_matrix_editable")));
     if let Some(h) = hint {
         resp.on_hover_text_at_pointer(h);
     } else {

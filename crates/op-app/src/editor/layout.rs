@@ -122,11 +122,11 @@ impl DiagramLayout {
                         }
                     });
                     if compact {
-                        ui.menu_button(tr("Options"), |ui| {
+                        ui.menu_button(tr("common.options"), |ui| {
                             if inspector_in_menu {
                                 self.inspector_toggle(ui, controls.inspector);
                             }
-                            if ui.button(tr("Zoom to fit")).clicked() {
+                            if ui.button(tr("canvas.zoom_fit")).clicked() {
                                 *controls.fit = true;
                                 ui.close();
                             }
@@ -172,8 +172,8 @@ impl DiagramLayout {
 
     fn inspector_toggle(self, ui: &mut Ui, inspector: &mut Option<bool>) {
         if ui
-            .selectable_label(self.inspector_visible, tr("Inspector"))
-            .on_hover_text(tr("Show / hide the side panel"))
+            .selectable_label(self.inspector_visible, tr("common.inspector"))
+            .on_hover_text(tr("editor.show_hide_side_panel"))
             .clicked()
         {
             *inspector = Some(!self.inspector_visible);
@@ -186,9 +186,9 @@ impl DiagramLayout {
 }
 
 fn view_options(ui: &mut Ui, controls: &mut CanvasControls<'_>, extra_options: impl FnOnce(&mut Ui)) {
-    ui.checkbox(controls.snap, tr("Snap to grid"));
+    ui.checkbox(controls.snap, tr("canvas.snap_grid"));
     if let Some(issues) = controls.issues.as_deref_mut() {
-        ui.checkbox(issues, tr("Show issues"));
+        ui.checkbox(issues, tr("editor.show_issues"));
     }
     extra_options(ui);
 }

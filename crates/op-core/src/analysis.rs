@@ -565,13 +565,13 @@ pub fn soundness_cancellable(net: &PetriNet, limit: usize, cancelled: &impl Fn()
     let rep = BehaviouralReport::compute(&sc, &ss);
     let mut problems = Vec::new();
     if rep.bounded == Some(false) {
-        problems.push(tr("the short-circuited net is unbounded").to_string());
+        problems.push(tr("analysis.short_circuited_net_unbounded").to_string());
     }
     if let Some(lt) = &rep.live_transitions {
         for (k, l) in lt.iter().enumerate().take(net.transitions.len()) {
             if !l {
                 problems.push(trf(
-                    "transition {} is not live (dead or may never complete)",
+                    "analysis.transition_not_live_dead_may_never_complete",
                     &[&(net.transitions[k].name)],
                 ));
             }

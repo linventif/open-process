@@ -32,14 +32,14 @@ impl Kind {
     ];
     pub fn label(self) -> &'static str {
         match self {
-            Self::Rectangle => key("Rectangle"),
-            Self::Ellipse => key("Ellipse"),
-            Self::Diamond => key("Diamond"),
-            Self::Line => key("Line"),
-            Self::Arrow => key("Arrow"),
-            Self::Freehand => key("Freehand"),
-            Self::Text => key("Text"),
-            Self::Note => key("Sticky note"),
+            Self::Rectangle => key("drawing.rectangle"),
+            Self::Ellipse => key("drawing.ellipse"),
+            Self::Diamond => key("drawing.diamond"),
+            Self::Line => key("drawing.line"),
+            Self::Arrow => key("drawing.arrow"),
+            Self::Freehand => key("drawing.freehand"),
+            Self::Text => key("drawing.text"),
+            Self::Note => key("drawing.sticky_note"),
         }
     }
     pub fn is_path(self) -> bool {
@@ -219,29 +219,29 @@ impl Board {
                 || (matches!(e.kind, Kind::Line | Kind::Arrow) && e.points.len() != 2)
                 || e.text.len() > 65_536
             {
-                return Err(tr("Invalid free drawing element.").into());
+                return Err(tr("drawing.invalid_free_drawing_element").into());
             }
         }
         if self.next_id == 0 || self.next_id == Id::MAX || self.elements.len() > 20_000 || points > 200_000 {
-            return Err(tr("Free drawing exceeds the supported size.").into());
+            return Err(tr("drawing.free_drawing_exceeds_supported_size").into());
         }
         Ok(())
     }
 }
 
 pub fn example() -> Board {
-    let mut b = Board::new(tr("A shared idea"));
+    let mut b = Board::new(tr("drawing.shared_idea"));
     let blue = Paint {
         fill: Some([219, 234, 254]),
         stroke: [37, 99, 235],
         ..Default::default()
     };
     let mut idea = Element::new(Kind::Rectangle, Pos::new(50.0, 100.0), Pos::new(270.0, 220.0), blue.clone());
-    idea.text = tr("An idea").into();
+    idea.text = tr("drawing.idea").into();
     b.add(idea);
     b.add(Element::new(Kind::Arrow, Pos::new(290.0, 160.0), Pos::new(390.0, 160.0), blue));
     let mut note = Element::new(Kind::Note, Pos::new(410.0, 80.0), Pos::new(650.0, 260.0), Paint::default());
-    note.text = tr("Sketch, discuss, improve.").into();
+    note.text = tr("drawing.sketch_discuss_improve").into();
     b.add(note);
     let mut title = Element::new(
         Kind::Text,
@@ -252,7 +252,7 @@ pub fn example() -> Board {
             ..Default::default()
         },
     );
-    title.text = tr("A shared idea").into();
+    title.text = tr("drawing.shared_idea").into();
     b.add(title);
     b
 }

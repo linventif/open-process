@@ -100,64 +100,61 @@ pub struct BpmnEditor {
 }
 
 const PALETTE: &[(Tool, &str)] = &[
-    (
-        Tool::Select,
-        key("Select / move (V)\nDrag empty space to pan, wheel to scroll, Ctrl+wheel to zoom"),
-    ),
-    (
-        Tool::Connect,
-        key("Connect (C): sequence flow, message flow between pools, association with data/annotations"),
-    ),
-    (Tool::Create(NodeKind::StartEvent(EventTrigger::None)), key("Start event (S)")),
+    (Tool::Select, key("bpmn.select_move_v_drag_empty_space_pan")),
+    (Tool::Connect, key("bpmn.connect_c_sequence_flow_message_flow_between")),
+    (Tool::Create(NodeKind::StartEvent(EventTrigger::None)), key("bpmn.start_event_s")),
     (
         Tool::Create(NodeKind::IntermediateEvent {
             trigger: EventTrigger::None,
             throwing: false,
         }),
-        key("Intermediate event (I)"),
+        key("bpmn.intermediate_event_i"),
     ),
-    (Tool::Create(NodeKind::EndEvent(EventTrigger::None)), key("End event (E)")),
-    (Tool::Create(NodeKind::Task(TaskType::Abstract)), key("Task (T)")),
-    (Tool::Create(NodeKind::SubProcess), key("Sub-process")),
+    (Tool::Create(NodeKind::EndEvent(EventTrigger::None)), key("bpmn.end_event_e")),
+    (Tool::Create(NodeKind::Task(TaskType::Abstract)), key("bpmn.task_t")),
+    (Tool::Create(NodeKind::SubProcess), key("bpmn.sub_process")),
     (
         Tool::Create(NodeKind::Gateway(GatewayType::Exclusive)),
-        key("Exclusive gateway – XOR (X)"),
+        key("bpmn.exclusive_gateway_xor_x"),
     ),
-    (
-        Tool::Create(NodeKind::Gateway(GatewayType::Parallel)),
-        key("Parallel gateway – AND (+)"),
-    ),
+    (Tool::Create(NodeKind::Gateway(GatewayType::Parallel)), key("bpmn.parallel_gateway")),
     (
         Tool::Create(NodeKind::Gateway(GatewayType::Inclusive)),
-        key("Inclusive gateway – OR (O)"),
+        key("bpmn.inclusive_gateway_o"),
     ),
-    (Tool::Create(NodeKind::Gateway(GatewayType::EventBased)), key("Event-based gateway")),
-    (Tool::Create(NodeKind::DataObject), key("Data object")),
-    (Tool::Create(NodeKind::DataStore), key("Data store")),
-    (Tool::Create(NodeKind::TextAnnotation), key("Text annotation")),
-    (Tool::Pool, key("Pool / participant (with lanes)")),
+    (
+        Tool::Create(NodeKind::Gateway(GatewayType::EventBased)),
+        key("bpmn.event_based_gateway"),
+    ),
+    (Tool::Create(NodeKind::DataObject), key("bpmn.data_object")),
+    (Tool::Create(NodeKind::DataStore), key("bpmn.data_store")),
+    (Tool::Create(NodeKind::TextAnnotation), key("bpmn.text_annotation")),
+    (Tool::Pool, key("bpmn.pool_participant_lanes")),
 ];
 
 const PAD: &[(PadAction, &str)] = &[
-    (PadAction::Append(NodeKind::Task(TaskType::Abstract)), key("Append task")),
+    (PadAction::Append(NodeKind::Task(TaskType::Abstract)), key("bpmn.append_task")),
     (
         PadAction::Append(NodeKind::Gateway(GatewayType::Exclusive)),
-        key("Append exclusive gateway"),
+        key("bpmn.append_exclusive_gateway"),
     ),
     (
         PadAction::Append(NodeKind::Gateway(GatewayType::Parallel)),
-        key("Append parallel gateway"),
+        key("bpmn.append_parallel_gateway"),
     ),
     (
         PadAction::Append(NodeKind::IntermediateEvent {
             trigger: EventTrigger::None,
             throwing: false,
         }),
-        key("Append intermediate event"),
+        key("bpmn.append_intermediate_event"),
     ),
-    (PadAction::Append(NodeKind::EndEvent(EventTrigger::None)), key("Append end event")),
-    (PadAction::Connect, key("Connect to…")),
-    (PadAction::Delete, key("Delete")),
+    (
+        PadAction::Append(NodeKind::EndEvent(EventTrigger::None)),
+        key("bpmn.append_end_event"),
+    ),
+    (PadAction::Connect, key("bpmn.connect")),
+    (PadAction::Delete, key("common.delete")),
 ];
 
 impl BpmnEditor {
@@ -402,7 +399,7 @@ impl BpmnEditor {
         let seq = self.diagram.flows.iter().filter(|f| f.kind == FlowKind::Sequence).count();
         let status = FooterStatus {
             summary: trf(
-                "{} elements · {} flows · {} pools",
+                "bpmn.elements_flows_pools",
                 &[&self.diagram.nodes.len(), &seq, &self.diagram.pools.len()],
             ),
             detail: self.status.clone(),
@@ -424,7 +421,7 @@ impl BpmnEditor {
                 if ui
                     .add_enabled(
                         !self.diagram.nodes.is_empty() || !self.diagram.pools.is_empty(),
-                        egui::Button::new(tr("Auto arrange")),
+                        egui::Button::new(tr("bpmn.auto_arrange")),
                     )
                     .clicked()
                 {
@@ -518,14 +515,14 @@ impl BpmnEditor {
             painter.text(
                 canvas.center() - vec2(0.0, 12.0),
                 egui::Align2::CENTER_CENTER,
-                tr("Empty BPMN diagram"),
+                tr("bpmn.empty_bpmn_diagram"),
                 crate::theme::semibold(17.0),
                 pal.text,
             );
             painter.text(
                 canvas.center() + vec2(0.0, 14.0),
                 egui::Align2::CENTER_CENTER,
-                tr("Pick an element in the palette and click on the canvas"),
+                tr("bpmn.pick_element_palette_click_canvas"),
                 FontId::proportional(13.5),
                 pal.muted,
             );

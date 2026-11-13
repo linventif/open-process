@@ -9,32 +9,32 @@ view_state!(BpmnEditor, BpmnEditorView, uid: u64, view: View, last_canvas: Rect,
 const COMMANDS: &[CommandDescriptor] = &[
     CommandDescriptor {
         id: UNDO,
-        label: key("Undo"),
+        label: key("common.undo"),
         group: CommandGroup::Edit,
     },
     CommandDescriptor {
         id: REDO,
-        label: key("Redo"),
+        label: key("common.redo"),
         group: CommandGroup::Edit,
     },
     CommandDescriptor {
         id: DELETE,
-        label: key("Delete selection"),
+        label: key("common.delete_selection"),
         group: CommandGroup::Edit,
     },
     CommandDescriptor {
         id: FIT,
-        label: key("Zoom to fit"),
+        label: key("canvas.zoom_fit"),
         group: CommandGroup::View,
     },
     CommandDescriptor {
         id: "bpmn.convert-to-petri",
-        label: key("Convert BPMN → Petri net"),
+        label: key("bpmn.convert_bpmn_petri_net"),
         group: CommandGroup::Tools,
     },
     CommandDescriptor {
         id: "bpmn.auto-arrange",
-        label: key("Auto arrange"),
+        label: key("bpmn.auto_arrange"),
         group: CommandGroup::Tools,
     },
 ];
@@ -165,11 +165,9 @@ impl EditorBackend for BpmnEditor {
                 let c = op_core::convert::bpmn_to_petri(&self.diagram);
                 events.push(HostEvent::Open(JsonCodec::new("petri").encode(&c.net)));
                 if c.warnings.is_empty() {
-                    events.push(HostEvent::Message(
-                        tr("BPMN converted to a Petri net (see the Analysis tab for soundness)").into(),
-                    ));
+                    events.push(HostEvent::Message(tr("bpmn.bpmn_converted_petri_net_see_analysis_tab").into()));
                 } else {
-                    events.push(HostEvent::Message(trf("Converted with warnings: {}", &[&c.warnings.join(" · ")])));
+                    events.push(HostEvent::Message(trf("bpmn.converted_warnings", &[&c.warnings.join(" · ")])));
                 }
             }
             "bpmn.evaluation" => self.show_evaluation(),
@@ -187,7 +185,7 @@ impl EditorBackend for BpmnEditor {
         })
     }
     fn export_label(&self) -> &'static str {
-        key("Export BPMN 2.0 XML (.bpmn)…")
+        key("bpmn.export_bpmn_2_0_xml_bpmn")
     }
 }
 
@@ -200,23 +198,23 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
         home_order: 0,
         icon: crate::icons::bpmn,
         aliases: &[],
-        new_label: key("New BPMN diagram"),
-        title: key("Model a process"),
-        description: key("Draw BPMN diagrams with activities, events, gateways, pools and lanes."),
+        new_label: key("bpmn.new_bpmn_diagram"),
+        title: key("bpmn.model_process"),
+        description: key("bpmn.draw_bpmn_diagrams_activities_events_gateways_pools"),
         badge: "BPMN 2.0",
         color: theme::KIND_BPMN,
-        create: |n| JsonCodec::new("bpmn").encode(&BpmnDiagram::new(trf("Process {}", &[&n]))),
+        create: |n| JsonCodec::new("bpmn").encode(&BpmnDiagram::new(trf("bpmn.document_name", &[&n]))),
         open: |d| Ok(Session::boxed(BpmnEditor::new(JsonCodec::new("bpmn").decode(d)?))),
     }]);
     registry.examples.extend([
         ExampleDescriptor {
             id: "bpmn.evaluation",
-            label: key("BPMN – Process P evaluation"),
+            label: key("bpmn.bpmn_process_p_evaluation"),
             create: || JsonCodec::new("bpmn").encode(&examples::evaluation_process()),
         },
         ExampleDescriptor {
             id: "bpmn.order",
-            label: key("BPMN – Order handling"),
+            label: key("bpmn.bpmn_order_handling"),
             create: || JsonCodec::new("bpmn").encode(&examples::order_process()),
         },
     ]);
@@ -232,8 +230,8 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
     registry.workflows.push(WorkflowDescriptor {
         home_order: 3,
         icon: crate::icons::evaluation,
-        title: key("Evaluate costs and durations"),
-        description: key("Explore Process P to calculate traces, activity costs and mean execution time."),
+        title: key("bpmn.evaluate_costs_durations"),
+        description: key("bpmn.explore_process_p_calculate_traces_activity_costs"),
         badge: "BPMN · CA / TA",
         color: egui::Color32::from_rgb(13, 148, 136),
         example: "bpmn.evaluation",

@@ -22,10 +22,10 @@ impl OpenProcessApp {
         let mut cancel = false;
         let response = egui::Modal::new(egui::Id::unique("new_document_picker")).show(ctx, |ui| {
             ui.set_width((ctx.content_rect().width() - 48.0).clamp(160.0, 1040.0));
-            ui.heading(tr("New document"));
-            ui.label(tr("Choose a diagram type to get started."));
+            ui.heading(tr("file.new_document"));
+            ui.label(tr("app.choose_diagram_type_get_started"));
             ui.add_space(8.0);
-            let label = ui.label(tr("Search diagram types"));
+            let label = ui.label(tr("app.search_diagram_types"));
             let search = ui
                 .add(egui::TextEdit::singleline(&mut picker.query).desired_width(f32::INFINITY))
                 .labelled_by(label.id);
@@ -42,7 +42,7 @@ impl OpenProcessApp {
                     chosen = crate::home::diagram_grid(ui, self.registry, &picker.query);
                 });
             ui.separator();
-            if ui.button(tr("Cancel")).clicked() {
+            if ui.button(tr("common.cancel")).clicked() {
                 cancel = true;
             }
         });

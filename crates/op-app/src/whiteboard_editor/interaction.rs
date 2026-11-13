@@ -198,7 +198,7 @@ impl WhiteboardEditor {
                 } else {
                     let mut e = Element::new(kind, start, current, self.state.paint.clone());
                     if kind == Kind::Text {
-                        e.text = tr("Your text").into();
+                        e.text = tr("drawing.text_placeholder").into();
                     }
                     self.add(e);
                 }
@@ -228,7 +228,7 @@ impl WhiteboardEditor {
                 };
                 let mut e = Element::new(kind, p, p + Pos::new(w, h), self.state.paint.clone());
                 if kind == Kind::Text {
-                    e.text = tr("Your text").into();
+                    e.text = tr("drawing.text_placeholder").into();
                 }
                 self.history.sync(&self.board, false);
                 self.add(e);

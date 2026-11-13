@@ -128,7 +128,7 @@ impl OpenProcessApp {
             #[cfg(not(target_arch = "wasm32"))]
             match std::fs::read(&f) {
                 Ok(bytes) => app.io.push((f, bytes)),
-                Err(e) => app.message = Some((trf("Cannot open {}: {}", &[&f, &e]), true)),
+                Err(e) => app.message = Some((trf("file.open_failed", &[&f, &e]), true)),
             }
             #[cfg(target_arch = "wasm32")]
             let _ = f;
@@ -233,7 +233,7 @@ impl OpenProcessApp {
             }
         };
         self.open_stored(state, native.then_some(name.clone()), native, None);
-        self.message = Some((trf("Opened {}", &[&io::file_name(&name)]), false));
+        self.message = Some((trf("app.opened", &[&io::file_name(&name)]), false));
     }
 
     fn save(&mut self, save_as: bool) -> bool {
@@ -246,12 +246,12 @@ impl OpenProcessApp {
         };
         match doc.complete_save(state, result) {
             Ok(Some(path)) => {
-                self.message = Some((trf("Saved {}", &[&io::file_name(&path)]), false));
+                self.message = Some((trf("app.saved", &[&io::file_name(&path)]), false));
                 true
             }
             Ok(None) => false,
             Err(e) => {
-                self.message = Some((trf("Save failed: {}", &[&e]), true));
+                self.message = Some((trf("file.save_failed", &[&e]), true));
                 false
             }
         }
@@ -268,9 +268,9 @@ impl OpenProcessApp {
         };
         let name = format!("{}.{}", doc.file_stem(), data.suffix);
         match io::save_file(&name, &data.bytes) {
-            Ok(Some(p)) => self.message = Some((trf("Exported {}", &[&io::file_name(&p)]), false)),
+            Ok(Some(p)) => self.message = Some((trf("app.exported", &[&io::file_name(&p)]), false)),
             Ok(None) => {}
-            Err(e) => self.message = Some((trf("Export failed: {}", &[&e]), true)),
+            Err(e) => self.message = Some((trf("file.export_failed", &[&e]), true)),
         }
     }
 
@@ -434,7 +434,7 @@ impl OpenProcessApp {
             #[cfg(not(target_arch = "wasm32"))]
             match f.bytes() {
                 Ok(b) => self.io.push((name, b)),
-                Err(e) => self.message = Some((trf("Cannot read {}: {}", &[&name, &e]), true)),
+                Err(e) => self.message = Some((trf("file.read_failed", &[&name, &e]), true)),
             }
             #[cfg(target_arch = "wasm32")]
             {
@@ -456,14 +456,14 @@ impl OpenProcessApp {
             crate::brand::show(ui, 26.0);
             ui.label(RichText::new("Open Process").font(theme::semibold(14.0)));
             ui.add_space(10.0);
-            if ui.selectable_label(self.show_home, tr("Home")).clicked() {
+            if ui.selectable_label(self.show_home, tr("workspace.home")).clicked() {
                 self.show_home = true;
             }
             ui.separator();
-            ui.menu_button(tr("File"), |ui| {
+            ui.menu_button(tr("menu.file"), |ui| {
                 if ui
                     .add(
-                        egui::Button::new(tr("New…"))
+                        egui::Button::new(tr("file.new"))
                             .shortcut_text(ui.ctx().format_shortcut(&KeyboardShortcut::new(Modifiers::COMMAND, Key::N))),
                     )
                     .clicked()
@@ -474,12 +474,10 @@ impl OpenProcessApp {
                 ui.separator();
                 if ui
                     .add(
-                        egui::Button::new(tr("Open…"))
+                        egui::Button::new(tr("file.open"))
                             .shortcut_text(ui.ctx().format_shortcut(&KeyboardShortcut::new(Modifiers::COMMAND, Key::O))),
                     )
-                    .on_hover_text(tr(
-                        "Open Process (.opx), BPMN 2.0 (.bpmn/.xml), PNML (.pnml), event logs (.xes, .csv, .txt)",
-                    ))
+                    .on_hover_text(tr("app.open_process_opx_bpmn_2_0_bpmn"))
                     .clicked()
                 {
                     self.io.open_dialog(ui.ctx(), self.registry.extensions());
@@ -487,18 +485,18 @@ impl OpenProcessApp {
                 if ui
                     .add_enabled(
                         has_doc,
-                        egui::Button::new(tr("Save"))
+                        egui::Button::new(tr("file.save"))
                             .shortcut_text(ui.ctx().format_shortcut(&KeyboardShortcut::new(Modifiers::COMMAND, Key::S))),
                     )
                     .clicked()
                 {
                     self.save(false);
                 }
-                if ui.add_enabled(has_doc, egui::Button::new(tr("Save as…"))).clicked() {
+                if ui.add_enabled(has_doc, egui::Button::new(tr("file.save_as"))).clicked() {
                     self.save(true);
                 }
                 ui.add_enabled_ui(has_doc, |ui| {
-                    ui.menu_button(tr("Export"), |ui| {
+                    ui.menu_button(tr("file.export"), |ui| {
                         let exports = self.docs.get(self.active).map(|d| d.editor.exports()).unwrap_or_default();
                         for export in exports {
                             if ui.button(tr(export.label)).clicked() {
@@ -510,8 +508,8 @@ impl OpenProcessApp {
                         if png {
                             ui.separator();
                             if ui
-                                .button(tr("Export image (PNG)…"))
-                                .on_hover_text(tr("Picture of the visible diagram"))
+                                .button(tr("app.export_image_png"))
+                                .on_hover_text(tr("app.picture_visible_diagram"))
                                 .clicked()
                             {
                                 self.execute(PNG, 0.0);
@@ -521,7 +519,7 @@ impl OpenProcessApp {
                     });
                 });
                 ui.separator();
-                ui.menu_button(tr("Examples"), |ui| {
+                ui.menu_button(tr("menu.examples"), |ui| {
                     for e in &self.registry.examples {
                         if ui.button(tr(e.label)).clicked() {
                             self.open_example(e.id);
@@ -530,17 +528,17 @@ impl OpenProcessApp {
                 });
                 ui.separator();
                 if ui
-                    .add_enabled(!self.docs.is_empty() && !self.show_home, egui::Button::new(tr("Close tab")))
+                    .add_enabled(!self.docs.is_empty() && !self.show_home, egui::Button::new(tr("app.close_tab")))
                     .clicked()
                 {
                     self.confirm_close = Some(self.active);
                 }
                 #[cfg(not(target_arch = "wasm32"))]
-                if ui.button(tr("Quit")).clicked() {
+                if ui.button(tr("app.quit")).clicked() {
                     ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
                 }
             });
-            ui.menu_button(tr("Edit"), |ui| {
+            ui.menu_button(tr("menu.edit"), |ui| {
                 if !has_doc {
                     ui.disable();
                 }
@@ -549,7 +547,7 @@ impl OpenProcessApp {
                 if ui
                     .add_enabled(
                         can_undo,
-                        egui::Button::new(tr("Undo"))
+                        egui::Button::new(tr("common.undo"))
                             .shortcut_text(ui.ctx().format_shortcut(&KeyboardShortcut::new(Modifiers::COMMAND, Key::Z))),
                     )
                     .clicked()
@@ -559,7 +557,7 @@ impl OpenProcessApp {
                 if ui
                     .add_enabled(
                         can_redo,
-                        egui::Button::new(tr("Redo")).shortcut_text(
+                        egui::Button::new(tr("common.redo")).shortcut_text(
                             ui.ctx()
                                 .format_shortcut(&KeyboardShortcut::new(Modifiers::COMMAND | Modifiers::SHIFT, Key::Z)),
                         ),
@@ -568,13 +566,16 @@ impl OpenProcessApp {
                 {
                     self.redo();
                 }
-                if ui.add(egui::Button::new(tr("Delete selection")).shortcut_text("Del")).clicked() {
+                if ui
+                    .add(egui::Button::new(tr("common.delete_selection")).shortcut_text("Del"))
+                    .clicked()
+                {
                     self.execute(DELETE, 0.0);
                 }
             });
-            ui.menu_button(tr("View"), |ui| {
+            ui.menu_button(tr("menu.view"), |ui| {
                 if ui
-                    .add_enabled(has_doc, egui::Button::new(tr("Zoom to fit")).shortcut_text("F"))
+                    .add_enabled(has_doc, egui::Button::new(tr("canvas.zoom_fit")).shortcut_text("F"))
                     .clicked()
                 {
                     self.execute(FIT, 0.0);
@@ -583,7 +584,7 @@ impl OpenProcessApp {
                 let active = self.docs.get(self.active).map(|d| (d.uid, d.editor.views()));
                 if let Some((uid, views)) = active {
                     if !views.is_empty() {
-                        ui.menu_button(tr("Open beside"), |ui| {
+                        ui.menu_button(tr("app.open_beside"), |ui| {
                             for view in views {
                                 if ui.button(tr(view.label)).clicked() {
                                     self.open_beside(
@@ -598,7 +599,7 @@ impl OpenProcessApp {
                         });
                     }
                 }
-                ui.menu_button(tr("Show document beside"), |ui| {
+                ui.menu_button(tr("app.show_document_beside"), |ui| {
                     let others: Vec<(u64, String)> = self
                         .docs
                         .iter()
@@ -607,7 +608,7 @@ impl OpenProcessApp {
                         .map(|(_, d)| (d.uid, d.name()))
                         .collect();
                     if others.is_empty() {
-                        ui.label(RichText::new(tr("Open another document first")).weak());
+                        ui.label(RichText::new(tr("app.open_another_document_first")).weak());
                     }
                     for (uid, name) in others {
                         if ui.button(&name).clicked() {
@@ -621,16 +622,12 @@ impl OpenProcessApp {
                         }
                     }
                 });
-                ui.label(
-                    RichText::new(tr("Tip: drag a tab onto the edge of a pane to split it"))
-                        .small()
-                        .weak(),
-                );
+                ui.label(RichText::new(tr("app.tip_drag_tab_onto_edge_pane_split")).small().weak());
                 ui.separator();
-                ui.label(tr("Theme"));
+                ui.label(tr("ui.theme"));
                 egui::widgets::global_theme_preference_buttons(ui);
             });
-            ui.menu_button(tr("Tools"), |ui| {
+            ui.menu_button(tr("menu.tools"), |ui| {
                 let commands = self.docs.get(self.active).map(|d| d.editor.commands()).unwrap_or(&[]);
                 for c in commands.iter().filter(|c| c.group == CommandGroup::Tools) {
                     let enabled = has_doc && self.docs.get(self.active).is_some_and(|d| d.editor.enabled(c.id));
@@ -639,15 +636,15 @@ impl OpenProcessApp {
                     }
                 }
                 ui.separator();
-                if ui.button(tr("Process discovery (Alpha algorithm)…")).clicked() {
+                if ui.button(tr("app.process_discovery_alpha_algorithm")).clicked() {
                     self.new_document("event-log", None);
                 }
             });
-            ui.menu_button(tr("Help"), |ui| {
-                if ui.button(tr("Keyboard shortcuts")).clicked() {
+            ui.menu_button(tr("menu.help"), |ui| {
+                if ui.button(tr("app.keyboard_shortcuts")).clicked() {
                     self.show_shortcuts = true;
                 }
-                if ui.button(tr("About Open Process")).clicked() {
+                if ui.button(tr("app.about_open_process")).clicked() {
                     self.show_about = true;
                 }
             });
@@ -662,38 +659,39 @@ impl OpenProcessApp {
         let ctx = ui.ctx().clone();
         self.new_document_dialog(&ctx);
         if self.show_about {
-            egui::Window::new(tr("About Open Process")).collapsible(false).resizable(false).open(&mut self.show_about).show(&ctx, |ui| {
-                ui.horizontal(|ui| {
-                    crate::brand::show(ui, 56.0);
-                    ui.heading("Open Process");
+            egui::Window::new(tr("app.about_open_process"))
+                .collapsible(false)
+                .resizable(false)
+                .open(&mut self.show_about)
+                .show(&ctx, |ui| {
+                    ui.horizontal(|ui| {
+                        crate::brand::show(ui, 56.0);
+                        ui.heading("Open Process");
+                    });
+                    ui.label(trf("app.version", &[&(env!("CARGO_PKG_VERSION"))]));
+                    ui.label(tr("app.free_open_source_process_modelling_analysis_bpmn"));
+                    ui.label(tr("app.written_rust_egui_runs_natively_windows_macos"));
+                    ui.label(tr("app.license_mit_apache_2_0"));
                 });
-                ui.label(trf("Version {}", &[&(env!("CARGO_PKG_VERSION"))]));
-                ui.label(tr("Free and open-source process modelling & analysis: BPMN 2.0, Petri nets, matrices, invariants, reachability graphs, soundness."));
-                ui.label(tr("Written in Rust with egui — runs natively on Windows, macOS, Linux and in the browser (WebAssembly)."));
-                ui.label(tr("License: MIT OR Apache-2.0"));
-            });
         }
         if self.show_shortcuts {
-            egui::Window::new(tr("Keyboard shortcuts"))
+            egui::Window::new(tr("app.keyboard_shortcuts"))
                 .collapsible(false)
                 .open(&mut self.show_shortcuts)
                 .show(&ctx, |ui| {
                     egui::Grid::new("shortcuts").striped(true).show(ui, |ui| {
                         for (k, v) in [
-                            ("Ctrl+N / Ctrl+O / Ctrl+S", tr("New document / open / save")),
-                            ("Ctrl+Z / Ctrl+Shift+Z", tr("Undo / redo")),
-                            (tr("Del / Backspace"), tr("Delete selection")),
-                            ("Esc", tr("Back to the select tool")),
-                            ("F", tr("Zoom to fit")),
-                            (tr("Wheel / Ctrl+wheel"), tr("Scroll / zoom")),
-                            (tr("Right or middle drag"), tr("Pan")),
-                            (tr("Double-click / F2"), tr("Rename")),
-                            (
-                                "BPMN: V C S I E T X + O",
-                                tr("Select, connect, start, intermediate, end, task, XOR, AND, OR"),
-                            ),
-                            ("Petri: V P T A K", tr("Select, place, transition, arc, tokens")),
-                            (tr("Petri: S / Space"), tr("Token game / random step")),
+                            ("Ctrl+N / Ctrl+O / Ctrl+S", tr("app.new_document_open_save")),
+                            ("Ctrl+Z / Ctrl+Shift+Z", tr("app.undo_redo")),
+                            (tr("app.del_backspace"), tr("common.delete_selection")),
+                            ("Esc", tr("app.back_select_tool")),
+                            ("F", tr("canvas.zoom_fit")),
+                            (tr("app.wheel_ctrl_wheel"), tr("app.scroll_zoom")),
+                            (tr("app.right_middle_drag"), tr("app.pan")),
+                            (tr("app.double_click_f2"), tr("app.rename")),
+                            ("BPMN: V C S I E T X + O", tr("app.select_connect_start_intermediate_end_task_xor")),
+                            ("Petri: V P T A K", tr("app.select_place_transition_arc_tokens")),
+                            (tr("app.petri_s_space"), tr("app.token_game_random_step")),
                         ] {
                             ui.label(RichText::new(k).monospace());
                             ui.label(v);
@@ -704,25 +702,25 @@ impl OpenProcessApp {
         }
         if let Some(i) = self.confirm_close {
             let mut keep = true;
-            egui::Window::new(tr("Close tab?"))
+            egui::Window::new(tr("app.confirm_close_tab"))
                 .collapsible(false)
                 .resizable(false)
                 .show(&ctx, |ui| {
                     let name = self.docs.get(i).map(|d| d.name()).unwrap_or_default();
-                    ui.label(trf("'{}' has unsaved changes.", &[&name]));
+                    ui.label(trf("app.has_unsaved_changes", &[&name]));
                     ui.horizontal(|ui| {
-                        if ui.button(tr("Save")).clicked() {
+                        if ui.button(tr("file.save")).clicked() {
                             self.active = i;
                             if self.save(false) {
                                 self.close(i);
                                 keep = false;
                             }
                         }
-                        if ui.button(tr("Close without saving")).clicked() {
+                        if ui.button(tr("app.close_without_saving")).clicked() {
                             self.close(i);
                             keep = false;
                         }
-                        if ui.button(tr("Cancel")).clicked() {
+                        if ui.button(tr("common.cancel")).clicked() {
                             keep = false;
                         }
                     });
@@ -758,9 +756,9 @@ fn theme_toggle(ui: &mut Ui) {
         p.circle_filled(c + egui::vec2(3.5, -3.0), 6.0, ui.visuals().panel_fill);
     }
     let resp = resp.on_hover_text(if dark {
-        tr("Switch to light theme")
+        tr("app.switch_light_theme")
     } else {
-        tr("Switch to dark theme")
+        tr("app.switch_dark_theme")
     });
     if resp.clicked() {
         ui.ctx().set_theme(if dark { egui::Theme::Light } else { egui::Theme::Dark });
@@ -937,11 +935,11 @@ impl egui_tiles::Behavior<Pane> for DockBehavior<'_> {
                 self.events.push(DockEvent::ClosePane(p.doc, tile_id));
             }
             resp.context_menu(|ui| {
-                if ui.button(tr("Split right")).clicked() {
+                if ui.button(tr("app.split_right")).clicked() {
                     self.events.push(DockEvent::Beside(p.clone(), false));
                     ui.close();
                 }
-                if ui.button(tr("Split down")).clicked() {
+                if ui.button(tr("app.split_down")).clicked() {
                     self.events.push(DockEvent::Beside(p.clone(), true));
                     ui.close();
                 }
@@ -949,7 +947,10 @@ impl egui_tiles::Behavior<Pane> for DockBehavior<'_> {
                 if !views.is_empty() {
                     ui.separator();
                     for view in views {
-                        if ui.button(trf("Open {} beside", &[&tr(view.label).to_lowercase()])).clicked() {
+                        if ui
+                            .button(trf("app.open_document_beside", &[&tr(view.label).to_lowercase()]))
+                            .clicked()
+                        {
                             self.events.push(DockEvent::Beside(
                                 Pane {
                                     doc: p.doc,
@@ -962,16 +963,16 @@ impl egui_tiles::Behavior<Pane> for DockBehavior<'_> {
                     }
                 }
                 ui.separator();
-                if ui.button(tr("Close")).clicked() {
+                if ui.button(tr("common.close")).clicked() {
                     self.events.push(DockEvent::ClosePane(p.doc, tile_id));
                     ui.close();
                 }
             });
         }
         let hint = if dirty {
-            trf("{} (unsaved changes) — drag to move or split", &[&title])
+            trf("app.unsaved_changes_drag_move_split", &[&title])
         } else {
-            trf("{} — drag to move or split", &[&title])
+            trf("app.drag_move_split", &[&title])
         };
         resp.on_hover_text(hint)
     }
@@ -981,8 +982,8 @@ impl egui_tiles::Behavior<Pane> for DockBehavior<'_> {
         let near = tabs.children.first().copied().filter(|c| tiles.get(*c).is_some());
         let response = ui
             .button(RichText::new("+").font(theme::semibold(16.0)))
-            .on_hover_text(tr("New document"));
-        response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tr("New document")));
+            .on_hover_text(tr("file.new_document"));
+        response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tr("file.new_document")));
         if response.clicked() {
             self.events.push(DockEvent::New(near));
         }
@@ -996,7 +997,7 @@ impl eframe::App for OpenProcessApp {
         }
         match io::poll_png_export(ui.ctx()) {
             Some(Ok(msg)) if !msg.is_empty() => self.message = Some((msg, false)),
-            Some(Err(e)) => self.message = Some((trf("Image export failed: {}", &[&e]), true)),
+            Some(Err(e)) => self.message = Some((trf("file.image_export_failed", &[&e]), true)),
             _ => {}
         }
         self.handle_dropped_files(ui);

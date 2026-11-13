@@ -34,13 +34,13 @@ impl EventTrigger {
 
     pub fn label(self) -> &'static str {
         match self {
-            EventTrigger::None => tr("None"),
-            EventTrigger::Message => tr("Message"),
-            EventTrigger::Timer => tr("Timer"),
-            EventTrigger::Error => tr("Error"),
-            EventTrigger::Signal => tr("Signal"),
-            EventTrigger::Conditional => tr("Conditional"),
-            EventTrigger::Terminate => tr("Terminate"),
+            EventTrigger::None => tr("common.none"),
+            EventTrigger::Message => tr("bpmn.message"),
+            EventTrigger::Timer => tr("bpmn.timer"),
+            EventTrigger::Error => tr("bpmn.error"),
+            EventTrigger::Signal => tr("bpmn.signal"),
+            EventTrigger::Conditional => tr("bpmn.conditional"),
+            EventTrigger::Terminate => tr("bpmn.terminate"),
         }
     }
 
@@ -84,14 +84,14 @@ impl TaskType {
 
     pub fn label(self) -> &'static str {
         match self {
-            TaskType::Abstract => tr("Task"),
-            TaskType::User => tr("User task"),
-            TaskType::Manual => tr("Manual task"),
-            TaskType::Service => tr("Service task"),
-            TaskType::Script => tr("Script task"),
-            TaskType::Send => tr("Send task"),
-            TaskType::Receive => tr("Receive task"),
-            TaskType::BusinessRule => tr("Business rule task"),
+            TaskType::Abstract => tr("bpmn.task"),
+            TaskType::User => tr("bpmn.user_task"),
+            TaskType::Manual => tr("bpmn.manual_task"),
+            TaskType::Service => tr("bpmn.service_task"),
+            TaskType::Script => tr("bpmn.script_task"),
+            TaskType::Send => tr("bpmn.send_task"),
+            TaskType::Receive => tr("bpmn.receive_task"),
+            TaskType::BusinessRule => tr("bpmn.business_rule_task"),
         }
     }
 
@@ -129,11 +129,11 @@ impl GatewayType {
 
     pub fn label(self) -> &'static str {
         match self {
-            GatewayType::Exclusive => tr("Exclusive (XOR)"),
-            GatewayType::Parallel => tr("Parallel (AND)"),
-            GatewayType::Inclusive => tr("Inclusive (OR)"),
-            GatewayType::EventBased => tr("Event-based"),
-            GatewayType::Complex => tr("Complex"),
+            GatewayType::Exclusive => tr("bpmn.exclusive_xor"),
+            GatewayType::Parallel => tr("bpmn.parallel"),
+            GatewayType::Inclusive => tr("bpmn.inclusive"),
+            GatewayType::EventBased => tr("bpmn.event_based"),
+            GatewayType::Complex => tr("bpmn.complex"),
         }
     }
 
@@ -196,23 +196,23 @@ impl NodeKind {
 
     pub fn label(self) -> String {
         match self {
-            NodeKind::StartEvent(EventTrigger::None) => tr("Start event").into(),
-            NodeKind::StartEvent(t) => trf("{} start event", &[&t.label()]),
+            NodeKind::StartEvent(EventTrigger::None) => tr("bpmn.start_event").into(),
+            NodeKind::StartEvent(t) => trf("bpmn.validation.start_event", &[&t.label()]),
             NodeKind::IntermediateEvent { trigger, throwing } => {
                 if throwing {
-                    trf("{} intermediate throw event", &[&trigger.label()])
+                    trf("bpmn.validation.throw_event", &[&trigger.label()])
                 } else {
-                    trf("{} intermediate catch event", &[&trigger.label()])
+                    trf("bpmn.validation.catch_event", &[&trigger.label()])
                 }
             }
-            NodeKind::EndEvent(EventTrigger::None) => tr("End event").into(),
-            NodeKind::EndEvent(t) => trf("{} end event", &[&t.label()]),
+            NodeKind::EndEvent(EventTrigger::None) => tr("bpmn.end_event").into(),
+            NodeKind::EndEvent(t) => trf("bpmn.validation.end_event", &[&t.label()]),
             NodeKind::Task(t) => t.label().into(),
-            NodeKind::SubProcess => tr("Sub-process").into(),
-            NodeKind::Gateway(g) => trf("{} gateway", &[&g.label()]),
-            NodeKind::DataObject => tr("Data object").into(),
-            NodeKind::DataStore => tr("Data store").into(),
-            NodeKind::TextAnnotation => tr("Text annotation").into(),
+            NodeKind::SubProcess => tr("bpmn.sub_process").into(),
+            NodeKind::Gateway(g) => trf("bpmn.validation.gateway", &[&g.label()]),
+            NodeKind::DataObject => tr("bpmn.data_object").into(),
+            NodeKind::DataStore => tr("bpmn.data_store").into(),
+            NodeKind::TextAnnotation => tr("bpmn.text_annotation").into(),
         }
     }
 }
@@ -347,11 +347,11 @@ impl BpmnDiagram {
         let (w, h) = kind.default_size();
         let name = match kind {
             NodeKind::Task(_) => trf(
-                "Task {}",
+                "bpmn.task_name",
                 &[&(self.nodes.iter().filter(|n| matches!(n.kind, NodeKind::Task(_))).count() + 1)],
             ),
-            NodeKind::SubProcess => tr("Sub-process").into(),
-            NodeKind::TextAnnotation => tr("Comment").into(),
+            NodeKind::SubProcess => tr("bpmn.sub_process").into(),
+            NodeKind::TextAnnotation => tr("bpmn.comment").into(),
             _ => String::new(),
         };
         self.nodes.push(Node {
@@ -374,12 +374,12 @@ impl BpmnDiagram {
         let n = self.pools.len() + 1;
         self.pools.push(Pool {
             id,
-            name: trf("Pool {}", &[&n]),
+            name: trf("bpmn.pool_name", &[&n]),
             pos,
             width: 700.0,
             lanes: vec![Lane {
                 id: lane_id,
-                name: tr("Lane 1").into(),
+                name: tr("bpmn.lane_1").into(),
                 height: 180.0,
             }],
         });
@@ -392,7 +392,7 @@ impl BpmnDiagram {
             let n = p.lanes.len() + 1;
             p.lanes.push(Lane {
                 id: lane_id,
-                name: trf("Lane {}", &[&n]),
+                name: trf("bpmn.lane_name", &[&n]),
                 height: 150.0,
             });
         }
@@ -401,10 +401,10 @@ impl BpmnDiagram {
     /// Chooses the right flow kind and validates the connection.
     pub fn add_flow(&mut self, from: Id, to: Id) -> Result<Id, &'static str> {
         if from == to {
-            return Err(tr("Cannot connect an element to itself"));
+            return Err(tr("bpmn.cannot_connect_element_itself"));
         }
         let (Some(a), Some(b)) = (self.node(from), self.node(to)) else {
-            return Err(tr("Unknown element"));
+            return Err(tr("bpmn.unknown_element"));
         };
         let kind = if !a.kind.is_flow_node() || !b.kind.is_flow_node() {
             FlowKind::Association
@@ -412,15 +412,15 @@ impl BpmnDiagram {
             FlowKind::Message
         } else {
             if matches!(a.kind, NodeKind::EndEvent(_)) {
-                return Err(tr("An end event cannot have outgoing sequence flows"));
+                return Err(tr("bpmn.end_event_cannot_have_outgoing_sequence_flows"));
             }
             if matches!(b.kind, NodeKind::StartEvent(_)) {
-                return Err(tr("A start event cannot have incoming sequence flows"));
+                return Err(tr("bpmn.start_event_cannot_have_incoming_sequence_flows"));
             }
             FlowKind::Sequence
         };
         if self.flows.iter().any(|f| f.from == from && f.to == to) {
-            return Err(tr("These elements are already connected"));
+            return Err(tr("bpmn.these_elements_already_connected"));
         }
         let id = self.fresh_id();
         self.flows.push(Flow {
@@ -497,10 +497,10 @@ impl BpmnDiagram {
         let starts = self.nodes.iter().filter(|n| matches!(n.kind, NodeKind::StartEvent(_))).count();
         let ends = self.nodes.iter().filter(|n| matches!(n.kind, NodeKind::EndEvent(_))).count();
         if starts == 0 {
-            issues.push(Issue::warn(None, tr("The process has no start event")));
+            issues.push(Issue::warn(None, tr("bpmn.process_has_no_start_event")));
         }
         if ends == 0 {
-            issues.push(Issue::warn(None, tr("The process has no end event")));
+            issues.push(Issue::warn(None, tr("bpmn.process_has_no_end_event")));
         }
         for n in &self.nodes {
             if !n.kind.is_flow_node() {
@@ -514,48 +514,45 @@ impl BpmnDiagram {
                 format!("'{}'", n.name)
             };
             match n.kind {
-                NodeKind::StartEvent(_) if outs == 0 => issues.push(Issue::error(Some(n.id), trf("{} has no outgoing flow", &[&label]))),
-                NodeKind::EndEvent(_) if ins == 0 => issues.push(Issue::error(Some(n.id), trf("{} has no incoming flow", &[&label]))),
+                NodeKind::StartEvent(_) if outs == 0 => issues.push(Issue::error(Some(n.id), trf("bpmn.has_no_outgoing_flow", &[&label]))),
+                NodeKind::EndEvent(_) if ins == 0 => issues.push(Issue::error(Some(n.id), trf("bpmn.has_no_incoming_flow", &[&label]))),
                 NodeKind::Task(_) | NodeKind::SubProcess | NodeKind::IntermediateEvent { .. } => {
                     if ins == 0 {
-                        issues.push(Issue::error(Some(n.id), trf("{} has no incoming flow", &[&label])));
+                        issues.push(Issue::error(Some(n.id), trf("bpmn.has_no_incoming_flow", &[&label])));
                     }
                     if outs == 0 {
-                        issues.push(Issue::error(Some(n.id), trf("{} has no outgoing flow", &[&label])));
+                        issues.push(Issue::error(Some(n.id), trf("bpmn.has_no_outgoing_flow", &[&label])));
                     }
                     if outs > 1 {
                         issues.push(Issue::warn(
                             Some(n.id),
-                            trf(
-                                "{} has {} outgoing flows (implicit parallel split): use a gateway",
-                                &[&label, &outs],
-                            ),
+                            trf("bpmn.has_outgoing_flows_implicit_parallel_split_use", &[&label, &outs]),
                         ));
                     }
                     if ins > 1 {
                         issues.push(Issue::warn(
                             Some(n.id),
-                            trf("{} has {} incoming flows (implicit merge): use a gateway", &[&label, &ins]),
+                            trf("bpmn.has_incoming_flows_implicit_merge_use_gateway", &[&label, &ins]),
                         ));
                     }
                     if matches!(n.kind, NodeKind::Task(_)) && n.name.trim().is_empty() {
-                        issues.push(Issue::warn(Some(n.id), tr("A task has no name")));
+                        issues.push(Issue::warn(Some(n.id), tr("bpmn.task_has_no_name")));
                     }
                 }
                 NodeKind::Gateway(g) => {
                     if ins == 0 || outs == 0 {
-                        issues.push(Issue::error(Some(n.id), trf("{} must have incoming and outgoing flows", &[&label])));
+                        issues.push(Issue::error(Some(n.id), trf("bpmn.must_have_incoming_outgoing_flows", &[&label])));
                     } else if ins == 1 && outs == 1 {
-                        issues.push(Issue::warn(Some(n.id), trf("{} neither splits nor joins", &[&label])));
+                        issues.push(Issue::warn(Some(n.id), trf("bpmn.validation.no_split_or_join", &[&label])));
                     } else if ins > 1 && outs > 1 {
-                        issues.push(Issue::warn(Some(n.id), trf("{} both joins and splits (mixed gateway)", &[&label])));
+                        issues.push(Issue::warn(Some(n.id), trf("bpmn.both_joins_splits_mixed_gateway", &[&label])));
                     }
                     if matches!(g, GatewayType::Exclusive | GatewayType::Inclusive) && outs > 1 {
                         let unlabeled = self.outgoing(n.id).filter(|f| f.name.trim().is_empty() && !f.is_default).count();
                         if unlabeled > 0 {
                             issues.push(Issue::warn(
                                 Some(n.id),
-                                trf("{}: {} outgoing branch(es) have no condition", &[&label, &unlabeled]),
+                                trf("bpmn.outgoing_branch_es_have_no_condition", &[&label, &unlabeled]),
                             ));
                         }
                     }

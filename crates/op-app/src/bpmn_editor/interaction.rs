@@ -337,7 +337,7 @@ impl BpmnEditor {
                         canvas::badge(
                             &painter,
                             c + vec2(0.0, -sh * z / 2.0 - 14.0),
-                            tr("insert into flow"),
+                            tr("bpmn.insert_into_flow"),
                             11.0,
                             pal.select,
                             pal,
@@ -422,13 +422,13 @@ impl BpmnEditor {
         let (target, w) = self.ctx_target;
         match target {
             Some(Sel::Node(id)) => {
-                if ui.button(tr("Rename…  (F2)")).clicked() {
+                if ui.button(tr("bpmn.rename_f2")).clicked() {
                     self.editing = Some((Sel::Node(id), self.name_of(Sel::Node(id)), true));
                     ui.close();
                 }
                 let kind = self.diagram.node(id).map(|n| n.kind);
                 if let Some(NodeKind::Task(current)) = kind {
-                    ui.menu_button((node_icon(NodeKind::Task(current)), tr("Task type")), |ui| {
+                    ui.menu_button((node_icon(NodeKind::Task(current)), tr("bpmn.task_type")), |ui| {
                         for t in TaskType::ALL {
                             if node_option(ui, t.label(), NodeKind::Task(t), Some(t == current)).clicked() {
                                 if let Some(n) = self.diagram.node_mut(id) {
@@ -440,7 +440,7 @@ impl BpmnEditor {
                     });
                 }
                 if let Some(NodeKind::Gateway(current)) = kind {
-                    ui.menu_button((node_icon(NodeKind::Gateway(current)), tr("Gateway type")), |ui| {
+                    ui.menu_button((node_icon(NodeKind::Gateway(current)), tr("bpmn.gateway_type")), |ui| {
                         for g in GatewayType::ALL {
                             if node_option(ui, g.label(), NodeKind::Gateway(g), Some(g == current)).clicked() {
                                 if let Some(n) = self.diagram.node_mut(id) {
@@ -451,41 +451,41 @@ impl BpmnEditor {
                         }
                     });
                 }
-                if ui.button(tr("Delete")).clicked() {
+                if ui.button(tr("common.delete")).clicked() {
                     self.diagram.remove_node(id);
                     ui.close();
                 }
             }
             Some(Sel::Flow(id)) => {
-                if ui.button(tr("Edit label / condition…")).clicked() {
+                if ui.button(tr("bpmn.edit_label_condition")).clicked() {
                     self.editing = Some((Sel::Flow(id), self.name_of(Sel::Flow(id)), true));
                     ui.close();
                 }
-                if ui.button(tr("Delete")).clicked() {
+                if ui.button(tr("common.delete")).clicked() {
                     self.diagram.remove_flow(id);
                     ui.close();
                 }
             }
             Some(Sel::Pool(id)) => {
-                if ui.button(tr("Add lane")).clicked() {
+                if ui.button(tr("bpmn.add_lane")).clicked() {
                     self.diagram.add_lane(id);
                     ui.close();
                 }
-                if ui.button(tr("Delete pool")).clicked() {
+                if ui.button(tr("bpmn.delete_pool")).clicked() {
                     self.diagram.remove_pool(id);
                     ui.close();
                 }
             }
             Some(Sel::Lane(pid, i)) => {
-                if ui.button(tr("Rename lane…")).clicked() {
+                if ui.button(tr("bpmn.rename_lane")).clicked() {
                     self.editing = Some((Sel::Lane(pid, i), self.name_of(Sel::Lane(pid, i)), true));
                     ui.close();
                 }
-                if ui.button(tr("Add lane")).clicked() {
+                if ui.button(tr("bpmn.add_lane")).clicked() {
                     self.diagram.add_lane(pid);
                     ui.close();
                 }
-                if ui.button(tr("Delete lane")).clicked() {
+                if ui.button(tr("bpmn.delete_lane")).clicked() {
                     self.selection = Some(Sel::Lane(pid, i));
                     self.delete_selection();
                     ui.close();
@@ -493,10 +493,10 @@ impl BpmnEditor {
             }
             None => {
                 for (kind, label) in [
-                    (NodeKind::Task(TaskType::Abstract), tr("Add task here")),
-                    (NodeKind::Gateway(GatewayType::Exclusive), tr("Add exclusive gateway here")),
-                    (NodeKind::StartEvent(EventTrigger::None), tr("Add start event here")),
-                    (NodeKind::EndEvent(EventTrigger::None), tr("Add end event here")),
+                    (NodeKind::Task(TaskType::Abstract), tr("bpmn.add_task_here")),
+                    (NodeKind::Gateway(GatewayType::Exclusive), tr("bpmn.add_exclusive_gateway_here")),
+                    (NodeKind::StartEvent(EventTrigger::None), tr("bpmn.add_start_event_here")),
+                    (NodeKind::EndEvent(EventTrigger::None), tr("bpmn.add_end_event_here")),
                 ] {
                     if node_option(ui, label, kind, None).clicked() {
                         let id = self.diagram.add_node(kind, self.snap(w));
@@ -504,7 +504,7 @@ impl BpmnEditor {
                         ui.close();
                     }
                 }
-                if ui.button(tr("Zoom to fit  (F)")).clicked() {
+                if ui.button(tr("canvas.zoom_fit_shortcut")).clicked() {
                     self.fit_request = true;
                     ui.close();
                 }

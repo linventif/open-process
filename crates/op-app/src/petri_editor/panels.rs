@@ -9,10 +9,10 @@ impl PetriEditor {
             ui,
             &mut self.tab,
             &[
-                (SideTab::Properties, tr("Properties")),
-                (SideTab::Matrices, tr("Matrices")),
-                (SideTab::Analysis, tr("Analysis")),
-                (SideTab::States, tr("States")),
+                (SideTab::Properties, tr("common.properties")),
+                (SideTab::Matrices, tr("view.matrices")),
+                (SideTab::Analysis, tr("view.analysis")),
+                (SideTab::States, tr("view.states")),
             ],
             |ui, tab| {
                 let view = match tab {
@@ -24,7 +24,7 @@ impl PetriEditor {
                 if let Some(v) = view
                     && ui
                         .small_button("↗")
-                        .on_hover_text(tr("Open this view in its own pane (side by side)"))
+                        .on_hover_text(tr("petri.open_view_own_pane_side_side"))
                         .clicked()
                 {
                     self.request_pane = Some(v);
@@ -54,15 +54,15 @@ impl PetriEditor {
         ui.add_enabled_ui(editable, |ui| match self.selection {
             Some(Sel::Node(NodeRef::Place(id))) => {
                 let Some(p) = self.net.place_mut(id) else { return };
-                ui.heading(tr("Place"));
+                ui.heading(tr("petri.place"));
                 egui::Grid::new("pp").num_columns(2).spacing([8.0, 6.0]).show(ui, |ui| {
-                    let lbl = ui.label(tr("Name"));
+                    let lbl = ui.label(tr("common.name"));
                     ui.text_edit_singleline(&mut p.name).labelled_by(lbl.id);
                     ui.end_row();
-                    ui.label(tr("Tokens (M0)"));
+                    ui.label(tr("petri.tokens_m0"));
                     ui.add(egui::DragValue::new(&mut p.tokens).range(0..=100_000));
                     ui.end_row();
-                    ui.label(tr("Capacity"));
+                    ui.label(tr("petri.capacity"));
                     ui.horizontal(|ui| {
                         let mut has = p.capacity.is_some();
                         if ui.checkbox(&mut has, "").changed() {
@@ -79,12 +79,12 @@ impl PetriEditor {
             }
             Some(Sel::Node(NodeRef::Transition(id))) => {
                 let Some(t) = self.net.transition_mut(id) else { return };
-                ui.heading(tr("Transition"));
+                ui.heading(tr("petri.transition"));
                 egui::Grid::new("tp").num_columns(2).spacing([8.0, 6.0]).show(ui, |ui| {
-                    let lbl = ui.label(tr("Name"));
+                    let lbl = ui.label(tr("common.name"));
                     ui.text_edit_singleline(&mut t.name).labelled_by(lbl.id);
                     ui.end_row();
-                    ui.label(tr("Silent (τ)"));
+                    ui.label(tr("petri.silent_tau"));
                     ui.checkbox(&mut t.silent, "");
                     ui.end_row();
                 });
@@ -116,51 +116,53 @@ impl PetriEditor {
                     None => return,
                 };
                 let Some(a) = self.net.arc_mut(id) else { return };
-                ui.heading(tr("Arc"));
+                ui.heading(tr("petri.arc"));
                 ui.label(format!("{from} → {to}"));
                 egui::Grid::new("ap").num_columns(2).spacing([8.0, 6.0]).show(ui, |ui| {
-                    ui.label(tr("Weight"));
+                    ui.label(tr("petri.weight"));
                     ui.add(egui::DragValue::new(&mut a.weight).range(1..=100_000));
                     ui.end_row();
                     if matches!(a.from, NodeRef::Place(_)) {
-                        ui.label(tr("Kind"));
+                        ui.label(tr("petri.kind"));
                         egui::ComboBox::from_id_salt("arck")
-                            .selected_text(if a.kind == ArcKind::Normal { tr("Normal") } else { tr("Inhibitor") })
+                            .selected_text(if a.kind == ArcKind::Normal {
+                                tr("petri.normal")
+                            } else {
+                                tr("petri.inhibitor")
+                            })
                             .show_ui(ui, |ui| {
-                                ui.selectable_value(&mut a.kind, ArcKind::Normal, tr("Normal"));
-                                ui.selectable_value(&mut a.kind, ArcKind::Inhibitor, tr("Inhibitor"));
+                                ui.selectable_value(&mut a.kind, ArcKind::Normal, tr("petri.normal"));
+                                ui.selectable_value(&mut a.kind, ArcKind::Inhibitor, tr("petri.inhibitor"));
                             });
                         ui.end_row();
                     }
                 });
             }
             None => {
-                ui.heading(tr("Petri net"));
+                ui.heading(tr("petri.petri_net"));
                 ui.horizontal(|ui| {
-                    let lbl = ui.label(tr("Name"));
+                    let lbl = ui.label(tr("common.name"));
                     ui.text_edit_singleline(&mut self.net.name).labelled_by(lbl.id);
                 });
                 ui.add_space(8.0);
-                crate::theme::section_title(ui, tr("Tips"));
-                ui.label(tr("• P / T: add places / transitions by clicking."));
-                ui.label(tr(
-                    "• A: drag from a node to another to add an arc (click again on an existing arc's ends to increase its weight).",
-                ));
-                ui.label(tr("• K: left-click a place to add a token, right-click to remove one."));
-                ui.label(tr("• Double-click a node to rename it. Right-click for more actions."));
-                ui.label(tr("• S: start the token game; click green transitions to fire them."));
+                crate::theme::section_title(ui, tr("bpmn.tips"));
+                ui.label(tr("petri.p_t_add_places_transitions_clicking"));
+                ui.label(tr("petri.drag_from_node_another_add_arc_click"));
+                ui.label(tr("petri.k_left_click_place_add_token_right"));
+                ui.label(tr("petri.double_click_node_rename_right_click_more"));
+                ui.label(tr("petri.s_start_token_game_click_green_transitions"));
             }
         });
     }
 
     pub(super) fn group_panel(&mut self, ui: &mut Ui) {
         let places = self.group.iter().filter(|n| matches!(n, NodeRef::Place(_))).count();
-        ui.label(RichText::new(trf("{} elements selected", &[&self.group.len()])).font(crate::theme::semibold(16.0)));
+        ui.label(RichText::new(trf("uml.elements_selected", &[&self.group.len()])).font(crate::theme::semibold(16.0)));
         ui.label(
-            RichText::new(trf("{} place(s), {} transition(s)", &[&places, &(self.group.len() - places)]))
+            RichText::new(trf("petri.place_s_transition_s", &[&places, &(self.group.len() - places)]))
                 .color(ui.visuals().weak_text_color()),
         );
-        crate::theme::section_title(ui, tr("Arrange"));
+        crate::theme::section_title(ui, tr("bpmn.arrange"));
         let pos: Vec<(NodeRef, Pos)> = self.group.iter().filter_map(|&n| self.net.node_pos(n).map(|p| (n, p))).collect();
         let k = pos.len().max(1) as f32;
         let (mx, my) = (
@@ -169,8 +171,8 @@ impl PetriEditor {
         );
         ui.horizontal_wrapped(|ui| {
             if ui
-                .button(tr("Align horizontally"))
-                .on_hover_text(tr("Same vertical position"))
+                .button(tr("canvas.align_horizontal"))
+                .on_hover_text(tr("petri.same_vertical_position"))
                 .clicked()
             {
                 for (n, p) in &pos {
@@ -178,15 +180,15 @@ impl PetriEditor {
                 }
             }
             if ui
-                .button(tr("Align vertically"))
-                .on_hover_text(tr("Same horizontal position"))
+                .button(tr("canvas.align_vertical"))
+                .on_hover_text(tr("petri.same_horizontal_position"))
                 .clicked()
             {
                 for (n, p) in &pos {
                     self.net.set_node_pos(*n, self.snap(Pos::new(mx, p.y)));
                 }
             }
-            if ui.button(tr("Distribute horizontally")).clicked() && pos.len() > 2 {
+            if ui.button(tr("canvas.distribute_horizontal")).clicked() && pos.len() > 2 {
                 let mut v = pos.clone();
                 v.sort_by(|a, b| a.1.x.total_cmp(&b.1.x));
                 let (x0, x1) = (v[0].1.x, v[v.len() - 1].1.x);
@@ -195,7 +197,7 @@ impl PetriEditor {
                     self.net.set_node_pos(*n, Pos::new(x, p.y));
                 }
             }
-            if ui.button(tr("Distribute vertically")).clicked() && pos.len() > 2 {
+            if ui.button(tr("canvas.distribute_vertical")).clicked() && pos.len() > 2 {
                 let mut v = pos.clone();
                 v.sort_by(|a, b| a.1.y.total_cmp(&b.1.y));
                 let (y0, y1) = (v[0].1.y, v[v.len() - 1].1.y);
@@ -205,9 +207,9 @@ impl PetriEditor {
                 }
             }
         });
-        crate::theme::section_title(ui, tr("Tokens"));
+        crate::theme::section_title(ui, tr("petri.tokens"));
         ui.horizontal(|ui| {
-            if ui.button(tr("+1 token")).clicked() {
+            if ui.button(tr("petri.1_token")).clicked() {
                 for n in self.group.clone() {
                     if let NodeRef::Place(id) = n
                         && let Some(p) = self.net.place_mut(id)
@@ -216,7 +218,7 @@ impl PetriEditor {
                     }
                 }
             }
-            if ui.button(tr("Clear tokens")).clicked() {
+            if ui.button(tr("petri.clear_tokens")).clicked() {
                 for n in self.group.clone() {
                     if let NodeRef::Place(id) = n
                         && let Some(p) = self.net.place_mut(id)
@@ -228,7 +230,7 @@ impl PetriEditor {
         });
         ui.add_space(10.0);
         if ui
-            .button(RichText::new(tr("Delete selection")).color(Palette::for_ui(ui).bad))
+            .button(RichText::new(tr("common.delete_selection")).color(Palette::for_ui(ui).bad))
             .clicked()
         {
             self.delete_selection();
@@ -237,15 +239,15 @@ impl PetriEditor {
 
     pub(super) fn simulation_panel(&mut self, ui: &mut Ui) {
         let pal = Palette::for_ui(ui);
-        ui.label(RichText::new(tr("Token game")).font(crate::theme::semibold(16.0)));
+        ui.label(RichText::new(tr("petri.token_game")).font(crate::theme::semibold(16.0)));
         ui.add_space(4.0);
         let marking = self.current_marking();
         let enabled = self.net.enabled_transitions(&marking);
         ui.horizontal(|ui| {
             let can_back = self.sim.as_ref().is_some_and(|s| !s.stack.is_empty());
             if ui
-                .add_enabled(can_back, egui::Button::new(tr("⏴ Back")))
-                .on_hover_text(tr("Undo the last firing"))
+                .add_enabled(can_back, egui::Button::new(tr("petri.back")))
+                .on_hover_text(tr("petri.undo_last_firing"))
                 .clicked()
                 && let Some(s) = &mut self.sim
                 && let Some(m) = s.stack.pop()
@@ -255,22 +257,22 @@ impl PetriEditor {
                 s.anim = None;
             }
             if ui
-                .add_enabled(!enabled.is_empty(), egui::Button::new(tr("Step ⏵")))
-                .on_hover_text(tr("Fire a random enabled transition (Space)"))
+                .add_enabled(!enabled.is_empty(), egui::Button::new(tr("petri.step")))
+                .on_hover_text(tr("petri.fire_random_enabled_transition_space"))
                 .clicked()
             {
                 self.random_step();
             }
             if let Some(s) = &mut self.sim {
-                let label = if s.auto { tr("⏸ Pause") } else { tr("⏵ Play") };
+                let label = if s.auto { tr("petri.pause") } else { tr("petri.play") };
                 if ui
                     .add(crate::theme::primary_button(ui, label))
-                    .on_hover_text(tr("Fire random transitions automatically"))
+                    .on_hover_text(tr("petri.fire_random_transitions_automatically"))
                     .clicked()
                 {
                     s.auto = !s.auto;
                 }
-                if ui.button("⟲").on_hover_text(tr("Back to M0")).clicked() {
+                if ui.button("⟲").on_hover_text(tr("petri.back_m0")).clicked() {
                     s.marking = self.net.initial_marking();
                     s.trace.clear();
                     s.stack.clear();
@@ -280,12 +282,12 @@ impl PetriEditor {
         });
         if let Some(s) = &mut self.sim {
             ui.horizontal(|ui| {
-                ui.label(RichText::new(tr("Speed")).color(ui.visuals().weak_text_color()));
+                ui.label(RichText::new(tr("petri.speed")).color(ui.visuals().weak_text_color()));
                 ui.add(egui::Slider::new(&mut s.interval, 0.05..=2.0).suffix(" s").logarithmic(true));
             });
         }
 
-        crate::theme::section_title(ui, tr("Current marking"));
+        crate::theme::section_title(ui, tr("petri.current_marking"));
         ui.label(RichText::new(format!("M = {}", fmt_u32(&marking))).font(FontId::monospace(13.5)));
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing = vec2(4.0, 4.0);
@@ -296,9 +298,9 @@ impl PetriEditor {
             }
         });
 
-        crate::theme::section_title(ui, tr("Enabled transitions"));
+        crate::theme::section_title(ui, tr("petri.enabled_transitions"));
         if enabled.is_empty() {
-            pill(ui, tr("Dead marking: nothing can fire"), pal.bad, pal.bad);
+            pill(ui, tr("petri.dead_marking_nothing_can_fire"), pal.bad, pal.bad);
         } else {
             let mut fire = None;
             ui.horizontal_wrapped(|ui| {
@@ -311,7 +313,7 @@ impl PetriEditor {
                     )
                     .fill(pal.ok.gamma_multiply(if pal.dark { 0.2 } else { 0.1 }))
                     .corner_radius(6.0);
-                    if ui.add(b).on_hover_text(tr("Fire")).clicked() {
+                    if ui.add(b).on_hover_text(tr("petri.fire")).clicked() {
                         fire = Some(t);
                     }
                 }
@@ -322,9 +324,9 @@ impl PetriEditor {
         }
 
         if let Some(s) = &self.sim {
-            crate::theme::section_title(ui, &trf("Firing sequence σ ({})", &[&s.trace.len()]));
+            crate::theme::section_title(ui, &trf("petri.firing_sequence_sigma", &[&s.trace.len()]));
             if s.trace.is_empty() {
-                ui.label(RichText::new(tr("ε (nothing fired yet)")).color(ui.visuals().weak_text_color()));
+                ui.label(RichText::new(tr("petri.no_firing_yet")).color(ui.visuals().weak_text_color()));
             } else {
                 let trace: Vec<&str> = s.trace.iter().map(|&t| self.net.transitions[t].name.as_str()).collect();
                 ui.add(egui::Label::new(RichText::new(trace.join(" → ")).font(FontId::monospace(13.0))).wrap());
@@ -333,15 +335,15 @@ impl PetriEditor {
         ui.add_space(10.0);
         ui.horizontal(|ui| {
             if ui
-                .button(tr("Use as M0"))
-                .on_hover_text(tr("Make the current marking the initial marking"))
+                .button(tr("petri.use_m0"))
+                .on_hover_text(tr("petri.make_current_marking_initial_marking"))
                 .clicked()
                 && let Some(s) = &self.sim
             {
                 let m = s.marking.clone();
                 self.net.set_initial_marking(&m);
             }
-            if ui.button(tr("Stop")).clicked() {
+            if ui.button(tr("petri.stop")).clicked() {
                 self.sim = None;
             }
         });
@@ -351,7 +353,7 @@ impl PetriEditor {
         let places: Vec<String> = self.net.places.iter().map(|p| p.name.clone()).collect();
         let trans: Vec<String> = self.net.transitions.iter().map(|t| t.name.clone()).collect();
         if places.is_empty() || trans.is_empty() {
-            ui.label(tr("Add places and transitions to see the matrices."));
+            ui.label(tr("petri.add_places_transitions_see_matrices"));
             return;
         }
         let to_i = |m: Vec<Vec<u32>>| {
@@ -365,9 +367,9 @@ impl PetriEditor {
             self.net.incidence_matrix(),
         ];
         let titles = [
-            tr("Pre (W⁻): arcs place → transition"),
-            tr("Post (W⁺): arcs transition → place"),
-            tr("Incidence C = Post − Pre"),
+            tr("petri.pre_w_arcs_place_transition"),
+            tr("petri.post_w_arcs_transition_place"),
+            tr("petri.incidence_c_post_pre"),
         ];
         let short = ["pre", "post", "incidence"];
         let s_of = |m: &Vec<Vec<i64>>| {
@@ -378,7 +380,11 @@ impl PetriEditor {
 
         let mut exercise = self.exercise.is_some();
         ui.horizontal_wrapped(|ui| {
-            crate::theme::segmented(ui, &mut exercise, &[(false, tr("Show")), (true, tr("Exercise: fill by hand"))]);
+            crate::theme::segmented(
+                ui,
+                &mut exercise,
+                &[(false, tr("common.show")), (true, tr("petri.exercise_fill_hand"))],
+            );
         });
         if exercise != self.exercise.is_some() {
             self.exercise = exercise.then(|| [0, 1, 2].map(|_| vec![vec![String::new(); trans.len()]; places.len()]));
@@ -387,8 +393,8 @@ impl PetriEditor {
         ui.add_space(4.0);
         ui.horizontal_wrapped(|ui| {
             if ui
-                .button(tr("Copy LaTeX"))
-                .on_hover_text(tr("Pre, Post, C and M0 as LaTeX pmatrix"))
+                .button(tr("mining.copy_latex"))
+                .on_hover_text(tr("petri.pre_post_c_m0_latex_pmatrix"))
                 .clicked()
             {
                 let mut s = String::new();
@@ -398,11 +404,11 @@ impl PetriEditor {
                 let m0: Vec<Vec<String>> = self.net.initial_marking().iter().map(|x| vec![x.to_string()]).collect();
                 s += &latex("M_0", &m0);
                 ui.ctx().copy_text(s);
-                self.status = tr("Matrices copied as LaTeX").into();
+                self.status = tr("petri.matrices_copied_latex").into();
             }
             if ui
-                .button(tr("Save CSV…"))
-                .on_hover_text(tr("Pre, Post and C in one CSV file"))
+                .button(tr("mining.save_csv"))
+                .on_hover_text(tr("petri.pre_post_c_one_csv_file"))
                 .clicked()
             {
                 let mut out = String::new();
@@ -423,7 +429,7 @@ impl PetriEditor {
                     row.resize(trans.len(), String::new());
                 }
             }
-            ui.label(RichText::new(tr("Type the values, then check. Empty cells count as 0.")).color(ui.visuals().weak_text_color()));
+            ui.label(RichText::new(tr("petri.type_values_then_check_empty_cells_count")).color(ui.visuals().weak_text_color()));
             let mut action = None;
             for k in 0..3 {
                 let r = editable_matrix(
@@ -450,10 +456,10 @@ impl PetriEditor {
             }
             ui.add_space(6.0);
             ui.horizontal(|ui| {
-                if ui.add(crate::theme::primary_button(ui, tr("Check my matrices"))).clicked() {
+                if ui.add(crate::theme::primary_button(ui, tr("petri.check_my_matrices"))).clicked() {
                     self.exercise_checked = true;
                 }
-                if self.exercise_checked && ui.button(tr("Hide corrections")).clicked() {
+                if self.exercise_checked && ui.button(tr("petri.hide_corrections")).clicked() {
                     self.exercise_checked = false;
                 }
             });
@@ -471,13 +477,13 @@ impl PetriEditor {
                 let pal = Palette::for_ui(ui);
                 if wrong == 0 {
                     ui.label(
-                        RichText::new(tr("✔ All three matrices are correct"))
+                        RichText::new(tr("petri.all_three_matrices_correct"))
                             .color(pal.ok)
                             .font(crate::theme::semibold(14.0)),
                     );
                 } else {
                     ui.label(
-                        RichText::new(trf("✖ {} wrong cell(s), highlighted in red", &[&wrong]))
+                        RichText::new(trf("petri.wrong_cell_s_highlighted_red", &[&wrong]))
                             .color(pal.bad)
                             .font(crate::theme::semibold(14.0)),
                     );
@@ -510,8 +516,8 @@ impl PetriEditor {
                     row.push(s.marking[i].to_string());
                 }
             }
-            matrix_grid(ui, tr("Markings"), &places, &cols, &vals, None);
-            ui.label(RichText::new(tr("State equation: M' = M + C·σ  (σ = Parikh vector of the firing sequence)")).weak());
+            matrix_grid(ui, tr("petri.markings"), &places, &cols, &vals, None);
+            ui.label(RichText::new(tr("petri.state_equation_m_m_c_sigma_sigma")).weak());
         }
         if let Some((k, png, rect)) = export {
             let name = format!("{}-{}", self.file_stem(), short[k]);
@@ -540,15 +546,15 @@ impl PetriEditor {
 
     pub(super) fn save_text(&mut self, name: &str, text: &str) {
         match crate::io::save_file(name, text.as_bytes()) {
-            Ok(Some(p)) => self.status = trf("Exported {}", &[&(crate::io::file_name(&p))]),
+            Ok(Some(p)) => self.status = trf("app.exported", &[&(crate::io::file_name(&p))]),
             Ok(None) => {}
-            Err(e) => self.status = trf("Export failed: {}", &[&e]),
+            Err(e) => self.status = trf("file.export_failed", &[&e]),
         }
     }
 
     pub(super) fn analysis_panel(&mut self, ui: &mut Ui) {
         if self.net.places.is_empty() {
-            ui.label(tr("Nothing to analyse yet."));
+            ui.label(tr("petri.nothing_analyse_yet"));
             return;
         }
         if !self.ensure_analysis(ui) {
@@ -561,78 +567,78 @@ impl PetriEditor {
         let tname = |i: usize| net.transitions[i].name.as_str();
 
         ui.horizontal(|ui| {
-            ui.label(tr("State limit"));
+            ui.label(tr("petri.state_limit"));
             ui.add(egui::DragValue::new(&mut self.state_limit).range(10..=1_000_000).speed(100));
         });
 
         ui.add_space(4.0);
-        crate::theme::section_title(ui, tr("Behaviour"));
+        crate::theme::section_title(ui, tr("petri.behaviour"));
         let b = &a.beh;
         let kind = if a.ss.has_omega() {
-            tr("coverability graph")
+            tr("petri.coverability_graph")
         } else {
-            tr("reachability graph")
+            tr("analysis.reachability_graph_name")
         };
         ui.label(trf(
-            "{} states, {} arcs in the {}{}",
+            "petri.states_arcs",
             &[
                 &b.state_count,
                 &b.edge_count,
                 &kind,
-                &(if b.truncated { tr(" (truncated!)") } else { "" }),
+                &(if b.truncated { tr("analysis.truncated_warning") } else { "" }),
             ],
         ));
         egui::Grid::new("beh").num_columns(2).min_col_width(14.0).show(ui, |ui| {
             let k = b.place_bounds.iter().map(|x| x.unwrap_or(u64::MAX)).max().unwrap_or(0);
             let bounded_label = match b.bounded {
-                Some(true) => trf("Bounded ({}-bounded)", &[&k]),
-                _ => tr("Bounded").into(),
+                Some(true) => trf("petri.bounded_bounded", &[&k]),
+                _ => tr("petri.bounded").into(),
             };
             canvas::property_row(
                 ui,
                 &bounded_label,
                 b.bounded,
-                tr("Every place has a finite maximum number of tokens"),
+                tr("petri.every_place_has_finite_maximum_number_tokens"),
             );
-            canvas::property_row(ui, tr("Safe (1-bounded)"), b.safe, tr("No place ever holds more than one token"));
             canvas::property_row(
                 ui,
-                tr("Deadlock-free"),
+                tr("petri.safe_1_bounded"),
+                b.safe,
+                tr("petri.no_place_ever_holds_more_than_one"),
+            );
+            canvas::property_row(
+                ui,
+                tr("petri.deadlock_free"),
                 b.deadlock_free,
-                tr("No reachable marking without enabled transitions"),
+                tr("petri.no_reachable_marking_without_enabled_transitions"),
             );
             canvas::property_row(
                 ui,
-                tr("Live"),
+                tr("petri.live"),
                 b.live,
-                tr("Every transition can always fire again eventually (L4-live)"),
+                tr("petri.every_transition_can_always_fire_again_eventually"),
             );
             canvas::property_row(
                 ui,
-                tr("Reversible"),
+                tr("petri.reversible"),
                 b.reversible,
-                tr("M0 can be reached again from every reachable marking"),
+                tr("petri.m0_can_reached_again_from_every_reachable"),
             );
             let all_quasi = b.quasi_live.iter().all(|&x| x);
             canvas::property_row(
                 ui,
-                tr("Quasi-live (no dead transition)"),
+                tr("petri.quasi_live_no_dead_transition"),
                 Some(all_quasi),
-                tr("Every transition can fire at least once"),
+                tr("petri.every_transition_can_fire_at_least_once"),
             );
         });
         if b.truncated {
-            ui.label(
-                RichText::new(tr(
-                    "The state space was truncated: some properties are undecided (?). Increase the limit.",
-                ))
-                .color(pal.warn),
-            );
+            ui.label(RichText::new(tr("petri.state_space_was_truncated_some_properties_undecided")).color(pal.warn));
         }
 
         if !b.deadlocks.is_empty() {
             ui.add_space(4.0);
-            crate::theme::section_title(ui, tr("Deadlocks"));
+            crate::theme::section_title(ui, tr("petri.deadlocks"));
             // In a workflow net, [o] (one token in the sink place) is the expected final marking.
             let is_final = |m: &[u64]| a.st.workflow_net && m.iter().sum::<u64>() == 1 && m[a.st.sink_places[0]] == 1;
             for &d in b.deadlocks.iter().take(10) {
@@ -645,26 +651,21 @@ impl PetriEditor {
                     if seq.is_empty() { "ε".into() } else { seq.join(" ") }
                 ));
                 if is_final(m) {
-                    ui.label(RichText::new(tr("   ↳ final marking [o]: proper completion of the workflow (expected)")).color(pal.ok));
+                    ui.label(RichText::new(tr("petri.final_marking_o_proper_completion_workflow_expected")).color(pal.ok));
                 }
             }
             if a.st.workflow_net {
-                ui.label(
-                    RichText::new(tr(
-                        "For a workflow net, liveness/reversibility are checked on the short-circuited net: see Soundness below.",
-                    ))
-                    .weak(),
-                );
+                ui.label(RichText::new(tr("petri.workflow_net_liveness_reversibility_checked_short_circuited")).weak());
             }
         }
 
         ui.add_space(4.0);
-        egui::CollapsingHeader::new(tr("Place bounds & transitions"))
+        egui::CollapsingHeader::new(tr("petri.place_bounds_transitions"))
             .default_open(false)
             .show(ui, |ui| {
                 egui::Grid::new("bounds").striped(true).show(ui, |ui| {
-                    ui.label(RichText::new(tr("Place")).strong());
-                    ui.label(RichText::new(tr("Bound")).strong());
+                    ui.label(RichText::new(tr("petri.place")).strong());
+                    ui.label(RichText::new(tr("petri.bound")).strong());
                     ui.end_row();
                     for (i, bd) in b.place_bounds.iter().enumerate() {
                         ui.label(pname(i));
@@ -674,13 +675,13 @@ impl PetriEditor {
                 });
                 ui.add_space(4.0);
                 egui::Grid::new("tlive").striped(true).show(ui, |ui| {
-                    ui.label(RichText::new(tr("Transition")).strong());
-                    ui.label(RichText::new(tr("Quasi-live")).strong());
-                    ui.label(RichText::new(tr("Live")).strong());
+                    ui.label(RichText::new(tr("petri.transition")).strong());
+                    ui.label(RichText::new(tr("petri.quasi_live")).strong());
+                    ui.label(RichText::new(tr("petri.live")).strong());
                     ui.end_row();
                     for (i, q) in b.quasi_live.iter().enumerate() {
                         ui.label(tname(i));
-                        ui.label(if *q { "✔" } else { tr("✖ dead") });
+                        ui.label(if *q { "✔" } else { tr("analysis.dead") });
                         ui.label(match &b.live_transitions {
                             Some(l) => {
                                 if l[i] {
@@ -697,16 +698,16 @@ impl PetriEditor {
             });
 
         ui.add_space(6.0);
-        crate::theme::section_title(ui, tr("Invariants"));
+        crate::theme::section_title(ui, tr("petri.invariants"));
         let m0 = net.initial_marking();
         match &a.pinv {
             Some(v) if !v.is_empty() => {
                 ui.label(trf(
-                    "P-invariants ({}){}",
+                    "petri.p_invariants",
                     &[
                         &v.len(),
                         &(if analysis::covered(v, net.places.len()) {
-                            tr(" — net covered: structurally bounded")
+                            tr("analysis.net_covered_bounded")
                         } else {
                             ""
                         }),
@@ -730,20 +731,20 @@ impl PetriEditor {
                 }
             }
             Some(_) => {
-                ui.label(tr("No semi-positive P-invariant."));
+                ui.label(tr("petri.no_semi_positive_p_invariant"));
             }
             None => {
-                ui.label(tr("P-invariants: too many to compute."));
+                ui.label(tr("petri.p_invariants_too_many_compute"));
             }
         }
         match &a.tinv {
             Some(v) if !v.is_empty() => {
                 ui.label(trf(
-                    "T-invariants ({}){}",
+                    "petri.t_invariants",
                     &[
                         &v.len(),
                         &(if analysis::covered(v, net.transitions.len()) {
-                            tr(" — net covered")
+                            tr("analysis.net_covered")
                         } else {
                             ""
                         }),
@@ -766,62 +767,62 @@ impl PetriEditor {
                 }
             }
             Some(_) => {
-                ui.label(tr("No semi-positive T-invariant (the net cannot return to a marking)."));
+                ui.label(tr("petri.no_semi_positive_t_invariant_net_cannot"));
             }
             None => {
-                ui.label(tr("T-invariants: too many to compute."));
+                ui.label(tr("petri.t_invariants_too_many_compute"));
             }
         }
 
         ui.add_space(6.0);
-        crate::theme::section_title(ui, tr("Structure"));
+        crate::theme::section_title(ui, tr("petri.structure"));
         let s = &a.st;
         egui::Grid::new("struct").num_columns(2).min_col_width(14.0).show(ui, |ui| {
-            canvas::property_row(ui, tr("Ordinary (all weights = 1)"), Some(s.ordinary), "");
-            canvas::property_row(ui, tr("Pure (no self-loop)"), Some(s.pure), "");
+            canvas::property_row(ui, tr("petri.ordinary_all_weights_1"), Some(s.ordinary), "");
+            canvas::property_row(ui, tr("petri.pure_no_self_loop"), Some(s.pure), "");
             canvas::property_row(
                 ui,
-                tr("State machine"),
+                tr("petri.state_machine"),
                 Some(s.state_machine),
-                tr("Each transition has exactly one input and one output place"),
+                tr("petri.each_transition_has_exactly_one_input_one"),
             );
             canvas::property_row(
                 ui,
-                tr("Marked graph"),
+                tr("petri.marked_graph"),
                 Some(s.marked_graph),
-                tr("Each place has exactly one input and one output transition"),
+                tr("petri.each_place_has_exactly_one_input_one"),
             );
             canvas::property_row(
                 ui,
-                tr("Free-choice"),
+                tr("petri.free_choice"),
                 Some(s.free_choice),
-                tr("Conflicting transitions have a single input place"),
+                tr("petri.conflicting_transitions_have_single_input_place"),
             );
-            canvas::property_row(ui, tr("Extended free-choice"), Some(s.extended_free_choice), "");
+            canvas::property_row(ui, tr("petri.extended_free_choice"), Some(s.extended_free_choice), "");
             canvas::property_row(
                 ui,
-                tr("Workflow net"),
+                tr("petri.workflow_net"),
                 Some(s.workflow_net),
-                tr("One source place i, one sink place o, every node on a path from i to o"),
+                tr("petri.one_source_place_i_one_sink_place"),
             );
         });
         if s.has_inhibitor_arcs {
-            ui.label(RichText::new(tr("Inhibitor arcs are ignored by matrices and invariants.")).weak());
+            ui.label(RichText::new(tr("petri.inhibitor_arcs_ignored_matrices_invariants")).weak());
         }
         if s.workflow_net {
             ui.add_space(4.0);
             match &a.sound {
                 Soundness::Sound => {
-                    ui.label(RichText::new(tr("✔ Sound workflow net")).color(pal.ok).strong());
+                    ui.label(RichText::new(tr("analysis.sound_workflow")).color(pal.ok).strong());
                 }
                 Soundness::Unsound(why) => {
-                    ui.label(RichText::new(tr("✖ Not sound")).color(pal.bad).strong());
+                    ui.label(RichText::new(tr("analysis.unsound_workflow")).color(pal.bad).strong());
                     for w in why {
                         ui.label(format!("• {w}"));
                     }
                 }
                 Soundness::Unknown => {
-                    ui.label(RichText::new(tr("? Soundness undecided (increase the state limit)")).color(pal.warn));
+                    ui.label(RichText::new(tr("petri.soundness_undecided_increase_state_limit")).color(pal.warn));
                 }
                 Soundness::NotWorkflowNet => {}
             }
@@ -830,41 +831,37 @@ impl PetriEditor {
 
     pub(super) fn states_panel(&mut self, ui: &mut Ui) {
         if self.net.places.is_empty() {
-            ui.label(tr("Nothing to explore yet."));
+            ui.label(tr("petri.nothing_explore_yet"));
             return;
         }
         if !self.ensure_analysis(ui) {
             return;
         }
         ui.horizontal(|ui| {
-            if ui.button(tr("Open reachability graph")).clicked() {
+            if ui.button(tr("petri.open_reachability_graph")).clicked() {
                 self.graph_open = true;
                 self.graph_fit = true;
             }
-            if ui
-                .button(tr("↗ In a pane"))
-                .on_hover_text(tr("Show the graph in its own pane"))
-                .clicked()
-            {
+            if ui.button(tr("petri.pane")).on_hover_text(tr("petri.show_graph_own_pane")).clicked() {
                 self.request_pane = Some(crate::dock::View::Graph);
             }
         });
         let a = self.analysis.as_ref().unwrap();
         ui.label(trf(
-            "{} states, {} transitions{}",
+            "petri.states_transitions",
             &[
                 &a.ss.states.len(),
                 &a.ss.edges.len(),
-                &(if a.ss.truncated { tr(" (truncated)") } else { "" }),
+                &(if a.ss.truncated { tr("analysis.truncated") } else { "" }),
             ],
         ));
         ui.add_space(4.0);
         let tname = |i: usize| self.net.transitions[i].name.as_str();
         let mut clicked = None;
         egui::Grid::new("states").striped(true).show(ui, |ui| {
-            ui.label(RichText::new(tr("State")).strong());
-            ui.label(RichText::new(tr("Marking")).strong());
-            ui.label(RichText::new(tr("Successors")).strong());
+            ui.label(RichText::new(tr("petri.state")).strong());
+            ui.label(RichText::new(tr("petri.marking")).strong());
+            ui.label(RichText::new(tr("petri.successors")).strong());
             ui.end_row();
             for (i, m) in a.ss.states.iter().enumerate().take(500) {
                 if ui.selectable_label(self.selected_state == Some(i), format!("M{i}")).clicked() {
@@ -878,7 +875,7 @@ impl PetriEditor {
                         .map(|e| format!("{}→M{}", tname(e.1), e.2))
                         .collect();
                 ui.label(if succ.is_empty() {
-                    tr("— dead —").to_string()
+                    tr("petri.dead_state").to_string()
                 } else {
                     succ.join(", ")
                 });
@@ -886,7 +883,7 @@ impl PetriEditor {
             }
         });
         if a.ss.states.len() > 500 {
-            ui.label(tr("(only the first 500 states are listed)"));
+            ui.label(tr("petri.only_first_500_states_listed"));
         }
         if let Some(i) = clicked {
             self.select_state(i);
@@ -1044,7 +1041,7 @@ impl PetriEditor {
         painter.text(
             canvas.left_bottom() + vec2(8.0, -8.0),
             egui::Align2::LEFT_BOTTOM,
-            tr("Thick border: M0 · red: deadlock · green: current marking · click a state to select (jumps there in simulation)"),
+            tr("petri.thick_border_m0_red_deadlock_green_current"),
             FontId::proportional(11.0),
             pal.muted,
         );

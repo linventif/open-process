@@ -27,12 +27,12 @@ pub enum NodeKind {
 impl NodeKind {
     pub fn label(self) -> &'static str {
         match self {
-            Self::Class => key("Class"),
-            Self::Interface => key("Interface"),
-            Self::Enumeration => key("Enumeration"),
-            Self::Actor => key("Actor"),
-            Self::UseCase => key("Use case"),
-            Self::System => key("System boundary"),
+            Self::Class => key("uml.class"),
+            Self::Interface => key("uml.interface"),
+            Self::Enumeration => key("uml.enumeration"),
+            Self::Actor => key("uml.actor"),
+            Self::UseCase => key("uml.use_case"),
+            Self::System => key("uml.system_boundary"),
         }
     }
 
@@ -150,15 +150,15 @@ pub enum RelationKind {
 impl RelationKind {
     pub fn label(self) -> &'static str {
         match self {
-            Self::Association => key("Association"),
-            Self::DirectedAssociation => key("Directed association"),
-            Self::Aggregation => key("Aggregation"),
-            Self::Composition => key("Composition"),
-            Self::Generalization => key("Generalization"),
-            Self::Realization => key("Realization"),
-            Self::Dependency => key("Dependency"),
-            Self::Include => key("Include"),
-            Self::Extend => key("Extend"),
+            Self::Association => key("bpmn.association"),
+            Self::DirectedAssociation => key("uml.directed_association"),
+            Self::Aggregation => key("uml.aggregation"),
+            Self::Composition => key("uml.composition"),
+            Self::Generalization => key("uml.generalization"),
+            Self::Realization => key("uml.realization"),
+            Self::Dependency => key("uml.dependency"),
+            Self::Include => key("uml.include"),
+            Self::Extend => key("uml.extend"),
         }
     }
 
@@ -411,28 +411,28 @@ impl UmlDiagram {
         let mut ids = std::collections::HashSet::new();
         for n in &self.nodes {
             if !ids.insert(n.id) {
-                issues.push((Some(n.id), tr("Duplicate UML identifier.").into()));
+                issues.push((Some(n.id), tr("uml.duplicate_uml_identifier").into()));
             }
             if n.name.trim().is_empty() {
-                issues.push((Some(n.id), tr("An element has no name.").into()));
+                issues.push((Some(n.id), tr("uml.element_has_no_name").into()));
             }
             if !self.kind.node_kinds().contains(&n.kind) {
-                issues.push((Some(n.id), tr("Element type does not belong to this diagram.").into()));
+                issues.push((Some(n.id), tr("uml.element_type_does_not_belong_diagram").into()));
             }
             if ![n.bounds.x, n.bounds.y, n.bounds.w, n.bounds.h].iter().all(|v| v.is_finite()) || n.bounds.w <= 0.0 || n.bounds.h <= 0.0 {
-                issues.push((Some(n.id), tr("Element dimensions must be finite and positive.").into()));
+                issues.push((Some(n.id), tr("validation.invalid_dimensions").into()));
             }
         }
         for r in &self.relations {
             if !ids.insert(r.id) {
-                issues.push((Some(r.id), tr("Duplicate UML identifier.").into()));
+                issues.push((Some(r.id), tr("uml.duplicate_uml_identifier").into()));
             }
             if !self.can_connect_excluding(r.from, r.to, r.kind, Some(r.id)) {
-                issues.push((Some(r.id), tr("Invalid relation endpoints or inheritance cycle.").into()));
+                issues.push((Some(r.id), tr("uml.invalid_relation_endpoints_inheritance_cycle").into()));
             }
             for value in [&r.source_multiplicity, &r.target_multiplicity] {
                 if !valid_multiplicity(value) {
-                    issues.push((Some(r.id), trf("Invalid multiplicity: {}", &[value])));
+                    issues.push((Some(r.id), trf("uml.invalid_multiplicity", &[value])));
                 }
             }
         }

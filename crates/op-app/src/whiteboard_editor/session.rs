@@ -6,27 +6,27 @@ use serde_json::Value;
 const COMMANDS: &[CommandDescriptor] = &[
     CommandDescriptor {
         id: UNDO,
-        label: key("Undo"),
+        label: key("common.undo"),
         group: CommandGroup::Edit,
     },
     CommandDescriptor {
         id: REDO,
-        label: key("Redo"),
+        label: key("common.redo"),
         group: CommandGroup::Edit,
     },
     CommandDescriptor {
         id: DELETE,
-        label: key("Delete selection"),
+        label: key("common.delete_selection"),
         group: CommandGroup::Edit,
     },
     CommandDescriptor {
         id: FIT,
-        label: key("Zoom to fit"),
+        label: key("canvas.zoom_fit"),
         group: CommandGroup::View,
     },
     CommandDescriptor {
         id: "whiteboard.duplicate",
-        label: key("Duplicate selection"),
+        label: key("common.duplicate_selection"),
         group: CommandGroup::Tools,
     },
 ];
@@ -134,7 +134,7 @@ impl EditorBackend for WhiteboardEditor {
         })
     }
     fn export_label(&self) -> &'static str {
-        key("Export SVG (.svg)…")
+        key("flow.export_svg_svg")
     }
 }
 pub(crate) fn register(registry: &mut DiagramRegistry) {
@@ -143,12 +143,12 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
         aliases: &["free-drawing"],
         home_order: 10,
         icon: crate::icons::freehand,
-        new_label: key("New free drawing"),
-        title: key("Sketch freely"),
-        description: key("Draw shapes, arrows, notes and freehand strokes on a shared canvas."),
+        new_label: key("drawing.new_free_drawing"),
+        title: key("drawing.sketch_freely"),
+        description: key("drawing.draw_shapes_arrows_notes_freehand_strokes_shared"),
         badge: "DRAW",
         color: egui::Color32::from_rgb(192, 75, 48),
-        create: |n| JsonCodec::new("whiteboard").encode(&Board::new(trf("Drawing {}", &[&n]))),
+        create: |n| JsonCodec::new("whiteboard").encode(&Board::new(trf("drawing.drawing", &[&n]))),
         open: |d| {
             let board: Board = JsonCodec::new("whiteboard").decode(d)?;
             board.validate().map_err(ReadError::Invalid)?;
@@ -157,7 +157,7 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
     });
     registry.examples.push(ExampleDescriptor {
         id: "whiteboard.ideas",
-        label: key("Free drawing – Shared idea"),
+        label: key("drawing.free_drawing_shared_idea"),
         create: || JsonCodec::new("whiteboard").encode(&op_core::whiteboard::example()),
     });
 }

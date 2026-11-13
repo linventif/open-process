@@ -33,9 +33,9 @@ fn scaled(p: Pos) -> Pos {
 
 pub fn bpmn_to_petri(d: &BpmnDiagram) -> Conversion {
     let mut net = PetriNet::new(if d.name.is_empty() {
-        tr("Converted process").to_string()
+        tr("conversion.converted_process").to_string()
     } else {
-        trf("{} (Petri net)", &[&d.name])
+        trf("conversion.petri_name", &[&d.name])
     });
     let mut warnings = Vec::new();
 
@@ -197,13 +197,10 @@ pub fn bpmn_to_petri(d: &BpmnDiagram) -> Conversion {
     let starts = d.nodes.iter().filter(|n| matches!(n.kind, NodeKind::StartEvent(_))).count();
     let ends = d.nodes.iter().filter(|n| matches!(n.kind, NodeKind::EndEvent(_))).count();
     if starts == 0 || ends == 0 {
-        warnings.push(trf(
-            "The process has {} start event(s) and {} end event(s): the result is not a workflow net",
-            &[&starts, &ends],
-        ));
+        warnings.push(trf("conversion.process_has_start_event_s_end_event", &[&starts, &ends]));
     }
     if d.flows.iter().any(|f| f.kind == FlowKind::Message) {
-        warnings.push(tr("Message flows are ignored by the translation").into());
+        warnings.push(tr("conversion.message_flows_ignored_translation").into());
     }
     Conversion { net, warnings }
 }
@@ -211,7 +208,7 @@ pub fn bpmn_to_petri(d: &BpmnDiagram) -> Conversion {
 /// Removes the " (Petri net)" suffix added by [`bpmn_to_petri`], in any language.
 fn strip_petri_suffix(name: &str) -> String {
     for lang in crate::i18n::Lang::ALL {
-        let suffix = crate::i18n::fill(crate::i18n::translate(lang, "{} (Petri net)"), &[&""]);
+        let suffix = crate::i18n::fill(crate::i18n::translate(lang, "conversion.petri_name"), &[&""]);
         if let Some(base) = name.strip_suffix(suffix.as_str()) {
             return base.to_string();
         }
@@ -240,7 +237,7 @@ pub fn petri_to_bpmn(net: &PetriNet) -> (BpmnDiagram, Vec<String>) {
     let mut d = BpmnDiagram::new(strip_petri_suffix(&net.name));
     let mut warnings = Vec::new();
     if net.arcs.iter().any(|a| a.weight != 1 || a.kind != crate::petri::ArcKind::Normal) {
-        warnings.push(tr("Arc weights and inhibitor arcs have no BPMN equivalent and were ignored").into());
+        warnings.push(tr("conversion.arc_weights_inhibitor_arcs_have_no_bpmn").into());
     }
 
     let np = net.places.len();
@@ -539,7 +536,7 @@ pub fn petri_to_bpmn(net: &PetriNet) -> (BpmnDiagram, Vec<String>) {
         let _ = d.add_flow(resolve(a), resolve(b));
     }
     if (0..np).filter(|&p| pre_p[p].is_empty()).count() != 1 {
-        warnings.push(tr("The net has no single source place: start events may be missing or duplicated").into());
+        warnings.push(tr("conversion.net_has_no_single_source_place_start").into());
     }
     (d, warnings)
 }

@@ -42,7 +42,7 @@ impl EventLog {
             .filter(|l| !l.is_empty() && !l.starts_with('#') && !l.starts_with("//"))
             .collect();
         if lines.is_empty() {
-            return Err(tr("The log is empty").into());
+            return Err(tr("mining.log_empty").into());
         }
 
         // "Case 1, Task A" format (possibly several entries per line, as in multi-column tables)
@@ -125,7 +125,7 @@ impl EventLog {
     pub fn from_xes(src: &str) -> Result<EventLog, String> {
         let root = xml::parse(src)?;
         if root.name != "log" {
-            return Err(trf("Not an XES log (root element is <{}>)", &[&root.name]));
+            return Err(trf("mining.not_xes_log_root_element", &[&root.name]));
         }
         let name_of = |e: &xml::Element| {
             e.children
@@ -506,7 +506,7 @@ impl AlphaResult {
         let f = &self.footprint;
         let n = |a: usize| self.name(a).to_string();
         let mut s = String::new();
-        s += tr("Traces:\n");
+        s += tr("mining.report.traces");
         for (t, k) in log.variants() {
             s += &format!(
                 "  {}{}\n",
@@ -521,16 +521,16 @@ impl AlphaResult {
                 .collect::<Vec<_>>()
                 .join(", ")
         };
-        s += &trf("\nDirect successions (>): {}\n", &[&(list(f.successions(), ">"))]);
-        s += &trf("Causality (→): {}\n", &[&(list(f.pairs(Relation::Causal), "→"))]);
+        s += &trf("mining.direct_successions", &[&(list(f.successions(), ">"))]);
+        s += &trf("mining.report.causality", &[&(list(f.pairs(Relation::Causal), "→"))]);
         let par: Vec<(usize, usize)> = f
             .pairs(Relation::Parallel)
             .into_iter()
             .flat_map(|(a, b)| if a == b { vec![(a, b)] } else { vec![(a, b), (b, a)] })
             .collect();
-        s += &trf("Parallelism (||): {}\n", &[&(list(par, "||"))]);
-        s += &trf("Independence (#): {}\n", &[&(list(f.pairs(Relation::Independent), "#"))]);
-        s += &trf("\nRelation matrix:\n{}\n", &[&f.to_text()]);
+        s += &trf("mining.parallelism", &[&(list(par, "||"))]);
+        s += &trf("mining.independence", &[&(list(f.pairs(Relation::Independent), "#"))]);
+        s += &trf("mining.report.relation_matrix", &[&f.to_text()]);
         s += &format!("1. TW = {}\n", self.set(&self.t_w));
         s += &format!("2. TI = {}\n", self.set(&self.t_i));
         s += &format!("3. TO = {}\n", self.set(&self.t_o));
@@ -554,14 +554,14 @@ impl AlphaResult {
                 .join(", ")
         );
         s += "8. α(W) = (PW, TW, FW)\n\n";
-        s += tr("Word check:\n");
+        s += tr("mining.report.word_check");
         for (t, _) in log.variants() {
             s += &format!(
                 "  {} ? {}\n",
                 log.format_trace(&t),
                 match replay(&self.net, &t) {
                     Ok(()) => "ok".to_string(),
-                    Err(e) => trf("NOT OK ({})", &[&e]),
+                    Err(e) => trf("mining.not_ok", &[&e]),
                 }
             );
         }
@@ -661,7 +661,7 @@ pub fn build_alpha_net(r: &mut AlphaResult) -> PetriNet {
 /// Steps 6–8 with an automatic left-to-right layout.
 fn build_net(r: &mut AlphaResult) {
     let n = r.footprint.len();
-    let mut net = PetriNet::new(tr("Discovered process (Alpha)"));
+    let mut net = PetriNet::new(tr("mining.discovered_process_alpha"));
 
     // Level of each activity: BFS distance from the initial activities.
     let mut succ: Vec<Vec<usize>> = vec![Vec::new(); n];
@@ -780,10 +780,10 @@ pub fn replay(net: &PetriNet, trace: &[String]) -> Result<(), String> {
     for (k, act) in trace.iter().enumerate() {
         let cands: Vec<usize> = (0..net.transitions.len()).filter(|&t| &net.transitions[t].name == act).collect();
         if cands.is_empty() {
-            return Err(trf("{} is not in the net", &[&act]));
+            return Err(trf("mining.not_net", &[&act]));
         }
         let Some(&t) = cands.iter().find(|&&t| c.is_enabled(t, &m)) else {
-            return Err(trf("{} not enabled at position {}", &[&act, &(k + 1)]));
+            return Err(trf("mining.not_enabled_at_position", &[&act, &(k + 1)]));
         };
         m = c.fire(t, &m).unwrap();
     }
@@ -795,10 +795,10 @@ pub fn replay(net: &PetriNet, trace: &[String]) -> Result<(), String> {
     if !ok_end {
         let k: u32 = sinks.iter().map(|&s| m[s]).sum();
         let names: Vec<&str> = sinks.iter().map(|&s| net.places[s].name.as_str()).collect();
-        return Err(trf("ends with {} token(s) in {} instead of exactly 1", &[&k, &(names.join(", "))]));
+        return Err(trf("mining.ends_token_s_instead_exactly_1", &[&k, &(names.join(", "))]));
     }
     if !leftovers.is_empty() {
-        return Err(trf("tokens left in {}", &[&(leftovers.join(", "))]));
+        return Err(trf("mining.tokens_left", &[&(leftovers.join(", "))]));
     }
     Ok(())
 }

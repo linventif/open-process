@@ -43,7 +43,7 @@ impl Doc {
     pub fn name(&self) -> String {
         let name = self.editor.name();
         if name.trim().is_empty() {
-            tr("Untitled").into()
+            tr("document.untitled").into()
         } else {
             name.into()
         }
@@ -121,7 +121,7 @@ impl EditorSession for RecoverySession {
     }
     fn render(&mut self, ui: &mut egui::Ui, _: u64, _: &str) -> Vec<HostEvent> {
         ui.colored_label(ui.visuals().warn_fg_color, &self.reason);
-        ui.label(tr("Original data preserved. Use Save as to recover the file."));
+        ui.label(tr("editor.original_data_preserved_use_save_recover_file"));
         vec![]
     }
     fn retain_views(&mut self, _: &[u64]) {}
@@ -148,7 +148,7 @@ impl EditorSession for RecoverySession {
         })
     }
     fn export_label(&self) -> &'static str {
-        key("Save as…")
+        key("file.save_as")
     }
     #[cfg(test)]
     fn as_any(&self) -> &dyn std::any::Any {

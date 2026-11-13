@@ -4,11 +4,11 @@ use super::*;
 
 impl UmlEditor {
     pub(super) fn properties(&mut self, ui: &mut Ui) {
-        ui.label(tr("Diagram name"));
+        ui.label(tr("document.name"));
         ui.text_edit_singleline(&mut self.diagram.name);
         let issues = self.diagram.validate();
         if !issues.is_empty() {
-            egui::CollapsingHeader::new(trf("Model issues ({})", &[&issues.len()])).show(ui, |ui| {
+            egui::CollapsingHeader::new(trf("uml.model_issues", &[&issues.len()])).show(ui, |ui| {
                 for (id, message) in &issues {
                     if ui.selectable_label(false, message).clicked()
                         && let Some(id) = id
@@ -26,9 +26,9 @@ impl UmlEditor {
         ui.separator();
         match self.selection {
             Some(Selection::Node(_)) if self.group.len() > 1 => {
-                ui.heading(trf("{} elements selected", &[&self.group.len()]));
-                ui.weak(tr("Use Arrange to align or distribute the selection."));
-                if ui.button(tr("Delete selection")).clicked() {
+                ui.heading(trf("uml.elements_selected", &[&self.group.len()]));
+                ui.weak(tr("uml.use_arrange_align_distribute_selection"));
+                if ui.button(tr("common.delete_selection")).clicked() {
                     self.delete_selection();
                 }
             }
@@ -37,18 +37,18 @@ impl UmlEditor {
                     return;
                 };
                 ui.heading(tr(n.kind.label()));
-                ui.label(tr("Name"));
+                ui.label(tr("common.name"));
                 let name_edit = ui.text_edit_singleline(&mut n.name);
-                name_edit.widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, tr("Element name")));
+                name_edit.widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, tr("common.element_name")));
                 let mut content_changed = name_edit.changed();
                 if n.kind.is_classifier() {
                     if n.kind == NodeKind::Class {
-                        ui.checkbox(&mut n.abstract_class, tr("Abstract class"));
+                        ui.checkbox(&mut n.abstract_class, tr("uml.abstract_class"));
                     }
                     ui.label(if n.kind == NodeKind::Enumeration {
-                        tr("Literals")
+                        tr("uml.literals")
                     } else {
-                        tr("Attributes")
+                        tr("uml.attributes")
                     });
                     let attributes_edit = ui.add(
                         egui::TextEdit::multiline(&mut n.attributes)
@@ -57,7 +57,7 @@ impl UmlEditor {
                             .hint_text("- name: String"),
                     );
                     content_changed |= attributes_edit.changed();
-                    ui.label(tr("Operations"));
+                    ui.label(tr("uml.operations"));
                     let operations_edit = ui.add(
                         egui::TextEdit::multiline(&mut n.operations)
                             .desired_rows(5)
@@ -65,24 +65,24 @@ impl UmlEditor {
                             .hint_text("+ submit(): bool"),
                     );
                     content_changed |= operations_edit.changed();
-                    ui.weak(tr("One member per line. Visibility: + public, - private, # protected, ~ package."));
+                    ui.weak(tr("uml.one_member_per_line_visibility_public_private"));
                 }
                 if content_changed {
                     Self::fit_text(ui.painter(), n, false);
                 }
-                if n.kind != NodeKind::System && ui.button(tr("Fit to content")).clicked() {
+                if n.kind != NodeKind::System && ui.button(tr("canvas.fit_content")).clicked() {
                     Self::fit_text(ui.painter(), n, true);
                 }
                 ui.horizontal(|ui| {
-                    ui.label(tr("Width"));
+                    ui.label(tr("common.width"));
                     ui.add(egui::DragValue::new(&mut n.bounds.w).range(80.0..=2000.0));
                 });
                 ui.horizontal(|ui| {
-                    ui.label(tr("Height"));
+                    ui.label(tr("common.height"));
                     let min = if n.kind == NodeKind::Actor { 130.0 } else { 60.0 };
                     ui.add(egui::DragValue::new(&mut n.bounds.h).range(min..=2000.0));
                 });
-                if ui.button(tr("Delete selection")).clicked() {
+                if ui.button(tr("common.delete_selection")).clicked() {
                     self.delete_selection();
                 }
             }
@@ -107,36 +107,36 @@ impl UmlEditor {
                             ui.selectable_value(&mut selected_kind, kind, tr(kind.label()));
                         }
                     });
-                if ui.button(tr("Reverse direction")).clicked() {
+                if ui.button(tr("bpmn.reverse_direction")).clicked() {
                     if self.diagram.can_connect_excluding(to, from, selected_kind, Some(id)) {
                         let r = self.diagram.relations.iter_mut().find(|r| r.id == id).unwrap();
                         std::mem::swap(&mut r.from, &mut r.to);
                         std::mem::swap(&mut r.source_multiplicity, &mut r.target_multiplicity);
                         std::mem::swap(&mut r.source_role, &mut r.target_role);
                     } else {
-                        self.status = tr("This relation is not valid for these elements.").into();
+                        self.status = tr("uml.relation_not_valid_these_elements").into();
                     }
                 }
                 let r = self.diagram.relations.iter_mut().find(|r| r.id == id).unwrap();
                 r.kind = selected_kind;
-                ui.label(tr("Label"));
+                ui.label(tr("common.label"));
                 ui.text_edit_singleline(&mut r.label);
                 if self.diagram.kind == DiagramKind::Class {
-                    ui.label(tr("Source multiplicity"));
+                    ui.label(tr("uml.source_multiplicity"));
                     ui.text_edit_singleline(&mut r.source_multiplicity);
-                    ui.label(tr("Target multiplicity"));
+                    ui.label(tr("uml.target_multiplicity"));
                     ui.text_edit_singleline(&mut r.target_multiplicity);
-                    ui.label(tr("Source role"));
+                    ui.label(tr("uml.source_role"));
                     ui.text_edit_singleline(&mut r.source_role);
-                    ui.label(tr("Target role"));
+                    ui.label(tr("uml.target_role"));
                     ui.text_edit_singleline(&mut r.target_role);
                 }
-                if ui.button(tr("Delete selection")).clicked() {
+                if ui.button(tr("common.delete_selection")).clicked() {
                     self.delete_selection();
                 }
             }
             None => {
-                ui.weak(tr("Select an element or a relation to edit its properties."));
+                ui.weak(tr("uml.select_element_relation_edit_properties"));
             }
         }
     }

@@ -156,7 +156,7 @@ impl UmlEditor {
             self.status.clear();
             self.history.sync(&self.diagram, false);
         } else {
-            self.status = tr("This relation is not valid for these elements.").into();
+            self.status = tr("uml.relation_not_valid_these_elements").into();
         }
     }
 
@@ -450,27 +450,33 @@ impl UmlEditor {
         }
         response.context_menu(|ui| {
             if ui
-                .add_enabled(self.selection.is_some() && self.group.len() <= 1, egui::Button::new(tr("Rename")))
+                .add_enabled(
+                    self.selection.is_some() && self.group.len() <= 1,
+                    egui::Button::new(tr("app.rename")),
+                )
                 .clicked()
             {
                 self.begin_rename();
                 ui.close();
             }
-            if ui.add_enabled(!self.group.is_empty(), egui::Button::new(tr("Duplicate"))).clicked() {
+            if ui
+                .add_enabled(!self.group.is_empty(), egui::Button::new(tr("common.duplicate")))
+                .clicked()
+            {
                 let fragment = self.diagram.fragment(&self.group);
                 self.paste_count = 0;
                 self.paste(&fragment);
                 ui.close();
             }
             if ui
-                .add_enabled(self.selection.is_some(), egui::Button::new(tr("Delete selection")))
+                .add_enabled(self.selection.is_some(), egui::Button::new(tr("common.delete_selection")))
                 .clicked()
             {
                 self.delete_selection();
                 ui.close();
             }
             ui.separator();
-            if ui.button(tr("Zoom to fit")).clicked() {
+            if ui.button(tr("canvas.zoom_fit")).clicked() {
                 self.request_fit();
                 ui.close();
             }

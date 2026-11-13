@@ -146,7 +146,7 @@ impl DatabaseEditor {
                 painter.text(
                     rect.center(),
                     Align2::CENTER_CENTER,
-                    tr("Add a table to start designing your database."),
+                    tr("database.add_table_start_designing_database"),
                     FontId::proportional(16.0),
                     pal.muted,
                 );
@@ -165,11 +165,11 @@ impl DatabaseEditor {
                 rect.left_top() + vec2(14.0, 14.0),
                 Align2::LEFT_TOP,
                 |ui| {
-                    if canvas::icon_button(ui, !self.state.connecting, tr("Select"), crate::icons::select).clicked() {
+                    if canvas::icon_button(ui, !self.state.connecting, tr("common.select"), crate::icons::select).clicked() {
                         self.state.connecting = false;
                         self.state.pending = None;
                     }
-                    if canvas::icon_button(ui, self.state.connecting, tr("Connect"), |p, r, c| {
+                    if canvas::icon_button(ui, self.state.connecting, tr("database.connect"), |p, r, c| {
                         p.line_segment([r.left_bottom(), r.right_top()], Stroke::new(1.5, c));
                         canvas::arrow_head(p, r.right_top(), vec2(1.0, -1.0), 7.0, c, true);
                     })

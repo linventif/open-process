@@ -142,10 +142,10 @@ impl PetriNet {
     pub fn add_arc(&mut self, from: NodeRef, to: NodeRef) -> Result<Id, &'static str> {
         match (from, to) {
             (NodeRef::Place(_), NodeRef::Transition(_)) | (NodeRef::Transition(_), NodeRef::Place(_)) => {}
-            _ => return Err(tr("An arc must connect a place and a transition")),
+            _ => return Err(tr("petri.arc_must_connect_place_transition")),
         }
         if !self.contains(from) || !self.contains(to) {
-            return Err(tr("Unknown node"));
+            return Err(tr("petri.unknown_node"));
         }
         if let Some(a) = self.arcs.iter_mut().find(|a| a.from == from && a.to == to) {
             a.weight += 1;

@@ -19,8 +19,8 @@ impl FlowKind for EpcKind {
     }
     fn label(self) -> &'static str {
         match self {
-            Self::Event => key("Event"),
-            Self::Function => key("Function"),
+            Self::Event => key("epc.event"),
+            Self::Function => key("epc.function"),
             Self::And => "AND",
             Self::Or => "OR",
             Self::Xor => "XOR",
@@ -47,12 +47,12 @@ impl FlowKind for EpcKind {
     }
 }
 pub fn example() -> EpcDiagram {
-    let mut d = EpcDiagram::new(tr("Order processing"));
-    let a = d.add_node(EpcKind::Event, Pos::new(110.0, 130.0), tr("Order received"));
-    let b = d.add_node(EpcKind::Function, Pos::new(330.0, 130.0), tr("Check order"));
-    let c = d.add_node(EpcKind::Event, Pos::new(550.0, 130.0), tr("Order checked"));
-    let e = d.add_node(EpcKind::Function, Pos::new(770.0, 130.0), tr("Ship order"));
-    let f = d.add_node(EpcKind::Event, Pos::new(990.0, 130.0), tr("Order shipped"));
+    let mut d = EpcDiagram::new(tr("epc.order_processing"));
+    let a = d.add_node(EpcKind::Event, Pos::new(110.0, 130.0), tr("epc.order_received"));
+    let b = d.add_node(EpcKind::Function, Pos::new(330.0, 130.0), tr("activity.check_order"));
+    let c = d.add_node(EpcKind::Event, Pos::new(550.0, 130.0), tr("epc.order_checked"));
+    let e = d.add_node(EpcKind::Function, Pos::new(770.0, 130.0), tr("epc.ship_order"));
+    let f = d.add_node(EpcKind::Event, Pos::new(990.0, 130.0), tr("epc.order_shipped"));
     for (from, to) in [(a, b), (b, c), (c, e), (e, f)] {
         d.connect(from, to, "");
     }

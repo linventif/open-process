@@ -9,22 +9,22 @@ view_state!(UmlEditor, UmlEditorView, uid: u64, view: View, last_canvas: Rect, s
 const COMMANDS: &[CommandDescriptor] = &[
     CommandDescriptor {
         id: UNDO,
-        label: key("Undo"),
+        label: key("common.undo"),
         group: CommandGroup::Edit,
     },
     CommandDescriptor {
         id: REDO,
-        label: key("Redo"),
+        label: key("common.redo"),
         group: CommandGroup::Edit,
     },
     CommandDescriptor {
         id: DELETE,
-        label: key("Delete selection"),
+        label: key("common.delete_selection"),
         group: CommandGroup::Edit,
     },
     CommandDescriptor {
         id: FIT,
-        label: key("Zoom to fit"),
+        label: key("canvas.zoom_fit"),
         group: CommandGroup::View,
     },
 ];
@@ -145,7 +145,7 @@ impl EditorBackend for UmlEditor {
         })
     }
     fn export_label(&self) -> &'static str {
-        key("Export PlantUML (.puml)…")
+        key("uml.export_plantuml_puml")
     }
 }
 
@@ -158,12 +158,12 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
             home_order: 4,
             icon: crate::icons::class,
             aliases: &["class"],
-            new_label: key("New class diagram"),
-            title: key("Design a class diagram"),
-            description: key("Describe classes, attributes, operations and their relationships in a UML model."),
+            new_label: key("uml.new_class_diagram"),
+            title: key("uml.design_class_diagram"),
+            description: key("uml.describe_classes_attributes_operations_their_relationships_uml"),
             badge: "UML · CLASS",
             color: egui::Color32::from_rgb(79, 110, 190),
-            create: |n| JsonCodec::new("uml.class").encode(&UmlDiagram::new(trf("Class diagram {}", &[&n]), DiagramKind::Class)),
+            create: |n| JsonCodec::new("uml.class").encode(&UmlDiagram::new(trf("uml.class_diagram", &[&n]), DiagramKind::Class)),
             open: |d| open_uml(d, DiagramKind::Class),
         },
         DiagramDescriptor {
@@ -171,24 +171,24 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
             home_order: 5,
             icon: crate::icons::use_case,
             aliases: &["usecase"],
-            new_label: key("New use-case diagram"),
-            title: key("Map use cases"),
-            description: key("Identify actors, use cases and interactions within a system."),
+            new_label: key("uml.new_use_case_diagram"),
+            title: key("uml.map_use_cases"),
+            description: key("uml.identify_actors_use_cases_interactions_within_system"),
             badge: "UML · USE CASE",
             color: egui::Color32::from_rgb(192, 80, 131),
-            create: |n| JsonCodec::new("uml.use-case").encode(&UmlDiagram::new(trf("Use-case diagram {}", &[&n]), DiagramKind::UseCase)),
+            create: |n| JsonCodec::new("uml.use-case").encode(&UmlDiagram::new(trf("uml.use_case_diagram", &[&n]), DiagramKind::UseCase)),
             open: |d| open_uml(d, DiagramKind::UseCase),
         },
     ]);
     registry.examples.extend([
         ExampleDescriptor {
             id: "uml.classes",
-            label: key("UML – Order classes"),
+            label: key("uml.uml_order_classes"),
             create: || JsonCodec::new("uml.class").encode(&examples::uml_classes()),
         },
         ExampleDescriptor {
             id: "uml.use-cases",
-            label: key("UML – Online shop use cases"),
+            label: key("uml.uml_online_shop_use_cases"),
             create: || JsonCodec::new("uml.use-case").encode(&examples::uml_use_cases()),
         },
     ]);

@@ -31,14 +31,14 @@ impl FlowKind for ActivityKind {
     }
     fn label(self) -> &'static str {
         match self {
-            Self::Initial => key("Initial node"),
-            Self::Action => key("Action"),
-            Self::Decision => key("Decision"),
-            Self::Merge => key("Merge"),
-            Self::Fork => key("Fork"),
-            Self::Join => key("Join"),
-            Self::Final => key("Activity final"),
-            Self::FlowFinal => key("Flow final"),
+            Self::Initial => key("activity.initial_node"),
+            Self::Action => key("activity.action"),
+            Self::Decision => key("activity.decision"),
+            Self::Merge => key("activity.merge"),
+            Self::Fork => key("activity.fork"),
+            Self::Join => key("activity.join"),
+            Self::Final => key("activity.activity_final"),
+            Self::FlowFinal => key("activity.flow_final"),
         }
     }
     fn shape(self) -> Shape {
@@ -65,12 +65,12 @@ impl FlowKind for ActivityKind {
     }
 }
 pub fn example() -> ActivityDiagram {
-    let mut d = ActivityDiagram::new(tr("Order approval"));
+    let mut d = ActivityDiagram::new(tr("activity.order_approval"));
     let a = d.add_node(ActivityKind::Initial, Pos::new(70.0, 160.0), "");
-    let b = d.add_node(ActivityKind::Action, Pos::new(230.0, 160.0), tr("Check order"));
+    let b = d.add_node(ActivityKind::Action, Pos::new(230.0, 160.0), tr("activity.check_order"));
     let c = d.add_node(ActivityKind::Decision, Pos::new(420.0, 160.0), "");
-    let e = d.add_node(ActivityKind::Action, Pos::new(610.0, 70.0), tr("Approve"));
-    let f = d.add_node(ActivityKind::Action, Pos::new(610.0, 250.0), tr("Reject"));
+    let e = d.add_node(ActivityKind::Action, Pos::new(610.0, 70.0), tr("activity.approve"));
+    let f = d.add_node(ActivityKind::Action, Pos::new(610.0, 250.0), tr("activity.reject"));
     let g = d.add_node(ActivityKind::Merge, Pos::new(800.0, 160.0), "");
     let h = d.add_node(ActivityKind::Final, Pos::new(930.0, 160.0), "");
     for (from, to, label) in [

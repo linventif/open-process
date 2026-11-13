@@ -46,7 +46,7 @@ impl WhiteboardEditor {
                 p.text(
                     rect.center(),
                     Align2::CENTER_CENTER,
-                    tr("Choose a drawing tool, then drag on the canvas."),
+                    tr("drawing.choose_tool"),
                     FontId::proportional(15.0),
                     pal.muted,
                 );

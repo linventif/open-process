@@ -75,8 +75,8 @@ impl PetriEditor {
         }
         self.analysis = None;
         if self.analysis_cancelled.as_ref().is_some_and(|(n, l)| *n == net && *l == limit) {
-            ui.label(tr("Analysis cancelled"));
-            if ui.button(tr("Recompute")).clicked() {
+            ui.label(tr("petri.analysis_cancelled"));
+            if ui.button(tr("petri.recompute")).clicked() {
                 self.analysis_cancelled = None;
             }
             return false;
@@ -129,8 +129,8 @@ impl PetriEditor {
         }
         ui.horizontal(|ui| {
             ui.spinner();
-            ui.label(tr("Computing analysis…"));
-            if ui.button(tr("Cancel")).clicked() {
+            ui.label(tr("petri.computing_analysis"));
+            if ui.button(tr("common.cancel")).clicked() {
                 self.analysis_job = None;
                 self.analysis_cancelled = Some((net, limit));
             }

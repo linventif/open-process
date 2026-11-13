@@ -9,66 +9,66 @@ view_state!(PetriEditor, PetriEditorView, uid: u64, view: View, last_canvas: Rec
 const COMMANDS: &[CommandDescriptor] = &[
     CommandDescriptor {
         id: UNDO,
-        label: key("Undo"),
+        label: key("common.undo"),
         group: CommandGroup::Edit,
     },
     CommandDescriptor {
         id: REDO,
-        label: key("Redo"),
+        label: key("common.redo"),
         group: CommandGroup::Edit,
     },
     CommandDescriptor {
         id: DELETE,
-        label: key("Delete selection"),
+        label: key("common.delete_selection"),
         group: CommandGroup::Edit,
     },
     CommandDescriptor {
         id: FIT,
-        label: key("Zoom to fit"),
+        label: key("canvas.zoom_fit"),
         group: CommandGroup::View,
     },
     CommandDescriptor {
         id: "petri.simulation",
-        label: key("Start / stop token game"),
+        label: key("petri.start_stop_token_game"),
         group: CommandGroup::Tools,
     },
     CommandDescriptor {
         id: "petri.matrices",
-        label: key("Matrices (Pre, Post, C)"),
+        label: key("petri.matrices_pre_post_c"),
         group: CommandGroup::Tools,
     },
     CommandDescriptor {
         id: "petri.analysis",
-        label: key("Analysis & invariants"),
+        label: key("petri.analysis_invariants"),
         group: CommandGroup::Tools,
     },
     CommandDescriptor {
         id: "petri.graph",
-        label: key("Reachability graph"),
+        label: key("petri.reachability_graph"),
         group: CommandGroup::Tools,
     },
     CommandDescriptor {
         id: "petri.convert-to-bpmn",
-        label: key("Convert Petri net → BPMN"),
+        label: key("petri.convert_petri_net_bpmn"),
         group: CommandGroup::Tools,
     },
 ];
 const VIEWS: &[ViewDescriptor] = &[
     ViewDescriptor {
         id: "petri.matrices",
-        label: key("Matrices"),
+        label: key("view.matrices"),
     },
     ViewDescriptor {
         id: "petri.analysis",
-        label: key("Analysis"),
+        label: key("view.analysis"),
     },
     ViewDescriptor {
         id: "petri.states",
-        label: key("States"),
+        label: key("view.states"),
     },
     ViewDescriptor {
         id: "petri.graph",
-        label: key("Reachability graph"),
+        label: key("petri.reachability_graph"),
     },
 ];
 
@@ -190,9 +190,9 @@ impl EditorBackend for PetriEditor {
                 let (d, warnings) = op_core::convert::petri_to_bpmn(&self.net);
                 events.push(HostEvent::Open(JsonCodec::new("bpmn").encode(&d)));
                 if warnings.is_empty() {
-                    events.push(HostEvent::Message(tr("Petri net converted to BPMN").into()));
+                    events.push(HostEvent::Message(tr("petri.petri_net_converted_bpmn").into()));
                 } else {
-                    events.push(HostEvent::Message(trf("Converted with warnings: {}", &[&warnings.join(" · ")])));
+                    events.push(HostEvent::Message(trf("bpmn.converted_warnings", &[&warnings.join(" · ")])));
                 }
             }
             _ => {}
@@ -209,7 +209,7 @@ impl EditorBackend for PetriEditor {
         })
     }
     fn export_label(&self) -> &'static str {
-        key("Export PNML (.pnml)…")
+        key("petri.export_pnml_pnml")
     }
 }
 
@@ -222,28 +222,28 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
         home_order: 1,
         icon: crate::icons::petri,
         aliases: &[],
-        new_label: key("New Petri net"),
-        title: key("Simulate and analyze"),
-        description: key("Build a Petri net, play tokens and explore matrices, invariants and reachability."),
+        new_label: key("petri.new_petri_net"),
+        title: key("petri.simulate_analyze"),
+        description: key("petri.build_petri_net_play_tokens_explore_matrices"),
         badge: "PETRI",
         color: theme::KIND_PETRI,
-        create: |n| JsonCodec::new("petri").encode(&PetriNet::new(trf("Net {}", &[&n]))),
+        create: |n| JsonCodec::new("petri").encode(&PetriNet::new(trf("petri.net", &[&n]))),
         open: |d| Ok(Session::boxed(PetriEditor::new(JsonCodec::new("petri").decode(d)?))),
     }]);
     registry.examples.extend([
         ExampleDescriptor {
             id: "petri.mutex",
-            label: key("Petri – Mutual exclusion"),
+            label: key("petri.petri_mutual_exclusion"),
             create: || JsonCodec::new("petri").encode(&examples::mutual_exclusion()),
         },
         ExampleDescriptor {
             id: "petri.producer",
-            label: key("Petri – Producer / consumer"),
+            label: key("petri.petri_producer_consumer"),
             create: || JsonCodec::new("petri").encode(&examples::producer_consumer()),
         },
         ExampleDescriptor {
             id: "petri.philosophers",
-            label: key("Petri – Dining philosophers"),
+            label: key("petri.petri_dining_philosophers"),
             create: || JsonCodec::new("petri").encode(&examples::dining_philosophers()),
         },
     ]);

@@ -467,7 +467,7 @@ impl PetriEditor {
         layout.canvas(ui, |ui| self.canvas(ui));
         if self.graph_open {
             let mut open = true;
-            egui::Window::new(tr("Reachability graph"))
+            egui::Window::new(tr("petri.reachability_graph"))
                 .id(egui::Id::unique(("graph_window", self.uid)))
                 .open(&mut open)
                 .default_size([900.0, 600.0])
@@ -485,14 +485,11 @@ impl PetriEditor {
         ui.vertical_centered(|ui| {
             let editing = self.sim.is_none();
             let tools: [(Tool, &str); 5] = [
-                (
-                    Tool::Select,
-                    tr("Select / move (V)\nDrag empty space to pan, wheel to scroll, Ctrl+wheel to zoom"),
-                ),
-                (Tool::Place, tr("Place (P)")),
-                (Tool::Transition, tr("Transition (T)")),
-                (Tool::Arc, tr("Arc (A): drag from a node to another, or click both")),
-                (Tool::Token, tr("Tokens (K): left click +1, right click −1")),
+                (Tool::Select, tr("bpmn.select_move_v_drag_empty_space_pan")),
+                (Tool::Place, tr("petri.place_p")),
+                (Tool::Transition, tr("petri.transition_t")),
+                (Tool::Arc, tr("petri.arc_drag_from_node_another_click_both")),
+                (Tool::Token, tr("petri.tokens_k_left_click_1_right_click")),
             ];
             for (tool, tip) in tools {
                 let r = ui.add_enabled_ui(editing || tool == Tool::Select, |ui| {
@@ -508,7 +505,7 @@ impl PetriEditor {
             }
             canvas::toolbar_separator(ui);
             let sim_on = self.sim.is_some();
-            let r = canvas::icon_button(ui, sim_on, tr("Token game / simulation (S)"), |p, r, c| {
+            let r = canvas::icon_button(ui, sim_on, tr("petri.token_game_simulation_s"), |p, r, c| {
                 let c2 = r.center();
                 p.add(egui::Shape::convex_polygon(
                     vec![c2 + vec2(-7.0, -10.0), c2 + vec2(10.0, 0.0), c2 + vec2(-7.0, 10.0)],
@@ -594,7 +591,7 @@ impl PetriEditor {
                 if let Some(s) = &mut self.sim {
                     s.auto = false;
                 }
-                self.status = tr("Dead marking reached: no transition is enabled").into();
+                self.status = tr("petri.dead_marking_reached_no_transition_enabled").into();
             }
         }
         if let Some(s) = &self.sim {
@@ -606,11 +603,11 @@ impl PetriEditor {
     fn status_bar(&mut self, ui: &mut Ui, layout: DiagramLayout) {
         let status = FooterStatus {
             summary: trf(
-                "{} places · {} transitions · {} arcs",
+                "petri.places_transitions_arcs",
                 &[&self.net.places.len(), &self.net.transitions.len(), &self.net.arcs.len()],
             ),
             detail: self.status.clone(),
-            indicator: self.sim.as_ref().map(|_| (tr("● Simulation").into(), Palette::for_ui(ui).ok)),
+            indicator: self.sim.as_ref().map(|_| (tr("petri.simulation").into(), Palette::for_ui(ui).ok)),
             ..Default::default()
         };
         layout.configuration(
@@ -750,14 +747,14 @@ impl PetriEditor {
             painter.text(
                 canvas.center() - vec2(0.0, 12.0),
                 egui::Align2::CENTER_CENTER,
-                tr("Empty Petri net"),
+                tr("petri.empty_petri_net"),
                 crate::theme::semibold(17.0),
                 pal.text,
             );
             painter.text(
                 canvas.center() + vec2(0.0, 14.0),
                 egui::Align2::CENTER_CENTER,
-                tr("Pick the Place (P) or Transition (T) tool and click on the canvas"),
+                tr("petri.pick_place_p_transition_t_tool_click"),
                 FontId::proportional(13.5),
                 pal.muted,
             );
@@ -788,16 +785,16 @@ impl PetriEditor {
                         ui.add_space(6.0);
                         let (r, _) = ui.allocate_exact_size(vec2(10.0, 10.0), Sense::hover());
                         ui.painter().circle_filled(r.center(), 4.5, pal.ok);
-                        ui.label(RichText::new(tr("Token game")).font(crate::theme::semibold(13.0)));
+                        ui.label(RichText::new(tr("petri.token_game")).font(crate::theme::semibold(13.0)));
                         ui.label(
                             RichText::new(if enabled == 0 {
-                                trf("dead marking · {} firing(s)", &[&fired])
+                                trf("petri.dead_marking_firing_s", &[&fired])
                             } else {
-                                trf("click a green transition · {} enabled · {} firing(s)", &[&enabled, &fired])
+                                trf("petri.click_green_transition_enabled_firing_s", &[&enabled, &fired])
                             })
                             .color(ui.visuals().weak_text_color()),
                         );
-                        if ui.button(tr("Stop")).clicked() {
+                        if ui.button(tr("petri.stop")).clicked() {
                             stop = true;
                         }
                     });
@@ -870,8 +867,8 @@ fn matrix_grid(
     ui.horizontal(|ui| {
         crate::theme::section_title(ui, title);
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Max), |ui| {
-            csv_clicked = ui.small_button("CSV").on_hover_text(tr("Save this matrix as CSV")).clicked();
-            png = ui.small_button("PNG").on_hover_text(tr("Save this matrix as an image")).clicked();
+            csv_clicked = ui.small_button("CSV").on_hover_text(tr("petri.save_matrix_csv")).clicked();
+            png = ui.small_button("PNG").on_hover_text(tr("petri.save_matrix_image")).clicked();
         });
     });
     let resp = egui::Frame::new()
@@ -934,12 +931,12 @@ fn editable_matrix(
     ui.horizontal(|ui| {
         crate::theme::section_title(ui, title);
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Max), |ui| {
-            if ui.small_button(tr("Clear")).clicked() {
+            if ui.small_button(tr("common.clear")).clicked() {
                 action = Some("clear");
             }
             if ui
-                .small_button(tr("Fill for me"))
-                .on_hover_text(tr("Let the app fill this matrix"))
+                .small_button(tr("mining.fill_me"))
+                .on_hover_text(tr("petri.let_app_fill_matrix"))
                 .clicked()
             {
                 action = Some("fill");
@@ -979,7 +976,7 @@ fn editable_matrix(
                                 }
                                 let r = ui.add(te).labelled_by(lbl.id);
                                 if checked && !ok {
-                                    r.on_hover_text(trf("expected {}", &[&(solution[i][j])]));
+                                    r.on_hover_text(trf("petri.expected", &[&(solution[i][j])]));
                                 }
                             }
                             ui.end_row();

@@ -132,7 +132,7 @@ impl WhiteboardEditor {
         }
     }
     fn toolbar(&mut self, ui: &mut Ui) {
-        for (tool, label) in [(Tool::Select, tr("Select")), (Tool::Hand, tr("Hand tool"))]
+        for (tool, label) in [(Tool::Select, tr("common.select")), (Tool::Hand, tr("drawing.hand_tool"))]
             .into_iter()
             .chain(Kind::ALL.into_iter().map(|kind| (Tool::Draw(kind), tr(kind.label()))))
         {
@@ -159,18 +159,18 @@ impl WhiteboardEditor {
         }
     }
     fn properties(&mut self, ui: &mut Ui) {
-        DiagramLayout::inspector_tabs(ui, &mut (), &[((), tr("Properties"))], |_, _| {});
+        DiagramLayout::inspector_tabs(ui, &mut (), &[((), tr("common.properties"))], |_, _| {});
         DiagramLayout::inspector_body(ui, |ui| {
-            crate::theme::section_title(ui, tr("Free drawing"));
-            let label = ui.label(tr("Name"));
+            crate::theme::section_title(ui, tr("drawing.free_drawing"));
+            let label = ui.label(tr("common.name"));
             ui.text_edit_singleline(&mut self.board.name).labelled_by(label.id);
             ui.separator();
-            ui.label(trf("{} selected", &[&self.state.selection.len()]));
+            ui.label(trf("common.selection_count", &[&self.state.selection.len()]));
             if self.state.selection.len() == 1 {
                 let id = *self.state.selection.first().unwrap();
                 if let Some(e) = self.board.elements.iter_mut().find(|e| e.id == id) {
                     ui.label(tr(e.kind.label()));
-                    let label = ui.label(tr("Element text"));
+                    let label = ui.label(tr("drawing.element_text"));
                     let r = ui
                         .add(
                             egui::TextEdit::multiline(&mut e.text)
@@ -183,9 +183,9 @@ impl WhiteboardEditor {
                         r.request_focus();
                     }
                     ui.horizontal_wrapped(|ui| {
-                        ui.label(tr("Width"));
+                        ui.label(tr("common.width"));
                         ui.add(egui::DragValue::new(&mut e.bounds.w).range(1.0..=10_000.0));
-                        ui.label(tr("Height"));
+                        ui.label(tr("common.height"));
                         ui.add(egui::DragValue::new(&mut e.bounds.h).range(1.0..=10_000.0));
                     });
                 }
@@ -199,24 +199,24 @@ impl WhiteboardEditor {
                 .unwrap_or_else(|| self.state.paint.clone());
             let before = paint.clone();
             ui.separator();
-            crate::theme::section_title(ui, tr("Drawing"));
+            crate::theme::section_title(ui, tr("view.drawing"));
             ui.horizontal(|ui| {
-                ui.label(tr("Stroke color"));
+                ui.label(tr("drawing.stroke_color"));
                 ui.color_edit_button_srgb(&mut paint.stroke);
             });
             let mut filled = paint.fill.is_some();
-            if ui.checkbox(&mut filled, tr("Fill")).changed() {
+            if ui.checkbox(&mut filled, tr("drawing.fill")).changed() {
                 paint.fill = filled.then_some([219, 234, 254]);
             }
             if let Some(fill) = &mut paint.fill {
                 ui.horizontal(|ui| {
-                    ui.label(tr("Fill color"));
+                    ui.label(tr("drawing.fill_color"));
                     ui.color_edit_button_srgb(fill);
                 });
             }
-            ui.add(egui::Slider::new(&mut paint.width, 0.5..=12.0).text(tr("Stroke width")));
-            ui.add(egui::Slider::new(&mut paint.font_size, 8.0..=96.0).text(tr("Font size")));
-            ui.checkbox(&mut paint.sketch, tr("Hand-drawn (sketch)"));
+            ui.add(egui::Slider::new(&mut paint.width, 0.5..=12.0).text(tr("drawing.stroke_width")));
+            ui.add(egui::Slider::new(&mut paint.font_size, 8.0..=96.0).text(tr("drawing.font_size")));
+            ui.checkbox(&mut paint.sketch, tr("canvas.hand_drawn_sketch"));
             if paint != before {
                 self.state.paint = paint.clone();
                 for e in &mut self.board.elements {
@@ -242,22 +242,23 @@ impl WhiteboardEditor {
             ui.separator();
             ui.horizontal_wrapped(|ui| {
                 if ui
-                    .add_enabled(!self.state.selection.is_empty(), egui::Button::new(tr("Duplicate selection")))
+                    .add_enabled(
+                        !self.state.selection.is_empty(),
+                        egui::Button::new(tr("common.duplicate_selection")),
+                    )
                     .clicked()
                 {
                     self.duplicate();
                 }
                 if ui
-                    .add_enabled(!self.state.selection.is_empty(), egui::Button::new(tr("Delete selection")))
+                    .add_enabled(!self.state.selection.is_empty(), egui::Button::new(tr("common.delete_selection")))
                     .clicked()
                 {
                     self.delete();
                 }
             });
             if self.state.selection.is_empty() {
-                ui.label(tr(
-                    "Drag to draw. Select an element to edit it. Shift adds to the selection; Space pans.",
-                ));
+                ui.label(tr("drawing.drag_draw_select_element_edit_shift_adds"));
             }
         });
     }
@@ -277,14 +278,14 @@ impl WhiteboardEditor {
             },
             FooterStatus {
                 summary: trf(
-                    "{} elements · {} selected",
+                    "drawing.selection_summary",
                     &[&self.board.elements.len(), &self.state.selection.len()],
                 ),
                 detail: self.state.status.clone(),
                 ..Default::default()
             },
             |ui| {
-                ui.checkbox(&mut self.state.grid, tr("Show grid"));
+                ui.checkbox(&mut self.state.grid, tr("canvas.show_grid"));
             },
         );
         layout.canvas(ui, |ui| self.canvas(ui));

@@ -20,10 +20,10 @@ impl EdgeStyle {
 
     pub fn label(self) -> &'static str {
         match self {
-            EdgeStyle::Auto => tr("Automatic"),
-            EdgeStyle::Straight => tr("Straight"),
-            EdgeStyle::Orthogonal => tr("Right angles (90°)"),
-            EdgeStyle::Curved => tr("Curved"),
+            EdgeStyle::Auto => tr("style.automatic"),
+            EdgeStyle::Straight => tr("style.straight"),
+            EdgeStyle::Orthogonal => tr("style.right_angles_90"),
+            EdgeStyle::Curved => tr("style.curved"),
         }
     }
 

@@ -101,10 +101,10 @@ pub enum DefaultValue {
 impl DefaultValue {
     pub fn label(&self) -> &'static str {
         match self {
-            Self::None => key("No default"),
-            Self::Text(_) => key("Text literal"),
-            Self::Number(_) => key("Number literal"),
-            Self::Boolean(_) => key("Boolean literal"),
+            Self::None => key("database.no_default"),
+            Self::Text(_) => key("database.text_literal"),
+            Self::Number(_) => key("database.number_literal"),
+            Self::Boolean(_) => key("database.boolean_literal"),
             Self::Null => "NULL",
             Self::CurrentDate => "CURRENT_DATE",
             Self::CurrentTimestamp => "CURRENT_TIMESTAMP",
@@ -289,15 +289,15 @@ impl Schema {
     /// A relationship starts from the referenced PK and creates missing local columns.
     pub fn add_foreign_key(&mut self, table: Id, target: Id) -> Result<Id, String> {
         if self.table(table).is_none() {
-            return Err(tr("Select a table first.").into());
+            return Err(tr("database.select_table_first").into());
         }
         let parent = self
             .table(target)
-            .ok_or_else(|| tr("Referenced table is missing.").to_owned())?
+            .ok_or_else(|| tr("database.referenced_table_missing").to_owned())?
             .clone();
         let references = parent.primary_key();
         if references.is_empty() {
-            return Err(tr("The referenced table needs a primary key.").into());
+            return Err(tr("database.referenced_table_needs_primary_key").into());
         }
         let mut columns = vec![];
         for reference in &references {
@@ -373,14 +373,14 @@ impl Schema {
             .chain(self.foreign_keys.iter().map(|f| f.id))
         {
             if id == 0 || id == u64::MAX || !ids.insert(id) {
-                return Err(tr("Database element identifiers must be unique and non-zero.").into());
+                return Err(tr("database.database_element_identifiers_must_unique_non_zero").into());
             }
         }
         if self.tables.iter().any(|t| {
             let r = t.bounds;
             ![r.x, r.y, r.w, r.h].iter().all(|v| v.is_finite()) || r.w <= 0.0 || r.h <= 0.0
         }) {
-            return Err(tr("Element dimensions must be finite and positive.").into());
+            return Err(tr("validation.invalid_dimensions").into());
         }
         Ok(())
     }
@@ -392,7 +392,7 @@ impl Schema {
             return issues;
         }
         if self.tables.is_empty() {
-            add(0, tr("Add a table before generating DDL.").into());
+            add(0, tr("database.add_table_before_generating_ddl").into());
         }
         let canonical = |s: &str| {
             if dialect == Dialect::PostgreSql {
@@ -404,7 +404,7 @@ impl Schema {
         let mut relations = BTreeSet::new();
         for t in &self.tables {
             if !valid_identifier(&t.name, dialect) || !relations.insert(canonical(&t.name)) {
-                add(t.id, trf("Invalid or duplicate table name: {}", &[&t.name]));
+                add(t.id, trf("database.invalid_duplicate_table_name", &[&t.name]));
             }
         }
         if dialect == Dialect::PostgreSql {
@@ -416,7 +416,7 @@ impl Schema {
                     .chain(t.columns.iter().filter(|c| c.auto_increment).map(|c| format!("seq_{}", c.id)));
                 for name in implicit {
                     if !relations.insert(canonical(&name)) {
-                        add(t.id, trf("Invalid or duplicate index name: {}", &[&name]));
+                        add(t.id, trf("database.invalid_duplicate_index_name", &[&name]));
                     }
                 }
             }
@@ -433,7 +433,7 @@ impl Schema {
             .collect();
         for t in &self.tables {
             if t.columns.is_empty() {
-                add(t.id, trf("Table {} has no columns.", &[&t.name]));
+                add(t.id, trf("database.table_has_no_columns", &[&t.name]));
             }
             let mut names = BTreeSet::new();
             let pk = t.primary_key();
@@ -441,26 +441,26 @@ impl Schema {
             for c in &t.columns {
                 let context = format!("{}.{}", t.name, c.name);
                 if !valid_identifier(&c.name, dialect) || !names.insert(canonical(&c.name)) {
-                    add(c.id, trf("Invalid or duplicate column name: {}", &[&context]));
+                    add(c.id, trf("database.invalid_duplicate_column_name", &[&context]));
                 }
                 if !c.data_type.valid()
                     || (dialect == Dialect::MySql
                         && (matches!(c.data_type,SqlType::VarChar{length} if length>16_383)
                             || matches!(c.data_type,SqlType::Decimal{scale,..} if scale>30)))
                 {
-                    add(c.id, trf("Invalid SQL type parameters: {}", &[&context]));
+                    add(c.id, trf("database.invalid_sql_type_parameters", &[&context]));
                 }
                 if c.primary_key && c.nullable {
-                    add(c.id, trf("Primary key columns cannot be nullable: {}", &[&context]));
+                    add(c.id, trf("database.primary_key_columns_cannot_nullable", &[&context]));
                 }
                 if c.auto_increment && (identities > 1 || pk != [c.id] || !c.data_type.is_integer() || c.default != DefaultValue::None) {
                     add(
                         c.id,
-                        trf("Identity requires a single integer primary key without a default: {}", &[&context]),
+                        trf("database.identity_requires_single_integer_primary_key_without", &[&context]),
                     );
                 }
                 if !default_valid(c) {
-                    add(c.id, trf("Default value is incompatible with the column: {}", &[&context]));
+                    add(c.id, trf("database.default_value_incompatible_column", &[&context]));
                 }
             }
             let mut index_names = BTreeSet::new();
@@ -473,10 +473,10 @@ impl Schema {
                     || !index_names.insert(canonical(&index.name))
                     || (dialect != Dialect::MySql && !relations.insert(canonical(&index.name)))
                 {
-                    add(index.id, trf("Invalid or duplicate index name: {}", &[&index.name]));
+                    add(index.id, trf("database.invalid_duplicate_index_name", &[&index.name]));
                 }
                 if !valid_columns(t, &index.columns) {
-                    add(index.id, trf("Index has missing or repeated columns: {}", &[&index.name]));
+                    add(index.id, trf("database.index_has_missing_repeated_columns", &[&index.name]));
                 }
             }
             if dialect == Dialect::MySql {
@@ -485,57 +485,48 @@ impl Schema {
                     .chain(t.indexes.iter().map(|i| i.columns.clone()));
                 for cols in keys.filter(|cols| !cols.is_empty()) {
                     if !mysql_key_valid(t, &cols) {
-                        add(
-                            t.id,
-                            trf(
-                                "MySQL indexed columns require bounded types within the key size limit: {}",
-                                &[&t.name],
-                            ),
-                        );
+                        add(t.id, trf("database.mysql_indexed_columns_require_bounded_types_within", &[&t.name]));
                     }
                 }
             }
         }
         for f in &self.foreign_keys {
             if !valid_identifier(&f.name, dialect) || !foreign_names.insert(canonical(&f.name)) {
-                add(f.id, trf("Invalid or duplicate foreign key name: {}", &[&f.name]));
+                add(f.id, trf("database.invalid_duplicate_foreign_key_name", &[&f.name]));
             }
             let (Some(child), Some(parent)) = (self.table(f.table), self.table(f.referenced_table)) else {
-                add(f.id, tr("Referenced table is missing.").into());
+                add(f.id, tr("database.referenced_table_missing").into());
                 continue;
             };
             if dialect == Dialect::MySql && child.indexes.iter().any(|i| i.name.eq_ignore_ascii_case(&f.name)) {
-                add(f.id, trf("Invalid or duplicate index name: {}", &[&f.name]));
+                add(f.id, trf("database.invalid_duplicate_index_name", &[&f.name]));
             }
             if !valid_columns(child, &f.columns)
                 || !valid_columns(parent, &f.referenced_columns)
                 || f.columns.len() != f.referenced_columns.len()
             {
-                add(f.id, trf("Foreign key columns are missing, repeated or unbalanced: {}", &[&f.name]));
+                add(f.id, trf("database.foreign_key_columns_missing_repeated_unbalanced", &[&f.name]));
                 continue;
             }
             if !parent.is_candidate_key(&f.referenced_columns) {
-                add(f.id, trf("Foreign key must reference a primary or unique key: {}", &[&f.name]));
+                add(f.id, trf("database.foreign_key_must_reference_primary_unique_key", &[&f.name]));
             }
             if f.columns
                 .iter()
                 .zip(&f.referenced_columns)
                 .any(|(a, b)| child.column(*a).unwrap().data_type != parent.column(*b).unwrap().data_type)
             {
-                add(f.id, trf("Foreign key column types do not match: {}", &[&f.name]));
+                add(f.id, trf("database.foreign_key_column_types_do_not_match", &[&f.name]));
             }
             if (f.on_delete == ReferentialAction::SetNull || f.on_update == ReferentialAction::SetNull)
                 && f.columns.iter().any(|id| !child.column(*id).unwrap().nullable)
             {
-                add(f.id, trf("SET NULL requires nullable foreign key columns: {}", &[&f.name]));
+                add(f.id, trf("database.set_null_requires_nullable_foreign_key_columns", &[&f.name]));
             }
             if dialect == Dialect::MySql && !mysql_key_valid(child, &f.columns) {
                 add(
                     f.id,
-                    trf(
-                        "MySQL indexed columns require bounded types within the key size limit: {}",
-                        &[&child.name],
-                    ),
+                    trf("database.mysql_indexed_columns_require_bounded_types_within", &[&child.name]),
                 );
             }
         }
@@ -628,7 +619,7 @@ fn decimal_fits(value: &str, precision: u8, scale: u8) -> bool {
 }
 
 pub fn example() -> Schema {
-    let mut s = Schema::new(tr(key("Shop database")));
+    let mut s = Schema::new(tr(key("database.shop_database")));
     let customer = s.add_table(Pos::new(90.0, 90.0));
     s.tables[0].name = "customers".into();
     let email = s.add_column(customer).unwrap();

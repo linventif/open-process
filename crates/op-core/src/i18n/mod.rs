@@ -1,13 +1,14 @@
 //! User-interface translations.
 //!
-//! English is the source language: every text is written in English in the
-//! code and wrapped in [`tr`] (or [`trf`] when it has `{}` placeholders).
-//! Other languages are lookup tables keyed by the English text; a missing
-//! entry falls back to English.
+//! Messages use stable keys such as `file.save` and `drawing.choose_tool`.
+//! English copy lives in `en.rs`; editing it never changes the message key.
+//! [`tr`] looks up a key and [`trf`] fills its placeholders. Missing translations
+//! fall back to the English catalog; an unknown key is returned unchanged.
 //!
 //! Texts kept in tables and translated later (palette entries, labels…) are
 //! marked with [`key`] so the completeness test can find them.
 
+mod en;
 mod es;
 mod fr;
 
@@ -51,12 +52,12 @@ impl Lang {
         Lang::ALL[(i + 1) % Lang::ALL.len()]
     }
 
-    /// The translation table (`None` for English, the source language).
-    pub fn table(self) -> Option<&'static [(&'static str, &'static str)]> {
+    /// The translation table, indexed by stable message keys.
+    pub fn table(self) -> &'static [(&'static str, &'static str)] {
         match self {
-            Lang::En => None,
-            Lang::Fr => Some(fr::TABLE),
-            Lang::Es => Some(es::TABLE),
+            Lang::En => en::TABLE,
+            Lang::Fr => fr::TABLE,
+            Lang::Es => es::TABLE,
         }
     }
 }
@@ -83,39 +84,45 @@ pub fn set_lang(lang: Lang) {
     );
 }
 
-/// Marks an English text that is translated later with [`tr`]. Identity.
-pub const fn key(en: &'static str) -> &'static str {
-    en
+/// Marks a stable message key translated later with [`tr`]. Identity.
+pub const fn key(message: &'static str) -> &'static str {
+    message
 }
 
-/// Translates an English text into the current language.
-pub fn tr(en: &'static str) -> &'static str {
-    translate(lang(), en)
+/// Looks up a message key in the current language.
+pub fn tr(message: &'static str) -> &'static str {
+    translate(lang(), message)
 }
 
-/// Translates an English text into the given language.
-pub fn translate(lang: Lang, en: &'static str) -> &'static str {
+fn translations(lang: Lang) -> &'static HashMap<&'static str, &'static str> {
+    static EN: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
     static FR: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
     static ES: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
-    match lang {
-        Lang::En => en,
-        Lang::Fr => FR
-            .get_or_init(|| fr::TABLE.iter().copied().collect())
-            .get(en)
-            .copied()
-            .unwrap_or(en),
-        Lang::Es => ES
-            .get_or_init(|| es::TABLE.iter().copied().collect())
-            .get(en)
-            .copied()
-            .unwrap_or(en),
-    }
+    let cache = match lang {
+        Lang::En => &EN,
+        Lang::Fr => &FR,
+        Lang::Es => &ES,
+    };
+    cache.get_or_init(|| lang.table().iter().copied().collect())
 }
 
-/// Translates a text with placeholders, then fills them: `{}` takes the next
+fn resolve(
+    message: &'static str,
+    preferred: &HashMap<&'static str, &'static str>,
+    english: &HashMap<&'static str, &'static str>,
+) -> &'static str {
+    preferred.get(message).or_else(|| english.get(message)).copied().unwrap_or(message)
+}
+
+/// Looks up a stable message key, with English as the fallback language.
+pub fn translate(lang: Lang, message: &'static str) -> &'static str {
+    resolve(message, translations(lang), translations(Lang::En))
+}
+
+/// Looks up a message key, then fills its placeholders: `{}` takes the next
 /// argument, `{0}`, `{1}`… a given one (translations may reorder them).
-pub fn trf(en: &'static str, args: &[&dyn Display]) -> String {
-    fill(tr(en), args)
+pub fn trf(message: &'static str, args: &[&dyn Display]) -> String {
+    fill(tr(message), args)
 }
 
 pub fn fill(template: &str, args: &[&dyn Display]) -> String {
@@ -177,6 +184,41 @@ mod tests {
     use super::*;
 
     #[test]
+    fn fill_placeholders() {
+        assert_eq!(fill("{} of {}", &[&1, &2]), "1 of 2");
+        assert_eq!(fill("{1} before {0}", &[&"a", &"b"]), "b before a");
+        assert_eq!(fill("set {a} {}", &[&3]), "set {a} 3");
+        assert_eq!(placeholders("{1} x {0}"), vec![0, 1]);
+    }
+
+    #[test]
+    fn fallback_and_lookup() {
+        assert_eq!(translate(Lang::En, "file.save"), "Save");
+        assert_eq!(translate(Lang::Fr, "file.save"), "Enregistrer");
+        assert_eq!(translate(Lang::Es, "file.save"), "Guardar");
+        for lang in Lang::ALL {
+            assert_eq!(translate(lang, "unknown.message"), "unknown.message");
+        }
+        assert_eq!(
+            fill(translate(Lang::Es, "file.open_failed"), &[&"test.opx", &"error"]),
+            "No se puede abrir test.opx: error"
+        );
+    }
+
+    #[test]
+    fn english_copy_changes_without_changing_keys_or_translations() {
+        let mut english = HashMap::from([("file.save", "Save")]);
+        let french = HashMap::from([("file.save", "Enregistrer")]);
+        let missing = HashMap::new();
+        assert_eq!(resolve("file.save", &missing, &english), "Save");
+        english.insert("file.save", "Save document");
+        assert_eq!(resolve("file.save", &english, &english), "Save document");
+        assert_eq!(resolve("file.save", &french, &english), "Enregistrer");
+        assert_eq!(resolve("file.save", &missing, &english), "Save document");
+        assert_eq!(resolve("unknown.message", &french, &english), "unknown.message");
+    }
+
+    #[test]
     fn language_cycle_and_serialization() {
         assert_eq!(Lang::Es.code(), "es");
         assert_eq!(Lang::Es.native_name(), "Español");
@@ -190,39 +232,34 @@ mod tests {
     }
 
     #[test]
-    fn fill_placeholders() {
-        assert_eq!(fill("{} of {}", &[&1, &2]), "1 of 2");
-        assert_eq!(fill("{1} before {0}", &[&"a", &"b"]), "b before a");
-        assert_eq!(fill("set {a} {}", &[&3]), "set {a} 3");
-        assert_eq!(placeholders("{1} x {0}"), vec![0, 1]);
-    }
-
-    #[test]
-    fn fallback_and_lookup() {
-        assert_eq!(translate(Lang::En, "Save"), "Save");
-        assert_eq!(translate(Lang::Fr, "Save"), "Enregistrer");
-        assert_eq!(translate(Lang::Fr, "no such text 42"), "no such text 42");
-    }
-
-    #[test]
     fn tables_are_consistent() {
+        let english: HashMap<_, _> = Lang::En.table().iter().copied().collect();
         for lang in Lang::ALL {
-            let Some(table) = lang.table() else { continue };
+            let table = lang.table();
             let mut seen = std::collections::HashSet::new();
-            for (en, t) in table {
-                assert!(seen.insert(*en), "{lang:?}: duplicate entry {en:?}");
-                assert!(!t.is_empty(), "{lang:?}: empty translation of {en:?}");
+            for (message, t) in table {
+                assert!(seen.insert(*message), "{lang:?}: duplicate entry {message:?}");
+                assert!(message.contains('.'), "{lang:?}: key needs a namespace: {message:?}");
+                assert!(
+                    message
+                        .split('.')
+                        .all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')),
+                    "{lang:?}: invalid key {message:?}"
+                );
+                let en = english.get(message).unwrap_or_else(|| panic!("{lang:?}: unknown key {message:?}"));
+                assert!(!t.is_empty(), "{lang:?}: empty translation of {message:?}");
                 assert_eq!(
                     placeholders(en),
                     placeholders(t),
-                    "{lang:?}: placeholders differ in {en:?} -> {t:?}"
+                    "{lang:?}: placeholders differ for {message:?}: {en:?} -> {t:?}"
                 );
                 assert_eq!(
                     en.matches('\n').count(),
                     t.matches('\n').count(),
-                    "{lang:?}: line count differs in {en:?}"
+                    "{lang:?}: line count differs for {message:?}"
                 );
             }
+            assert_eq!(seen.len(), english.len(), "{lang:?}: missing catalog keys");
         }
     }
 }

@@ -430,7 +430,7 @@ pub fn inline_editor(ctx: &egui::Context, id: egui::Id, pos: Pos2, width: f32, t
     egui::Area::new(id).fixed_pos(pos).order(egui::Order::Foreground).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).show(ui, |ui| {
             let r = ui.add(egui::TextEdit::singleline(text).desired_width(width.max(80.0)));
-            r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, tr("Name")));
+            r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, tr("common.name")));
             if first_frame {
                 r.request_focus();
             }
@@ -468,7 +468,11 @@ pub fn property_row(ui: &mut Ui, label: &str, value: Option<bool>, hint: &str) {
 /// Status bar zoom control: − 100% + and "fit".
 pub fn zoom_controls(ui: &mut Ui, view: &mut View, canvas: Rect, fit: &mut bool) {
     ui.spacing_mut().item_spacing.x = 2.0;
-    if ui.small_button(tr("Fit")).on_hover_text(tr("Zoom to fit (F)")).clicked() {
+    if ui
+        .small_button(tr("canvas.fit"))
+        .on_hover_text(tr("canvas.zoom_fit_hint"))
+        .clicked()
+    {
         *fit = true;
     }
     ui.add_space(6.0);
@@ -478,21 +482,21 @@ pub fn zoom_controls(ui: &mut Ui, view: &mut View, canvas: Rect, fit: &mut bool)
 /// Zoom controls shared by the full and compact configuration bars.
 pub fn zoom_buttons(ui: &mut Ui, view: &mut View, canvas: Rect) {
     ui.spacing_mut().item_spacing.x = 2.0;
-    let plus = ui.small_button("+").on_hover_text(tr("Zoom in"));
-    plus.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tr("Zoom in")));
+    let plus = ui.small_button("+").on_hover_text(tr("canvas.zoom_in"));
+    plus.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tr("canvas.zoom_in")));
     if plus.clicked() {
         view.zoom_around(canvas, canvas.center(), 1.2);
     }
     let pct = egui::RichText::new(format!("{:>3.0}%", view.zoom * 100.0)).monospace();
     if ui
         .add(egui::Button::new(pct).frame(false))
-        .on_hover_text(tr("Reset zoom to 100%"))
+        .on_hover_text(tr("canvas.reset_zoom_100"))
         .clicked()
     {
         view.zoom_around(canvas, canvas.center(), 1.0 / view.zoom);
     }
-    let minus = ui.small_button("−").on_hover_text(tr("Zoom out"));
-    minus.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tr("Zoom out")));
+    let minus = ui.small_button("−").on_hover_text(tr("canvas.zoom_out"));
+    minus.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tr("canvas.zoom_out")));
     if minus.clicked() {
         view.zoom_around(canvas, canvas.center(), 1.0 / 1.2);
     }
@@ -654,20 +658,24 @@ pub fn sketch() -> bool {
 
 /// Status-bar menu to choose the link style and the sketch mode.
 pub fn style_menu(ui: &mut Ui, style: &mut op_core::style::DiagramStyle, petri: bool) {
-    ui.menu_button(tr("Style ▾"), |ui| {
+    ui.menu_button(tr("canvas.style"), |ui| {
         if petri {
             use op_core::style::TransitionShape;
-            crate::theme::section_title(ui, tr("Transitions"));
-            ui.radio_value(&mut style.transitions, TransitionShape::Box, tr("Rectangle, name inside (course)"));
-            ui.radio_value(&mut style.transitions, TransitionShape::Bar, tr("Thin bar, name below"));
+            crate::theme::section_title(ui, tr("canvas.transitions"));
+            ui.radio_value(
+                &mut style.transitions,
+                TransitionShape::Box,
+                tr("canvas.rectangle_name_inside_course"),
+            );
+            ui.radio_value(&mut style.transitions, TransitionShape::Bar, tr("canvas.thin_bar_name_below"));
         }
-        crate::theme::section_title(ui, tr("Links"));
+        crate::theme::section_title(ui, tr("canvas.links"));
         for e in op_core::style::EdgeStyle::ALL {
             ui.radio_value(&mut style.edges, e, e.label());
         }
-        crate::theme::section_title(ui, tr("Drawing"));
-        ui.checkbox(&mut style.sketch, tr("Hand-drawn (sketch)"));
+        crate::theme::section_title(ui, tr("view.drawing"));
+        ui.checkbox(&mut style.sketch, tr("canvas.hand_drawn_sketch"));
     })
     .response
-    .on_hover_text(tr("Link style (straight, 90°, curved) and hand-drawn mode"));
+    .on_hover_text(tr("canvas.link_style_straight_90_curved_hand_drawn"));
 }

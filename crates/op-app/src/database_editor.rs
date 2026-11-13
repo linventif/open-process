@@ -122,7 +122,7 @@ impl DatabaseEditor {
         }
     }
     fn toolbar(&mut self, ui: &mut Ui) {
-        let dialect_label = ui.label(tr("Target database"));
+        let dialect_label = ui.label(tr("database.target_database"));
         egui::ComboBox::from_id_salt("sql_dialect")
             .selected_text(self.schema.dialect.label())
             .show_ui(ui, |ui| {
@@ -134,22 +134,25 @@ impl DatabaseEditor {
             .labelled_by(dialect_label.id);
         if self.state.sql_view {
             let sql = self.sql().clone();
-            if ui.add_enabled(sql.is_ok(), egui::Button::new(tr("Copy DDL"))).clicked()
+            if ui.add_enabled(sql.is_ok(), egui::Button::new(tr("database.copy_ddl"))).clicked()
                 && let Ok(sql) = sql
             {
                 ui.ctx().copy_text(sql);
             }
             return;
         }
-        if ui.button(tr("Add table")).clicked() {
+        if ui.button(tr("database.add_table")).clicked() {
             let count = self.schema.tables.len();
             self.add_table(Pos::new(80.0 + (count % 2) as f32 * 360.0, 80.0 + (count / 2) as f32 * 240.0));
         }
         let selected = self.state.selected.filter(|id| self.schema.table(*id).is_some());
-        if ui.add_enabled(selected.is_some(), egui::Button::new(tr("Add column"))).clicked() {
+        if ui
+            .add_enabled(selected.is_some(), egui::Button::new(tr("database.add_column")))
+            .clicked()
+        {
             self.schema.add_column(selected.unwrap());
         }
-        let relationship_button = ui.add_enabled(selected.is_some(), egui::Button::new(tr("Add foreign key")));
+        let relationship_button = ui.add_enabled(selected.is_some(), egui::Button::new(tr("database.add_foreign_key")));
         egui::Popup::menu(&relationship_button).show(|ui| {
             let tables: Vec<_> = self.schema.tables.iter().map(|t| (t.id, t.name.clone())).collect();
             for (id, name) in tables {
@@ -161,7 +164,7 @@ impl DatabaseEditor {
                 }
             }
         });
-        if ui.button(tr("SQL / DDL")).clicked() {
+        if ui.button(tr("database.sql_ddl")).clicked() {
             self.events.push(HostEvent::OpenView(crate::dock::View::from("database.ddl")));
         }
     }
@@ -183,7 +186,7 @@ impl DatabaseEditor {
                         );
                     }
                     Err(issues) => {
-                        ui.heading(tr("Fix schema issues before generating DDL."));
+                        ui.heading(tr("database.fix_schema_issues_before_generating_ddl"));
                         for issue in issues {
                             ui.colored_label(ui.visuals().error_fg_color, &issue.message);
                         }
@@ -204,7 +207,7 @@ impl DatabaseEditor {
                 },
                 FooterStatus {
                     summary: trf(
-                        "{} tables · {} relationships",
+                        "database.tables_relationships",
                         &[&self.schema.tables.len(), &self.schema.foreign_keys.len()],
                     ),
                     detail: self.state.status.clone(),

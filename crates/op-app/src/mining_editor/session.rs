@@ -43,12 +43,12 @@ impl EditorBackend for MiningEditor {
         const COMMANDS: &[CommandDescriptor] = &[
             CommandDescriptor {
                 id: UNDO,
-                label: key("Undo"),
+                label: key("common.undo"),
                 group: CommandGroup::Edit,
             },
             CommandDescriptor {
                 id: REDO,
-                label: key("Redo"),
+                label: key("common.redo"),
                 group: CommandGroup::Edit,
             },
         ];
@@ -79,7 +79,7 @@ impl EditorBackend for MiningEditor {
         })
     }
     fn export_label(&self) -> &'static str {
-        key("Export Alpha write-up (.txt)…")
+        key("mining.export_alpha_write_up_txt")
     }
 }
 
@@ -91,14 +91,14 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
         home_order: 2,
         icon: crate::icons::mining,
         aliases: &["log"],
-        new_label: key("New event log (process discovery)"),
-        title: key("Discover a process"),
-        description: key("Turn an event log into a relation matrix, a Petri net and a BPMN diagram with Alpha."),
+        new_label: key("mining.new_event_log_process_discovery"),
+        title: key("mining.discover_process"),
+        description: key("mining.turn_event_log_into_relation_matrix_petri"),
         badge: "ALPHA",
         color: theme::KIND_LOG,
         create: |n| {
             JsonCodec::new("event-log").encode(&LogDocument {
-                name: trf("Log {}", &[&n]),
+                name: trf("mining.log", &[&n]),
                 ..Default::default()
             })
         },
@@ -107,12 +107,12 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
     registry.examples.extend([
         ExampleDescriptor {
             id: "log.first",
-            label: key("Log – ABCD, ACBD, EF"),
+            label: key("mining.log_abcd_acbd_ef"),
             create: || log_example(EXAMPLE_1),
         },
         ExampleDescriptor {
             id: "log.second",
-            label: key("Log – ABCD, ACBD, AED"),
+            label: key("mining.log_abcd_acbd_aed"),
             create: || log_example(EXAMPLE_2),
         },
     ]);

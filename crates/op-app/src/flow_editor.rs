@@ -29,30 +29,30 @@ pub trait Notation: FlowKind + Serialize + DeserializeOwned {
 }
 impl Notation for EpcKind {
     const ID: &'static str = "epc";
-    const NEW: &'static str = key("New EPC diagram");
-    const TITLE: &'static str = key("Model an EPC");
-    const DESCRIPTION: &'static str = key("Describe event-driven processes with functions and logical connectors.");
-    const NAME: &'static str = key("EPC diagram {}");
+    const NEW: &'static str = key("flow.new_epc_diagram");
+    const TITLE: &'static str = key("flow.model_epc");
+    const DESCRIPTION: &'static str = key("flow.describe_event_driven_processes_functions_logical_connectors");
+    const NAME: &'static str = key("flow.epc_diagram");
     const BADGE: &'static str = "EPC";
     const COLOR: Color32 = Color32::from_rgb(37, 139, 102);
     const ICON: crate::icons::Icon = crate::icons::epc;
     const EXAMPLE: &'static str = "epc.order";
-    const EXAMPLE_LABEL: &'static str = key("EPC – Order processing");
+    const EXAMPLE_LABEL: &'static str = key("flow.epc_order_processing");
     fn example() -> Diagram<Self> {
         op_core::epc::example()
     }
 }
 impl Notation for ActivityKind {
     const ID: &'static str = "uml.activity";
-    const NEW: &'static str = key("New activity diagram");
-    const TITLE: &'static str = key("Design an activity diagram");
-    const DESCRIPTION: &'static str = key("Describe actions, decisions and parallel branches in UML.");
-    const NAME: &'static str = key("Activity diagram {}");
+    const NEW: &'static str = key("flow.new_activity_diagram");
+    const TITLE: &'static str = key("flow.design_activity_diagram");
+    const DESCRIPTION: &'static str = key("flow.describe_actions_decisions_parallel_branches_uml");
+    const NAME: &'static str = key("flow.activity_diagram");
     const BADGE: &'static str = "UML · ACTIVITY";
     const COLOR: Color32 = Color32::from_rgb(167, 100, 42);
     const ICON: crate::icons::Icon = crate::icons::activity;
     const EXAMPLE: &'static str = "uml.activity.order";
-    const EXAMPLE_LABEL: &'static str = key("UML activity – Order approval");
+    const EXAMPLE_LABEL: &'static str = key("flow.uml_activity_order_approval");
     fn example() -> Diagram<Self> {
         op_core::activity::example()
     }
@@ -140,7 +140,7 @@ impl<K: Notation> FlowEditor<K> {
             self.state.selected.clear();
             self.state.status.clear();
         } else {
-            self.state.status = tr("This relation is not valid for these elements.").into();
+            self.state.status = tr("uml.relation_not_valid_these_elements").into();
         }
         self.state.pending = None;
         self.history.sync(&self.diagram, false);
@@ -149,40 +149,40 @@ impl<K: Notation> FlowEditor<K> {
         DiagramLayout::inspector_tabs(
             ui,
             &mut self.state.tab,
-            &[(false, tr("Properties")), (true, tr("Validation"))],
+            &[(false, tr("common.properties")), (true, tr("common.validation"))],
             |_, _| {},
         );
         DiagramLayout::inspector_body(ui, |ui| {
             if self.state.tab {
                 let issues = self.diagram.issues();
                 if issues.is_empty() {
-                    ui.label(tr("No structural issues."));
+                    ui.label(tr("database.no_structural_issues"));
                 }
                 for issue in issues {
                     ui.colored_label(ui.visuals().warn_fg_color, issue);
                 }
             } else if let Some(n) = self.diagram.nodes.iter_mut().find(|n| self.state.selected.contains(&n.id)) {
                 ui.heading(tr(n.kind.label()));
-                ui.label(tr("Name"));
+                ui.label(tr("common.name"));
                 ui.text_edit_singleline(&mut n.name);
                 ui.add_space(8.0);
-                ui.label(tr("Size"));
+                ui.label(tr("common.size"));
                 ui.horizontal(|ui| {
                     ui.add(egui::DragValue::new(&mut n.bounds.w).range(20.0..=2000.0));
                     ui.add(egui::DragValue::new(&mut n.bounds.h).range(8.0..=2000.0));
                 });
-                ui.label(tr("Drag the bottom-right handle to resize."));
+                ui.label(tr("flow.drag_bottom_right_handle_resize"));
             } else if let Some(f) = self.diagram.flows.iter_mut().find(|f| Some(f.id) == self.state.flow) {
-                ui.heading(tr("Flow"));
-                ui.label(tr("Label / guard"));
+                ui.heading(tr("flow.flow"));
+                ui.label(tr("flow.label_guard"));
                 ui.text_edit_singleline(&mut f.label);
             } else {
-                ui.heading(tr("Diagram"));
-                ui.label(tr("Name"));
+                ui.heading(tr("document.diagram"));
+                ui.label(tr("common.name"));
                 ui.text_edit_singleline(&mut self.diagram.name);
                 ui.add_space(12.0);
-                ui.label(tr("Select an element to edit its properties."));
-                ui.label(tr("Drag between elements, or click source then target. Escape cancels."));
+                ui.label(tr("flow.select_element_edit_properties"));
+                ui.label(tr("flow.drag_between_elements_click_source_then_target"));
             }
         });
     }
@@ -426,7 +426,7 @@ impl<K: Notation> FlowEditor<K> {
                 if canvas::icon_button(
                     ui,
                     self.state.tool.is_none() && !self.state.connecting,
-                    tr("Select"),
+                    tr("common.select"),
                     crate::icons::select,
                 )
                 .clicked()
@@ -435,7 +435,7 @@ impl<K: Notation> FlowEditor<K> {
                     self.state.connecting = false;
                     self.state.pending = None;
                 }
-                if canvas::icon_button(ui, self.state.connecting, tr("Connect"), |p, r, c| {
+                if canvas::icon_button(ui, self.state.connecting, tr("database.connect"), |p, r, c| {
                     p.line_segment([r.left_bottom(), r.right_top()], Stroke::new(1.5, c));
                     canvas::arrow_head(p, r.right_top(), vec2(1.0, -1.0), 7.0, c, true);
                 })
@@ -547,22 +547,22 @@ fn paint_shape(p: &egui::Painter, r: Rect, shape: Shape, stroke: Stroke, fill: C
 const COMMANDS: &[CommandDescriptor] = &[
     CommandDescriptor {
         id: UNDO,
-        label: key("Undo"),
+        label: key("common.undo"),
         group: CommandGroup::Edit,
     },
     CommandDescriptor {
         id: REDO,
-        label: key("Redo"),
+        label: key("common.redo"),
         group: CommandGroup::Edit,
     },
     CommandDescriptor {
         id: DELETE,
-        label: key("Delete selection"),
+        label: key("common.delete_selection"),
         group: CommandGroup::Edit,
     },
     CommandDescriptor {
         id: FIT,
-        label: key("Zoom to fit"),
+        label: key("canvas.zoom_fit"),
         group: CommandGroup::View,
     },
 ];
@@ -639,7 +639,7 @@ impl<K: Notation> EditorBackend for FlowEditor<K> {
                 issues: None,
             },
             FooterStatus {
-                summary: trf("{} elements", &[&self.diagram.nodes.len()]),
+                summary: trf("common.element_count", &[&self.diagram.nodes.len()]),
                 detail: self.state.status.clone(),
                 ..Default::default()
             },
@@ -688,7 +688,7 @@ impl<K: Notation> EditorBackend for FlowEditor<K> {
         })
     }
     fn export_label(&self) -> &'static str {
-        key("Export SVG (.svg)…")
+        key("flow.export_svg_svg")
     }
     fn exports(&self) -> Vec<ExportDescriptor> {
         vec![
@@ -698,7 +698,7 @@ impl<K: Notation> EditorBackend for FlowEditor<K> {
             },
             ExportDescriptor {
                 id: "dot",
-                label: key("Export Graphviz (.dot)…"),
+                label: key("flow.export_graphviz_dot"),
             },
         ]
     }

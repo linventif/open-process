@@ -212,8 +212,8 @@ impl UmlEditor {
 
 impl UmlEditor {
     pub(super) fn palette(&mut self, ui: &Ui, rect: Rect) {
-        let tools = std::iter::once((Tool::Select, tr("Select / move")))
-            .chain(std::iter::once((Tool::Connect, tr("Connect"))))
+        let tools = std::iter::once((Tool::Select, tr("common.select_move")))
+            .chain(std::iter::once((Tool::Connect, tr("database.connect"))))
             .chain(
                 self.diagram
                     .kind
@@ -298,9 +298,9 @@ impl UmlEditor {
                 rect.center() - vec2(0.0, 14.0),
                 Align2::CENTER_CENTER,
                 if self.diagram.kind == DiagramKind::Class {
-                    tr("Empty class diagram")
+                    tr("uml.empty_class_diagram")
                 } else {
-                    tr("Empty use-case diagram")
+                    tr("uml.empty_use_case_diagram")
                 },
                 crate::theme::semibold(18.0),
                 pal.text,
@@ -308,7 +308,7 @@ impl UmlEditor {
             p.text(
                 rect.center() + vec2(0.0, 14.0),
                 Align2::CENTER_CENTER,
-                tr("Pick an element in the palette and click on the canvas"),
+                tr("bpmn.pick_element_palette_click_canvas"),
                 FontId::proportional(13.0),
                 pal.muted,
             );

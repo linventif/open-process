@@ -31,10 +31,10 @@ pub fn language_menu(ui: &mut Ui) {
             }
         })
         .response
-        .on_hover_text(tr("Language"));
+        .on_hover_text(tr("ui.language"));
     let flag = Rect::from_center_size(pos2(resp.rect.left() + 15.0, resp.rect.center().y), vec2(20.0, 13.0));
     paint_flag(ui, lang, flag);
-    resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tr("Language")));
+    resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tr("ui.language")));
 }
 
 pub fn paint_flag(ui: &Ui, lang: Lang, r: Rect) {
@@ -94,7 +94,7 @@ pub fn paint_flag(ui: &Ui, lang: Lang, r: Rect) {
 #[cfg(test)]
 mod tests {
     use super::{STORAGE_KEY, load, save};
-    use op_core::i18n::{Lang, placeholders};
+    use op_core::i18n::Lang;
 
     #[test]
     fn language_choice_is_restored() {
@@ -168,19 +168,27 @@ mod tests {
     fn every_text_is_translated() {
         let mut missing = Vec::new();
         let mut used = std::collections::HashSet::new();
-        for lang in Lang::ALL {
-            let Some(table) = lang.table() else { continue };
-            let map: std::collections::HashMap<&str, &str> = table.iter().copied().collect();
-            for (file, src) in crate::test_sources::all() {
-                for s in translatable(&src) {
-                    used.insert(s.clone());
-                    match map.get(s.as_str()) {
-                        None => missing.push(format!("{lang:?} {file}: {s:?}")),
-                        Some(t) => assert_eq!(placeholders(&s), placeholders(t), "{s:?}"),
-                    }
+        for (file, src) in crate::test_sources::all() {
+            // Catalog values are prose, not call sites. English copy may contain
+            // any text, including examples of translation calls.
+            if file.contains("/op-core/src/i18n/") {
+                continue;
+            }
+            for message in translatable(&src) {
+                used.insert(message.clone());
+                if !Lang::En.table().iter().any(|(key, _)| *key == message) {
+                    missing.push(format!("{file}: {message:?}"));
                 }
             }
-            let unused: Vec<_> = table.iter().filter(|(en, _)| !used.contains(*en)).map(|(en, _)| *en).collect();
+        }
+        for lang in Lang::ALL {
+            let table = lang.table();
+            for message in &used {
+                if !table.iter().any(|(key, _)| *key == message) {
+                    missing.push(format!("{lang:?}: {message:?}"));
+                }
+            }
+            let unused: Vec<_> = table.iter().filter(|(key, _)| !used.contains(*key)).map(|(key, _)| *key).collect();
             assert!(unused.is_empty(), "{lang:?}: unused translations: {unused:#?}");
         }
         missing.sort();

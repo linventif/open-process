@@ -64,39 +64,39 @@ impl DmnEditor {
         DiagramLayout::inspector_tabs(
             ui,
             &mut self.state.tab,
-            &[(false, tr("Properties")), (true, tr("Validation"))],
+            &[(false, tr("common.properties")), (true, tr("common.validation"))],
             |_, _| {},
         );
         DiagramLayout::inspector_body(ui, |ui| {
             if self.state.tab {
                 let issues = self.table.validate();
                 if issues.is_empty() {
-                    ui.label(tr("No structural issues."));
+                    ui.label(tr("database.no_structural_issues"));
                 }
                 for issue in issues {
                     ui.colored_label(ui.visuals().warn_fg_color, issue);
                 }
                 return;
             }
-            ui.heading(tr("Decision table"));
-            ui.label(tr("Name"));
+            ui.heading(tr("dmn.decision_table"));
+            ui.label(tr("common.name"));
             ui.text_edit_singleline(&mut self.table.name);
             ui.add_space(12.0);
-            ui.label(tr("Input values (JSON)"));
+            ui.label(tr("dmn.input_values_json"));
             ui.add(
                 egui::TextEdit::multiline(&mut self.state.sample)
                     .code_editor()
                     .desired_rows(4)
                     .desired_width(f32::INFINITY),
             );
-            if ui.button(tr("Evaluate decision")).clicked() {
+            if ui.button(tr("dmn.evaluate_decision")).clicked() {
                 self.run();
             }
             if let Some(result) = &self.state.result {
                 match result {
                     Ok(result) => {
                         ui.label(trf(
-                            "Matched rules: {}",
+                            "dmn.matched_rules",
                             &[&result.matched_rules.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ")],
                         ));
                         ui.label(egui::RichText::new(serde_json::to_string_pretty(&result.results).unwrap()).monospace());
@@ -107,10 +107,8 @@ impl DmnEditor {
                 }
             }
             ui.add_space(12.0);
-            ui.label(tr("Supported tests: -, literals, comparisons, intervals, lists and not(...)."));
-            ui.label(tr(
-                "Outputs must be string, number, boolean or null literals. Full FEEL is not supported.",
-            ));
+            ui.label(tr("dmn.supported_tests_literals_comparisons_intervals_lists_not"));
+            ui.label(tr("dmn.outputs_must_string_number_boolean_null_literals"));
         });
     }
     fn grid(&mut self, ui: &mut Ui) {
@@ -125,18 +123,21 @@ impl DmnEditor {
                 .min_col_width(130.0)
                 .spacing(egui::vec2(10.0, 8.0))
                 .show(ui, |ui| {
-                    ui.label(tr("Rule"));
+                    ui.label(tr("dmn.rule"));
                     for (i, c) in self.table.inputs.iter_mut().enumerate() {
                         ui.push_id(("input", i), |ui| {
                             ui.vertical(|ui| {
-                                ui.label(tr("Input"));
+                                ui.label(tr("dmn.input"));
                                 ui.add(
                                     egui::TextEdit::singleline(&mut c.name)
                                         .desired_width(140.0)
-                                        .hint_text(tr("Input name")),
+                                        .hint_text(tr("dmn.input_name")),
                                 );
                                 type_selector(ui, &mut c.data_type);
-                                if ui.add_enabled(can_remove_input, egui::Button::new(tr("Remove column"))).clicked() {
+                                if ui
+                                    .add_enabled(can_remove_input, egui::Button::new(tr("dmn.remove_column")))
+                                    .clicked()
+                                {
                                     remove_input = Some(i);
                                 }
                             });
@@ -145,20 +146,23 @@ impl DmnEditor {
                     for (i, c) in self.table.outputs.iter_mut().enumerate() {
                         ui.push_id(("output", i), |ui| {
                             ui.vertical(|ui| {
-                                ui.label(tr("Output"));
+                                ui.label(tr("dmn.output"));
                                 ui.add(
                                     egui::TextEdit::singleline(&mut c.name)
                                         .desired_width(140.0)
-                                        .hint_text(tr("Output name")),
+                                        .hint_text(tr("dmn.output_name")),
                                 );
                                 type_selector(ui, &mut c.data_type);
-                                if ui.add_enabled(can_remove_output, egui::Button::new(tr("Remove column"))).clicked() {
+                                if ui
+                                    .add_enabled(can_remove_output, egui::Button::new(tr("dmn.remove_column")))
+                                    .clicked()
+                                {
                                     remove_output = Some(i);
                                 }
                             });
                         });
                     }
-                    ui.label(tr("Annotation"));
+                    ui.label(tr("dmn.annotation"));
                     ui.end_row();
                     for (i, r) in self.table.rules.iter_mut().enumerate() {
                         if ui.selectable_label(self.state.selected == Some(i), (i + 1).to_string()).clicked() {
@@ -180,7 +184,7 @@ impl DmnEditor {
                         }
                         ui.horizontal(|ui| {
                             ui.add(egui::TextEdit::singleline(&mut r.annotation).desired_width(170.0));
-                            if ui.small_button("×").on_hover_text(tr("Remove rule")).clicked() {
+                            if ui.small_button("×").on_hover_text(tr("dmn.remove_rule")).clicked() {
                                 remove_rule = Some(i);
                             }
                         });
@@ -189,7 +193,7 @@ impl DmnEditor {
                 });
             if self.table.rules.is_empty() {
                 ui.add_space(20.0);
-                ui.label(tr("Add a rule to define the decision."));
+                ui.label(tr("dmn.add_rule_define_decision"));
             }
         });
         if let Some(i) = remove_input {
@@ -217,17 +221,17 @@ fn type_selector(ui: &mut Ui, value: &mut DataType) {
 const COMMANDS: &[CommandDescriptor] = &[
     CommandDescriptor {
         id: UNDO,
-        label: key("Undo"),
+        label: key("common.undo"),
         group: CommandGroup::Edit,
     },
     CommandDescriptor {
         id: REDO,
-        label: key("Redo"),
+        label: key("common.redo"),
         group: CommandGroup::Edit,
     },
     CommandDescriptor {
         id: DELETE,
-        label: key("Delete selection"),
+        label: key("common.delete_selection"),
         group: CommandGroup::Edit,
     },
 ];
@@ -291,16 +295,16 @@ impl EditorBackend for DmnEditor {
         let before = self.table.clone();
         let layout = DiagramLayout::new(ui, self.state.uid, self.state.inspector);
         layout.tools(ui, |ui| {
-            if ui.button(tr("Add input")).clicked() {
+            if ui.button(tr("dmn.add_input")).clicked() {
                 self.table.add_input();
             }
-            if ui.button(tr("Add output")).clicked() {
+            if ui.button(tr("dmn.add_output")).clicked() {
                 self.table.add_output();
             }
-            if ui.button(tr("Add rule")).clicked() {
+            if ui.button(tr("dmn.add_rule")).clicked() {
                 self.table.add_rule();
             }
-            ui.label(tr("Hit policy"));
+            ui.label(tr("dmn.hit_policy"));
             egui::ComboBox::from_id_salt("hit_policy")
                 .selected_text(self.table.hit_policy.code())
                 .show_ui(ui, |ui| {
@@ -308,7 +312,7 @@ impl EditorBackend for DmnEditor {
                         ui.selectable_value(&mut self.table.hit_policy, p, p.code());
                     }
                 });
-            if ui.selectable_label(layout.inspector_visible, tr("Inspector")).clicked() {
+            if ui.selectable_label(layout.inspector_visible, tr("common.inspector")).clicked() {
                 self.state.inspector = Some(!layout.inspector_visible);
             }
         });
@@ -358,7 +362,7 @@ impl EditorBackend for DmnEditor {
         })
     }
     fn export_label(&self) -> &'static str {
-        key("Export DMN XML (.dmn)…")
+        key("dmn.export_dmn_xml_dmn")
     }
     fn exports(&self) -> Vec<ExportDescriptor> {
         vec![
@@ -368,7 +372,7 @@ impl EditorBackend for DmnEditor {
             },
             ExportDescriptor {
                 id: "csv",
-                label: key("Export decision table (.csv)…"),
+                label: key("dmn.export_decision_table_csv"),
             },
         ]
     }
@@ -389,12 +393,12 @@ pub fn register(registry: &mut DiagramRegistry) {
         aliases: &["dmn"],
         home_order: 6,
         icon: crate::icons::decision_table,
-        new_label: key("New decision table"),
-        title: key("Define a decision table"),
-        description: key("Edit and evaluate decision rules with typed inputs and outputs."),
+        new_label: key("dmn.new_decision_table"),
+        title: key("dmn.define_decision_table"),
+        description: key("dmn.edit_evaluate_decision_rules_typed_inputs_outputs"),
         badge: "DMN",
         color: egui::Color32::from_rgb(126, 92, 171),
-        create: |n| JsonCodec::new("dmn.table").encode(&DecisionTable::new(trf("Decision table {}", &[&n]))),
+        create: |n| JsonCodec::new("dmn.table").encode(&DecisionTable::new(trf("dmn.document_name", &[&n]))),
         open: |d| {
             let table: DecisionTable = JsonCodec::new("dmn.table").decode(d)?;
             table.check_storage().map_err(ReadError::Invalid)?;
@@ -403,7 +407,7 @@ pub fn register(registry: &mut DiagramRegistry) {
     });
     registry.examples.push(ExampleDescriptor {
         id: "dmn.discount",
-        label: key("DMN – Discount decision"),
+        label: key("dmn.dmn_discount_decision"),
         create: || JsonCodec::new("dmn.table").encode(&dmn::example()),
     });
     registry.imports.push(ImportDescriptor {

@@ -159,14 +159,14 @@ impl DecisionTable {
             || self.outputs.len() > 128
             || self.rules.len() > 10_000
         {
-            return Err(tr("Invalid decision table dimensions.").into());
+            return Err(tr("dmn.invalid_decision_table_dimensions").into());
         }
         if self
             .rules
             .iter()
             .any(|r| r.inputs.len() != self.inputs.len() || r.outputs.len() != self.outputs.len())
         {
-            return Err(tr("Rule cells do not match the decision columns.").into());
+            return Err(tr("dmn.rule_cells_do_not_match_decision_columns").into());
         }
         Ok(())
     }
@@ -178,19 +178,19 @@ impl DecisionTable {
         for clauses in [&self.inputs, &self.outputs] {
             let mut names = BTreeSet::new();
             if clauses.iter().any(|c| c.name.trim().is_empty() || !names.insert(&c.name)) {
-                issues.push(tr("Decision columns must have unique non-empty names.").into());
+                issues.push(tr("dmn.decision_columns_must_have_unique_non_empty").into());
             }
         }
         for (i, r) in self.rules.iter().enumerate() {
             for cell in &r.inputs {
                 if let Err(e) = unary_test(cell, &Value::Null, 0) {
-                    issues.push(trf("Rule {}: {}", &[&(i + 1), &e]));
+                    issues.push(trf("dmn.rule_error", &[&(i + 1), &e]));
                 }
             }
             for (c, cell) in self.outputs.iter().zip(&r.outputs) {
                 match literal(cell) {
                     Ok(v) if c.data_type.accepts(&v) => {}
-                    _ => issues.push(trf("Rule {}: invalid output for {}", &[&(i + 1), &c.name])),
+                    _ => issues.push(trf("dmn.rule_invalid_output", &[&(i + 1), &c.name])),
                 }
             }
         }
@@ -203,7 +203,7 @@ impl DecisionTable {
         }
         for c in &self.inputs {
             if !values.get(&c.name).is_some_and(|v| c.data_type.accepts(v)) {
-                return Err(trf("Missing or invalid input: {}", &[&c.name]));
+                return Err(trf("dmn.missing_invalid_input", &[&c.name]));
             }
         }
         let mut matched_rules = vec![];
@@ -229,11 +229,11 @@ impl DecisionTable {
             }
         }
         if self.hit_policy == HitPolicy::Unique && results.len() > 1 {
-            return Err(tr("UNIQUE policy matched several rules.").into());
+            return Err(tr("dmn.unique_policy_matched_several_rules").into());
         }
         if self.hit_policy == HitPolicy::Any {
             if results.windows(2).any(|p| p[0].iter().any(|(k, v)| !value_equal(v, &p[1][k]))) {
-                return Err(tr("ANY policy produced different outputs.").into());
+                return Err(tr("dmn.any_policy_produced_different_outputs").into());
             }
             results.truncate(1);
         }
@@ -328,9 +328,9 @@ fn unique_name<'a>(prefix: &str, names: impl Iterator<Item = &'a str>) -> String
     (1..).map(|i| format!("{prefix}{i}")).find(|n| !names.contains(n.as_str())).unwrap()
 }
 fn literal(src: &str) -> Result<Value, String> {
-    let v = serde_json::from_str::<Value>(src.trim()).map_err(|_| trf("Unsupported decision expression: {}", &[&src]))?;
+    let v = serde_json::from_str::<Value>(src.trim()).map_err(|_| trf("dmn.unsupported_decision_expression", &[&src]))?;
     if v.is_object() || v.is_array() {
-        return Err(trf("Unsupported decision expression: {}", &[&src]));
+        return Err(trf("dmn.unsupported_decision_expression", &[&src]));
     }
     Ok(v)
 }
@@ -342,7 +342,7 @@ fn value_equal(a: &Value, b: &Value) -> bool {
 }
 fn unary_test(src: &str, value: &Value, depth: usize) -> Result<bool, String> {
     let src = src.trim();
-    let unsupported = || trf("Unsupported decision expression: {}", &[&src]);
+    let unsupported = || trf("dmn.unsupported_decision_expression", &[&src]);
     if depth > 32 || src.len() > 4096 {
         return Err(unsupported());
     }
@@ -426,7 +426,7 @@ pub fn accepts_xml(src: &str) -> bool {
 }
 pub fn from_xml(src: &str) -> Result<DecisionTable, String> {
     let root = xml::parse(src)?;
-    let unsupported = || tr("Only a single decision table with supported clauses can be imported.").to_owned();
+    let unsupported = || tr("dmn.only_single_decision_table_supported_clauses_can").to_owned();
     if root.name != "definitions" || root.children.len() != 1 || root.children[0].name != "decision" {
         return Err(unsupported());
     }
@@ -521,7 +521,7 @@ pub fn from_xml(src: &str) -> Result<DecisionTable, String> {
     Ok(d)
 }
 pub fn example() -> DecisionTable {
-    let mut d = DecisionTable::new(tr(key("Discount decision")));
+    let mut d = DecisionTable::new(tr(key("dmn.discount_decision")));
     d.inputs[0].name = "amount".into();
     d.outputs[0] = Clause {
         name: "discount".into(),

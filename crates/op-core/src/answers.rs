@@ -87,7 +87,7 @@ impl Vocabulary {
             } else if self.single_letter && tok.chars().all(|c| self.find(&c.to_string()).is_some()) {
                 out.extend(tok.chars().filter_map(|c| self.find(&c.to_string())));
             } else {
-                return Err(trf("unknown activity '{}'", &[&tok]));
+                return Err(trf("mining.unknown_activity", &[&tok]));
             }
         }
         Ok(out)
@@ -148,7 +148,7 @@ fn parse_pair(v: &Vocabulary, s: &str) -> Result<(BTreeSet<String>, BTreeSet<Str
     let inner = unwrap_outer(s, '(', ')');
     let parts = split_top(inner);
     if parts.len() != 2 {
-        return Err(trf("'{}' is not a pair (A,B)", &[&s]));
+        return Err(trf("mining.not_pair_b", &[&s]));
     }
     Ok((v.parse_set(&parts[0])?, v.parse_set(&parts[1])?))
 }
@@ -162,7 +162,7 @@ fn canon_place(v: &Vocabulary, s: &str) -> Result<String, String> {
     if ["ow", "o", "o_w", "end", "sink"].contains(&low.as_str()) {
         return Ok("ow".into());
     }
-    let rest = t.strip_prefix(['P', 'p']).ok_or_else(|| trf("'{}' is not a place", &[&t]))?;
+    let rest = t.strip_prefix(['P', 'p']).ok_or_else(|| trf("mining.not_place", &[&t]))?;
     let rest = rest.trim_start_matches(['_', ' ']);
     let rest = if rest.starts_with('{') && !rest.starts_with("{{") && !rest.contains('(') {
         // P_{A,BE}
@@ -232,7 +232,7 @@ pub fn parse(r: &AlphaResult, step: Step, answer: &str) -> Result<BTreeSet<Strin
                 let inner = unwrap_outer(arc, '(', ')');
                 let parts = split_top(inner);
                 if parts.len() != 2 {
-                    return Err(trf("'{}' is not an arc (x,y)", &[&arc]));
+                    return Err(trf("mining.not_arc_x_y", &[&arc]));
                 }
                 let node = |x: &str| -> Result<String, String> {
                     match v.find(x.trim()) {
@@ -356,11 +356,11 @@ pub fn check_relations(r: &AlphaResult, list: RelationList, answer: &str) -> Ver
     let mut got = BTreeSet::new();
     for tok in answer.split([',', ';', '\n']).map(str::trim).filter(|t| !t.is_empty()) {
         let Some((sym, idx)) = syms.iter().find_map(|s| tok.find(s).map(|i| (*s, i))) else {
-            return Verdict::Invalid(trf("'{}': expected x{}y", &[&tok, &list.symbol()]));
+            return Verdict::Invalid(trf("mining.expected_x_y", &[&tok, &list.symbol()]));
         };
         let (a, b) = (tok[..idx].trim(), tok[idx + sym.len()..].trim());
         let (Some(a), Some(b)) = (v.find(a), v.find(b)) else {
-            return Verdict::Invalid(trf("unknown activity in '{}'", &[&tok]));
+            return Verdict::Invalid(trf("mining.unknown_activity_in_expression", &[&tok]));
         };
         got.insert(canon_rel(list, &a, &b));
     }

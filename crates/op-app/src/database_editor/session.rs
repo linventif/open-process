@@ -6,33 +6,33 @@ use serde_json::Value;
 const COMMANDS: &[CommandDescriptor] = &[
     CommandDescriptor {
         id: UNDO,
-        label: key("Undo"),
+        label: key("common.undo"),
         group: CommandGroup::Edit,
     },
     CommandDescriptor {
         id: REDO,
-        label: key("Redo"),
+        label: key("common.redo"),
         group: CommandGroup::Edit,
     },
     CommandDescriptor {
         id: DELETE,
-        label: key("Delete selection"),
+        label: key("common.delete_selection"),
         group: CommandGroup::Edit,
     },
     CommandDescriptor {
         id: FIT,
-        label: key("Zoom to fit"),
+        label: key("canvas.zoom_fit"),
         group: CommandGroup::View,
     },
     CommandDescriptor {
         id: "database.show-ddl",
-        label: key("SQL / DDL"),
+        label: key("database.sql_ddl"),
         group: CommandGroup::View,
     },
 ];
 const VIEWS: &[ViewDescriptor] = &[ViewDescriptor {
     id: "database.ddl",
-    label: key("SQL / DDL"),
+    label: key("database.sql_ddl"),
 }];
 impl EditorBackend for DatabaseEditor {
     type ViewState = DatabaseView;
@@ -145,7 +145,7 @@ impl EditorBackend for DatabaseEditor {
             .map_err(|issues| issues.iter().map(|i| i.message.as_str()).collect::<Vec<_>>().join("\n"))
     }
     fn export_label(&self) -> &'static str {
-        key("Export SQL DDL (.sql)…")
+        key("database.export_sql_ddl_sql")
     }
 }
 pub(crate) fn register(registry: &mut DiagramRegistry) {
@@ -154,12 +154,12 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
         aliases: &["database", "erd", "mpd"],
         home_order: 9,
         icon: crate::icons::database,
-        new_label: key("New database schema"),
-        title: key("Design a database"),
-        description: key("Define tables, columns and relationships, then generate SQL DDL."),
+        new_label: key("database.new_database_schema"),
+        title: key("database.design_database"),
+        description: key("database.define_tables_columns_relationships_then_generate_sql"),
         badge: "DATABASE",
         color: egui::Color32::from_rgb(34, 139, 157),
-        create: |n| JsonCodec::new("database.schema").encode(&Schema::new(trf("Database schema {}", &[&n]))),
+        create: |n| JsonCodec::new("database.schema").encode(&Schema::new(trf("database.database_schema", &[&n]))),
         open: |d| {
             let schema: Schema = JsonCodec::new("database.schema").decode(d)?;
             schema.check_storage().map_err(ReadError::Invalid)?;
@@ -168,7 +168,7 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
     });
     registry.examples.push(ExampleDescriptor {
         id: "database.shop",
-        label: key("Database – Shop schema"),
+        label: key("database.database_shop_schema"),
         create: || JsonCodec::new("database.schema").encode(&database::example()),
     });
 }

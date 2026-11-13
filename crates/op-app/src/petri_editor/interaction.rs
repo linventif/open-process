@@ -58,9 +58,9 @@ impl PetriEditor {
                     let ti = self.net.transition_index(id).unwrap();
                     let name = self.net.transitions[ti].name.clone();
                     if self.fire(ti) {
-                        self.status = trf("Fired {}", &[&name]);
+                        self.status = trf("petri.fired", &[&name]);
                     } else {
-                        self.status = trf("{} is not enabled", &[&name]);
+                        self.status = trf("petri.not_enabled", &[&name]);
                     }
                 }
                 Some(n) => self.selection = Some(Sel::Node(n)),
@@ -335,38 +335,38 @@ impl PetriEditor {
         let (target, w) = self.ctx_target;
         match target {
             Some(Sel::Node(NodeRef::Place(id))) => {
-                if ui.button(tr("Add token")).clicked() {
+                if ui.button(tr("petri.add_token")).clicked() {
                     if let Some(p) = self.net.place_mut(id) {
                         p.tokens += 1;
                     }
                     ui.close();
                 }
-                if ui.button(tr("Remove token")).clicked() {
+                if ui.button(tr("petri.remove_token")).clicked() {
                     if let Some(p) = self.net.place_mut(id) {
                         p.tokens = p.tokens.saturating_sub(1);
                     }
                     ui.close();
                 }
-                if ui.button(tr("Rename…")).clicked() {
+                if ui.button(tr("petri.rename")).clicked() {
                     let n = NodeRef::Place(id);
                     self.editing = Some((n, self.net.node_name(n).unwrap_or("").into(), true));
                     ui.close();
                 }
-                if ui.button(tr("Delete")).clicked() {
+                if ui.button(tr("common.delete")).clicked() {
                     self.net.remove_node(NodeRef::Place(id));
                     ui.close();
                 }
             }
             Some(Sel::Node(NodeRef::Transition(id))) => {
                 if let Some(t) = self.net.transition_mut(id) {
-                    ui.checkbox(&mut t.silent, tr("Silent (τ)"));
+                    ui.checkbox(&mut t.silent, tr("petri.silent_tau"));
                 }
-                if ui.button(tr("Rename…")).clicked() {
+                if ui.button(tr("petri.rename")).clicked() {
                     let n = NodeRef::Transition(id);
                     self.editing = Some((n, self.net.node_name(n).unwrap_or("").into(), true));
                     ui.close();
                 }
-                if ui.button(tr("Delete")).clicked() {
+                if ui.button(tr("common.delete")).clicked() {
                     self.net.remove_node(NodeRef::Transition(id));
                     ui.close();
                 }
@@ -374,33 +374,33 @@ impl PetriEditor {
             Some(Sel::Arc(id)) => {
                 if let Some(a) = self.net.arc_mut(id) {
                     ui.horizontal(|ui| {
-                        ui.label(tr("Weight"));
+                        ui.label(tr("petri.weight"));
                         ui.add(egui::DragValue::new(&mut a.weight).range(1..=1000));
                     });
                     if matches!(a.from, NodeRef::Place(_)) {
                         let mut inh = a.kind == ArcKind::Inhibitor;
-                        if ui.checkbox(&mut inh, tr("Inhibitor arc")).changed() {
+                        if ui.checkbox(&mut inh, tr("petri.inhibitor_arc")).changed() {
                             a.kind = if inh { ArcKind::Inhibitor } else { ArcKind::Normal };
                         }
                     }
                 }
-                if ui.button(tr("Delete")).clicked() {
+                if ui.button(tr("common.delete")).clicked() {
                     self.net.remove_arc(id);
                     ui.close();
                 }
             }
             None => {
-                if ui.button(tr("Add place here")).clicked() {
+                if ui.button(tr("petri.add_place_here")).clicked() {
                     let id = self.net.add_place(self.snap(w), 0);
                     self.selection = Some(Sel::Node(NodeRef::Place(id)));
                     ui.close();
                 }
-                if ui.button(tr("Add transition here")).clicked() {
+                if ui.button(tr("petri.add_transition_here")).clicked() {
                     let id = self.net.add_transition(self.snap(w));
                     self.selection = Some(Sel::Node(NodeRef::Transition(id)));
                     ui.close();
                 }
-                if ui.button(tr("Zoom to fit")).clicked() {
+                if ui.button(tr("canvas.zoom_fit")).clicked() {
                     self.fit_request = true;
                     ui.close();
                 }

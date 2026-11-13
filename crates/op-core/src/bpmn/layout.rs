@@ -18,10 +18,10 @@ pub fn auto_arrange(diagram: &mut BpmnDiagram) -> Result<(), String> {
                 || p.lanes.iter().any(|l| !l.height.is_finite() || l.height <= 0.0)
         })
     {
-        return Err(tr("Cannot arrange a diagram with invalid geometry.").into());
+        return Err(tr("bpmn.cannot_arrange_diagram_invalid_geometry").into());
     }
     if diagram.pools.iter().any(|p| p.lanes.is_empty()) {
-        return Err(tr("Add a lane to each pool before arranging.").into());
+        return Err(tr("bpmn.add_lane_each_pool_before_arranging").into());
     }
     let owners: BTreeMap<_, _> = diagram
         .nodes
@@ -32,7 +32,7 @@ pub fn auto_arrange(diagram: &mut BpmnDiagram) -> Result<(), String> {
         .values()
         .any(|(pool, lane)| pool.is_some() && lane.is_none() || lane.is_some_and(|(id, _)| Some(id) != *pool))
     {
-        return Err(tr("Move elements out of pool headers and separate overlapping pools before arranging.").into());
+        return Err(tr("bpmn.move_elements_out_pool_headers_separate_overlapping").into());
     }
     let info: BTreeMap<_, _> = diagram.nodes.iter().map(|n| (n.id, n)).collect();
     if info.len() != diagram.nodes.len()
@@ -41,7 +41,7 @@ pub fn auto_arrange(diagram: &mut BpmnDiagram) -> Result<(), String> {
             .iter()
             .any(|f| !info.contains_key(&f.from) || !info.contains_key(&f.to))
     {
-        return Err(tr("Cannot arrange a diagram with invalid element references.").into());
+        return Err(tr("bpmn.cannot_arrange_diagram_invalid_element_references").into());
     }
     let mut ranks = flow_ranks(diagram);
     let orphan_rank = ranks.values().copied().max().map_or(0, |rank| rank + 1);
@@ -141,10 +141,10 @@ pub fn auto_arrange(diagram: &mut BpmnDiagram) -> Result<(), String> {
             .iter()
             .any(|p| ![p.pos.x, p.pos.y, p.width, p.height()].iter().all(|v| v.is_finite()))
     {
-        return Err(tr("Cannot arrange a diagram with invalid geometry.").into());
+        return Err(tr("bpmn.cannot_arrange_diagram_invalid_geometry").into());
     }
     if next.nodes.iter().any(|n| owners[&n.id] != (next.pool_of(n.id), next.lane_of(n.id))) {
-        return Err(tr("Move elements out of pool headers and separate overlapping pools before arranging.").into());
+        return Err(tr("bpmn.move_elements_out_pool_headers_separate_overlapping").into());
     }
     *diagram = next;
     Ok(())

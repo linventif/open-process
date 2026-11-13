@@ -52,9 +52,9 @@ pub fn activities(d: &BpmnDiagram) -> impl Iterator<Item = (Id, String)> + '_ {
 fn expression(d: &BpmnDiagram) -> Result<Expr, String> {
     let nodes: Vec<_> = d.nodes.iter().filter(|n| n.kind.is_flow_node()).collect();
     let n = nodes.len();
-    let unsupported = || tr("Evaluation requires an acyclic process with structured XOR/AND gateways and one start event.").to_string();
+    let unsupported = || tr("evaluation.evaluation_requires_acyclic_process_structured_xor_gateways").to_string();
     if n == 0 || n > MAX_NODES {
-        return Err(tr("Evaluation supports 1 to 256 flow nodes.").into());
+        return Err(tr("evaluation.evaluation_supports_1_256_flow_nodes").into());
     }
     let index: HashMap<_, _> = nodes.iter().enumerate().map(|(i, n)| (n.id, i)).collect();
     if index.len() != n || d.flows.iter().any(|f| f.kind == FlowKind::Message) {
@@ -88,14 +88,12 @@ fn expression(d: &BpmnDiagram) -> Result<Expr, String> {
             return Err(unsupported());
         }
         if matches!(nodes[i].kind, NodeKind::Gateway(g) if !matches!(g, GatewayType::Exclusive | GatewayType::Parallel)) {
-            return Err(
-                tr("Evaluation supports XOR and AND gateways; OR, event-based and complex gateways need additional semantics.").into(),
-            );
+            return Err(tr("evaluation.evaluation_supports_xor_gateways_event_based_complex").into());
         }
         if matches!(nodes[i].kind, NodeKind::EndEvent(t) if t != crate::bpmn::EventTrigger::None)
             || matches!(nodes[i].kind, NodeKind::IntermediateEvent { trigger, .. } if trigger != crate::bpmn::EventTrigger::None)
         {
-            return Err(tr("Evaluation assumes zero-duration events without timers or special termination semantics.").into());
+            return Err(tr("evaluation.evaluation_assumes_zero_duration_events_without_timers").into());
         }
     }
     let mut degree = incoming.clone();
@@ -137,7 +135,7 @@ fn expression(d: &BpmnDiagram) -> Result<Expr, String> {
         fn region(&mut self, mut i: usize, stop: usize) -> Result<Expr, String> {
             let mut seq = Vec::new();
             while i != stop {
-                let error = || tr("The branches must have matching, properly nested XOR/AND joins.").to_string();
+                let error = || tr("evaluation.branches_must_have_matching_properly_nested_xor").to_string();
                 if i == self.nodes.len() || !self.seen.insert(i) {
                     return Err(error());
                 }
@@ -195,7 +193,7 @@ fn expression(d: &BpmnDiagram) -> Result<Expr, String> {
 
 /// Expand only XOR decisions. Parallel scheduling contributes no probabilities.
 fn outcomes(e: &Expr) -> Result<Vec<(usize, Expr)>, String> {
-    let limit = || tr("Evaluation exceeds the limit of 256 choice scenarios; simplify the process.").to_string();
+    let limit = || tr("evaluation.evaluation_exceeds_limit_256_choice_scenarios_simplify").to_string();
     match e {
         Expr::Activity(_) => Ok(vec![(1, e.clone())]),
         Expr::Choice(v) => {
@@ -336,7 +334,7 @@ pub fn evaluate(d: &BpmnDiagram) -> Result<Evaluation, String> {
         .filter(|n| matches!(n.kind, NodeKind::Task(_) | NodeKind::SubProcess))
     {
         if [n.cost, n.duration].iter().any(|v| !v.is_finite() || *v < 0.0) {
-            return Err(tr("Activity costs and durations must be finite, non-negative numbers.").into());
+            return Err(tr("evaluation.activity_costs_durations_must_finite_non_negative").into());
         }
     }
     let plans = outcomes(&expression(d)?)?;
@@ -347,7 +345,7 @@ pub fn evaluate(d: &BpmnDiagram) -> Result<Evaluation, String> {
         let (cost_formula, cost) = terms(&plan, d, &symbols, false);
         let (duration_formula, duration) = terms(&plan, d, &symbols, true);
         if !cost.is_finite() || !duration.is_finite() {
-            return Err(tr("The calculated cost or duration exceeds the numeric range.").into());
+            return Err(tr("evaluation.calculated_cost_duration_exceeds_numeric_range").into());
         }
         let (traces, traces_truncated) = words(&plan, per_scenario);
         scenarios.push(Scenario {
