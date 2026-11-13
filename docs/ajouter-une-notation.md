@@ -61,8 +61,13 @@ Déclarer le module Rust puis appeler son `register` dans
 les alias et les exemples sont vérifiés pour éviter les doublons.
 
 Les commandes et vues utilisent des identifiants explicites tels que
-`state-machine.validate`. Les libellés passent par `key`, `tr` ou `trf` et les
-traductions. Les filtres de fichiers sont issus des importeurs enregistrés.
+`state-machine.validate`. Les libellés utilisent des clés de traduction stables,
+par exemple `tr("state_machine.validate")` ou `key("state_machine.validate")`
+dans un descripteur traduit ensuite par le shell. Déclarer la même clé dans les
+catalogues `en.rs`, `fr.rs` et `es.rs` de `op-core/src/i18n/` ; les textes anglais
+restent dans `en.rs`. `trf` remplit les paramètres du texte traduit. Voir
+[le guide des traductions](traductions.md). Les filtres de fichiers sont issus
+des importeurs enregistrés.
 
 Les cartes de l’accueil et du sélecteur utilisent l’icône déclarée dans le
 descripteur, indépendamment de `home_order`. Un `WorkflowDescriptor` déclare aussi

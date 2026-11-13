@@ -398,6 +398,49 @@ La fermeture par Échap ou clic extérieur sur la vitrine est implémentée mais
 n’a pas été exercée dans un navigateur. Aucun déploiement ni contrôle
 Windows/macOS n’a été exécuté pour cette évolution.
 
+## Clés de traduction stables
+
+Les **859 messages** de l’application utilisent désormais des identifiants
+stables. Le nouveau catalogue anglais `op-core/src/i18n/en.rs` et les catalogues
+français/espagnol partagent les mêmes clés. Une comparaison ponctuelle avec les
+catalogues avant migration a vérifié que les **2 577 valeurs** (859 par langue)
+sont conservées exactement, paramètres et sauts de ligne compris. Un inventaire
+lexical a contrôlé les **1 057 appels littéraux** de traduction dans les sources.
+
+Commandes exécutées :
+
+```sh
+cargo test --locked --offline -p op-core
+cargo test --locked --offline --workspace -- --test-threads=1
+cargo check --locked --offline -p op-app
+cargo check --locked --offline -p op-app --target wasm32-unknown-unknown
+cargo fmt --all -- --check
+git diff --check
+cd website
+CARGO_NET_OFFLINE=true bun run build:app
+bun test
+```
+
+Résultat final : **124 tests Rust réussis** — 50 application, 69 cœur et
+5 intégration —, aucun ignoré. Les vérifications native/WebAssembly, le build web
+release et les **9 tests Bun** réussissent. Les fichiers Rust modifiés ont été
+formatés et le contrôle de formatage du workspace réussit.
+
+Le nouveau test du cœur vérifie qu’une correction du texte anglais laisse la
+clé et la traduction française inchangées, et que le repli utilise le nouveau
+texte anglais. Les contrôles des catalogues comparent les paramètres et sauts de
+ligne avec les valeurs anglaises, vérifient les clés identiques et leur syntaxe.
+Le contrôle des usages inclut maintenant le catalogue anglais ; celui des glyphes
+inclut explicitement les trois langues. Les tests UI qui consultent les clés des
+palettes et du registre traduisent ces clés avant de rechercher le libellé affiché.
+Les tests existants de documents historiques et de restauration des sessions
+réussissent. Les liens locaux des pages de documentation concernées ont été vérifiés.
+
+La vitrine Astro utilisait déjà des clés stables : son catalogue et ses pages
+n’ont pas été modifiés pour cette migration. Son livrable a reçu l’application
+WebAssembly reconstruite. Aucun nouveau test navigateur, build natif release,
+contrôle Windows/macOS, publication ou déploiement n’a été effectué.
+
 ## Palette verticale du dessin libre
 
 Les outils du dessin libre sont placés dans une palette verticale flottant à

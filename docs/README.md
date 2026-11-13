@@ -19,6 +19,7 @@ le dossier de travail, en préservant les autres modifications locales.
 | [Plan de migration](migration.md) | Consulter les étapes réalisées et leurs résultats. |
 | [Architecture actuelle](architecture-actuelle.md) | Retrouver l’implémentation dans le code. |
 | [Zones de l’interface](interface.md) | Nommer les zones avec un layout SVG et retrouver les composants communs. |
+| [Traductions](traductions.md) | Modifier les textes et ajouter des messages avec des clés stables. |
 | [Cible Looping et Bizagi Modeler](parite-looping-bizagi.md) | Comparer les fonctions documentées, mesurer les écarts et ordonner les chantiers. |
 | [Catalogue de diagrammes proposé](catalogue-diagrammes.md) | Choisir les prochaines familles de modèles après les priorités produit. |
 | [DMN, EPC et UML activité](notations-ajoutees.md) | Retrouver les fonctions et limites des trois nouvelles intégrations. |

@@ -140,9 +140,13 @@ restent dans chaque vue ; la géométrie du dessin est son contenu sémantique.
 
 L’application propose l’anglais (`en`), le français (`fr`) et l’espagnol (`es`).
 Les tables de traduction et le type `Lang` vivent dans
-[`op-core/src/i18n/`](../crates/op-core/src/i18n/mod.rs). Les messages sont indexés par leur texte anglais ; les catalogues français et
-espagnol partagent les paramètres et sauts de ligne. Les tests contrôlent la
-couverture des appels et la cohérence des traductions.
+[`op-core/src/i18n/`](../crates/op-core/src/i18n/mod.rs). Les appels utilisent des
+clés stables comme `file.save` ou `drawing.choose_tool`. Les textes anglais vivent
+dans `en.rs`, les traductions dans `fr.rs` et `es.rs`. Modifier un texte anglais
+ne demande plus de changer sa clé ni les autres catalogues. Une traduction
+absente utilise le catalogue anglais ; une clé inconnue est affichée telle quelle.
+Les tests vérifient les clés utilisées et la parité des catalogues, les paramètres
+et les sauts de ligne. Voir [le guide des traductions](traductions.md).
 
 Le menu déroulant de [`op-app/src/i18n.rs`](../crates/op-app/src/i18n.rs) affiche
 le drapeau et le code de la langue active. Il permet de choisir directement
