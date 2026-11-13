@@ -21,9 +21,12 @@ pub fn save(storage: &mut dyn eframe::Storage) {
 pub fn language_menu(ui: &mut Ui) {
     let lang = i18n::lang();
     let resp = ui
-        .menu_button(format!("       {} ▾", lang.code().to_uppercase()), |ui| {
+        .menu_button((flag_icon(lang), format!("{} ▾", lang.code().to_uppercase())), |ui| {
             for choice in Lang::ALL {
-                if ui.selectable_label(choice == lang, choice.native_name()).clicked() {
+                if ui
+                    .add(egui::Button::selectable(choice == lang, (flag_icon(choice), choice.native_name())))
+                    .clicked()
+                {
                     i18n::set_lang(choice);
                     ui.close();
                     ui.ctx().request_repaint();
@@ -32,9 +35,11 @@ pub fn language_menu(ui: &mut Ui) {
         })
         .response
         .on_hover_text(tr("ui.language"));
-    let flag = Rect::from_center_size(pos2(resp.rect.left() + 15.0, resp.rect.center().y), vec2(20.0, 13.0));
-    paint_flag(ui, lang, flag);
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tr("ui.language")));
+}
+
+fn flag_icon(lang: Lang) -> egui::Atom<'static> {
+    egui::Atom::paint(vec2(20.0, 13.0), move |ui, args| paint_flag(ui, lang, args.rect))
 }
 
 pub fn paint_flag(ui: &Ui, lang: Lang, r: Rect) {

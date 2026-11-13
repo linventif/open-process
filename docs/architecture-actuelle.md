@@ -150,7 +150,9 @@ et les sauts de ligne. Voir [le guide des traductions](traductions.md).
 
 Le menu déroulant de [`op-app/src/i18n.rs`](../crates/op-app/src/i18n.rs) affiche
 le drapeau et le code de la langue active. Il permet de choisir directement
-English, Français ou Español et indique la langue sélectionnée. Le choix est
+English, Français ou Español, chaque nom précédé de son drapeau, et indique la
+langue sélectionnée. Les drapeaux des options et du bouton réutilisent le même
+dessin vectoriel via les atomes d’egui. Le choix est
 restauré avec la clé existante `open-process-lang`, sans modifier les documents
 `.opx` ni les anciennes valeurs de préférence. La vitrine possède les routes
 `/`, `/fr/` et `/es/`, accessibles depuis un menu déroulant HTML utilisable sans
