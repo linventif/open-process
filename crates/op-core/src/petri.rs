@@ -75,6 +75,19 @@ pub struct PetriNet {
 }
 
 impl PetriNet {
+    /// Analysis input excludes layout and drawing style while preserving all firing rules.
+    pub fn analysis_model(&self) -> Self {
+        let mut net = self.clone();
+        for p in &mut net.places {
+            p.pos = Pos::default();
+        }
+        for t in &mut net.transitions {
+            t.pos = Pos::default();
+        }
+        net.style = Default::default();
+        net
+    }
+
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),

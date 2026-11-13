@@ -247,6 +247,52 @@ pub fn dining_philosophers() -> PetriNet {
     n
 }
 
+/// UML class diagram illustrating interfaces, composition and multiplicities.
+pub fn uml_classes() -> crate::uml::UmlDiagram {
+    use crate::uml::{DiagramKind, NodeKind, RelationKind, UmlDiagram};
+    let mut d = UmlDiagram::new(tr("UML – Order classes"), DiagramKind::Class);
+    let customer = d.add_node(NodeKind::Class, Pos::new(20.0, 210.0), tr("Customer")).unwrap();
+    let order = d.add_node(NodeKind::Class, Pos::new(380.0, 210.0), tr("Order")).unwrap();
+    let item = d.add_node(NodeKind::Class, Pos::new(760.0, 210.0), tr("Order item")).unwrap();
+    let payable = d.add_node(NodeKind::Interface, Pos::new(380.0, -40.0), "Payable").unwrap();
+    d.nodes[0].attributes = "- name: String\n- email: String".into();
+    d.nodes[0].operations = "+ placeOrder(): Order".into();
+    d.nodes[1].attributes = "- number: String\n- date: Date".into();
+    d.nodes[1].operations = "+ total(): Decimal\n+ pay(): bool".into();
+    d.nodes[2].attributes = "- quantity: int\n- unitPrice: Decimal".into();
+    d.nodes[2].operations = "+ subtotal(): Decimal".into();
+    d.nodes[3].operations = "+ pay(): bool".into();
+    d.connect(customer, order, RelationKind::Association);
+    d.relations[0].source_multiplicity = "1".into();
+    d.relations[0].target_multiplicity = "0..*".into();
+    d.connect(order, item, RelationKind::Composition);
+    d.relations[1].source_multiplicity = "1".into();
+    d.relations[1].target_multiplicity = "1..*".into();
+    d.connect(order, payable, RelationKind::Realization);
+    d
+}
+
+/// UML use cases with a system boundary, mandatory inclusion and optional extension.
+pub fn uml_use_cases() -> crate::uml::UmlDiagram {
+    use crate::uml::{DiagramKind, NodeKind, RelationKind, UmlDiagram};
+    let mut d = UmlDiagram::new(tr("UML – Online shop use cases"), DiagramKind::UseCase);
+    d.add_node(NodeKind::System, Pos::new(260.0, 0.0), tr("Online shop"));
+    d.nodes[0].bounds.w = 650.0;
+    d.nodes[0].bounds.h = 450.0;
+    let customer = d.add_node(NodeKind::Actor, Pos::new(30.0, 150.0), tr("Customer")).unwrap();
+    let order = d.add_node(NodeKind::UseCase, Pos::new(320.0, 170.0), tr("Place an order")).unwrap();
+    let pay = d
+        .add_node(NodeKind::UseCase, Pos::new(670.0, 75.0), tr("Pay for the order"))
+        .unwrap();
+    let discount = d
+        .add_node(NodeKind::UseCase, Pos::new(670.0, 300.0), tr("Apply a discount"))
+        .unwrap();
+    d.connect(customer, order, RelationKind::Association);
+    d.connect(order, pay, RelationKind::Include);
+    d.connect(discount, order, RelationKind::Extend);
+    d
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -3,13 +3,15 @@
 //! reversibility, deadlocks, P/T-invariants (Farkas), structural classes
 //! and workflow-net soundness.
 
+use serde::{Deserialize, Serialize};
+
 use crate::i18n::{tr, trf};
 use crate::petri::{ArcKind, NodeRef, OMEGA, PetriNet};
 use std::collections::{HashMap, VecDeque};
 
 /// Reachability graph, or coverability graph when the net is unbounded
 /// (markings may then contain [`OMEGA`]).
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StateSpace {
     pub states: Vec<Vec<u64>>,
     /// `(from_state, transition_index, to_state)`
@@ -26,6 +28,10 @@ impl StateSpace {
     /// Builds the reachability (or Karp–Miller coverability) graph, exploring
     /// at most `limit` states.
     pub fn explore(net: &PetriNet, limit: usize) -> StateSpace {
+        Self::explore_cancellable(net, limit, &|| false)
+    }
+
+    pub fn explore_cancellable(net: &PetriNet, limit: usize, cancelled: &impl Fn() -> bool) -> StateSpace {
         let c = net.compile();
         let m0: Vec<u64> = net.initial_marking().into_iter().map(u64::from).collect();
         let mut ss = StateSpace::default();
@@ -41,8 +47,16 @@ impl StateSpace {
         let monotonic = c.inhibitors.iter().all(|v| v.is_empty()) && c.capacities.iter().all(|c| c.is_none());
 
         while let Some(i) = queue.pop_front() {
+            if cancelled() {
+                ss.truncated = true;
+                break;
+            }
             ss.expanded[i] = true;
             for t in 0..c.transition_count() {
+                if cancelled() {
+                    ss.truncated = true;
+                    return ss;
+                }
                 let Some(mut m2) = c.fire_omega(t, &ss.states[i]) else { continue };
                 // Karp–Miller acceleration: if m2 strictly covers an ancestor,
                 // every strictly increased place becomes ω.
@@ -196,7 +210,7 @@ pub fn format_marking(m: &[u64]) -> String {
 
 /// Behavioural properties computed from the state space.
 /// `None` means "could not be decided" (state space truncated or unbounded).
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct BehaviouralReport {
     pub state_count: usize,
     pub edge_count: usize,
@@ -414,7 +428,7 @@ pub fn covered(invariants: &[Vec<i64>], len: usize) -> bool {
 // -------------------------------------------------------------------------
 // Structure
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct StructuralReport {
     /// All arc weights are 1.
     pub ordinary: bool,
@@ -514,7 +528,7 @@ impl StructuralReport {
 }
 
 /// Result of the workflow-net soundness check (van der Aalst).
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Soundness {
     NotWorkflowNet,
     /// Could not be decided within the state limit.
@@ -526,6 +540,10 @@ pub enum Soundness {
 /// A WF-net is sound iff its short-circuited net (with an extra transition
 /// o → i), started with one token in i, is live and bounded.
 pub fn soundness(net: &PetriNet, limit: usize) -> Soundness {
+    soundness_cancellable(net, limit, &|| false)
+}
+
+pub fn soundness_cancellable(net: &PetriNet, limit: usize, cancelled: &impl Fn() -> bool) -> Soundness {
     let s = StructuralReport::compute(net);
     if !s.workflow_net {
         return Soundness::NotWorkflowNet;
@@ -540,7 +558,10 @@ pub fn soundness(net: &PetriNet, limit: usize) -> Soundness {
     let t = sc.add_transition(Default::default());
     sc.add_arc(NodeRef::Place(o), NodeRef::Transition(t)).unwrap();
     sc.add_arc(NodeRef::Transition(t), NodeRef::Place(i)).unwrap();
-    let ss = StateSpace::explore(&sc, limit);
+    let ss = StateSpace::explore_cancellable(&sc, limit, cancelled);
+    if cancelled() {
+        return Soundness::Unknown;
+    }
     let rep = BehaviouralReport::compute(&sc, &ss);
     let mut problems = Vec::new();
     if rep.bounded == Some(false) {

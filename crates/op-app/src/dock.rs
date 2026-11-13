@@ -3,37 +3,44 @@
 //! to split it horizontally or vertically.
 
 use egui_tiles::{Container, LinearDir, Tile, TileId, Tiles, Tree};
-use op_core::i18n::tr;
 use serde::{Deserialize, Serialize};
 
-/// What a pane shows.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum View {
-    /// The full editor of the document.
-    Editor,
-    /// Petri net: Pre / Post / incidence matrices.
-    Matrices,
-    /// Petri net: properties, invariants, soundness.
-    Analysis,
-    /// Petri net: table of reachable markings.
-    States,
-    /// Petri net: reachability / coverability graph.
-    Graph,
-}
+/// Stable, extensible view identifier. Legacy names remain readable.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize)]
+#[serde(transparent)]
+pub struct View(pub std::borrow::Cow<'static, str>);
 
+#[allow(non_upper_case_globals)]
 impl View {
-    pub fn label(self) -> &'static str {
-        match self {
-            View::Editor => "",
-            View::Matrices => tr("Matrices"),
-            View::Analysis => tr("Analysis"),
-            View::States => tr("States"),
-            View::Graph => tr("Reachability graph"),
-        }
+    pub const Editor: Self = Self(std::borrow::Cow::Borrowed("editor"));
+    pub const Matrices: Self = Self(std::borrow::Cow::Borrowed("petri.matrices"));
+    pub const Analysis: Self = Self(std::borrow::Cow::Borrowed("petri.analysis"));
+    pub const States: Self = Self(std::borrow::Cow::Borrowed("petri.states"));
+    pub const Graph: Self = Self(std::borrow::Cow::Borrowed("petri.graph"));
+    pub fn id(&self) -> &str {
+        &self.0
+    }
+}
+impl From<&str> for View {
+    fn from(id: &str) -> Self {
+        Self(std::borrow::Cow::Owned(id.to_string()))
+    }
+}
+impl<'de> Deserialize<'de> for View {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(d)?;
+        Ok(match s.as_str() {
+            "Editor" => Self::Editor,
+            "Matrices" => Self::Matrices,
+            "Analysis" => Self::Analysis,
+            "States" => Self::States,
+            "Graph" => Self::Graph,
+            _ => Self::from(s.as_str()),
+        })
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Pane {
     pub doc: u64,
     pub view: View,

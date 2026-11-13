@@ -1,0 +1,307 @@
+{
+  "format": "open-process",
+  "version": 1,
+  "model": {
+    "type": "Bpmn",
+    "model": {
+      "name": "Order handling",
+      "nodes": [
+        {
+          "id": 4,
+          "kind": {
+            "StartEvent": "Message"
+          },
+          "name": "Order received",
+          "pos": {
+            "x": 90.0,
+            "y": 100.0
+          },
+          "w": 36.0,
+          "h": 36.0,
+          "documentation": "",
+          "cost": 0.0,
+          "duration": 0.0
+        },
+        {
+          "id": 5,
+          "kind": {
+            "Task": "User"
+          },
+          "name": "Check order",
+          "pos": {
+            "x": 200.0,
+            "y": 100.0
+          },
+          "w": 110.0,
+          "h": 70.0,
+          "documentation": "",
+          "cost": 0.0,
+          "duration": 0.0
+        },
+        {
+          "id": 6,
+          "kind": {
+            "Gateway": "Exclusive"
+          },
+          "name": "Order valid?",
+          "pos": {
+            "x": 330.0,
+            "y": 100.0
+          },
+          "w": 50.0,
+          "h": 50.0,
+          "documentation": "",
+          "cost": 0.0,
+          "duration": 0.0
+        },
+        {
+          "id": 7,
+          "kind": {
+            "Task": "Send"
+          },
+          "name": "Notify rejection",
+          "pos": {
+            "x": 460.0,
+            "y": 40.0
+          },
+          "w": 110.0,
+          "h": 70.0,
+          "documentation": "",
+          "cost": 0.0,
+          "duration": 0.0
+        },
+        {
+          "id": 8,
+          "kind": {
+            "EndEvent": "None"
+          },
+          "name": "Order rejected",
+          "pos": {
+            "x": 600.0,
+            "y": 40.0
+          },
+          "w": 36.0,
+          "h": 36.0,
+          "documentation": "",
+          "cost": 0.0,
+          "duration": 0.0
+        },
+        {
+          "id": 9,
+          "kind": {
+            "Gateway": "Parallel"
+          },
+          "name": "",
+          "pos": {
+            "x": 460.0,
+            "y": 300.0
+          },
+          "w": 50.0,
+          "h": 50.0,
+          "documentation": "",
+          "cost": 0.0,
+          "duration": 0.0
+        },
+        {
+          "id": 10,
+          "kind": {
+            "Task": "Service"
+          },
+          "name": "Send invoice",
+          "pos": {
+            "x": 600.0,
+            "y": 140.0
+          },
+          "w": 110.0,
+          "h": 70.0,
+          "documentation": "",
+          "cost": 0.0,
+          "duration": 0.0
+        },
+        {
+          "id": 11,
+          "kind": {
+            "Task": "Manual"
+          },
+          "name": "Pack goods",
+          "pos": {
+            "x": 600.0,
+            "y": 300.0
+          },
+          "w": 110.0,
+          "h": 70.0,
+          "documentation": "",
+          "cost": 0.0,
+          "duration": 0.0
+        },
+        {
+          "id": 12,
+          "kind": {
+            "Task": "Manual"
+          },
+          "name": "Ship goods",
+          "pos": {
+            "x": 760.0,
+            "y": 300.0
+          },
+          "w": 110.0,
+          "h": 70.0,
+          "documentation": "",
+          "cost": 0.0,
+          "duration": 0.0
+        },
+        {
+          "id": 13,
+          "kind": {
+            "Gateway": "Parallel"
+          },
+          "name": "",
+          "pos": {
+            "x": 900.0,
+            "y": 300.0
+          },
+          "w": 50.0,
+          "h": 50.0,
+          "documentation": "",
+          "cost": 0.0,
+          "duration": 0.0
+        },
+        {
+          "id": 14,
+          "kind": {
+            "EndEvent": "None"
+          },
+          "name": "Order fulfilled",
+          "pos": {
+            "x": 1040.0,
+            "y": 300.0
+          },
+          "w": 36.0,
+          "h": 36.0,
+          "documentation": "",
+          "cost": 0.0,
+          "duration": 0.0
+        }
+      ],
+      "flows": [
+        {
+          "id": 15,
+          "kind": "Sequence",
+          "from": 4,
+          "to": 5,
+          "name": "",
+          "is_default": false
+        },
+        {
+          "id": 16,
+          "kind": "Sequence",
+          "from": 5,
+          "to": 6,
+          "name": "",
+          "is_default": false
+        },
+        {
+          "id": 17,
+          "kind": "Sequence",
+          "from": 6,
+          "to": 7,
+          "name": "no",
+          "is_default": false
+        },
+        {
+          "id": 18,
+          "kind": "Sequence",
+          "from": 7,
+          "to": 8,
+          "name": "",
+          "is_default": false
+        },
+        {
+          "id": 19,
+          "kind": "Sequence",
+          "from": 6,
+          "to": 9,
+          "name": "yes",
+          "is_default": false
+        },
+        {
+          "id": 20,
+          "kind": "Sequence",
+          "from": 9,
+          "to": 10,
+          "name": "",
+          "is_default": false
+        },
+        {
+          "id": 21,
+          "kind": "Sequence",
+          "from": 9,
+          "to": 11,
+          "name": "",
+          "is_default": false
+        },
+        {
+          "id": 22,
+          "kind": "Sequence",
+          "from": 11,
+          "to": 12,
+          "name": "",
+          "is_default": false
+        },
+        {
+          "id": 23,
+          "kind": "Sequence",
+          "from": 12,
+          "to": 13,
+          "name": "",
+          "is_default": false
+        },
+        {
+          "id": 24,
+          "kind": "Sequence",
+          "from": 10,
+          "to": 13,
+          "name": "",
+          "is_default": false
+        },
+        {
+          "id": 25,
+          "kind": "Sequence",
+          "from": 13,
+          "to": 14,
+          "name": "",
+          "is_default": false
+        }
+      ],
+      "pools": [
+        {
+          "id": 1,
+          "name": "Online shop",
+          "pos": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "width": 1140.0,
+          "lanes": [
+            {
+              "id": 2,
+              "name": "Sales",
+              "height": 200.0
+            },
+            {
+              "id": 3,
+              "name": "Warehouse",
+              "height": 200.0
+            }
+          ]
+        }
+      ],
+      "style": {
+        "edges": "Auto",
+        "sketch": false,
+        "transitions": "Box"
+      },
+      "next_id": 26
+    }
+  }
+}

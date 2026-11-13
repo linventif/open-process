@@ -83,6 +83,10 @@ interactions dans `src/scripts/site.ts`. `public/assets/` conserve le logo, les
 captures et les licences des polices. `_headers` applique des politiques séparées
 à la vitrine et à l’application, qui utilise WebAssembly et des scripts générés.
 
+Le logo SVG transparent et les favicons de `public/icons/` dérivent du dessin
+vectoriel commun à l’application native et web. Voir [l’icône du logiciel](../docs/icone.md)
+pour régénérer tous les formats sans modifier le dessin.
+
 ## Téléchargements et CI/CD
 
 Une requête publique à l’API GitHub charge la dernière release stable. Les liens
@@ -92,9 +96,15 @@ dirigés vers les releases. Aucun jeton n’est exposé dans le navigateur.
 | Système | Asset |
 | --- | --- |
 | Windows x64 | `open-process-x86_64-pc-windows-msvc.exe` |
-| Linux x64 | `open-process-x86_64-unknown-linux-gnu` |
-| macOS Apple Silicon | `open-process-aarch64-apple-darwin` |
-| macOS Intel | `open-process-x86_64-apple-darwin` |
+| Linux x64 | `open-process-x86_64-unknown-linux-gnu.tar.gz` |
+| macOS Apple Silicon | `open-process-aarch64-apple-darwin.tar.gz` |
+| macOS Intel | `open-process-x86_64-apple-darwin.tar.gz` |
+
+Les archives macOS contiennent `Open Process.app` avec son icône Finder/Dock.
+L’archive Linux fournit le binaire, le lanceur `.desktop`, l’icône et `install.sh`
+pour installer l’application dans le compte courant. Les exécutables seuls
+restent publiés ; les liens du site les utilisent en repli lorsqu’une ancienne
+release n’a pas d’archive. L’icône Windows est embarquée dans le `.exe` au build.
 
 GitHub Actions vérifie le build Pages complet et les tests Bun avant de publier
 les releases natives. Chaque push sur `main` publie une release

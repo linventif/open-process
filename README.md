@@ -1,6 +1,8 @@
 # Open Process
 
-**One free, open-source tool for process modelling and analysis** — BPMN 2.0 diagrams,
+<img src="crates/op-app/assets/icons/open-process.svg" alt="Open Process" width="96" height="96">
+
+**One free, open-source tool for process modelling and analysis** — UML class and use-case diagrams, BPMN 2.0 diagrams,
 Petri nets, incidence matrices, invariants, reachability graphs and workflow-net soundness —
 instead of juggling Bizagi, Visual Paradigm, WoPeD, PIPE and friends.
 
@@ -13,9 +15,22 @@ Written in Rust with [egui](https://github.com/emilk/egui): a single code base t
 > d'accessibilité/couverture, bornitude, vivacité, réversibilité, blocages, soundness),
 > conversion BPMN ↔ réseau de Petri, découverte de processus (matrice des relations →, ||, #,
 > algorithme Alpha pas à pas, vérification des mots), import/export BPMN 2.0, PNML et XES.
-> Natif + navigateur.
+> Diagrammes UML de classes et de cas d’utilisation. Natif + navigateur.
 
 ## Features
+
+### UML class & use-case editors
+- **Class diagrams**: classes, abstract classes, interfaces and enumerations; editable attribute and operation compartments using UML visibility notation
+- Associations (including directed associations), aggregation, composition, generalization, realization and dependencies; labels, roles and multiplicities at both ends
+- **Use-case diagrams**: actors, use cases and resizable system boundaries; actor associations, generalization, `«include»` and `«extend»` relations
+- Click a palette tool and then the canvas to add an element; use **Connect** and click the source then the target to create a relation
+- Edit names, members, sizes and relations in **Properties**; double-click or press **F2** to rename directly, **Enter** to commit, **Escape** to cancel; class boxes grow to fit edited text
+- Drag between elements with **Connect**, or click source then target; orthogonal links avoid element bodies and parallel relations use separate lanes
+- Rubber-band selection, Shift+click and Ctrl+A; move a group, align/distribute it, duplicate (Ctrl+D), copy/paste between UML tabs (Ctrl+C / Ctrl+V), or nudge with arrow keys
+- Drag the bottom-right handle to resize; system boundaries move their contained use cases once, including in group selections; the same containment rules apply to copy/paste and export
+- Model diagnostics report invalid multiplicities, invalid endpoints, missing names and inheritance cycles
+- Pan/zoom, grid snapping, fit to view, undo/redo, split tabs, `.opx` save/open and session restoration, PNG and **PlantUML (`.puml`) export**
+- Available from **File → New class diagram / New use-case diagram**, or the tab bar's **+** menu; two ready-to-edit examples under **File → Examples**
 
 ### BPMN 2.0 editor
 - Start / intermediate (catch & throw) / end events with triggers (message, timer, error, signal, conditional, terminate)
@@ -59,6 +74,7 @@ Written in Rust with [egui](https://github.com/emilk/egui): a single code base t
 - Command line: `cargo run -p op-core --example alpha -- log.txt` prints the full write-up
 
 ### Everywhere
+- **Home screen**: a responsive grid to start modelling, simulation, process discovery, evaluation or UML diagrams; open a file, explore examples or resume an open document
 - **Split views**: drag a tab onto the edge of any pane to split it (e.g. BPMN on the left, Petri matrices on the right); matrices, analysis, states and the reachability graph can each get their own pane
 - **Rubber-band selection** (drag on empty space), Shift+click, Ctrl+A, move / align / distribute / delete a group; Space+drag or right/middle drag to pan
 - **Drag & drop** elements from the floating palette onto the canvas (or onto a flow to insert them)
@@ -106,6 +122,15 @@ for Linux x64, Windows x64, macOS Apple Silicon and macOS Intel. It publishes th
 together in a GitHub Release tagged `main-<run number>-<short commit SHA>`.
 The website's download buttons pick up that latest release automatically.
 
+Windows executables include the application icon. macOS releases also provide a
+`.tar.gz` containing **Open Process.app**: extract it and move the app to
+Applications. Linux archives include the executable, icon, desktop launcher and
+`install.sh`; run `sh install.sh` from the extracted package to install it for the
+current user. Standalone binaries remain available for compatibility.
+
+The approved icon and its platform formats are documented in
+[`docs/icone.md`](docs/icone.md).
+
 Pushing a `v*` tag still publishes a release using that tag. The workflow uses
 GitHub's built-in token; no additional release secret is needed.
 
@@ -128,10 +153,19 @@ crates/
     convert.rs    BPMN ↔ Petri net translations
     mining.rs     event logs, relation matrix, Alpha algorithm, trace replay
     evaluation.rs traces, activity costs and expected process execution time
+    uml.rs        UML class/use-case models, relations and PlantUML export
   op-app/    egui/eframe application (desktop + web)
 ```
 
 Run the tests with `cargo test --workspace`.
+
+## Architecture documentation
+
+The modular architecture, design decisions, compatibility strategy and
+migration plan are documented in French in [`docs/`](docs/README.md).
+The migration status and extension guide describe the implemented module registry,
+editor sessions and versioned documents.
+See [`AGENTS.md`](AGENTS.md) for repository contribution instructions.
 
 ## Roadmap
 

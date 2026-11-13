@@ -29,6 +29,19 @@ describe("release downloads", () => {
     expect(parsed?.assets).toEqual([]);
     expect(downloadUrl(parsed, "linux")).toBe(releasesUrl);
   });
+
+  test("prefers icon-bearing packages and falls back to older standalone binaries", () => {
+    const legacy = release.assets.map((asset) => ({
+      name: asset.name.replace(/\.tar\.gz$/, ""),
+      browser_download_url: asset.browser_download_url.replace(/\.tar\.gz$/, ""),
+    }));
+    const older = parseRelease({ ...release, assets: legacy })!;
+    const current = parseRelease({ ...release, assets: [...legacy, ...release.assets] })!;
+    for (const platform of ["linux", "mac-arm", "mac-intel"] as const) {
+      expect(downloadUrl(older, platform)).toEndWith(assetNames[platform].replace(/\.tar\.gz$/, ""));
+      expect(downloadUrl(current, platform)).toEndWith(assetNames[platform]);
+    }
+  });
 });
 
 test("canonical origin and cloud app share the intended domain", () => {

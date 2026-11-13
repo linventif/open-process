@@ -1,0 +1,61 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Open Process analysis worker smoke test</title>
+<pre id="result">Testing the compiled analysis worker…</pre>
+<script type="module">
+const report = {};
+try {
+    const index = new DOMParser().parseFromString(await (await fetch('./index.html')).text(), 'text/html');
+    const asset = selector => new URL(index.querySelector(selector).getAttribute('href'), location.href);
+    const glue = asset('link[rel="modulepreload"]');
+    const wasm = asset('link[rel="preload"][type="application/wasm"]');
+    for (const [rel, url] of [['modulepreload',glue],['preload',wasm]]) {
+        const link = document.createElement('link');
+        link.rel=rel; link.href=url;
+        if (rel==='preload') { link.type='application/wasm'; link.as='fetch'; }
+        document.head.append(link);
+    }
+    const source = await (await fetch(glue)).text();
+    const snippet = source.match(/import\s+\{[^}]*\bstart_analysis_job\b[^}]*\}\s+from\s+['"]([^'"]+)['"]/);
+    if (!snippet) throw new Error('Analysis transport import not found in Trunk glue');
+    const {start_analysis_job, cancel_analysis_job} = await import(new URL(snippet[1],glue));
+    const net = {
+        name:'Worker smoke test', next_id:6,
+        places:[{id:1,name:'in',tokens:1,pos:{x:0,y:0}},{id:2,name:'out',tokens:0,pos:{x:100,y:0}}],
+        transitions:[{id:3,name:'work',pos:{x:50,y:0}}],
+        arcs:[{id:4,from:{Place:1},to:{Transition:3},weight:1},{id:5,from:{Transition:3},to:{Place:2},weight:1}]
+    };
+    const input=JSON.stringify({net,limit:5000,lang:'En'});
+    let ticks=0;
+    const timer=setInterval(()=>ticks++,10);
+    const started=performance.now();
+    const run=input=>new Promise((resolve,reject)=>{
+        const deadline=setTimeout(()=>reject(new Error('Worker timeout')),25000);
+        start_analysis_job(input,raw=>{clearTimeout(deadline);resolve(JSON.parse(raw));});
+    });
+    const response=await run(input);
+    clearInterval(timer);
+    if(response.error) throw new Error(response.error);
+    const analysis=JSON.parse(response.ok);
+    if(analysis.ss.states.length!==2 || analysis.sound!=='Sound') throw new Error('Unexpected analysis result');
+    report.analysis={states:analysis.ss.states.length,ui_ticks:ticks,ms:Math.round(performance.now()-started)};
+    let cancelledCalled=false;
+    const worker=start_analysis_job(input,()=>cancelledCalled=true);
+    cancel_analysis_job(worker);
+    await new Promise(resolve=>setTimeout(resolve,150));
+    if(cancelledCalled) throw new Error('Cancelled job called back');
+    report.cancel=true;
+    if(!(await run('invalid JSON')).error) throw new Error('Invalid input did not produce an error');
+    report.invalid=true;
+    report.ok=true;
+} catch(error) {
+    report.ok=false;
+    report.error=String(error.stack || error);
+}
+document.querySelector('#result').textContent=JSON.stringify(report,null,2);
+document.documentElement.dataset.result=report.ok?'pass':'fail';
+// Optional same-origin collection for a local headless test server.
+if(new URLSearchParams(location.search).has('report')) {
+    await fetch('/result',{method:'POST',body:JSON.stringify(report)});
+}
+</script>

@@ -4,6 +4,9 @@ use crate::bpmn::BpmnDiagram;
 use crate::petri::PetriNet;
 use serde::{Deserialize, Serialize};
 
+mod envelope;
+pub use envelope::{Document, DocumentCodec, JsonCodec, ReadError};
+
 pub const EXTENSION: &str = "opx";
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -11,6 +14,7 @@ pub const EXTENSION: &str = "opx";
 pub enum Model {
     Bpmn(BpmnDiagram),
     Petri(PetriNet),
+    Uml(crate::uml::UmlDiagram),
     /// Event log for process discovery (raw text, parsed by [`crate::mining::EventLog::parse`]).
     Log(LogDocument),
 }
@@ -28,10 +32,37 @@ pub struct LogDocument {
 }
 
 impl Model {
+    /// Compatibility bridge for callers of the original closed model API.
+    pub fn document(&self) -> Document {
+        match self {
+            Self::Bpmn(m) => JsonCodec::new("bpmn").encode(m),
+            Self::Petri(m) => JsonCodec::new("petri").encode(m),
+            Self::Log(m) => JsonCodec::new("event-log").encode(m),
+            Self::Uml(m) => JsonCodec::new(match m.kind {
+                crate::uml::DiagramKind::Class => "uml.class",
+                crate::uml::DiagramKind::UseCase => "uml.use-case",
+            })
+            .encode(m),
+        }
+    }
+
+    pub fn from_document(d: &Document) -> Result<Self, ReadError> {
+        match d.kind.as_str() {
+            "bpmn" => JsonCodec::new("bpmn").decode(d).map(Self::Bpmn),
+            "petri" => JsonCodec::new("petri").decode(d).map(Self::Petri),
+            "event-log" => JsonCodec::new("event-log").decode(d).map(Self::Log),
+            "uml.class" | "uml.use-case" => JsonCodec::new(if d.kind == "uml.class" { "uml.class" } else { "uml.use-case" })
+                .decode(d)
+                .map(Self::Uml),
+            kind => Err(ReadError::Unsupported(format!("Unknown document kind: {kind}"))),
+        }
+    }
+
     pub fn name(&self) -> &str {
         match self {
             Model::Bpmn(d) => &d.name,
             Model::Petri(n) => &n.name,
+            Model::Uml(d) => &d.name,
             Model::Log(l) => &l.name,
         }
     }
@@ -59,8 +90,9 @@ pub fn load_any(bytes: &[u8]) -> Result<Model, String> {
     let text = String::from_utf8_lossy(bytes);
     let trimmed = text.trim_start_matches('\u{feff}').trim_start();
     if trimmed.starts_with('{') {
-        let f: FileFormat = serde_json::from_str(trimmed).map_err(|e| format!("Invalid Open Process file: {e}"))?;
-        return Ok(f.model);
+        return Document::read(bytes)
+            .and_then(|d| Model::from_document(&d))
+            .map_err(|e| e.to_string());
     }
     if trimmed.starts_with('<') {
         let head: String = trimmed.chars().take(4000).collect();

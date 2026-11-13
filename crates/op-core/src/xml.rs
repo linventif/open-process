@@ -63,6 +63,18 @@ fn local(name: &str) -> String {
     }
 }
 
+/// Detects an XML format from its root without building a DOM or assuming a prefix.
+pub fn root_name(src: &str) -> Option<String> {
+    let mut reader = Reader::from_str(src);
+    loop {
+        match reader.read_event() {
+            Ok(Event::Start(e)) | Ok(Event::Empty(e)) => return Some(local(e.name().as_ref())),
+            Ok(Event::Eof) | Err(_) => return None,
+            _ => {}
+        }
+    }
+}
+
 fn start_element(e: &quick_xml::events::BytesStart<'_>) -> Result<Element, String> {
     let mut el = Element {
         name: local(e.name().as_ref()),

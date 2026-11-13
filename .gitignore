@@ -9,6 +9,7 @@
 !/website/.env.example
 **/*.rs.bk
 .DS_Store
+__pycache__/
 
 # Personal course material (not part of the project)
 /cours

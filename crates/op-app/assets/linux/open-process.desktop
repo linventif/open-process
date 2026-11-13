@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Open Process
+Comment=Process modelling and analysis
+Comment[fr]=Modélisation et analyse de processus
+Exec=open-process %F
+Icon=open-process
+Terminal=false
+Categories=Development;
+StartupWMClass=open-process

@@ -2,16 +2,25 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+#[cfg(test)]
+mod test_sources;
+
 mod app;
 mod bpmn_editor;
+mod brand;
 mod canvas;
+mod composition;
 mod dock;
+mod editor;
 mod history;
+mod home;
 mod i18n;
 mod io;
 mod mining_editor;
 mod petri_editor;
+mod platform;
 mod theme;
+mod uml_editor;
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result {
@@ -21,6 +30,7 @@ fn main() -> eframe::Result {
         viewport: egui::ViewportBuilder::default()
             .with_title("Open Process")
             .with_app_id("open-process")
+            .with_icon(eframe::icon_data::from_png_bytes(brand::ICON_PNG).expect("embedded application icon"))
             .with_inner_size([1360.0, 840.0])
             .with_min_inner_size([720.0, 480.0])
             .with_drag_and_drop(true),
@@ -29,12 +39,15 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "Open Process",
         options,
-        Box::new(move |cc| Ok(Box::new(app::OpenProcessApp::new(cc, files)))),
+        Box::new(move |cc| Ok(Box::new(app::OpenProcessApp::new(cc, files, composition::registry())))),
     )
 }
 
 #[cfg(target_arch = "wasm32")]
 fn main() {
+    if web_sys::window().is_none() {
+        return;
+    }
     use eframe::wasm_bindgen::JsCast as _;
 
     eframe::WebLogger::init(log::LevelFilter::Info).ok();
@@ -50,7 +63,7 @@ fn main() {
             .start(
                 canvas,
                 web_options,
-                Box::new(|cc| Ok(Box::new(app::OpenProcessApp::new(cc, Vec::new())))),
+                Box::new(|cc| Ok(Box::new(app::OpenProcessApp::new(cc, Vec::new(), composition::registry())))),
             )
             .await;
         if let Some(loading) = document.get_element_by_id("loading") {
@@ -60,4 +73,10 @@ fn main() {
             }
         }
     });
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn run_background_job(input: &str) -> Result<String, wasm_bindgen::JsValue> {
+    composition::run_background_job(input).map_err(|e| wasm_bindgen::JsValue::from_str(&e))
 }

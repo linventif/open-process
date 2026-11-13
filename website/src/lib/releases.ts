@@ -3,9 +3,9 @@ import { repository } from "./site";
 export const releasesUrl = `${repository}/releases`;
 export const assetNames = {
   windows: "open-process-x86_64-pc-windows-msvc.exe",
-  linux: "open-process-x86_64-unknown-linux-gnu",
-  "mac-arm": "open-process-aarch64-apple-darwin",
-  "mac-intel": "open-process-x86_64-apple-darwin",
+  linux: "open-process-x86_64-unknown-linux-gnu.tar.gz",
+  "mac-arm": "open-process-aarch64-apple-darwin.tar.gz",
+  "mac-intel": "open-process-x86_64-apple-darwin.tar.gz",
 } as const;
 export type Platform = keyof typeof assetNames;
 export interface ReleaseAsset { name: string; browser_download_url: string }
@@ -35,5 +35,7 @@ export function parseRelease(value: unknown): Release | null {
 
 export function downloadUrl(release: Release | null, platform: Platform): string {
   const asset = release?.assets.find((item) => item.name === assetNames[platform]);
-  return safeGithubUrl(asset?.browser_download_url) ?? releasesUrl;
+  const legacyName = assetNames[platform].replace(/\.tar\.gz$/, "");
+  const legacy = release?.assets.find((item) => item.name === legacyName);
+  return safeGithubUrl(asset?.browser_download_url) ?? safeGithubUrl(legacy?.browser_download_url) ?? releasesUrl;
 }

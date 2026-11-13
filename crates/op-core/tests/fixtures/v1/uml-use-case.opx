@@ -1,0 +1,118 @@
+{
+  "format": "open-process",
+  "version": 1,
+  "model": {
+    "type": "Uml",
+    "model": {
+      "name": "UML – Online shop use cases",
+      "kind": "UseCase",
+      "nodes": [
+        {
+          "id": 1,
+          "kind": "System",
+          "name": "Online shop",
+          "bounds": {
+            "x": 260.0,
+            "y": 0.0,
+            "w": 650.0,
+            "h": 450.0
+          },
+          "attributes": "",
+          "operations": "",
+          "abstract_class": false
+        },
+        {
+          "id": 2,
+          "kind": "Actor",
+          "name": "Customer",
+          "bounds": {
+            "x": 30.0,
+            "y": 150.0,
+            "w": 90.0,
+            "h": 130.0
+          },
+          "attributes": "",
+          "operations": "",
+          "abstract_class": false
+        },
+        {
+          "id": 3,
+          "kind": "UseCase",
+          "name": "Place an order",
+          "bounds": {
+            "x": 320.0,
+            "y": 170.0,
+            "w": 180.0,
+            "h": 85.0
+          },
+          "attributes": "",
+          "operations": "",
+          "abstract_class": false
+        },
+        {
+          "id": 4,
+          "kind": "UseCase",
+          "name": "Pay for the order",
+          "bounds": {
+            "x": 670.0,
+            "y": 75.0,
+            "w": 180.0,
+            "h": 85.0
+          },
+          "attributes": "",
+          "operations": "",
+          "abstract_class": false
+        },
+        {
+          "id": 5,
+          "kind": "UseCase",
+          "name": "Apply a discount",
+          "bounds": {
+            "x": 670.0,
+            "y": 300.0,
+            "w": 180.0,
+            "h": 85.0
+          },
+          "attributes": "",
+          "operations": "",
+          "abstract_class": false
+        }
+      ],
+      "relations": [
+        {
+          "id": 6,
+          "from": 2,
+          "to": 3,
+          "kind": "Association",
+          "label": "",
+          "source_multiplicity": "",
+          "target_multiplicity": "",
+          "source_role": "",
+          "target_role": ""
+        },
+        {
+          "id": 7,
+          "from": 3,
+          "to": 4,
+          "kind": "Include",
+          "label": "",
+          "source_multiplicity": "",
+          "target_multiplicity": "",
+          "source_role": "",
+          "target_role": ""
+        },
+        {
+          "id": 8,
+          "from": 5,
+          "to": 3,
+          "kind": "Extend",
+          "label": "",
+          "source_multiplicity": "",
+          "target_multiplicity": "",
+          "source_role": "",
+          "target_role": ""
+        }
+      ]
+    }
+  }
+}

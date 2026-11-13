@@ -1,0 +1,1044 @@
+use super::*;
+use egui_kittest::Harness;
+use egui_kittest::kittest::Queryable;
+
+fn harness(dark: bool) -> Harness<'static, OpenProcessApp> {
+    harness_sized(dark, [1400.0, 860.0])
+}
+
+fn harness_sized(dark: bool, size: [f32; 2]) -> Harness<'static, OpenProcessApp> {
+    let mut h = Harness::builder().with_size(size).build_eframe(|cc| {
+        let mut app = OpenProcessApp::new(cc, Vec::new(), crate::composition::registry());
+        app.open_model(Model::Bpmn(examples::order_process()), None, false);
+        app
+    });
+    h.ctx.set_theme(if dark { egui::Theme::Dark } else { egui::Theme::Light });
+    h.run_steps(4);
+    h
+}
+
+#[test]
+fn home_navigation() {
+    let mut h = Harness::builder()
+        .with_size([1400.0, 1000.0])
+        .build_eframe(|cc| OpenProcessApp::new(cc, Vec::new(), crate::composition::registry()));
+    h.ctx.set_theme(egui::Theme::Light);
+    h.run_steps(4);
+    assert!(h.state().show_home);
+    assert!(h.state().docs.is_empty());
+    shot(&mut h, "home_light");
+
+    h.get_by_label("Model a process").click();
+    h.run_steps(4);
+    assert!(!h.state().show_home);
+    assert_eq!(h.state().docs[0].editor.kind(), "bpmn");
+    let uid = h.state().docs[0].uid;
+
+    h.get_by_label("Home").click();
+    h.run_steps(4);
+    assert_eq!(h.state().docs[0].uid, uid);
+    let name = format!("{} *", h.state().docs[0].name());
+    h.get_by_label(&name).click();
+    h.run_steps(4);
+    assert!(!h.state().show_home);
+    assert_eq!(h.state().docs[0].uid, uid);
+
+    h.state_mut().close(0);
+    h.run_steps(4);
+    assert!(h.state().show_home);
+    assert!(h.state().docs.is_empty());
+
+    for (label, kind) in [
+        ("Simulate and analyze", "petri"),
+        ("Discover a process", "log"),
+        ("Design a class diagram", "class"),
+        ("Map use cases", "usecase"),
+    ] {
+        h.get_by_label(label).click();
+        h.run_steps(4);
+        assert!(!h.state().show_home);
+        assert_eq!(
+            h.state().docs[0].editor.kind(),
+            crate::composition::registry().find(kind).unwrap().id
+        );
+        h.state_mut().close(0);
+        h.run_steps(4);
+    }
+    h.get_by_label("Evaluate costs and durations").click();
+    h.run_steps(4);
+    assert!(h.query_by_label("Process evaluation").is_some());
+
+    h.get_by_label("Home").click();
+    h.run_steps(4);
+    h.ctx.set_theme(egui::Theme::Dark);
+    shot(&mut h, "home_dark");
+    h.get_by_label("Language").click();
+    h.run_steps(4);
+    assert!(h.query_by_label("Modéliser un processus").is_some());
+    h.ctx.set_theme(egui::Theme::Light);
+    shot(&mut h, "home_french");
+    h.get_by_label("Langue").click();
+    h.run_steps(4);
+}
+
+#[test]
+fn home_responsive_grid() {
+    for (width, columns) in [(1400.0, 3), (720.0, 2), (420.0, 1)] {
+        let mut h = Harness::builder()
+            .with_size([width, 1800.0])
+            .build_eframe(|cc| OpenProcessApp::new(cc, Vec::new(), crate::composition::registry()));
+        h.run_steps(4);
+        let a = h.get_by_label("Model a process").rect();
+        let b = h.get_by_label("Simulate and analyze").rect();
+        let c = h.get_by_label("Discover a process").rect();
+        assert!(a.left() >= 0.0 && a.right() <= width);
+        assert!(b.right() <= width && c.right() <= width);
+        if columns == 1 {
+            assert!(b.top() > a.bottom());
+        } else {
+            assert_eq!(a.top(), b.top());
+            assert!(b.left() > a.right());
+            assert_eq!(a.top() == c.top(), columns == 3);
+        }
+        if width == 720.0 {
+            op_core::i18n::set_lang(op_core::i18n::Lang::Fr);
+            h.run_steps(4);
+            shot(&mut h, "home_narrow");
+            op_core::i18n::set_lang(op_core::i18n::Lang::En);
+        }
+    }
+}
+
+fn shot(h: &mut Harness<'static, OpenProcessApp>, name: &str) {
+    h.run_steps(if name.contains("animation") { 0 } else { 4 });
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/screenshots");
+    std::fs::create_dir_all(&dir).unwrap();
+    match h.render() {
+        Ok(img) => img.save(dir.join(format!("{name}.png"))).unwrap(),
+        Err(e) => eprintln!("rendering unavailable: {e}"),
+    }
+}
+
+#[test]
+fn bpmn_evaluation_ui() {
+    let mut h = harness(false);
+    h.state_mut().open_model(Model::Bpmn(examples::evaluation_process()), None, false);
+    h.run_steps(4);
+    h.get_by_label("Evaluation").click();
+    h.run_steps(4);
+    assert!(h.query_by_label("Process evaluation").is_some());
+    assert!(h.query_by_label("Cost CAi").is_some());
+    assert!(h.query_by_label("Duration TAi").is_some());
+    assert!(
+        h.get_by_label("A2").rect().top() > h.get_by_label("A1").rect().bottom(),
+        "one activity per table row"
+    );
+    assert!(
+        h.get_by_label("Process evaluation").rect().left() > 900.0,
+        "the inspector leaves room for the diagram"
+    );
+    shot(&mut h, "bpmn_evaluation");
+}
+
+#[test]
+fn screenshots() {
+    let mut h = harness(false);
+    shot(&mut h, "bpmn_light");
+
+    let mut h = harness(true);
+    shot(&mut h, "bpmn_dark");
+
+    let mut h = harness(false);
+    h.state_mut().open_model(Model::Petri(examples::mutual_exclusion()), None, false);
+    if let Some(e) = h
+        .state_mut()
+        .docs
+        .last_mut()
+        .and_then(|d| d.editor.as_any_mut().downcast_mut::<PetriEditor>())
+    {
+        e.show_matrices();
+    }
+    shot(&mut h, "petri_matrices");
+
+    if let Some(e) = h
+        .state_mut()
+        .docs
+        .last_mut()
+        .and_then(|d| d.editor.as_any_mut().downcast_mut::<PetriEditor>())
+    {
+        e.show_analysis();
+    }
+    shot(&mut h, "petri_analysis");
+
+    h.state_mut().open_model(Model::Petri(examples::dining_philosophers()), None, false);
+    if let Some(e) = h
+        .state_mut()
+        .docs
+        .last_mut()
+        .and_then(|d| d.editor.as_any_mut().downcast_mut::<PetriEditor>())
+    {
+        e.toggle_simulation(0.0);
+        e.show_reachability_graph();
+    }
+    shot(&mut h, "petri_simulation_graph");
+
+    h.state_mut().set_active(0);
+    h.state_mut().execute("bpmn.convert-to-petri", 0.0);
+    if let Some(e) = h
+        .state_mut()
+        .docs
+        .last_mut()
+        .and_then(|d| d.editor.as_any_mut().downcast_mut::<PetriEditor>())
+    {
+        e.show_analysis();
+    }
+    shot(&mut h, "bpmn_converted");
+}
+
+/// Every non-ASCII character used in the UI must be drawable with the
+/// embedded fonts (there are no system fonts on the web).
+#[test]
+fn glyph_coverage() {
+    let ctx = egui::Context::default();
+    crate::theme::setup_fonts(&ctx);
+    let mut out = ctx.run_ui(Default::default(), |_| {});
+    let mut chars: Vec<char> = Vec::new();
+    for (file, src) in crate::test_sources::all() {
+        // Parser input aliases are not necessarily displayed. Keep the original
+        // core formatting sources, plus every UI module including extracted files.
+        if file.contains("op-core/src/")
+            && !["i18n/fr.rs", "mining.rs", "analysis.rs", "convert.rs", "bpmn.rs"]
+                .iter()
+                .any(|name| file.ends_with(name))
+        {
+            continue;
+        }
+        let src = src.split("\n#[cfg(test)]\nmod tests").next().unwrap_or(&src);
+        for line in src.lines().filter(|l| !l.trim_start().starts_with("//")) {
+            chars.extend(line.chars().filter(|c| !c.is_ascii()));
+        }
+    }
+    chars.sort();
+    chars.dedup();
+    let missing: String = ctx.fonts_mut(|f| {
+        chars
+            .into_iter()
+            .filter(|&c| !f.has_glyph(&egui::FontId::proportional(14.0), c))
+            .collect()
+    });
+    let mut out2 = ctx.run_ui(Default::default(), |_| {});
+    out.textures_delta.clear();
+    out2.textures_delta.clear();
+    assert!(missing.is_empty(), "missing glyphs: {missing}");
+}
+
+fn press(h: &mut Harness<'static, OpenProcessApp>, pos: egui::Pos2, down: bool) {
+    h.event(egui::Event::PointerButton {
+        pos,
+        button: egui::PointerButton::Primary,
+        pressed: down,
+        modifiers: Modifiers::NONE,
+    });
+    h.run_steps(2);
+}
+
+fn click(h: &mut Harness<'static, OpenProcessApp>, pos: egui::Pos2) {
+    h.hover_at(pos);
+    h.run_steps(2);
+    press(h, pos, true);
+    press(h, pos, false);
+    // Let the double-click window pass so consecutive clicks stay single clicks.
+    h.run_steps(30);
+}
+
+fn drag(h: &mut Harness<'static, OpenProcessApp>, from: egui::Pos2, to: egui::Pos2) {
+    h.hover_at(from);
+    h.run_steps(2);
+    press(h, from, true);
+    for k in 1..=10 {
+        h.hover_at(from.lerp(to, k as f32 / 10.0));
+        h.run_steps(1);
+    }
+    press(h, to, false);
+}
+
+fn key(h: &mut Harness<'static, OpenProcessApp>, k: Key) {
+    h.key_press(k);
+    h.run_steps(2);
+}
+
+fn uml<'a>(h: &'a Harness<'static, OpenProcessApp>) -> &'a UmlEditor {
+    h.state().docs[h.state().active]
+        .editor
+        .as_any()
+        .downcast_ref::<UmlEditor>()
+        .unwrap()
+}
+
+#[test]
+fn uml_editors_by_mouse() {
+    use op_core::uml::{NodeKind, RelationKind};
+    for (label, kind, first_tool, second_tool, first_kind, second_kind) in [
+        (
+            "New class diagram",
+            DiagramKind::Class,
+            "Class",
+            "Interface",
+            NodeKind::Class,
+            NodeKind::Interface,
+        ),
+        (
+            "New use-case diagram",
+            DiagramKind::UseCase,
+            "Actor",
+            "Use case",
+            NodeKind::Actor,
+            NodeKind::UseCase,
+        ),
+    ] {
+        let mut h = harness(false);
+        h.get_by_label("File").click();
+        h.run_steps(2);
+        h.get_by_label(label).click();
+        h.run_steps(4);
+        assert_eq!(uml(&h).diagram.kind, kind);
+        h.get_by_label(first_tool).click();
+        h.run_steps(2);
+        click(&mut h, egui::pos2(250.0, 300.0));
+        assert_eq!(uml(&h).diagram.nodes[0].kind, first_kind);
+        h.get_by_label(second_tool).click();
+        h.run_steps(2);
+        click(&mut h, egui::pos2(650.0, 300.0));
+        assert_eq!(uml(&h).diagram.nodes[1].kind, second_kind);
+        let a = uml(&h).node_screen_center(uml(&h).diagram.nodes[0].id);
+        let b = uml(&h).node_screen_center(uml(&h).diagram.nodes[1].id);
+        h.get_by_label("Connect").click();
+        h.run_steps(2);
+        click(&mut h, a);
+        click(&mut h, b);
+        assert_eq!(uml(&h).diagram.relations.len(), 1);
+        assert_eq!(uml(&h).diagram.relations[0].kind, RelationKind::Association);
+        h.get_by_label("Select / move").click();
+        h.run_steps(2);
+        let old = uml(&h).diagram.nodes[0].bounds;
+        drag(&mut h, a, a + egui::vec2(0.0, 100.0));
+        assert!(uml(&h).diagram.nodes[0].bounds.y > old.y + 70.0);
+        h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
+        h.run_steps(3);
+        assert_eq!(uml(&h).diagram.nodes[0].bounds, old);
+        click(&mut h, a);
+        key(&mut h, Key::Delete);
+        assert_eq!(uml(&h).diagram.nodes.len(), 1);
+        assert!(uml(&h).diagram.relations.is_empty());
+        h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
+        h.run_steps(3);
+        assert_eq!(uml(&h).diagram.nodes.len(), 2);
+        assert_eq!(uml(&h).diagram.relations.len(), 1);
+        if kind == DiagramKind::UseCase {
+            h.get_by_label("Use case").click();
+            h.run_steps(2);
+            click(&mut h, egui::pos2(650.0, 550.0));
+            h.get_by_role(egui::accesskit::Role::ComboBox).click();
+            h.run_steps(2);
+            h.get_by_label("Include").click();
+            h.run_steps(2);
+            click(&mut h, b);
+            let c = uml(&h).node_screen_center(uml(&h).diagram.nodes[2].id);
+            click(&mut h, c);
+            let d = &uml(&h).diagram;
+            assert_eq!(d.relations.len(), 2);
+            assert_eq!(d.relations[1].kind, RelationKind::Include);
+            assert_eq!((d.relations[1].from, d.relations[1].to), (d.nodes[1].id, d.nodes[2].id));
+        }
+        let model = h.state().docs[h.state().active].model();
+        assert_eq!(document::load_any(document::to_json(&model).as_bytes()).unwrap(), model);
+        shot(&mut h, if kind == DiagramKind::Class { "uml_class" } else { "uml_use_case" });
+    }
+}
+
+#[test]
+fn uml_group_gestures_clipboard_and_inline_rename() {
+    use op_core::uml::{NodeKind, RelationKind};
+    let mut diagram = UmlDiagram::new("Gestures", DiagramKind::Class);
+    let a = diagram
+        .add_node(NodeKind::Class, op_core::geom::Pos::new(100.0, 100.0), "A")
+        .unwrap();
+    let b = diagram
+        .add_node(NodeKind::Class, op_core::geom::Pos::new(480.0, 100.0), "B")
+        .unwrap();
+    let mut h = harness(false);
+    h.state_mut().open_model(Model::Uml(diagram), None, false);
+    h.run_steps(5);
+    let ac = uml(&h).node_screen_center(a);
+    let bc = uml(&h).node_screen_center(b);
+    h.get_by_label("Connect").click();
+    h.run_steps(2);
+    drag(&mut h, ac, bc);
+    assert_eq!(uml(&h).diagram.relations.len(), 1, "connect with a drag");
+    assert_eq!(uml(&h).diagram.relations[0].kind, RelationKind::Association);
+    h.get_by_label("Select / move").click();
+    h.run_steps(2);
+    let union = uml(&h).node_screen_rect(a).union(uml(&h).node_screen_rect(b));
+    drag(&mut h, union.min - egui::vec2(15.0, 15.0), union.max + egui::vec2(15.0, 15.0));
+    assert_eq!(uml(&h).selected_nodes().len(), 2, "rubber-band selection");
+    let before = uml(&h).diagram.nodes.clone();
+    drag(&mut h, ac, ac + egui::vec2(70.0, 80.0));
+    let after = &uml(&h).diagram.nodes;
+    let delta = op_core::geom::Pos::new(after[0].bounds.x - before[0].bounds.x, after[0].bounds.y - before[0].bounds.y);
+    assert!(delta.x > 20.0 && delta.y > 20.0);
+    assert_eq!(after[1].bounds.x - before[1].bounds.x, delta.x);
+    assert_eq!(after[1].bounds.y - before[1].bounds.y, delta.y);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::D);
+    h.run_steps(3);
+    assert_eq!(uml(&h).diagram.nodes.len(), 4);
+    assert_eq!(uml(&h).diagram.relations.len(), 2);
+    let copied = &uml(&h).diagram.relations[1];
+    assert!(copied.from != a && copied.from != b && copied.to != a && copied.to != b);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
+    h.run_steps(3);
+    assert_eq!(uml(&h).diagram.nodes.len(), 2, "duplicate is one undo step");
+    assert_eq!(uml(&h).diagram.relations.len(), 1);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::A);
+    h.run_steps(2);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::C);
+    h.run_steps(2);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::V);
+    h.run_steps(3);
+    assert_eq!(uml(&h).diagram.nodes.len(), 4, "clipboard preserves the group");
+    assert_eq!(uml(&h).diagram.relations.len(), 2);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
+    h.run_steps(3);
+    let center = uml(&h).node_screen_center(a);
+    click(&mut h, center);
+    key(&mut h, Key::F2);
+    assert!(h.query_by_role_and_label(egui::accesskit::Role::TextInput, "Name").is_some());
+    h.key_press_modifiers(Modifiers::COMMAND, Key::A);
+    h.event(egui::Event::Text("Cancelled name".into()));
+    h.run_steps(2);
+    key(&mut h, Key::Escape);
+    assert_eq!(uml(&h).diagram.node(a).unwrap().name, "A");
+    h.hover_at(center);
+    h.run_steps(2);
+    key(&mut h, Key::F2);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::A);
+    h.event(egui::Event::Text("Customer".into()));
+    h.run_steps(2);
+    key(&mut h, Key::Enter);
+    assert_eq!(uml(&h).diagram.node(a).unwrap().name, "Customer");
+    h.hover_at(center);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
+    h.run_steps(3);
+    assert_eq!(uml(&h).diagram.node(a).unwrap().name, "A", "renaming is one undo step");
+}
+
+#[test]
+fn uml_examples_themes_and_narrow_panes() {
+    for dark in [false, true] {
+        for (name, diagram) in [("classes", examples::uml_classes()), ("use_cases", examples::uml_use_cases())] {
+            let mut h = harness(dark);
+            let model = Model::Uml(diagram);
+            h.state_mut().open_model(model.clone(), None, true);
+            h.run_steps(4);
+            let doc = &h.state().docs[h.state().active];
+            assert!(!doc.dirty());
+            assert_eq!(doc.model(), model);
+            let text = document::to_json(&model);
+            assert_eq!(document::load_any(text.as_bytes()).unwrap(), model);
+            shot(&mut h, &format!("uml_{name}_{}", if dark { "dark" } else { "light" }));
+        }
+    }
+    let mut h = harness_sized(false, [720.0, 480.0]);
+    h.state_mut().open_model(Model::Uml(examples::uml_use_cases()), None, false);
+    h.run_steps(4);
+    assert!(h.query_by_label("Connect").is_some());
+    shot(&mut h, "uml_narrow");
+}
+
+fn petri<'a>(h: &'a Harness<'static, OpenProcessApp>) -> &'a PetriEditor {
+    h.state().docs[h.state().active]
+        .editor
+        .as_any()
+        .downcast_ref::<PetriEditor>()
+        .unwrap()
+}
+
+/// Drives the real UI: tools, clicks, arc drag, tokens, undo, token game.
+#[test]
+fn petri_editing_by_mouse() {
+    let mut h = harness(false);
+    h.state_mut().open_model(Model::Petri(PetriNet::new("t")), None, false);
+    h.run_steps(4);
+    let (a, b) = (egui::pos2(350.0, 400.0), egui::pos2(600.0, 400.0));
+
+    h.hover_at(a);
+    h.run_steps(2);
+    key(&mut h, Key::P);
+    click(&mut h, a);
+    assert_eq!(petri(&h).net.places.len(), 1);
+
+    key(&mut h, Key::T);
+    click(&mut h, b);
+    assert_eq!(petri(&h).net.transitions.len(), 1);
+
+    key(&mut h, Key::A);
+    drag(&mut h, a, b);
+    assert_eq!(petri(&h).net.arcs.len(), 1, "arc created by dragging");
+
+    key(&mut h, Key::K);
+    click(&mut h, a);
+    click(&mut h, a);
+    assert_eq!(petri(&h).net.places[0].tokens, 2);
+
+    // Undo the last token
+    h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
+    h.run_steps(3);
+    assert_eq!(petri(&h).net.places[0].tokens, 1);
+
+    // Token game: fire the transition
+    key(&mut h, Key::Escape);
+    key(&mut h, Key::S);
+    assert!(petri(&h).sim.is_some());
+    click(&mut h, b);
+    assert_eq!(petri(&h).sim.as_ref().unwrap().marking, vec![0]);
+    assert_eq!(petri(&h).net.places[0].tokens, 1, "simulation does not change M0");
+
+    // Move the place with the select tool
+    key(&mut h, Key::S);
+    key(&mut h, Key::V);
+    let before = petri(&h).net.places[0].pos;
+    drag(&mut h, a, a + egui::vec2(0.0, 100.0));
+    let after = petri(&h).net.places[0].pos;
+    assert!(after.y > before.y + 30.0, "place moved: {before:?} -> {after:?}");
+}
+
+fn bpmn<'a>(h: &'a Harness<'static, OpenProcessApp>) -> &'a BpmnEditor {
+    h.state().docs[h.state().active]
+        .editor
+        .as_any()
+        .downcast_ref::<BpmnEditor>()
+        .unwrap()
+}
+
+#[test]
+fn bpmn_editing_by_mouse() {
+    let mut h = harness(false);
+    h.state_mut().open_model(Model::Bpmn(BpmnDiagram::new("t")), None, false);
+    h.run_steps(4);
+    let (a, b, c) = (egui::pos2(250.0, 400.0), egui::pos2(450.0, 400.0), egui::pos2(700.0, 400.0));
+    h.hover_at(a);
+    h.run_steps(2);
+    key(&mut h, Key::S);
+    click(&mut h, a);
+    key(&mut h, Key::T);
+    click(&mut h, b);
+    key(&mut h, Key::E);
+    click(&mut h, c);
+    assert_eq!(bpmn(&h).diagram.nodes.len(), 3);
+    key(&mut h, Key::C);
+    drag(&mut h, a, b);
+    key(&mut h, Key::C);
+    drag(&mut h, b, c);
+    assert_eq!(bpmn(&h).diagram.flows.len(), 2);
+    assert!(
+        bpmn(&h)
+            .diagram
+            .validate()
+            .iter()
+            .all(|i| i.severity != op_core::bpmn::Severity::Error)
+    );
+
+    // Drop a gateway on the second flow: it gets inserted
+    key(&mut h, Key::X);
+    click(&mut h, egui::pos2(580.0, 400.0));
+    assert_eq!(bpmn(&h).diagram.nodes.len(), 4);
+    assert_eq!(bpmn(&h).diagram.flows.len(), 3);
+    shot(&mut h, "bpmn_edited");
+}
+
+#[test]
+fn dark_token_game_animation() {
+    let mut h = harness(true);
+    h.state_mut().open_model(Model::Petri(examples::mutual_exclusion()), None, false);
+    h.run_steps(4);
+    if let Some(e) = h
+        .state_mut()
+        .docs
+        .last_mut()
+        .unwrap()
+        .editor
+        .as_any_mut()
+        .downcast_mut::<PetriEditor>()
+    {
+        e.toggle_simulation(0.0);
+    }
+    h.run_steps(4);
+    if let Some(e) = h
+        .state_mut()
+        .docs
+        .last_mut()
+        .unwrap()
+        .editor
+        .as_any_mut()
+        .downcast_mut::<PetriEditor>()
+    {
+        assert!(e.fire_by_name("enter1"));
+    }
+    h.run_steps(1);
+    shot(&mut h, "petri_dark_animation");
+    h.run_steps(60);
+    shot(&mut h, "petri_dark_after");
+    if let Some(e) = h.state().docs.last().unwrap().editor.as_any().downcast_ref::<PetriEditor>() {
+        assert_eq!(e.sim.as_ref().unwrap().marking, vec![0, 0, 1, 1, 0]);
+    }
+}
+
+/// Process discovery tab: course example 2, then open the net and the BPMN.
+#[test]
+fn process_discovery() {
+    let mut h = harness(false);
+    h.state_mut().open_model(
+        Model::Log(LogDocument {
+            name: "Example 2".into(),
+            text: crate::mining_editor::EXAMPLE_2.into(),
+            ..Default::default()
+        }),
+        None,
+        false,
+    );
+    h.run_steps(4);
+    shot(&mut h, "mining_top");
+    let n = h.state().docs.len();
+    h.get_by_label("Open Petri net").click();
+    h.run_steps(4);
+    assert_eq!(h.state().docs.len(), n + 1);
+    assert!(h.state().docs.last().unwrap().editor.as_any().is::<PetriEditor>());
+    shot(&mut h, "mining_petri");
+    h.state_mut().set_active(n - 1);
+    h.run_steps(4);
+    h.get_by_label("Deduce BPMN").click();
+    h.run_steps(4);
+    assert!(h.state().docs.last().unwrap().editor.as_any().is::<BpmnEditor>());
+    if let Some(e) = h
+        .state_mut()
+        .docs
+        .last_mut()
+        .unwrap()
+        .editor
+        .as_any_mut()
+        .downcast_mut::<BpmnEditor>()
+    {
+        e.request_fit();
+    }
+    shot(&mut h, "mining_bpmn");
+}
+
+#[test]
+fn rubber_band_and_group_move() {
+    let mut h = harness(false);
+    h.state_mut().open_model(Model::Petri(examples::mutual_exclusion()), None, false);
+    h.run_steps(4);
+    // Select everything with a rubber band drawn on empty space
+    drag(&mut h, egui::pos2(1000.0, 800.0), egui::pos2(90.0, 95.0));
+    let e = petri(&h);
+    let (n, before, place) = (
+        e.selected_count(),
+        e.net.places.iter().map(|p| p.pos).collect::<Vec<_>>(),
+        e.screen_pos(e.net.places[0].pos),
+    );
+    assert_eq!(n, 9, "all places and transitions selected");
+    // Dragging one node moves the whole selection
+    drag(&mut h, place, place + egui::vec2(60.0, 40.0));
+    let after: Vec<op_core::geom::Pos> = petri(&h).net.places.iter().map(|p| p.pos).collect();
+    let d0 = (after[0].x - before[0].x, after[0].y - before[0].y);
+    assert!(d0.0 > 20.0 && d0.1 > 10.0, "moved: {d0:?}");
+    for (a, b) in after.iter().zip(&before) {
+        assert!(
+            (a.x - b.x - d0.0).abs() < 11.0 && (a.y - b.y - d0.1).abs() < 11.0,
+            "group moved together"
+        );
+    }
+}
+
+#[test]
+fn palette_drag_and_drop() {
+    let mut h = harness(false);
+    h.state_mut().open_model(Model::Bpmn(BpmnDiagram::new("dnd")), None, false);
+    h.run_steps(4);
+    let task = h.get_by_label("Task (T)").rect().center();
+    drag(&mut h, task, egui::pos2(600.0, 400.0));
+    let start = h.get_by_label("Start event (S)").rect().center();
+    drag(&mut h, start, egui::pos2(400.0, 400.0));
+    h.run_steps(2);
+    let d = &bpmn(&h).diagram;
+    assert_eq!(d.nodes.len(), 2, "two elements dropped");
+    assert!(d.nodes.iter().any(|n| matches!(n.kind, op_core::bpmn::NodeKind::Task(_))));
+    shot(&mut h, "bpmn_dropped");
+}
+
+#[test]
+fn link_styles_and_sketch() {
+    use op_core::style::{DiagramStyle, EdgeStyle};
+    let mut h = harness(false);
+    let mut net = examples::mutual_exclusion();
+    net.style = DiagramStyle {
+        edges: EdgeStyle::Orthogonal,
+        sketch: false,
+        ..Default::default()
+    };
+    h.state_mut().open_model(Model::Petri(net.clone()), None, false);
+    shot(&mut h, "style_petri_orthogonal");
+    net.style = DiagramStyle {
+        edges: EdgeStyle::Curved,
+        sketch: true,
+        ..Default::default()
+    };
+    h.state_mut().open_model(Model::Petri(net), None, false);
+    shot(&mut h, "style_petri_sketch_curved");
+    let mut bar = examples::mutual_exclusion();
+    bar.style.transitions = op_core::style::TransitionShape::Bar;
+    h.state_mut().open_model(Model::Petri(bar), None, false);
+    shot(&mut h, "style_petri_bars");
+    let mut d = examples::order_process();
+    d.style = DiagramStyle {
+        edges: EdgeStyle::Auto,
+        sketch: true,
+        ..Default::default()
+    };
+    h.state_mut().open_model(Model::Bpmn(d), None, false);
+    shot(&mut h, "style_bpmn_sketch");
+}
+
+#[test]
+fn manual_alpha_mode() {
+    let mut h = harness_sized(false, [1400.0, 2600.0]);
+    let mut answers = std::collections::BTreeMap::new();
+    answers.insert("step:TI".to_string(), "{A}".to_string());
+    answers.insert("step:TO".to_string(), "{D,E}".to_string()); // wrong on purpose
+    answers.insert("step:YW".to_string(), "(A,BE), (A,CE), (BE,D), (CE,D)".to_string());
+    answers.insert("m:A:B".to_string(), "→".to_string());
+    answers.insert("m:B:C".to_string(), "#".to_string()); // wrong
+    h.state_mut().open_model(
+        Model::Log(LogDocument {
+            name: "Exercise".into(),
+            text: "ABCD\nACBD\nAED".into(),
+            manual: true,
+            answers,
+        }),
+        None,
+        false,
+    );
+    h.run_steps(4);
+    h.get_by_label("Check everything").click();
+    h.run_steps(4);
+    shot(&mut h, "mining_manual");
+    let Some(e) = h
+        .state()
+        .docs
+        .last()
+        .unwrap()
+        .editor
+        .as_any()
+        .downcast_ref::<crate::mining_editor::MiningEditor>()
+    else {
+        unreachable!()
+    };
+    assert!(e.manual);
+    // the answers are saved with the document
+    let Model::Log(l) = h.state().docs.last().unwrap().model() else {
+        unreachable!()
+    };
+    assert_eq!(l.answers.get("step:TI").map(String::as_str), Some("{A}"));
+}
+
+#[test]
+fn png_encoding() {
+    let img = egui::ColorImage::new([20, 10], vec![egui::Color32::RED; 200]);
+    let png = io::encode_png(&img, egui::Rect::from_min_size(egui::pos2(2.0, 2.0), egui::vec2(8.0, 4.0)), 1.0).unwrap();
+    assert_eq!(&png[..8], b"\x89PNG\r\n\x1a\n");
+}
+
+/// BPMN on the left, Petri net matrices on the right.
+#[test]
+fn split_view() {
+    let mut h = harness(false);
+    h.state_mut().open_model(Model::Petri(examples::mutual_exclusion()), None, false);
+    let uid = h.state().docs.last().unwrap().uid;
+    h.state_mut().set_active(0);
+    h.state_mut().open_beside(
+        Pane {
+            doc: uid,
+            view: View::Matrices,
+        },
+        false,
+    );
+    h.run_steps(6);
+    let root = h.state().tree.root.unwrap();
+    assert!(matches!(
+        h.state().tree.tiles.get(root),
+        Some(egui_tiles::Tile::Container(egui_tiles::Container::Linear(_)))
+    ));
+    shot(&mut h, "split_bpmn_matrices");
+    // Closing the Petri editor removes its matrices pane too
+    let i = h.state().docs.len() - 1;
+    h.state_mut().close(i);
+    h.run_steps(2);
+    assert!(dock::panes_of(&h.state().tree, uid).is_empty());
+}
+
+#[test]
+fn persistence_roundtrip() {
+    let p = Persisted {
+        docs: vec![
+            (Model::Bpmn(examples::order_process()), None),
+            (Model::Petri(examples::mutual_exclusion()), Some("x.opx".into())),
+        ],
+        active: 1,
+    };
+    let s = serde_json::to_string(&p).unwrap();
+    let back: Persisted = serde_json::from_str(&s).unwrap();
+    assert_eq!(back.docs.len(), 2);
+    assert_eq!(back.docs[0].0, p.docs[0].0);
+}
+
+#[test]
+fn independent_views_share_document_history_and_keep_their_cameras() {
+    let mut h = harness(false);
+    h.state_mut()
+        .open_model(Model::Uml(examples::uml_classes()), Some("classes.opx".into()), true);
+    let index = h.state().active;
+    let uid = h.state().docs[index].uid;
+    h.state_mut().open_beside(
+        Pane {
+            doc: uid,
+            view: View::Editor,
+        },
+        false,
+    );
+    h.run_steps(6);
+    let panes = dock::panes_of(&h.state().tree, uid);
+    assert_eq!(panes.len(), 2);
+    let cameras = [
+        crate::canvas::View {
+            offset: egui::vec2(20.0, 40.0),
+            zoom: 0.7,
+        },
+        crate::canvas::View {
+            offset: egui::vec2(100.0, 60.0),
+            zoom: 1.3,
+        },
+    ];
+    let state: Vec<_> = panes
+        .iter()
+        .zip(cameras)
+        .map(|(id, camera)| (id.0, serde_json::json!({"camera":camera,"inspector":false})))
+        .collect();
+    h.state_mut().docs[index]
+        .editor
+        .restore_workspace(&serde_json::to_value(&state).unwrap());
+    h.run_steps(4);
+    let workspace = h.state().docs[index].editor.workspace();
+    let views: Vec<(u64, serde_json::Value)> = serde_json::from_value(workspace).unwrap();
+    for (id, camera) in &state {
+        assert_eq!(views.iter().find(|(n, _)| n == id).unwrap().1["camera"], camera["camera"]);
+    }
+    assert!(!h.state().docs[index].dirty(), "camera changes do not modify the document");
+    let original = h.state().docs[index].snapshot();
+    h.state_mut().docs[index].editor.rename("Edited name".into());
+    assert!(h.state().docs[index].dirty());
+    h.state_mut().execute(UNDO, 0.0);
+    assert_eq!(h.state().docs[index].snapshot(), original);
+    assert!(!h.state().docs[index].dirty(), "undo to saved state clears the dirty flag");
+    h.state_mut().handle_dock_event(DockEvent::ClosePane(uid, panes[0]));
+    assert_eq!(dock::panes_of(&h.state().tree, uid).len(), 1);
+    assert!(h.state().docs.iter().any(|d| d.uid == uid));
+}
+
+#[test]
+fn unsupported_files_remain_recoverable_byte_for_byte() {
+    let mut h = harness(false);
+    for bytes in [
+        br#"{ "format":"open-process", "version":999, "secret-data":[1,2,3] }"#.as_slice(),
+        br#"{"format":"open-process","version":2,"document":{"kind":"future.diagram","model_version":9,"model":{"content":"keep me"}}}"#
+            .as_slice(),
+    ] {
+        h.state_mut().load_bytes("future.opx".into(), bytes);
+        let doc = h.state().docs.last().unwrap();
+        assert_eq!(doc.snapshot().bytes(), bytes);
+        assert_eq!(doc.editor.export().unwrap().bytes, bytes);
+        assert!(!doc.dirty());
+        let restored: StoredDocument = serde_json::from_str(&serde_json::to_string(&doc.snapshot()).unwrap()).unwrap();
+        assert_eq!(restored.bytes(), bytes);
+    }
+}
+
+#[test]
+fn escape_rolls_back_a_drag_without_adding_an_undo_step() {
+    let mut h = harness(false);
+    h.state_mut().open_model(Model::Uml(examples::uml_classes()), None, true);
+    h.run_steps(5);
+    let id = uml(&h).diagram.nodes[0].id;
+    let from = uml(&h).node_screen_center(id);
+    let original = h.state().docs.last().unwrap().snapshot();
+    let revision = h.state().docs.last().unwrap().editor.revisions();
+    h.hover_at(from);
+    h.run_steps(2);
+    press(&mut h, from, true);
+    let to = from + egui::vec2(80.0, 40.0);
+    h.hover_at(to);
+    h.run_steps(3);
+    assert_ne!(h.state().docs.last().unwrap().snapshot(), original);
+    assert_eq!(h.state().docs.last().unwrap().editor.revisions().semantic, revision.semantic);
+    assert!(h.state().docs.last().unwrap().editor.revisions().presentation > revision.presentation);
+    key(&mut h, Key::Escape);
+    press(&mut h, to, false);
+    assert_eq!(h.state().docs.last().unwrap().snapshot(), original);
+    assert!(!h.state().docs.last().unwrap().dirty());
+    assert!(!h.state().docs.last().unwrap().editor.enabled(UNDO));
+}
+
+#[test]
+fn failed_or_cancelled_saves_keep_the_unsaved_document() {
+    let mut h = harness(false);
+    h.state_mut().open_model(Model::Uml(examples::uml_classes()), None, true);
+    let index = h.state().active;
+    h.state_mut().docs[index].editor.rename("Unsaved edit".into());
+    let edited = h.state().docs[index].snapshot();
+    assert_eq!(h.state_mut().docs[index].complete_save(edited.clone(), Ok(None)).unwrap(), None);
+    assert!(h.state().docs[index].dirty());
+    let path = format!("/tmp/open-process-absent-parent-{}/model.opx", h.state().docs[index].uid);
+    assert!(!std::path::Path::new(&path).parent().unwrap().exists());
+    h.state_mut().docs[index].path = Some(path.clone());
+    assert!(!h.state_mut().save(false));
+    assert!(h.state().docs[index].dirty());
+    assert_eq!(h.state().docs[index].snapshot(), edited);
+    assert_eq!(h.state().docs[index].path.as_deref(), Some(path.as_str()));
+    h.state_mut().execute(UNDO, 0.0);
+    assert!(
+        !h.state().docs[index].dirty(),
+        "failed save must not replace the last saved reference"
+    );
+}
+
+fn active_view_settings(h: &Harness<'static, OpenProcessApp>) -> serde_json::Value {
+    let doc = &h.state().docs[h.state().active];
+    let pane = dock::panes_of(&h.state().tree, doc.uid)[0];
+    let views: Vec<(u64, serde_json::Value)> = serde_json::from_value(doc.editor.workspace()).unwrap();
+    views.into_iter().find(|(id, _)| *id == pane.0).unwrap().1
+}
+
+#[test]
+fn diagram_editors_share_configuration_controls_in_wide_and_narrow_panes() {
+    let mut wide_positions = Vec::new();
+    for (kind, dark) in [("bpmn", false), ("petri", true), ("uml.class", false), ("uml.use-case", true)] {
+        for width in [1400.0, 420.0, 280.0] {
+            let mut h = harness_sized(dark, [width, 860.0]);
+            h.state_mut().new_document(kind, None);
+            h.run_steps(5);
+            let original = h.state().docs.last().unwrap().snapshot();
+            let settings = active_view_settings(&h);
+            assert_eq!(settings["snap"], true);
+            let zoom_in = h.get_by_label("Zoom in").rect();
+            let zoom_out = h.get_by_label("Zoom out").rect();
+            assert!(
+                zoom_in.left() >= 0.0 && zoom_out.right() <= width,
+                "{kind} controls must fit at {width}px"
+            );
+            assert!((zoom_in.center().y - zoom_out.center().y).abs() < 1.0);
+            if width > 1000.0 {
+                assert!(h.query_by_label("Options").is_none());
+                assert!(h.query_by_label("Snap to grid").is_some());
+                assert!(h.query_by_label("Fit").is_some());
+                let inspector = h.get_by_label("Inspector").rect();
+                wide_positions.push((zoom_in.center().y, inspector.right()));
+                if kind == "bpmn" {
+                    h.get_by_label("Show issues").click();
+                    h.run_steps(3);
+                    assert_eq!(active_view_settings(&h)["issues"], true);
+                }
+            } else {
+                assert!(
+                    h.query_by_label("Snap to grid").is_none(),
+                    "compact options are tucked into the shared menu"
+                );
+                h.get_by_label("Options").click();
+                h.run_steps(3);
+                assert!(h.query_by_label("Snap to grid").is_some());
+                if kind == "bpmn" {
+                    assert!(h.query_by_label("Show issues").is_some());
+                    if width == 420.0 {
+                        shot(&mut h, "common_config_options_bpmn");
+                    }
+                }
+            }
+            h.get_by_label("Snap to grid").click();
+            h.run_steps(3);
+            assert_eq!(active_view_settings(&h)["snap"], false, "{kind} at {width}px");
+            key(&mut h, Key::Escape);
+            if width < 360.0 {
+                h.get_by_label("Options").click();
+                h.run_steps(2);
+            }
+            h.get_by_label("Inspector").click();
+            h.run_steps(4);
+            key(&mut h, Key::Escape);
+            assert_eq!(active_view_settings(&h)["inspector"], width < 1000.0);
+            let zoom = active_view_settings(&h)["camera"]["zoom"].as_f64().unwrap();
+            h.get_by_label("Zoom in").click();
+            h.run_steps(3);
+            assert!(active_view_settings(&h)["camera"]["zoom"].as_f64().unwrap() > zoom);
+            h.get_by_label("Zoom out").click();
+            h.run_steps(3);
+            assert!((active_view_settings(&h)["camera"]["zoom"].as_f64().unwrap() - zoom).abs() < 0.0001);
+            assert_eq!(
+                h.state().docs.last().unwrap().snapshot(),
+                original,
+                "display settings must not modify the model"
+            );
+            if width > 1000.0 || (kind == "uml.class" && width == 420.0) {
+                shot(&mut h, &format!("common_config_{}_{}", kind, width));
+            }
+        }
+    }
+    for p in &wide_positions[1..] {
+        assert!(
+            (p.0 - wide_positions[0].0).abs() < 1.0,
+            "configuration bars use the same vertical position"
+        );
+        assert!(
+            (p.1 - wide_positions[0].1).abs() < 1.0,
+            "configuration bars use the same alignment: {wide_positions:?}"
+        );
+    }
+}
+
+#[test]
+fn canvas_options_are_restored_independently_for_each_view() {
+    let mut h = harness(false);
+    let uid = h.state().docs[0].uid;
+    h.state_mut().open_beside(
+        Pane {
+            doc: uid,
+            view: View::Editor,
+        },
+        false,
+    );
+    h.run_steps(5);
+    let original = h.state().docs[0].snapshot();
+    let mut views: Vec<(u64, serde_json::Value)> = serde_json::from_value(h.state().docs[0].editor.workspace()).unwrap();
+    assert_eq!(views.len(), 2);
+    views[0].1["snap"] = false.into();
+    views[0].1["issues"] = true.into();
+    views[1].1["snap"] = true.into();
+    views[1].1["issues"] = false.into();
+    h.state_mut().docs[0]
+        .editor
+        .restore_workspace(&serde_json::to_value(&views).unwrap());
+    h.run_steps(4);
+    let restored: Vec<(u64, serde_json::Value)> = serde_json::from_value(h.state().docs[0].editor.workspace()).unwrap();
+    for (id, state) in &views {
+        let actual = &restored.iter().find(|(n, _)| n == id).unwrap().1;
+        assert_eq!(actual["snap"], state["snap"]);
+        assert_eq!(actual["issues"], state["issues"]);
+    }
+    assert_eq!(h.state().docs[0].snapshot(), original);
+}

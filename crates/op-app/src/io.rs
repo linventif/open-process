@@ -9,8 +9,7 @@ use std::sync::{Arc, Mutex};
 /// A file picked by the user: (file name, content).
 pub type Loaded = (String, Vec<u8>);
 
-const FILTER_NAME: &str = key("Models (opx, bpmn, pnml)");
-const FILTER_EXT: &[&str] = &["opx", "bpmn", "xml", "pnml", "json"];
+const FILTER_NAME: &str = key("Supported files");
 
 #[derive(Default, Clone)]
 pub struct FileIo {
@@ -28,9 +27,9 @@ impl FileIo {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn open_dialog(&self, _ctx: &egui::Context) {
+    pub fn open_dialog(&self, _ctx: &egui::Context, extensions: Vec<&'static str>) {
         if let Some(path) = rfd::FileDialog::new()
-            .add_filter(tr(FILTER_NAME), FILTER_EXT)
+            .add_filter(tr(FILTER_NAME), &extensions)
             .add_filter(tr("All files"), &["*"])
             .pick_file()
         {
@@ -42,12 +41,12 @@ impl FileIo {
     }
 
     #[cfg(target_arch = "wasm32")]
-    pub fn open_dialog(&self, ctx: &egui::Context) {
+    pub fn open_dialog(&self, ctx: &egui::Context, extensions: Vec<&'static str>) {
         let inbox = self.inbox.clone();
         let ctx = ctx.clone();
         wasm_bindgen_futures::spawn_local(async move {
             if let Some(file) = rfd::AsyncFileDialog::new()
-                .add_filter(tr(FILTER_NAME), FILTER_EXT)
+                .add_filter(tr(FILTER_NAME), &extensions)
                 .pick_file()
                 .await
             {

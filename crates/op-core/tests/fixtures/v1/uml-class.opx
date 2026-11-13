@@ -1,0 +1,104 @@
+{
+  "format": "open-process",
+  "version": 1,
+  "model": {
+    "type": "Uml",
+    "model": {
+      "name": "UML – Order classes",
+      "kind": "Class",
+      "nodes": [
+        {
+          "id": 1,
+          "kind": "Class",
+          "name": "Customer",
+          "bounds": {
+            "x": 20.0,
+            "y": 210.0,
+            "w": 220.0,
+            "h": 130.0
+          },
+          "attributes": "- name: String\n- email: String",
+          "operations": "+ placeOrder(): Order",
+          "abstract_class": false
+        },
+        {
+          "id": 2,
+          "kind": "Class",
+          "name": "Order",
+          "bounds": {
+            "x": 380.0,
+            "y": 210.0,
+            "w": 220.0,
+            "h": 130.0
+          },
+          "attributes": "- number: String\n- date: Date",
+          "operations": "+ total(): Decimal\n+ pay(): bool",
+          "abstract_class": false
+        },
+        {
+          "id": 3,
+          "kind": "Class",
+          "name": "Order item",
+          "bounds": {
+            "x": 760.0,
+            "y": 210.0,
+            "w": 220.0,
+            "h": 130.0
+          },
+          "attributes": "- quantity: int\n- unitPrice: Decimal",
+          "operations": "+ subtotal(): Decimal",
+          "abstract_class": false
+        },
+        {
+          "id": 4,
+          "kind": "Interface",
+          "name": "Payable",
+          "bounds": {
+            "x": 380.0,
+            "y": -40.0,
+            "w": 220.0,
+            "h": 130.0
+          },
+          "attributes": "",
+          "operations": "+ pay(): bool",
+          "abstract_class": false
+        }
+      ],
+      "relations": [
+        {
+          "id": 5,
+          "from": 1,
+          "to": 2,
+          "kind": "Association",
+          "label": "",
+          "source_multiplicity": "1",
+          "target_multiplicity": "0..*",
+          "source_role": "",
+          "target_role": ""
+        },
+        {
+          "id": 6,
+          "from": 2,
+          "to": 3,
+          "kind": "Composition",
+          "label": "",
+          "source_multiplicity": "1",
+          "target_multiplicity": "1..*",
+          "source_role": "",
+          "target_role": ""
+        },
+        {
+          "id": 7,
+          "from": 2,
+          "to": 4,
+          "kind": "Realization",
+          "label": "",
+          "source_multiplicity": "",
+          "target_multiplicity": "",
+          "source_role": "",
+          "target_role": ""
+        }
+      ]
+    }
+  }
+}

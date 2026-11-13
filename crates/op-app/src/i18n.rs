@@ -79,31 +79,9 @@ pub fn paint_flag(ui: &Ui, lang: Lang, r: Rect) {
 mod tests {
     use op_core::i18n::{Lang, placeholders};
 
-    /// Every source file whose texts go through `tr` / `trf` / `key`.
-    const SOURCES: &[(&str, &str)] = &[
-        ("app.rs", include_str!("app.rs")),
-        ("bpmn_editor.rs", include_str!("bpmn_editor.rs")),
-        ("canvas.rs", include_str!("canvas.rs")),
-        ("dock.rs", include_str!("dock.rs")),
-        ("i18n.rs", include_str!("i18n.rs")),
-        ("io.rs", include_str!("io.rs")),
-        ("mining_editor.rs", include_str!("mining_editor.rs")),
-        ("petri_editor.rs", include_str!("petri_editor.rs")),
-        ("theme.rs", include_str!("theme.rs")),
-        ("analysis.rs", include_str!("../../op-core/src/analysis.rs")),
-        ("answers.rs", include_str!("../../op-core/src/answers.rs")),
-        ("bpmn.rs", include_str!("../../op-core/src/bpmn.rs")),
-        ("convert.rs", include_str!("../../op-core/src/convert.rs")),
-        ("examples.rs", include_str!("../../op-core/src/examples.rs")),
-        ("evaluation.rs", include_str!("../../op-core/src/evaluation.rs")),
-        ("mining.rs", include_str!("../../op-core/src/mining.rs")),
-        ("petri.rs", include_str!("../../op-core/src/petri.rs")),
-        ("style.rs", include_str!("../../op-core/src/style.rs")),
-    ];
-
     /// The string literals passed to `tr(`, `trf(` or `key(`.
     fn translatable(src: &str) -> Vec<String> {
-        let src = src.split("\n#[cfg(test)]").next().unwrap_or(src);
+        let src = src.split("\n#[cfg(test)]\nmod tests").next().unwrap_or(src);
         let mut out = Vec::new();
         let b = src.as_bytes();
         for pat in ["tr(", "trf(", "key("] {
@@ -146,8 +124,8 @@ mod tests {
         for lang in Lang::ALL {
             let Some(table) = lang.table() else { continue };
             let map: std::collections::HashMap<&str, &str> = table.iter().copied().collect();
-            for (file, src) in SOURCES {
-                for s in translatable(src) {
+            for (file, src) in crate::test_sources::all() {
+                for s in translatable(&src) {
                     used.insert(s.clone());
                     match map.get(s.as_str()) {
                         None => missing.push(format!("{lang:?} {file}: {s:?}")),

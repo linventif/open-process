@@ -1,0 +1,240 @@
+{
+  "format": "open-process",
+  "version": 1,
+  "model": {
+    "type": "Petri",
+    "model": {
+      "name": "Mutual exclusion",
+      "places": [
+        {
+          "id": 1,
+          "name": "mutex",
+          "tokens": 1,
+          "capacity": null,
+          "pos": {
+            "x": 420.0,
+            "y": 200.0
+          }
+        },
+        {
+          "id": 2,
+          "name": "idle1",
+          "tokens": 1,
+          "capacity": null,
+          "pos": {
+            "x": 100.0,
+            "y": 200.0
+          }
+        },
+        {
+          "id": 4,
+          "name": "critical1",
+          "tokens": 0,
+          "capacity": null,
+          "pos": {
+            "x": 300.0,
+            "y": 200.0
+          }
+        },
+        {
+          "id": 12,
+          "name": "idle2",
+          "tokens": 1,
+          "capacity": null,
+          "pos": {
+            "x": 740.0,
+            "y": 200.0
+          }
+        },
+        {
+          "id": 14,
+          "name": "critical2",
+          "tokens": 0,
+          "capacity": null,
+          "pos": {
+            "x": 540.0,
+            "y": 200.0
+          }
+        }
+      ],
+      "transitions": [
+        {
+          "id": 3,
+          "name": "enter1",
+          "pos": {
+            "x": 200.0,
+            "y": 110.0
+          },
+          "silent": false
+        },
+        {
+          "id": 5,
+          "name": "leave1",
+          "pos": {
+            "x": 200.0,
+            "y": 290.0
+          },
+          "silent": false
+        },
+        {
+          "id": 13,
+          "name": "enter2",
+          "pos": {
+            "x": 640.0,
+            "y": 110.0
+          },
+          "silent": false
+        },
+        {
+          "id": 15,
+          "name": "leave2",
+          "pos": {
+            "x": 640.0,
+            "y": 290.0
+          },
+          "silent": false
+        }
+      ],
+      "arcs": [
+        {
+          "id": 6,
+          "from": {
+            "Place": 2
+          },
+          "to": {
+            "Transition": 3
+          },
+          "weight": 1,
+          "kind": "Normal"
+        },
+        {
+          "id": 7,
+          "from": {
+            "Place": 1
+          },
+          "to": {
+            "Transition": 3
+          },
+          "weight": 1,
+          "kind": "Normal"
+        },
+        {
+          "id": 8,
+          "from": {
+            "Transition": 3
+          },
+          "to": {
+            "Place": 4
+          },
+          "weight": 1,
+          "kind": "Normal"
+        },
+        {
+          "id": 9,
+          "from": {
+            "Place": 4
+          },
+          "to": {
+            "Transition": 5
+          },
+          "weight": 1,
+          "kind": "Normal"
+        },
+        {
+          "id": 10,
+          "from": {
+            "Transition": 5
+          },
+          "to": {
+            "Place": 2
+          },
+          "weight": 1,
+          "kind": "Normal"
+        },
+        {
+          "id": 11,
+          "from": {
+            "Transition": 5
+          },
+          "to": {
+            "Place": 1
+          },
+          "weight": 1,
+          "kind": "Normal"
+        },
+        {
+          "id": 16,
+          "from": {
+            "Place": 12
+          },
+          "to": {
+            "Transition": 13
+          },
+          "weight": 1,
+          "kind": "Normal"
+        },
+        {
+          "id": 17,
+          "from": {
+            "Place": 1
+          },
+          "to": {
+            "Transition": 13
+          },
+          "weight": 1,
+          "kind": "Normal"
+        },
+        {
+          "id": 18,
+          "from": {
+            "Transition": 13
+          },
+          "to": {
+            "Place": 14
+          },
+          "weight": 1,
+          "kind": "Normal"
+        },
+        {
+          "id": 19,
+          "from": {
+            "Place": 14
+          },
+          "to": {
+            "Transition": 15
+          },
+          "weight": 1,
+          "kind": "Normal"
+        },
+        {
+          "id": 20,
+          "from": {
+            "Transition": 15
+          },
+          "to": {
+            "Place": 12
+          },
+          "weight": 1,
+          "kind": "Normal"
+        },
+        {
+          "id": 21,
+          "from": {
+            "Transition": 15
+          },
+          "to": {
+            "Place": 1
+          },
+          "weight": 1,
+          "kind": "Normal"
+        }
+      ],
+      "style": {
+        "edges": "Auto",
+        "sketch": false,
+        "transitions": "Box"
+      },
+      "next_id": 22
+    }
+  }
+}

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const dist = fileURLToPath(new URL("../dist/", import.meta.url));
@@ -46,10 +46,38 @@ test("the shared Cloudflare output contains the app with all assets under /app/"
   expect(files.some((name) => name.endsWith(".wasm"))).toBe(true);
   expect(files.some((name) => name.endsWith(".js"))).toBe(true);
   for (const match of html.matchAll(/(?:from\s*|new URL\(|href=)["'](\/app\/[^"']+)["']/g)) {
-    expect(files).toContain(match[1]!.split("/").pop()!);
+    expect(existsSync(`${dist}${match[1]!.slice(1)}`)).toBe(true);
   }
   const headers = read("_headers");
   expect(headers).toContain("/app/*");
   expect(headers).toContain("'wasm-unsafe-eval'");
   expect(read("_redirects")).toContain("/app /app/ 301");
+});
+
+test("all website pages ship the approved logo and browser icons", () => {
+  for (const page of ["index.html", "fr/index.html", "404.html"]) {
+    const html = read(page);
+    expect(html).toContain('/assets/logo.svg');
+    expect(html).toContain('/icons/favicon.png');
+    expect(html).toContain('/icons/apple-touch-icon.png');
+    expect(html).toContain('/icons/favicon.svg');
+  }
+  expect(existsSync(`${dist}assets/logo.svg`)).toBe(true);
+  expect(existsSync(`${dist}icons/favicon.png`)).toBe(true);
+  expect(existsSync(`${dist}icons/apple-touch-icon.png`)).toBe(true);
+});
+
+test("the standalone app ships the same icon and resolvable install metadata", () => {
+  expect(readFileSync(`${dist}assets/logo.png`)).toEqual(readFileSync(`${dist}app/web/icon-512.png`));
+  const html = read("app/index.html");
+  expect(html).toContain('href="web/site.webmanifest"');
+  expect(html).toContain('href="web/favicon.png"');
+  const manifest = JSON.parse(read("app/web/site.webmanifest"));
+  const base = new URL("https://example.org/app/web/site.webmanifest");
+  expect(new URL(manifest.start_url, base).pathname).toBe("/app/");
+  expect(new URL(manifest.scope, base).pathname).toBe("/app/");
+  for (const icon of manifest.icons) {
+    const path = new URL(icon.src, base).pathname.slice(1);
+    expect(existsSync(`${dist}${path}`)).toBe(true);
+  }
 });

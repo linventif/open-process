@@ -1,122 +1,40 @@
 //! Application shell: documents/tabs, menus, files, persistence.
 
-use crate::bpmn_editor::{BpmnAction, BpmnEditor};
 use crate::dock::{self, Pane, View};
+use crate::editor::*;
 use crate::io::{self, FileIo};
-use crate::mining_editor::{MiningAction, MiningEditor};
-use crate::petri_editor::PetriEditor;
 use crate::theme;
 use egui::{Key, KeyboardShortcut, Modifiers, RichText, Ui};
-use op_core::bpmn::BpmnDiagram;
-use op_core::document::{self, LogDocument, Model};
+use op_core::document::Document;
 use op_core::i18n::{tr, trf};
-use op_core::petri::PetriNet;
-use op_core::{bpmn_xml, convert, examples, pnml};
-use serde::{Deserialize, Serialize};
 
-pub enum Editor {
-    Bpmn(Box<BpmnEditor>),
-    Petri(Box<PetriEditor>),
-    Mining(Box<MiningEditor>),
-}
+#[cfg(test)]
+use crate::{bpmn_editor::BpmnEditor, petri_editor::PetriEditor, uml_editor::UmlEditor};
+#[cfg(test)]
+use op_core::{
+    bpmn::BpmnDiagram,
+    document::{self, LogDocument, Model},
+    examples,
+    petri::PetriNet,
+    uml::{DiagramKind, UmlDiagram},
+};
 
-pub struct Doc {
-    /// Stable identifier used by the panes of the split view.
-    pub uid: u64,
-    pub editor: Editor,
-    /// Native: full path of the `.opx` file. Web: last downloaded name.
-    pub path: Option<String>,
-    saved: Option<Model>,
-}
-
-impl Doc {
-    pub fn new(model: Model, path: Option<String>, saved: bool) -> Self {
-        let snapshot = saved.then(|| model.clone());
-        let editor = match model {
-            Model::Bpmn(d) => Editor::Bpmn(Box::new(BpmnEditor::new(d))),
-            Model::Petri(n) => Editor::Petri(Box::new(PetriEditor::new(n))),
-            Model::Log(l) => Editor::Mining(Box::new(MiningEditor::new(l))),
-        };
-        Self {
-            uid: crate::canvas::next_uid(),
-            editor,
-            path,
-            saved: snapshot,
-        }
-    }
-
-    pub fn model(&self) -> Model {
-        match &self.editor {
-            Editor::Bpmn(e) => Model::Bpmn(e.diagram.clone()),
-            Editor::Petri(e) => Model::Petri(e.net.clone()),
-            Editor::Mining(e) => Model::Log(LogDocument {
-                name: e.name.clone(),
-                text: e.text.clone(),
-                manual: e.manual,
-                answers: e.answers.clone(),
-            }),
-        }
-    }
-
-    fn name(&self) -> String {
-        let n = match &self.editor {
-            Editor::Bpmn(e) => e.diagram.name.clone(),
-            Editor::Petri(e) => e.net.name.clone(),
-            Editor::Mining(e) => e.name.clone(),
-        };
-        if n.trim().is_empty() { tr("Untitled").into() } else { n }
-    }
-
-    fn dirty(&self) -> bool {
-        match (&self.saved, &self.editor) {
-            (None, _) => true,
-            (Some(Model::Bpmn(d)), Editor::Bpmn(e)) => *d != e.diagram,
-            (Some(Model::Petri(n)), Editor::Petri(e)) => *n != e.net,
-            (Some(Model::Log(l)), Editor::Mining(e)) => {
-                l.name != e.name || l.text != e.text || l.manual != e.manual || l.answers != e.answers
-            }
-            _ => true,
-        }
-    }
-
-    fn file_stem(&self) -> String {
-        let s: String = self
-            .name()
-            .chars()
-            .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
-            .collect();
-        s.trim_matches('_').to_string()
-    }
-}
-
-#[derive(Serialize, Deserialize, Default)]
-struct Persisted {
-    docs: Vec<(Model, Option<String>)>,
-    active: usize,
-}
-
-/// v2: documents with their pane identifiers + the split-view layout.
-#[derive(Serialize, Deserialize)]
-struct PersistedV2 {
-    docs: Vec<(u64, Model, Option<String>)>,
-    active: usize,
-    tree: egui_tiles::Tree<Pane>,
-}
-
-const STORAGE_KEY: &str = "open-process-v1";
-const STORAGE_KEY_V2: &str = "open-process-v2";
+#[cfg(test)]
+use crate::platform::persistence::LegacyV1 as Persisted;
+use crate::platform::persistence::{self, Workspace};
 
 /// Things the panes ask the application to do (handled after the layout pass).
 enum DockEvent {
     Activate(u64),
     Close(u64),
-    Bpmn(u64, BpmnAction),
-    Mining(MiningAction),
+    ClosePane(u64, egui_tiles::TileId),
+    Host(u64, HostEvent),
     New(&'static str, Option<egui_tiles::TileId>),
     Beside(Pane, bool),
 }
 
 pub struct OpenProcessApp {
+    registry: &'static DiagramRegistry,
     docs: Vec<Doc>,
     active: usize,
     tree: egui_tiles::Tree<Pane>,
@@ -125,13 +43,16 @@ pub struct OpenProcessApp {
     show_about: bool,
     show_shortcuts: bool,
     confirm_close: Option<usize>,
+    show_home: bool,
+    persistence_ready: bool,
 }
 
 impl OpenProcessApp {
-    pub fn new(cc: &eframe::CreationContext<'_>, files: Vec<String>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>, files: Vec<String>, registry: &'static DiagramRegistry) -> Self {
         crate::theme::apply(&cc.egui_ctx);
         crate::i18n::load(cc.storage);
         let mut app = Self {
+            registry,
             docs: Vec::new(),
             active: 0,
             tree: dock::new_tree(),
@@ -140,13 +61,24 @@ impl OpenProcessApp {
             show_about: false,
             show_shortcuts: false,
             confirm_close: None,
+            show_home: true,
+            persistence_ready: true,
         };
         if let Some(storage) = cc.storage {
-            if let Some(p) = eframe::get_value::<PersistedV2>(storage, STORAGE_KEY_V2) {
+            let restored = match persistence::load(storage) {
+                Ok(p) => p,
+                Err(e) => {
+                    app.message = Some((e, true));
+                    app.persistence_ready = false;
+                    None
+                }
+            };
+            if let Some(p) = restored {
                 // Restore documents, then remap the pane ids of the saved layout.
                 let mut map = std::collections::HashMap::new();
-                for (old, m, path) in p.docs {
-                    let d = Doc::new(m, path, false);
+                for (old, m, path, views) in p.docs {
+                    let mut d = Doc::new(m, path, false, registry);
+                    d.editor.restore_workspace(&views);
                     map.insert(old, d.uid);
                     app.docs.push(d);
                 }
@@ -186,15 +118,7 @@ impl OpenProcessApp {
                     }
                 }
                 app.active = p.active;
-            } else if let Some(p) = eframe::get_value::<Persisted>(storage, STORAGE_KEY) {
-                for (m, path) in p.docs {
-                    app.open_model(m, path, false);
-                }
-                app.active = p.active;
             }
-        }
-        if app.docs.is_empty() {
-            app.open_model(Model::Bpmn(examples::order_process()), None, false);
         }
         for f in files {
             #[cfg(not(target_arch = "wasm32"))]
@@ -205,12 +129,18 @@ impl OpenProcessApp {
             #[cfg(target_arch = "wasm32")]
             let _ = f;
         }
-        app.active = app.active.min(app.docs.len() - 1);
+        app.active = app.active.min(app.docs.len().saturating_sub(1));
         app.set_active(app.active);
+        app.show_home = true;
         app
     }
 
+    #[cfg(test)]
     fn open_model(&mut self, model: Model, path: Option<String>, saved: bool) {
+        self.open_document(model.document(), path, saved);
+    }
+
+    fn open_document(&mut self, model: Document, path: Option<String>, saved: bool) {
         let near = self.docs.get(self.active).and_then(|d| {
             dock::find(
                 &self.tree,
@@ -220,11 +150,15 @@ impl OpenProcessApp {
                 },
             )
         });
-        self.open_model_near(model, path, saved, near);
+        self.open_document_near(model, path, saved, near);
     }
 
-    fn open_model_near(&mut self, model: Model, path: Option<String>, saved: bool, near: Option<egui_tiles::TileId>) {
-        let doc = Doc::new(model, path, saved);
+    fn open_document_near(&mut self, model: Document, path: Option<String>, saved: bool, near: Option<egui_tiles::TileId>) {
+        self.open_stored(StoredDocument::Editable(model), path, saved, near);
+    }
+
+    fn open_stored(&mut self, state: StoredDocument, path: Option<String>, saved: bool, near: Option<egui_tiles::TileId>) {
+        let doc = Doc::new(state, path, saved, self.registry);
         dock::add_tab(
             &mut self.tree,
             Pane {
@@ -235,25 +169,25 @@ impl OpenProcessApp {
         );
         self.docs.push(doc);
         self.active = self.docs.len() - 1;
+        self.show_home = false;
     }
 
     /// Makes document `i` the active one and brings its editor tab to the front.
     pub fn set_active(&mut self, i: usize) {
         let Some(d) = self.docs.get(i) else { return };
         self.active = i;
+        self.show_home = false;
         let pane = Pane {
             doc: d.uid,
             view: View::Editor,
         };
-        let tile = dock::find(&self.tree, pane).unwrap_or_else(|| dock::add_tab(&mut self.tree, pane, None));
+        let tile = dock::find(&self.tree, pane.clone()).unwrap_or_else(|| dock::add_tab(&mut self.tree, pane, None));
         dock::activate(&mut self.tree, tile);
     }
 
     /// Shows a view of the active document in a new pane beside the current one.
     fn open_beside(&mut self, pane: Pane, vertical: bool) {
-        if let Some(existing) = dock::find(&self.tree, pane) {
-            dock::remove_tile(&mut self.tree, existing);
-        }
+        self.show_home = false;
         let near = self.docs.get(self.active).and_then(|d| {
             dock::find(
                 &self.tree,
@@ -267,131 +201,102 @@ impl OpenProcessApp {
     }
 
     fn load_bytes(&mut self, name: String, bytes: &[u8]) {
-        match document::load_any(bytes) {
-            Ok(model) => {
-                let is_opx = name.to_lowercase().ends_with(".opx") || name.to_lowercase().ends_with(".json");
-                let mut model = model;
-                // Use the file name as model name when the format has none
-                let stem = io::file_name(&name).rsplit_once('.').map(|x| x.0).unwrap_or(&name).to_string();
-                match &mut model {
-                    Model::Bpmn(d) if d.name == "Imported process" => d.name = stem,
-                    Model::Petri(n) if n.name == "Imported net" || n.name == "net1" => n.name = stem,
-                    Model::Log(l) if l.name == "Imported log" => l.name = stem,
-                    _ => {}
+        let native = name.to_lowercase().ends_with(".opx")
+            || name.to_lowercase().ends_with(".json")
+            || serde_json::from_slice::<serde_json::Value>(bytes).is_ok_and(|v| v["format"] == "open-process");
+        let state = match self.registry.load(bytes) {
+            Ok(d) => match self.registry.open(&d) {
+                Ok(mut editor) => {
+                    if ["Imported process", "Imported net", "net1", "Imported log"].contains(&editor.name()) {
+                        editor.rename(io::file_name(&name).rsplit_once('.').map(|x| x.0).unwrap_or(&name).into());
+                    }
+                    editor.snapshot()
                 }
-                self.open_model(model, is_opx.then_some(name.clone()), is_opx);
-                self.message = Some((trf("Opened {}", &[&(io::file_name(&name))]), false));
-            }
-            Err(e) => self.message = Some((format!("{}: {e}", io::file_name(&name)), true)),
-        }
-    }
-
-    fn active_doc(&mut self) -> Option<&mut Doc> {
-        self.docs.get_mut(self.active)
-    }
-
-    fn save(&mut self, save_as: bool) {
-        let Some(doc) = self.docs.get_mut(self.active) else { return };
-        let model = doc.model();
-        let data = document::to_json(&model);
-        let result = match (&doc.path, save_as, cfg!(target_arch = "wasm32")) {
-            (Some(path), false, false) => io::write_path(path, data.as_bytes()).map(|_| Some(path.clone())),
-            _ => io::save_file(&format!("{}.{}", doc.file_stem(), document::EXTENSION), data.as_bytes()),
-        };
-        match result {
-            Ok(Some(path)) => {
-                self.message = Some((trf("Saved {}", &[&(io::file_name(&path))]), false));
-                doc.path = Some(path);
-                doc.saved = Some(model);
-            }
-            Ok(None) => {}
-            Err(e) => self.message = Some((trf("Save failed: {}", &[&e]), true)),
-        }
-    }
-
-    fn export(&mut self) {
-        let Some(doc) = self.docs.get(self.active) else { return };
-        let (name, data) = match doc.model() {
-            Model::Bpmn(d) => (format!("{}.bpmn", doc.file_stem()), bpmn_xml::export(&d)),
-            Model::Petri(n) => (format!("{}.pnml", doc.file_stem()), pnml::export(&n)),
-            Model::Log(l) => match op_core::mining::EventLog::parse(&l.text) {
-                Ok(log) => (format!("{}-alpha.txt", doc.file_stem()), op_core::mining::alpha(&log).report(&log)),
-                Err(e) => {
-                    self.message = Some((e, true));
+                Err(e) => StoredDocument::Original {
+                    bytes: bytes.to_vec(),
+                    reason: e.to_string(),
+                },
+            },
+            Err(e) => {
+                if !native {
+                    self.message = Some((format!("{}: {e}", io::file_name(&name)), true));
                     return;
                 }
-            },
+                StoredDocument::Original {
+                    bytes: bytes.to_vec(),
+                    reason: e.to_string(),
+                }
+            }
         };
-        match io::save_file(&name, data.as_bytes()) {
-            Ok(Some(p)) => self.message = Some((trf("Exported {}", &[&(io::file_name(&p))]), false)),
+        self.open_stored(state, native.then_some(name.clone()), native, None);
+        self.message = Some((trf("Opened {}", &[&io::file_name(&name)]), false));
+    }
+
+    fn save(&mut self, save_as: bool) -> bool {
+        let Some(doc) = self.docs.get_mut(self.active) else { return false };
+        let state = doc.snapshot();
+        let data = state.bytes();
+        let result = match (&doc.path, save_as, cfg!(target_arch = "wasm32")) {
+            (Some(path), false, false) => io::write_path(path, &data).map(|_| Some(path.clone())),
+            _ => io::save_file(&format!("{}.opx", doc.file_stem()), &data),
+        };
+        match doc.complete_save(state, result) {
+            Ok(Some(path)) => {
+                self.message = Some((trf("Saved {}", &[&io::file_name(&path)]), false));
+                true
+            }
+            Ok(None) => false,
+            Err(e) => {
+                self.message = Some((trf("Save failed: {}", &[&e]), true));
+                false
+            }
+        }
+    }
+
+    fn export(&mut self, format: &str) {
+        let Some(doc) = self.docs.get(self.active) else { return };
+        let data = match doc.editor.export_as(format) {
+            Ok(data) => data,
+            Err(e) => {
+                self.message = Some((e, true));
+                return;
+            }
+        };
+        let name = format!("{}.{}", doc.file_stem(), data.suffix);
+        match io::save_file(&name, &data.bytes) {
+            Ok(Some(p)) => self.message = Some((trf("Exported {}", &[&io::file_name(&p)]), false)),
             Ok(None) => {}
             Err(e) => self.message = Some((trf("Export failed: {}", &[&e]), true)),
         }
     }
 
-    fn convert_active(&mut self) {
-        let Some(Doc {
-            editor: Editor::Bpmn(e), ..
-        }) = self.docs.get(self.active)
-        else {
-            return;
-        };
-        let conv = convert::bpmn_to_petri(&e.diagram);
-        let warnings = conv.warnings.clone();
-        self.open_model(Model::Petri(conv.net), None, false);
-        self.message = Some(if warnings.is_empty() {
-            (
-                tr("BPMN converted to a Petri net (see the Analysis tab for soundness)").into(),
-                false,
-            )
-        } else {
-            (trf("Converted with warnings: {}", &[&(warnings.join(" · "))]), false)
-        });
+    fn execute(&mut self, command: &str, time: f64) {
+        let Some(doc) = self.docs.get_mut(self.active) else { return };
+        let uid = doc.uid;
+        let events = doc.editor.execute(command, time);
+        for event in events {
+            self.handle_dock_event(DockEvent::Host(uid, event));
+        }
     }
 
-    fn new_log(&mut self) {
-        let n = self.docs.iter().filter(|d| matches!(d.editor, Editor::Mining(_))).count() + 1;
-        self.open_model(
-            Model::Log(LogDocument {
-                name: trf("Log {}", &[&n]),
-                text: String::new(),
-                ..Default::default()
-            }),
-            None,
-            false,
-        );
+    fn new_document(&mut self, kind: &str, near: Option<egui_tiles::TileId>) {
+        if let Some(d) = self.registry.find(kind) {
+            self.open_document_near((d.create)(self.docs.len() + 1), None, false, near);
+        }
     }
 
-    fn petri_to_bpmn(&mut self) {
-        let Some(Doc {
-            editor: Editor::Petri(e), ..
-        }) = self.docs.get(self.active)
-        else {
-            return;
-        };
-        let (d, warnings) = convert::petri_to_bpmn(&e.net);
-        self.open_model(Model::Bpmn(d), None, false);
-        self.message = Some(if warnings.is_empty() {
-            (tr("Petri net converted to BPMN").into(), false)
-        } else {
-            (trf("Converted with warnings: {}", &[&(warnings.join(" · "))]), false)
-        });
+    fn open_example(&mut self, id: &str) {
+        if let Some(d) = self.registry.example(id) {
+            self.open_document(d, None, false);
+        }
     }
 
     fn undo(&mut self) {
-        match self.active_doc().map(|d| &mut d.editor) {
-            Some(Editor::Bpmn(e)) => e.undo(),
-            Some(Editor::Petri(e)) => e.undo(),
-            Some(Editor::Mining(_)) | None => {}
-        }
+        self.execute(UNDO, 0.0);
     }
 
     fn redo(&mut self) {
-        match self.active_doc().map(|d| &mut d.editor) {
-            Some(Editor::Bpmn(e)) => e.redo(),
-            Some(Editor::Petri(e)) => e.redo(),
-            Some(Editor::Mining(_)) | None => {}
-        }
+        self.execute(REDO, 0.0);
     }
 
     fn close(&mut self, i: usize) {
@@ -400,51 +305,81 @@ impl OpenProcessApp {
             dock::remove_doc(&mut self.tree, d.uid);
         }
         if self.docs.is_empty() {
-            self.open_model(Model::Bpmn(BpmnDiagram::new(trf("Process {}", &[&1]))), None, false);
+            self.show_home = true;
         }
-        self.active = self.active.min(self.docs.len() - 1);
+        self.active = self.active.min(self.docs.len().saturating_sub(1));
+    }
+
+    fn home(&mut self, ui: &mut Ui) {
+        use crate::home::{self, Action};
+        let docs = self
+            .docs
+            .iter()
+            .map(|doc| {
+                let (kind, color) = doc.badge();
+                home::Document {
+                    uid: doc.uid,
+                    name: doc.name(),
+                    kind: kind.into(),
+                    color,
+                    dirty: doc.dirty(),
+                }
+            })
+            .collect::<Vec<_>>();
+        match home::show(ui, &docs, self.registry) {
+            Some(Action::New(kind)) => self.new_document(kind, None),
+            Some(Action::Example(id, command)) => {
+                self.open_example(id);
+                if let Some(command) = command {
+                    self.execute(command, 0.0);
+                }
+            }
+            Some(Action::Open) => self.io.open_dialog(ui.ctx(), self.registry.extensions()),
+            Some(Action::Resume(uid)) => {
+                if let Some(i) = self.docs.iter().position(|doc| doc.uid == uid) {
+                    self.set_active(i);
+                }
+            }
+            None => {}
+        }
     }
 
     fn handle_dock_event(&mut self, ev: DockEvent) {
-        let index_of = |docs: &Vec<Doc>, uid: u64| docs.iter().position(|d| d.uid == uid);
         match ev {
             DockEvent::Activate(uid) => {
-                if let Some(i) = index_of(&self.docs, uid) {
+                if let Some(i) = self.docs.iter().position(|d| d.uid == uid) {
                     self.active = i;
                 }
             }
+            DockEvent::ClosePane(uid, tile) => {
+                if dock::panes_of(&self.tree, uid).len() > 1 {
+                    dock::remove_tile(&mut self.tree, tile);
+                } else {
+                    self.handle_dock_event(DockEvent::Close(uid));
+                }
+            }
             DockEvent::Close(uid) => {
-                if let Some(i) = index_of(&self.docs, uid) {
-                    if self.docs[i].dirty() && self.docs[i].saved.is_some() {
+                if let Some(i) = self.docs.iter().position(|d| d.uid == uid) {
+                    if self.docs[i].dirty() {
                         self.confirm_close = Some(i);
                     } else {
                         self.close(i);
                     }
                 }
             }
-            DockEvent::Bpmn(uid, BpmnAction::ConvertToPetri) => {
-                if let Some(i) = index_of(&self.docs, uid) {
-                    self.active = i;
-                    self.convert_active();
+            DockEvent::Host(uid, event) => match event {
+                HostEvent::Open(d) => self.open_document(d, None, false),
+                HostEvent::OpenView(view) => {
+                    if let Some(i) = self.docs.iter().position(|d| d.uid == uid) {
+                        self.active = i;
+                    }
+                    self.open_beside(Pane { doc: uid, view }, false);
                 }
-            }
-            DockEvent::Mining(MiningAction::OpenPetri(net)) => self.open_model(Model::Petri(net), None, false),
-            DockEvent::Mining(MiningAction::OpenBpmn(d)) => self.open_model(Model::Bpmn(d), None, false),
-            DockEvent::New(kind, near) => {
-                let n = self.docs.len() + 1;
-                let model = match kind {
-                    "bpmn" => Model::Bpmn(BpmnDiagram::new(trf("Process {}", &[&n]))),
-                    "petri" => Model::Petri(PetriNet::new(trf("Net {}", &[&n]))),
-                    _ => Model::Log(LogDocument {
-                        name: trf("Log {}", &[&n]),
-                        text: String::new(),
-                        ..Default::default()
-                    }),
-                };
-                self.open_model_near(model, None, false, near);
-            }
+                HostEvent::Message(m) => self.message = Some((m, false)),
+            },
+            DockEvent::New(kind, near) => self.new_document(kind, near),
             DockEvent::Beside(pane, vertical) => {
-                if let Some(i) = index_of(&self.docs, pane.doc) {
+                if let Some(i) = self.docs.iter().position(|d| d.uid == pane.doc) {
                     self.active = i;
                 }
                 self.open_beside(pane, vertical);
@@ -469,20 +404,19 @@ impl OpenProcessApp {
         });
         if ui.ctx().egui_wants_keyboard_input() {
             // Let text fields handle their own undo.
-        } else if undo {
+        } else if undo && !self.show_home {
             self.undo();
-        } else if redo || redo2 {
+        } else if (redo || redo2) && !self.show_home {
             self.redo();
         }
-        if save || save_as {
+        if (save || save_as) && !self.show_home {
             self.save(save_as);
         }
         if open {
-            self.io.open_dialog(ui.ctx());
+            self.io.open_dialog(ui.ctx(), self.registry.extensions());
         }
         if new {
-            let n = self.docs.len() + 1;
-            self.open_model(Model::Bpmn(BpmnDiagram::new(trf("Process {}", &[&n]))), None, false);
+            self.new_document("bpmn", None);
         }
     }
 
@@ -510,27 +444,20 @@ impl OpenProcessApp {
     }
 
     fn menu_bar(&mut self, ui: &mut Ui) {
+        let has_doc = !self.show_home && !self.docs.is_empty();
         egui::MenuBar::new().ui(ui, |ui| {
-            logo(ui);
+            crate::brand::show(ui, 26.0);
             ui.label(RichText::new("Open Process").font(theme::semibold(14.0)));
             ui.add_space(10.0);
+            if ui.selectable_label(self.show_home, tr("Home")).clicked() {
+                self.show_home = true;
+            }
+            ui.separator();
             ui.menu_button(tr("File"), |ui| {
-                if ui
-                    .add(
-                        egui::Button::new(tr("New BPMN diagram"))
-                            .shortcut_text(ui.ctx().format_shortcut(&KeyboardShortcut::new(Modifiers::COMMAND, Key::N))),
-                    )
-                    .clicked()
-                {
-                    let n = self.docs.len() + 1;
-                    self.open_model(Model::Bpmn(BpmnDiagram::new(trf("Process {}", &[&n]))), None, false);
-                }
-                if ui.button(tr("New Petri net")).clicked() {
-                    let n = self.docs.len() + 1;
-                    self.open_model(Model::Petri(PetriNet::new(trf("Net {}", &[&n]))), None, false);
-                }
-                if ui.button(tr("New event log (process discovery)")).clicked() {
-                    self.new_log();
+                for d in &self.registry.diagrams {
+                    if ui.button(tr(d.new_label)).clicked() {
+                        self.new_document(d.id, None);
+                    }
                 }
                 ui.separator();
                 if ui
@@ -543,10 +470,11 @@ impl OpenProcessApp {
                     ))
                     .clicked()
                 {
-                    self.io.open_dialog(ui.ctx());
+                    self.io.open_dialog(ui.ctx(), self.registry.extensions());
                 }
                 if ui
-                    .add(
+                    .add_enabled(
+                        has_doc,
                         egui::Button::new(tr("Save"))
                             .shortcut_text(ui.ctx().format_shortcut(&KeyboardShortcut::new(Modifiers::COMMAND, Key::S))),
                     )
@@ -554,81 +482,36 @@ impl OpenProcessApp {
                 {
                     self.save(false);
                 }
-                if ui.button(tr("Save as…")).clicked() {
+                if ui.add_enabled(has_doc, egui::Button::new(tr("Save as…"))).clicked() {
                     self.save(true);
                 }
-                let export_label = match self.docs.get(self.active).map(|d| &d.editor) {
-                    Some(Editor::Bpmn(_)) => tr("Export BPMN 2.0 XML (.bpmn)…"),
-                    Some(Editor::Mining(_)) => tr("Export Alpha write-up (.txt)…"),
-                    _ => tr("Export PNML (.pnml)…"),
-                };
-                if ui
-                    .button(export_label)
-                    .on_hover_text(tr(
-                        "Standard format readable by Bizagi, Camunda, bpmn.io, Signavio / WoPeD, PIPE, ProM, TINA…",
-                    ))
-                    .clicked()
-                {
-                    self.export();
+                let exports = self.docs.get(self.active).map(|d| d.editor.exports()).unwrap_or_default();
+                for export in exports {
+                    if ui.add_enabled(has_doc, egui::Button::new(tr(export.label))).clicked() {
+                        self.export(export.id);
+                    }
                 }
-                let is_diagram = matches!(
-                    self.docs.get(self.active).map(|d| &d.editor),
-                    Some(Editor::Bpmn(_) | Editor::Petri(_))
-                );
+                let png = has_doc && self.docs.get(self.active).is_some_and(|d| d.editor.enabled(PNG));
                 if ui
-                    .add_enabled(is_diagram, egui::Button::new(tr("Export image (PNG)…")))
+                    .add_enabled(png, egui::Button::new(tr("Export image (PNG)…")))
                     .on_hover_text(tr("Picture of the visible diagram"))
                     .clicked()
                 {
-                    match self.active_doc().map(|d| &mut d.editor) {
-                        Some(Editor::Bpmn(e)) => e.export_png = true,
-                        Some(Editor::Petri(e)) => e.export_png = true,
-                        _ => {}
-                    }
+                    self.execute(PNG, 0.0);
                 }
                 ui.separator();
                 ui.menu_button(tr("Examples"), |ui| {
-                    if ui.button(tr("BPMN – Process P evaluation")).clicked() {
-                        self.open_model(Model::Bpmn(examples::evaluation_process()), None, false);
-                        ui.close();
-                    }
-                    if ui.button(tr("BPMN – Order handling")).clicked() {
-                        self.open_model(Model::Bpmn(examples::order_process()), None, false);
-                    }
-                    if ui.button(tr("Petri – Mutual exclusion")).clicked() {
-                        self.open_model(Model::Petri(examples::mutual_exclusion()), None, false);
-                    }
-                    if ui.button(tr("Petri – Producer / consumer")).clicked() {
-                        self.open_model(Model::Petri(examples::producer_consumer()), None, false);
-                    }
-                    if ui.button(tr("Petri – Dining philosophers")).clicked() {
-                        self.open_model(Model::Petri(examples::dining_philosophers()), None, false);
-                    }
-                    if ui.button(tr("Log – ABCD, ACBD, EF")).clicked() {
-                        self.open_model(
-                            Model::Log(LogDocument {
-                                name: tr("Alpha example 1").into(),
-                                text: crate::mining_editor::EXAMPLE_1.into(),
-                                ..Default::default()
-                            }),
-                            None,
-                            false,
-                        );
-                    }
-                    if ui.button(tr("Log – ABCD, ACBD, AED")).clicked() {
-                        self.open_model(
-                            Model::Log(LogDocument {
-                                name: tr("Alpha example 2").into(),
-                                text: crate::mining_editor::EXAMPLE_2.into(),
-                                ..Default::default()
-                            }),
-                            None,
-                            false,
-                        );
+                    for e in &self.registry.examples {
+                        if ui.button(tr(e.label)).clicked() {
+                            self.open_example(e.id);
+                        }
                     }
                 });
                 ui.separator();
-                if ui.button(tr("Close tab")).clicked() {
+                if ui
+                    .add_enabled(!self.docs.is_empty() && !self.show_home, egui::Button::new(tr("Close tab")))
+                    .clicked()
+                {
                     self.confirm_close = Some(self.active);
                 }
                 #[cfg(not(target_arch = "wasm32"))]
@@ -637,11 +520,11 @@ impl OpenProcessApp {
                 }
             });
             ui.menu_button(tr("Edit"), |ui| {
-                let (can_undo, can_redo) = match self.docs.get(self.active).map(|d| &d.editor) {
-                    Some(Editor::Bpmn(e)) => (e.can_undo(), e.can_redo()),
-                    Some(Editor::Petri(e)) => (e.can_undo(), e.can_redo()),
-                    Some(Editor::Mining(_)) | None => (false, false),
-                };
+                if !has_doc {
+                    ui.disable();
+                }
+                let can_undo = self.docs.get(self.active).is_some_and(|d| d.editor.enabled(UNDO));
+                let can_redo = self.docs.get(self.active).is_some_and(|d| d.editor.enabled(REDO));
                 if ui
                     .add_enabled(
                         can_undo,
@@ -665,31 +548,34 @@ impl OpenProcessApp {
                     self.redo();
                 }
                 if ui.add(egui::Button::new(tr("Delete selection")).shortcut_text("Del")).clicked() {
-                    match self.active_doc().map(|d| &mut d.editor) {
-                        Some(Editor::Bpmn(e)) => e.delete_selection(),
-                        Some(Editor::Petri(e)) => e.delete_selection(),
-                        Some(Editor::Mining(_)) | None => {}
-                    }
+                    self.execute(DELETE, 0.0);
                 }
             });
             ui.menu_button(tr("View"), |ui| {
-                if ui.add(egui::Button::new(tr("Zoom to fit")).shortcut_text("F")).clicked() {
-                    match self.active_doc().map(|d| &mut d.editor) {
-                        Some(Editor::Bpmn(e)) => e.request_fit(),
-                        Some(Editor::Petri(e)) => e.request_fit(),
-                        Some(Editor::Mining(_)) | None => {}
-                    }
+                if ui
+                    .add_enabled(has_doc, egui::Button::new(tr("Zoom to fit")).shortcut_text("F"))
+                    .clicked()
+                {
+                    self.execute(FIT, 0.0);
                 }
                 ui.separator();
-                let active = self.docs.get(self.active).map(|d| (d.uid, matches!(d.editor, Editor::Petri(_))));
-                if let Some((uid, true)) = active {
-                    ui.menu_button(tr("Open beside"), |ui| {
-                        for view in [View::Matrices, View::Analysis, View::States, View::Graph] {
-                            if ui.button(view.label()).clicked() {
-                                self.open_beside(Pane { doc: uid, view }, false);
+                let active = self.docs.get(self.active).map(|d| (d.uid, d.editor.views()));
+                if let Some((uid, views)) = active {
+                    if !views.is_empty() {
+                        ui.menu_button(tr("Open beside"), |ui| {
+                            for view in views {
+                                if ui.button(tr(view.label)).clicked() {
+                                    self.open_beside(
+                                        Pane {
+                                            doc: uid,
+                                            view: View::from(view.id),
+                                        },
+                                        false,
+                                    );
+                                }
                             }
-                        }
-                    });
+                        });
+                    }
                 }
                 ui.menu_button(tr("Show document beside"), |ui| {
                     let others: Vec<(u64, String)> = self
@@ -724,51 +610,16 @@ impl OpenProcessApp {
                 egui::widgets::global_theme_preference_buttons(ui);
             });
             ui.menu_button(tr("Tools"), |ui| {
-                let is_bpmn = matches!(self.docs.get(self.active).map(|d| &d.editor), Some(Editor::Bpmn(_)));
-                if ui
-                    .add_enabled(is_bpmn, egui::Button::new(tr("Convert BPMN → Petri net")))
-                    .on_hover_text(tr("Workflow-net translation for soundness analysis"))
-                    .clicked()
-                {
-                    self.convert_active();
-                }
-                let is_petri = matches!(self.docs.get(self.active).map(|d| &d.editor), Some(Editor::Petri(_)));
-                if ui
-                    .add_enabled(is_petri, egui::Button::new(tr("Start / stop token game")).shortcut_text("S"))
-                    .clicked()
-                    && let Some(Editor::Petri(e)) = self.active_doc().map(|d| &mut d.editor)
-                {
-                    e.toggle_simulation(ui.input(|i| i.time));
-                }
-                if ui.add_enabled(is_petri, egui::Button::new(tr("Matrices (Pre, Post, C)"))).clicked()
-                    && let Some(Editor::Petri(e)) = self.active_doc().map(|d| &mut d.editor)
-                {
-                    e.show_matrices();
-                }
-                if ui.add_enabled(is_petri, egui::Button::new(tr("Analysis & invariants"))).clicked()
-                    && let Some(Editor::Petri(e)) = self.active_doc().map(|d| &mut d.editor)
-                {
-                    e.show_analysis();
-                }
-                if ui.add_enabled(is_petri, egui::Button::new(tr("Reachability graph"))).clicked()
-                    && let Some(Editor::Petri(e)) = self.active_doc().map(|d| &mut d.editor)
-                {
-                    e.show_reachability_graph();
-                }
-                if ui
-                    .add_enabled(is_petri, egui::Button::new(tr("Convert Petri net → BPMN")))
-                    .on_hover_text(tr("Deduce a BPMN diagram (AND/XOR gateways) from a workflow net"))
-                    .clicked()
-                {
-                    self.petri_to_bpmn();
+                let commands = self.docs.get(self.active).map(|d| d.editor.commands()).unwrap_or(&[]);
+                for c in commands.iter().filter(|c| c.group == CommandGroup::Tools) {
+                    let enabled = has_doc && self.docs.get(self.active).is_some_and(|d| d.editor.enabled(c.id));
+                    if ui.add_enabled(enabled, egui::Button::new(tr(c.label))).clicked() {
+                        self.execute(c.id, ui.input(|i| i.time));
+                    }
                 }
                 ui.separator();
-                if ui
-                    .button(tr("Process discovery (Alpha algorithm)…"))
-                    .on_hover_text(tr("Event log → relation matrix → Alpha → Petri net → BPMN"))
-                    .clicked()
-                {
-                    self.new_log();
+                if ui.button(tr("Process discovery (Alpha algorithm)…")).clicked() {
+                    self.new_document("event-log", None);
                 }
             });
             ui.menu_button(tr("Help"), |ui| {
@@ -790,7 +641,10 @@ impl OpenProcessApp {
         let ctx = ui.ctx().clone();
         if self.show_about {
             egui::Window::new(tr("About Open Process")).collapsible(false).resizable(false).open(&mut self.show_about).show(&ctx, |ui| {
-                ui.heading("Open Process");
+                ui.horizontal(|ui| {
+                    crate::brand::show(ui, 56.0);
+                    ui.heading("Open Process");
+                });
                 ui.label(trf("Version {}", &[&(env!("CARGO_PKG_VERSION"))]));
                 ui.label(tr("Free and open-source process modelling & analysis: BPMN 2.0, Petri nets, matrices, invariants, reachability graphs, soundness."));
                 ui.label(tr("Written in Rust with egui — runs natively on Windows, macOS, Linux and in the browser (WebAssembly)."));
@@ -837,8 +691,10 @@ impl OpenProcessApp {
                     ui.horizontal(|ui| {
                         if ui.button(tr("Save")).clicked() {
                             self.active = i;
-                            self.save(false);
-                            keep = false;
+                            if self.save(false) {
+                                self.close(i);
+                                keep = false;
+                            }
                         }
                         if ui.button(tr("Close without saving")).clicked() {
                             self.close(i);
@@ -889,39 +745,17 @@ fn theme_toggle(ui: &mut Ui) {
     }
 }
 
-/// Small painted logo: place → transition → place.
-fn logo(ui: &mut Ui) {
-    let (rect, _) = ui.allocate_exact_size(egui::vec2(30.0, 20.0), egui::Sense::hover());
-    let accent = theme::accent(ui.visuals().dark_mode);
-    let p = ui.painter();
-    let c1 = rect.left_center() + egui::vec2(6.0, 0.0);
-    let c2 = rect.right_center() - egui::vec2(6.0, 0.0);
-    let stroke = egui::Stroke::new(1.6, accent);
-    p.circle_stroke(c1, 5.0, stroke);
-    p.circle_filled(c1, 1.8, accent);
-    p.circle_stroke(c2, 5.0, stroke);
-    p.line_segment([c1 + egui::vec2(5.0, 0.0), c2 - egui::vec2(5.0, 0.0)], stroke);
-    p.rect_filled(egui::Rect::from_center_size(rect.center(), egui::vec2(3.5, 12.0)), 1.0, accent);
-}
-
 /// Bridges the split-view tree and the documents.
 struct DockBehavior<'a> {
     docs: &'a mut Vec<Doc>,
     active_uid: Option<u64>,
     events: Vec<DockEvent>,
+    registry: &'static DiagramRegistry,
 }
 
 impl DockBehavior<'_> {
     fn doc(&self, uid: u64) -> Option<&Doc> {
         self.docs.iter().find(|d| d.uid == uid)
-    }
-}
-
-fn kind_badge(editor: &Editor) -> (&'static str, egui::Color32) {
-    match editor {
-        Editor::Bpmn(_) => ("BPMN", theme::KIND_BPMN),
-        Editor::Petri(_) => ("PETRI", theme::KIND_PETRI),
-        Editor::Mining(_) => ("LOG", theme::KIND_LOG),
     }
 }
 
@@ -934,35 +768,24 @@ impl egui_tiles::Behavior<Pane> for DockBehavior<'_> {
         let Some(doc) = self.docs.iter_mut().find(|d| d.uid == pane.doc) else {
             return egui_tiles::UiResponse::None;
         };
-        match (&mut doc.editor, pane.view) {
-            (Editor::Bpmn(e), _) => {
-                e.ui(ui);
-                if let Some(a) = e.action.take() {
-                    self.events.push(DockEvent::Bpmn(pane.doc, a));
-                }
-            }
-            (Editor::Petri(e), View::Editor) => {
-                e.ui(ui);
-                if let Some(v) = e.request_pane.take() {
-                    self.events.push(DockEvent::Beside(Pane { doc: pane.doc, view: v }, false));
-                }
-            }
-            (Editor::Petri(e), v) => e.view_ui(ui, v),
-            (Editor::Mining(e), _) => {
-                e.ui(ui);
-                if let Some(a) = e.action.take() {
-                    self.events.push(DockEvent::Mining(a));
-                }
-            }
+        let view = if pane.view == View::Editor || doc.editor.views().iter().any(|v| v.id == pane.view.id()) {
+            pane.view.id()
+        } else {
+            "editor"
+        };
+        for event in doc.editor.render(ui, _tile_id.0, view) {
+            self.events.push(DockEvent::Host(pane.doc, event));
         }
         egui_tiles::UiResponse::None
     }
 
     fn tab_title_for_pane(&mut self, pane: &Pane) -> egui::WidgetText {
         let name = self.doc(pane.doc).map(|d| d.name()).unwrap_or_default();
-        match pane.view {
-            View::Editor => name.into(),
-            v => format!("{name} · {}", v.label()).into(),
+        if pane.view == View::Editor {
+            name.into()
+        } else {
+            let label = self.doc(pane.doc).map(|d| d.view_label(pane.view.id())).unwrap_or("");
+            format!("{name} · {label}").into()
         }
     }
 
@@ -1002,15 +825,16 @@ impl egui_tiles::Behavior<Pane> for DockBehavior<'_> {
         state: &egui_tiles::TabState,
     ) -> egui::Response {
         let pane = match tiles.get(tile_id) {
-            Some(egui_tiles::Tile::Pane(p)) => Some(*p),
+            Some(egui_tiles::Tile::Pane(p)) => Some(p.clone()),
             _ => None,
         };
-        let (kind, color, title, dirty) = match pane.and_then(|p| self.doc(p.doc).map(|d| (p, d))) {
+        let (kind, color, title, dirty) = match pane.as_ref().and_then(|p| self.doc(p.doc).map(|d| (p, d))) {
             Some((p, d)) => {
-                let (k, c) = kind_badge(&d.editor);
-                let t = match p.view {
-                    View::Editor => d.name(),
-                    v => format!("{} · {}", d.name(), v.label()),
+                let (k, c) = d.badge();
+                let t = if p.view == View::Editor {
+                    d.name()
+                } else {
+                    format!("{} · {}", d.name(), d.view_label(p.view.id()))
                 };
                 (k, c, t, d.dirty() && p.view == View::Editor)
             }
@@ -1089,37 +913,36 @@ impl egui_tiles::Behavior<Pane> for DockBehavior<'_> {
                 self.events.push(DockEvent::Activate(p.doc));
             }
             if close {
-                if p.view == View::Editor {
-                    self.events.push(DockEvent::Close(p.doc));
-                } else {
-                    tiles.remove(tile_id);
-                }
+                self.events.push(DockEvent::ClosePane(p.doc, tile_id));
             }
             resp.context_menu(|ui| {
                 if ui.button(tr("Split right")).clicked() {
-                    self.events.push(DockEvent::Beside(p, false));
+                    self.events.push(DockEvent::Beside(p.clone(), false));
                     ui.close();
                 }
                 if ui.button(tr("Split down")).clicked() {
-                    self.events.push(DockEvent::Beside(p, true));
+                    self.events.push(DockEvent::Beside(p.clone(), true));
                     ui.close();
                 }
-                if let Some(Editor::Petri(_)) = self.doc(p.doc).map(|d| &d.editor) {
+                let views = self.doc(p.doc).map(|d| d.editor.views()).unwrap_or(&[]);
+                if !views.is_empty() {
                     ui.separator();
-                    for view in [View::Matrices, View::Analysis, View::States, View::Graph] {
-                        if ui.button(trf("Open {} beside", &[&(view.label().to_lowercase())])).clicked() {
-                            self.events.push(DockEvent::Beside(Pane { doc: p.doc, view }, false));
+                    for view in views {
+                        if ui.button(trf("Open {} beside", &[&tr(view.label).to_lowercase()])).clicked() {
+                            self.events.push(DockEvent::Beside(
+                                Pane {
+                                    doc: p.doc,
+                                    view: View::from(view.id),
+                                },
+                                false,
+                            ));
                             ui.close();
                         }
                     }
                 }
                 ui.separator();
                 if ui.button(tr("Close")).clicked() {
-                    if p.view == View::Editor {
-                        self.events.push(DockEvent::Close(p.doc));
-                    } else {
-                        tiles.remove(tile_id);
-                    }
+                    self.events.push(DockEvent::ClosePane(p.doc, tile_id));
                     ui.close();
                 }
             });
@@ -1136,14 +959,11 @@ impl egui_tiles::Behavior<Pane> for DockBehavior<'_> {
         ui.add_space(6.0);
         let near = tabs.children.first().copied().filter(|c| tiles.get(*c).is_some());
         ui.menu_button(RichText::new("+").font(theme::semibold(16.0)), |ui| {
-            if ui.button(tr("New BPMN diagram")).clicked() {
-                self.events.push(DockEvent::New("bpmn", near));
-            }
-            if ui.button(tr("New Petri net")).clicked() {
-                self.events.push(DockEvent::New("petri", near));
-            }
-            if ui.button(tr("New event log (process discovery)")).clicked() {
-                self.events.push(DockEvent::New("log", near));
+            for d in &self.registry.diagrams {
+                if ui.button(tr(d.new_label)).clicked() {
+                    self.events.push(DockEvent::New(d.id, near));
+                    ui.close();
+                }
             }
         })
         .response
@@ -1190,11 +1010,20 @@ impl eframe::App for OpenProcessApp {
             });
         }
 
+        if self.show_home {
+            egui::CentralPanel::default()
+                .frame(egui::Frame::new().fill(panel))
+                .show(ui, |ui| self.home(ui));
+            self.dialogs(ui);
+            return;
+        }
+
         let active_uid = self.docs.get(self.active).map(|d| d.uid);
         let mut behavior = DockBehavior {
             docs: &mut self.docs,
             active_uid,
             events: Vec::new(),
+            registry: self.registry,
         };
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(panel).inner_margin(egui::Margin {
@@ -1215,492 +1044,30 @@ impl eframe::App for OpenProcessApp {
         for i in orphan.into_iter().rev() {
             self.close(i);
         }
+        for doc in &mut self.docs {
+            let instances: Vec<_> = dock::panes_of(&self.tree, doc.uid).into_iter().map(|id| id.0).collect();
+            doc.editor.retain_views(&instances);
+        }
         self.dialogs(ui);
     }
 
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        let p = PersistedV2 {
-            docs: self.docs.iter().map(|d| (d.uid, d.model(), d.path.clone())).collect(),
+        let p = Workspace {
+            version: 3,
+            docs: self
+                .docs
+                .iter()
+                .map(|d| (d.uid, d.snapshot(), d.path.clone(), d.editor.workspace()))
+                .collect(),
             active: self.active,
             tree: self.tree.clone(),
         };
-        eframe::set_value(storage, STORAGE_KEY_V2, &p);
+        if self.persistence_ready {
+            storage.set_string(persistence::KEY, serde_json::to_string(&p).expect("workspace is serializable"));
+        }
         crate::i18n::save(storage);
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use egui_kittest::Harness;
-    use egui_kittest::kittest::Queryable;
-
-    fn harness(dark: bool) -> Harness<'static, OpenProcessApp> {
-        harness_sized(dark, [1400.0, 860.0])
-    }
-
-    fn harness_sized(dark: bool, size: [f32; 2]) -> Harness<'static, OpenProcessApp> {
-        let mut h = Harness::builder()
-            .with_size(size)
-            .build_eframe(|cc| OpenProcessApp::new(cc, Vec::new()));
-        h.ctx.set_theme(if dark { egui::Theme::Dark } else { egui::Theme::Light });
-        h.run_steps(4);
-        h
-    }
-
-    fn shot(h: &mut Harness<'static, OpenProcessApp>, name: &str) {
-        h.run_steps(if name.contains("animation") { 0 } else { 4 });
-        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/screenshots");
-        std::fs::create_dir_all(&dir).unwrap();
-        match h.render() {
-            Ok(img) => img.save(dir.join(format!("{name}.png"))).unwrap(),
-            Err(e) => eprintln!("rendering unavailable: {e}"),
-        }
-    }
-
-    #[test]
-    fn bpmn_evaluation_ui() {
-        let mut h = harness(false);
-        h.state_mut().open_model(Model::Bpmn(examples::evaluation_process()), None, false);
-        h.run_steps(4);
-        h.get_by_label("Evaluation").click();
-        h.run_steps(4);
-        assert!(h.query_by_label("Process evaluation").is_some());
-        assert!(h.query_by_label("Cost CAi").is_some());
-        assert!(h.query_by_label("Duration TAi").is_some());
-        assert!(
-            h.get_by_label("A2").rect().top() > h.get_by_label("A1").rect().bottom(),
-            "one activity per table row"
-        );
-        assert!(
-            h.get_by_label("Process evaluation").rect().left() > 900.0,
-            "the inspector leaves room for the diagram"
-        );
-        shot(&mut h, "bpmn_evaluation");
-    }
-
-    #[test]
-    fn screenshots() {
-        let mut h = harness(false);
-        shot(&mut h, "bpmn_light");
-
-        let mut h = harness(true);
-        shot(&mut h, "bpmn_dark");
-
-        let mut h = harness(false);
-        h.state_mut().open_model(Model::Petri(examples::mutual_exclusion()), None, false);
-        if let Some(Editor::Petri(e)) = h.state_mut().docs.last_mut().map(|d| &mut d.editor) {
-            e.show_matrices();
-        }
-        shot(&mut h, "petri_matrices");
-
-        if let Some(Editor::Petri(e)) = h.state_mut().docs.last_mut().map(|d| &mut d.editor) {
-            e.show_analysis();
-        }
-        shot(&mut h, "petri_analysis");
-
-        h.state_mut().open_model(Model::Petri(examples::dining_philosophers()), None, false);
-        if let Some(Editor::Petri(e)) = h.state_mut().docs.last_mut().map(|d| &mut d.editor) {
-            e.toggle_simulation(0.0);
-            e.show_reachability_graph();
-        }
-        shot(&mut h, "petri_simulation_graph");
-
-        h.state_mut().set_active(0);
-        h.state_mut().convert_active();
-        if let Some(Editor::Petri(e)) = h.state_mut().docs.last_mut().map(|d| &mut d.editor) {
-            e.show_analysis();
-        }
-        shot(&mut h, "bpmn_converted");
-    }
-
-    /// Every non-ASCII character used in the UI must be drawable with the
-    /// embedded fonts (there are no system fonts on the web).
-    #[test]
-    fn glyph_coverage() {
-        let ctx = egui::Context::default();
-        crate::theme::setup_fonts(&ctx);
-        let mut out = ctx.run_ui(Default::default(), |_| {});
-        let mut chars: Vec<char> = Vec::new();
-        for src in [
-            include_str!("app.rs"),
-            include_str!("bpmn_editor.rs"),
-            include_str!("petri_editor.rs"),
-            include_str!("canvas.rs"),
-            include_str!("mining_editor.rs"),
-            include_str!("../../op-core/src/i18n/fr.rs"),
-            include_str!("../../op-core/src/mining.rs"),
-            include_str!("../../op-core/src/analysis.rs"),
-            include_str!("../../op-core/src/convert.rs"),
-            include_str!("../../op-core/src/bpmn.rs"),
-        ] {
-            for line in src.lines().filter(|l| !l.trim_start().starts_with("//")) {
-                chars.extend(line.chars().filter(|c| !c.is_ascii()));
-            }
-        }
-        chars.sort();
-        chars.dedup();
-        let missing: String = ctx.fonts_mut(|f| {
-            chars
-                .into_iter()
-                .filter(|&c| !f.has_glyph(&egui::FontId::proportional(14.0), c))
-                .collect()
-        });
-        let mut out2 = ctx.run_ui(Default::default(), |_| {});
-        out.textures_delta.clear();
-        out2.textures_delta.clear();
-        assert!(missing.is_empty(), "missing glyphs: {missing}");
-    }
-
-    fn press(h: &mut Harness<'static, OpenProcessApp>, pos: egui::Pos2, down: bool) {
-        h.event(egui::Event::PointerButton {
-            pos,
-            button: egui::PointerButton::Primary,
-            pressed: down,
-            modifiers: Modifiers::NONE,
-        });
-        h.run_steps(2);
-    }
-
-    fn click(h: &mut Harness<'static, OpenProcessApp>, pos: egui::Pos2) {
-        h.hover_at(pos);
-        h.run_steps(2);
-        press(h, pos, true);
-        press(h, pos, false);
-        // Let the double-click window pass so consecutive clicks stay single clicks.
-        h.run_steps(30);
-    }
-
-    fn drag(h: &mut Harness<'static, OpenProcessApp>, from: egui::Pos2, to: egui::Pos2) {
-        h.hover_at(from);
-        h.run_steps(2);
-        press(h, from, true);
-        for k in 1..=10 {
-            h.hover_at(from.lerp(to, k as f32 / 10.0));
-            h.run_steps(1);
-        }
-        press(h, to, false);
-    }
-
-    fn key(h: &mut Harness<'static, OpenProcessApp>, k: Key) {
-        h.key_press(k);
-        h.run_steps(2);
-    }
-
-    fn petri<'a>(h: &'a Harness<'static, OpenProcessApp>) -> &'a PetriEditor {
-        match &h.state().docs[h.state().active].editor {
-            Editor::Petri(e) => e,
-            _ => panic!("not a Petri net"),
-        }
-    }
-
-    /// Drives the real UI: tools, clicks, arc drag, tokens, undo, token game.
-    #[test]
-    fn petri_editing_by_mouse() {
-        let mut h = harness(false);
-        h.state_mut().open_model(Model::Petri(PetriNet::new("t")), None, false);
-        h.run_steps(4);
-        let (a, b) = (egui::pos2(350.0, 400.0), egui::pos2(600.0, 400.0));
-
-        h.hover_at(a);
-        h.run_steps(2);
-        key(&mut h, Key::P);
-        click(&mut h, a);
-        assert_eq!(petri(&h).net.places.len(), 1);
-
-        key(&mut h, Key::T);
-        click(&mut h, b);
-        assert_eq!(petri(&h).net.transitions.len(), 1);
-
-        key(&mut h, Key::A);
-        drag(&mut h, a, b);
-        assert_eq!(petri(&h).net.arcs.len(), 1, "arc created by dragging");
-
-        key(&mut h, Key::K);
-        click(&mut h, a);
-        click(&mut h, a);
-        assert_eq!(petri(&h).net.places[0].tokens, 2);
-
-        // Undo the last token
-        h.key_press_modifiers(Modifiers::COMMAND, Key::Z);
-        h.run_steps(3);
-        assert_eq!(petri(&h).net.places[0].tokens, 1);
-
-        // Token game: fire the transition
-        key(&mut h, Key::Escape);
-        key(&mut h, Key::S);
-        assert!(petri(&h).sim.is_some());
-        click(&mut h, b);
-        assert_eq!(petri(&h).sim.as_ref().unwrap().marking, vec![0]);
-        assert_eq!(petri(&h).net.places[0].tokens, 1, "simulation does not change M0");
-
-        // Move the place with the select tool
-        key(&mut h, Key::S);
-        key(&mut h, Key::V);
-        let before = petri(&h).net.places[0].pos;
-        drag(&mut h, a, a + egui::vec2(0.0, 100.0));
-        let after = petri(&h).net.places[0].pos;
-        assert!(after.y > before.y + 30.0, "place moved: {before:?} -> {after:?}");
-    }
-
-    fn bpmn<'a>(h: &'a Harness<'static, OpenProcessApp>) -> &'a BpmnEditor {
-        match &h.state().docs[h.state().active].editor {
-            Editor::Bpmn(e) => e,
-            _ => panic!("not BPMN"),
-        }
-    }
-
-    #[test]
-    fn bpmn_editing_by_mouse() {
-        let mut h = harness(false);
-        h.state_mut().open_model(Model::Bpmn(BpmnDiagram::new("t")), None, false);
-        h.run_steps(4);
-        let (a, b, c) = (egui::pos2(250.0, 400.0), egui::pos2(450.0, 400.0), egui::pos2(700.0, 400.0));
-        h.hover_at(a);
-        h.run_steps(2);
-        key(&mut h, Key::S);
-        click(&mut h, a);
-        key(&mut h, Key::T);
-        click(&mut h, b);
-        key(&mut h, Key::E);
-        click(&mut h, c);
-        assert_eq!(bpmn(&h).diagram.nodes.len(), 3);
-        key(&mut h, Key::C);
-        drag(&mut h, a, b);
-        key(&mut h, Key::C);
-        drag(&mut h, b, c);
-        assert_eq!(bpmn(&h).diagram.flows.len(), 2);
-        assert!(
-            bpmn(&h)
-                .diagram
-                .validate()
-                .iter()
-                .all(|i| i.severity != op_core::bpmn::Severity::Error)
-        );
-
-        // Drop a gateway on the second flow: it gets inserted
-        key(&mut h, Key::X);
-        click(&mut h, egui::pos2(580.0, 400.0));
-        assert_eq!(bpmn(&h).diagram.nodes.len(), 4);
-        assert_eq!(bpmn(&h).diagram.flows.len(), 3);
-        shot(&mut h, "bpmn_edited");
-    }
-
-    #[test]
-    fn dark_token_game_animation() {
-        let mut h = harness(true);
-        h.state_mut().open_model(Model::Petri(examples::mutual_exclusion()), None, false);
-        h.run_steps(4);
-        if let Editor::Petri(e) = &mut h.state_mut().docs.last_mut().unwrap().editor {
-            e.toggle_simulation(0.0);
-        }
-        h.run_steps(4);
-        if let Editor::Petri(e) = &mut h.state_mut().docs.last_mut().unwrap().editor {
-            assert!(e.fire_by_name("enter1"));
-        }
-        h.run_steps(1);
-        shot(&mut h, "petri_dark_animation");
-        h.run_steps(60);
-        shot(&mut h, "petri_dark_after");
-        if let Editor::Petri(e) = &h.state().docs.last().unwrap().editor {
-            assert_eq!(e.sim.as_ref().unwrap().marking, vec![0, 0, 1, 1, 0]);
-        }
-    }
-
-    /// Process discovery tab: course example 2, then open the net and the BPMN.
-    #[test]
-    fn process_discovery() {
-        let mut h = harness(false);
-        h.state_mut().open_model(
-            Model::Log(LogDocument {
-                name: "Example 2".into(),
-                text: crate::mining_editor::EXAMPLE_2.into(),
-                ..Default::default()
-            }),
-            None,
-            false,
-        );
-        h.run_steps(4);
-        shot(&mut h, "mining_top");
-        let n = h.state().docs.len();
-        h.get_by_label("Open Petri net").click();
-        h.run_steps(4);
-        assert_eq!(h.state().docs.len(), n + 1);
-        assert!(matches!(h.state().docs.last().unwrap().editor, Editor::Petri(_)));
-        shot(&mut h, "mining_petri");
-        h.state_mut().set_active(n - 1);
-        h.run_steps(4);
-        h.get_by_label("Deduce BPMN").click();
-        h.run_steps(4);
-        assert!(matches!(h.state().docs.last().unwrap().editor, Editor::Bpmn(_)));
-        if let Editor::Bpmn(e) = &mut h.state_mut().docs.last_mut().unwrap().editor {
-            e.request_fit();
-        }
-        shot(&mut h, "mining_bpmn");
-    }
-
-    #[test]
-    fn rubber_band_and_group_move() {
-        let mut h = harness(false);
-        h.state_mut().open_model(Model::Petri(examples::mutual_exclusion()), None, false);
-        h.run_steps(4);
-        // Select everything with a rubber band drawn on empty space
-        drag(&mut h, egui::pos2(1000.0, 800.0), egui::pos2(90.0, 95.0));
-        let (n, before, place) = match &h.state().docs.last().unwrap().editor {
-            Editor::Petri(e) => (
-                e.selected_count(),
-                e.net.places.iter().map(|p| p.pos).collect::<Vec<_>>(),
-                e.screen_pos(e.net.places[0].pos),
-            ),
-            _ => unreachable!(),
-        };
-        assert_eq!(n, 9, "all places and transitions selected");
-        // Dragging one node moves the whole selection
-        drag(&mut h, place, place + egui::vec2(60.0, 40.0));
-        let after: Vec<op_core::geom::Pos> = match &h.state().docs.last().unwrap().editor {
-            Editor::Petri(e) => e.net.places.iter().map(|p| p.pos).collect(),
-            _ => unreachable!(),
-        };
-        let d0 = (after[0].x - before[0].x, after[0].y - before[0].y);
-        assert!(d0.0 > 20.0 && d0.1 > 10.0, "moved: {d0:?}");
-        for (a, b) in after.iter().zip(&before) {
-            assert!(
-                (a.x - b.x - d0.0).abs() < 11.0 && (a.y - b.y - d0.1).abs() < 11.0,
-                "group moved together"
-            );
-        }
-    }
-
-    #[test]
-    fn palette_drag_and_drop() {
-        let mut h = harness(false);
-        h.state_mut().open_model(Model::Bpmn(BpmnDiagram::new("dnd")), None, false);
-        h.run_steps(4);
-        let task = h.get_by_label("Task (T)").rect().center();
-        drag(&mut h, task, egui::pos2(600.0, 400.0));
-        let start = h.get_by_label("Start event (S)").rect().center();
-        drag(&mut h, start, egui::pos2(400.0, 400.0));
-        h.run_steps(2);
-        let d = &bpmn(&h).diagram;
-        assert_eq!(d.nodes.len(), 2, "two elements dropped");
-        assert!(d.nodes.iter().any(|n| matches!(n.kind, op_core::bpmn::NodeKind::Task(_))));
-        shot(&mut h, "bpmn_dropped");
-    }
-
-    #[test]
-    fn link_styles_and_sketch() {
-        use op_core::style::{DiagramStyle, EdgeStyle};
-        let mut h = harness(false);
-        let mut net = examples::mutual_exclusion();
-        net.style = DiagramStyle {
-            edges: EdgeStyle::Orthogonal,
-            sketch: false,
-            ..Default::default()
-        };
-        h.state_mut().open_model(Model::Petri(net.clone()), None, false);
-        shot(&mut h, "style_petri_orthogonal");
-        net.style = DiagramStyle {
-            edges: EdgeStyle::Curved,
-            sketch: true,
-            ..Default::default()
-        };
-        h.state_mut().open_model(Model::Petri(net), None, false);
-        shot(&mut h, "style_petri_sketch_curved");
-        let mut bar = examples::mutual_exclusion();
-        bar.style.transitions = op_core::style::TransitionShape::Bar;
-        h.state_mut().open_model(Model::Petri(bar), None, false);
-        shot(&mut h, "style_petri_bars");
-        let mut d = examples::order_process();
-        d.style = DiagramStyle {
-            edges: EdgeStyle::Auto,
-            sketch: true,
-            ..Default::default()
-        };
-        h.state_mut().open_model(Model::Bpmn(d), None, false);
-        shot(&mut h, "style_bpmn_sketch");
-    }
-
-    #[test]
-    fn manual_alpha_mode() {
-        let mut h = harness_sized(false, [1400.0, 2600.0]);
-        let mut answers = std::collections::BTreeMap::new();
-        answers.insert("step:TI".to_string(), "{A}".to_string());
-        answers.insert("step:TO".to_string(), "{D,E}".to_string()); // wrong on purpose
-        answers.insert("step:YW".to_string(), "(A,BE), (A,CE), (BE,D), (CE,D)".to_string());
-        answers.insert("m:A:B".to_string(), "→".to_string());
-        answers.insert("m:B:C".to_string(), "#".to_string()); // wrong
-        h.state_mut().open_model(
-            Model::Log(LogDocument {
-                name: "Exercise".into(),
-                text: "ABCD\nACBD\nAED".into(),
-                manual: true,
-                answers,
-            }),
-            None,
-            false,
-        );
-        h.run_steps(4);
-        h.get_by_label("Check everything").click();
-        h.run_steps(4);
-        shot(&mut h, "mining_manual");
-        let Editor::Mining(e) = &h.state().docs.last().unwrap().editor else {
-            unreachable!()
-        };
-        assert!(e.manual);
-        // the answers are saved with the document
-        let Model::Log(l) = h.state().docs.last().unwrap().model() else {
-            unreachable!()
-        };
-        assert_eq!(l.answers.get("step:TI").map(String::as_str), Some("{A}"));
-    }
-
-    #[test]
-    fn png_encoding() {
-        let img = egui::ColorImage::new([20, 10], vec![egui::Color32::RED; 200]);
-        let png = io::encode_png(&img, egui::Rect::from_min_size(egui::pos2(2.0, 2.0), egui::vec2(8.0, 4.0)), 1.0).unwrap();
-        assert_eq!(&png[..8], b"\x89PNG\r\n\x1a\n");
-    }
-
-    /// BPMN on the left, Petri net matrices on the right.
-    #[test]
-    fn split_view() {
-        let mut h = harness(false);
-        h.state_mut().open_model(Model::Petri(examples::mutual_exclusion()), None, false);
-        let uid = h.state().docs.last().unwrap().uid;
-        h.state_mut().set_active(0);
-        h.state_mut().open_beside(
-            Pane {
-                doc: uid,
-                view: View::Matrices,
-            },
-            false,
-        );
-        h.run_steps(6);
-        let root = h.state().tree.root.unwrap();
-        assert!(matches!(
-            h.state().tree.tiles.get(root),
-            Some(egui_tiles::Tile::Container(egui_tiles::Container::Linear(_)))
-        ));
-        shot(&mut h, "split_bpmn_matrices");
-        // Closing the Petri editor removes its matrices pane too
-        let i = h.state().docs.len() - 1;
-        h.state_mut().close(i);
-        h.run_steps(2);
-        assert!(dock::panes_of(&h.state().tree, uid).is_empty());
-    }
-
-    #[test]
-    fn persistence_roundtrip() {
-        let p = Persisted {
-            docs: vec![
-                (Model::Bpmn(examples::order_process()), None),
-                (Model::Petri(examples::mutual_exclusion()), Some("x.opx".into())),
-            ],
-            active: 1,
-        };
-        let s = serde_json::to_string(&p).unwrap();
-        let back: Persisted = serde_json::from_str(&s).unwrap();
-        assert_eq!(back.docs.len(), 2);
-        assert_eq!(back.docs[0].0, p.docs[0].0);
-    }
-}
+mod tests;

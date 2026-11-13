@@ -435,6 +435,7 @@ pub fn inline_editor(ctx: &egui::Context, id: egui::Id, pos: Pos2, width: f32, t
                 r.request_focus();
             }
             if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+                r.surrender_focus();
                 outcome = InlineOutcome::Cancelled;
             } else if r.lost_focus() {
                 outcome = InlineOutcome::Done;
@@ -471,7 +472,15 @@ pub fn zoom_controls(ui: &mut Ui, view: &mut View, canvas: Rect, fit: &mut bool)
         *fit = true;
     }
     ui.add_space(6.0);
-    if ui.small_button("+").on_hover_text(tr("Zoom in")).clicked() {
+    zoom_buttons(ui, view, canvas);
+}
+
+/// Zoom controls shared by the full and compact configuration bars.
+pub fn zoom_buttons(ui: &mut Ui, view: &mut View, canvas: Rect) {
+    ui.spacing_mut().item_spacing.x = 2.0;
+    let plus = ui.small_button("+").on_hover_text(tr("Zoom in"));
+    plus.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tr("Zoom in")));
+    if plus.clicked() {
         view.zoom_around(canvas, canvas.center(), 1.2);
     }
     let pct = egui::RichText::new(format!("{:>3.0}%", view.zoom * 100.0)).monospace();
@@ -482,7 +491,9 @@ pub fn zoom_controls(ui: &mut Ui, view: &mut View, canvas: Rect, fit: &mut bool)
     {
         view.zoom_around(canvas, canvas.center(), 1.0 / view.zoom);
     }
-    if ui.small_button("−").on_hover_text(tr("Zoom out")).clicked() {
+    let minus = ui.small_button("−").on_hover_text(tr("Zoom out"));
+    minus.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tr("Zoom out")));
+    if minus.clicked() {
         view.zoom_around(canvas, canvas.center(), 1.0 / 1.2);
     }
 }

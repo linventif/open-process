@@ -25,6 +25,7 @@ const structuredData = {
   installUrl: cloudApp,
   license: [`${repository}/blob/main/LICENSE-MIT`, `${repository}/blob/main/LICENSE-APACHE`],
   screenshot: image.href,
+  image: new URL("/assets/logo.svg", site).href,
 };
 ---
 <!doctype html>
@@ -59,7 +60,10 @@ const structuredData = {
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={image.href} />
     <meta name="twitter:image:alt" content={messages[lang].bpmnAlt} />
-    <link rel="icon" type="image/svg+xml" href="/assets/logo.svg" />
+    <link rel="icon" href="/icons/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon.png" />
+    <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg" sizes="any" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
     <link rel="preload" href="/assets/fonts/Inter-Regular.ttf" as="font" type="font/ttf" crossorigin />
     <link rel="sitemap" href="/sitemap-index.xml" />
     {!noindex && <script type="application/ld+json" set:html={JSON.stringify(structuredData).replace(/</g, "\\u003c")} />}

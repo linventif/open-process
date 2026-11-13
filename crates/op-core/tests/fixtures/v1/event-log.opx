@@ -1,0 +1,15 @@
+{
+  "format": "open-process",
+  "version": 1,
+  "model": {
+    "type": "Log",
+    "model": {
+      "name": "Exercise",
+      "text": "ABCD\nACBD\nAED",
+      "manual": true,
+      "answers": {
+        "TW": "A,B,C,D,E"
+      }
+    }
+  }
+}
