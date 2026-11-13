@@ -470,3 +470,21 @@ la documentation contrôlés, sans erreur. `git diff --check` réussit.
 
 Aucun nouveau test interactif dans un navigateur ni contrôle Windows/macOS
 n’a été exécuté pour cet ajout.
+
+## Exemples dans la grille de sélection
+
+Le bouton **Exemples** du sélecteur de documents remplace File → Examples et
+utilise les déclarations du registre. Les tests existants du sélecteur ont été
+étendus : accès à tous les exemples à 1 400, 420 et 280 px, fermeture du menu
+par Échap sans fermer le sélecteur, annulation sans modifier le document et
+ouverture d’un exemple dans le groupe d’onglets d’origine. Le contenu de
+l’exemple ouvert est comparé à celui du registre. Les captures
+`target/screenshots/new_document_examples_1400.png` et
+`new_document_examples_280.png` ont été inspectées visuellement.
+
+La suite séquentielle `cargo test --locked --offline --workspace -- --test-threads=1`
+passe les **124 tests Rust** (50 application, 69 cœur et 5 intégration).
+Les vérifications native et WebAssembly de `op-app`, `cargo fmt --all -- --check`,
+les 156 liens locaux de documentation et `git diff --check` réussissent.
+Le site n’a pas changé ; aucun nouveau test navigateur ou build release
+n’a été exécuté pour ce déplacement.

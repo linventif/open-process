@@ -290,8 +290,12 @@ impl OpenProcessApp {
     }
 
     fn open_example(&mut self, id: &str) {
+        self.open_example_near(id, None);
+    }
+
+    fn open_example_near(&mut self, id: &str, near: Option<egui_tiles::TileId>) {
         if let Some(d) = self.registry.example(id) {
-            self.open_document(d, None, false);
+            self.open_document_near(d, None, false, near);
         }
     }
 
@@ -517,14 +521,6 @@ impl OpenProcessApp {
                             }
                         }
                     });
-                });
-                ui.separator();
-                ui.menu_button(tr("menu.examples"), |ui| {
-                    for e in &self.registry.examples {
-                        if ui.button(tr(e.label)).clicked() {
-                            self.open_example(e.id);
-                        }
-                    }
                 });
                 ui.separator();
                 if ui

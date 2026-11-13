@@ -1201,6 +1201,7 @@ fn new_document_picker_is_a_responsive_registry_grid() {
         h.get_by_label("File").click();
         h.run_steps(3);
         assert!(h.query_by_label("New BPMN diagram").is_none(), "File contains one New entry");
+        assert!(h.query_by_label("Examples").is_none(), "Examples belongs to the selection grid");
         h.get_by_label(&format!(
             "New… {}",
             h.ctx.format_shortcut(&KeyboardShortcut::new(Modifiers::COMMAND, Key::N))
@@ -1221,6 +1222,20 @@ fn new_document_picker_is_a_responsive_registry_grid() {
             assert!(b.top() > a.bottom());
         }
         shot(&mut h, &format!("new_document_grid_{width}"));
+        let examples = h.get_by_label("Examples").rect().center();
+        click(&mut h, examples);
+        h.run_steps(4);
+        shot(&mut h, &format!("new_document_examples_{width}"));
+        for example in &crate::composition::registry().examples {
+            assert!(
+                h.query_by_label(tr(example.label)).is_some(),
+                "{} missing at {width}px",
+                tr(example.label)
+            );
+        }
+        key(&mut h, Key::Escape);
+        h.run_steps(4);
+        assert!(h.state().new_picker.is_some(), "Escape closes the examples menu first");
         let cancel = h.get_by_label("Cancel").rect().center();
         click(&mut h, cancel);
         h.run_steps(4);
@@ -1259,31 +1274,50 @@ fn new_document_picker_filters_cancels_and_opens_from_tabs_and_shortcut() {
 
 #[test]
 fn new_document_from_a_split_tab_bar_stays_in_that_group() {
-    let mut h = harness(true);
-    let uid = h.state().docs[0].uid;
-    h.state_mut().open_beside(
-        Pane {
-            doc: uid,
-            view: View::Editor,
-        },
-        false,
-    );
-    h.run_steps(5);
-    let position = h
-        .get_all_by_label("New document")
-        .map(|n| n.rect().center())
-        .max_by(|a, b| a.x.total_cmp(&b.x))
-        .unwrap();
-    click(&mut h, position);
-    let near = h.state().new_picker.as_ref().unwrap().near.unwrap();
-    let group = h.state().tree.tiles.parent_of(near);
-    h.get_by_label("Search diagram types").type_text("epc");
-    h.run_steps(4);
-    h.get_by_label("New EPC diagram").click();
-    h.run_steps(4);
-    let uid = h.state().docs.last().unwrap().uid;
-    let pane = dock::panes_of(&h.state().tree, uid)[0];
-    assert_eq!(h.state().tree.tiles.parent_of(pane), group);
+    for from_example in [false, true] {
+        let mut h = harness(true);
+        let original = h.state().docs[0].snapshot();
+        let uid = h.state().docs[0].uid;
+        h.state_mut().open_beside(
+            Pane {
+                doc: uid,
+                view: View::Editor,
+            },
+            false,
+        );
+        h.run_steps(5);
+        let position = h
+            .get_all_by_label("New document")
+            .map(|n| n.rect().center())
+            .max_by(|a, b| a.x.total_cmp(&b.x))
+            .unwrap();
+        click(&mut h, position);
+        let near = h.state().new_picker.as_ref().unwrap().near.unwrap();
+        let group = h.state().tree.tiles.parent_of(near);
+        if from_example {
+            h.get_by_label("Examples").click();
+            h.run_steps(4);
+            h.get_by_label(tr("database.database_shop_schema")).click();
+        } else {
+            h.get_by_label("Search diagram types").type_text("epc");
+            h.run_steps(4);
+            h.get_by_label("New EPC diagram").click();
+        }
+        h.run_steps(4);
+        assert!(h.state().new_picker.is_none());
+        assert_eq!(h.state().docs.len(), 2);
+        assert_eq!(h.state().docs[0].snapshot(), original);
+        let doc = h.state().docs.last().unwrap();
+        assert_eq!(doc.editor.kind(), if from_example { "database.schema" } else { "epc" });
+        if from_example {
+            let expected = crate::composition::registry()
+                .open(&crate::composition::registry().example("database.shop").unwrap())
+                .unwrap();
+            assert_eq!(doc.snapshot(), expected.snapshot());
+        }
+        let pane = dock::panes_of(&h.state().tree, doc.uid)[0];
+        assert_eq!(h.state().tree.tiles.parent_of(pane), group);
+    }
 }
 
 #[test]

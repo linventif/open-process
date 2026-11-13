@@ -56,6 +56,9 @@ les descripteurs du registre et réutilise la grille de cartes de `home.rs`.
 File, le bouton d’onglets et le raccourci clavier partagent ce sélecteur ; le
 shell ne possède pas une deuxième liste de notations. Les exports déclarés par
 chaque session sont présentés dans un sous-menu File → Export.
+Le bouton **Exemples** en tête de la grille de sélection remplace File → Examples
+et consomme les exemples du registre. Choisir un exemple ferme le sélecteur et
+l’ouvre dans le groupe d’onglets à l’origine de l’action, comme un document vierge.
 
 Les descripteurs de diagrammes et de workflows portent une fonction `icon`.
 Les modules choisissent un pictogramme dans `icons.rs`, puis l’accueil et le
