@@ -182,6 +182,38 @@ fn visuals(v: &mut Visuals, dark: bool) {
     w.open.corner_radius = r;
 }
 
+/// Shared quiet buttons for navigation, view configuration and inspector tabs.
+/// Keep the strong background for checkboxes and the accent outline for keyboard focus.
+pub fn toolbar_style(style: &mut egui::Style) {
+    let dark = style.visuals.dark_mode;
+    let hover = if dark {
+        Color32::from_rgb(46, 50, 59)
+    } else {
+        Color32::from_rgb(230, 234, 241)
+    };
+    let selected = if dark {
+        Color32::from_rgb(46, 59, 94)
+    } else {
+        Color32::from_rgb(225, 232, 255)
+    };
+    style.spacing.button_padding = vec2(6.0, 4.0);
+    style.visuals.selection.bg_fill = selected;
+    style.visuals.selection.stroke = Stroke::new(1.0, accent(dark));
+    let widgets = &mut style.visuals.widgets;
+    widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
+    widgets.inactive.bg_stroke = Stroke::NONE;
+    for state in [&mut widgets.hovered, &mut widgets.open] {
+        state.bg_fill = hover;
+        state.weak_bg_fill = hover;
+        state.bg_stroke = Stroke::NONE;
+    }
+    for state in [&mut widgets.inactive, &mut widgets.hovered, &mut widgets.active, &mut widgets.open] {
+        state.corner_radius = CornerRadius::same(6);
+        state.fg_stroke.width = 1.0;
+        state.expansion = 0.0;
+    }
+}
+
 /// Small uppercase section title used in side panels.
 pub fn section_title(ui: &mut egui::Ui, title: &str) {
     ui.add_space(10.0);

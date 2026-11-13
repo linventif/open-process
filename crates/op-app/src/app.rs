@@ -445,7 +445,7 @@ impl OpenProcessApp {
 
     fn menu_bar(&mut self, ui: &mut Ui) {
         let has_doc = !self.show_home && !self.docs.is_empty();
-        egui::MenuBar::new().ui(ui, |ui| {
+        egui::MenuBar::new().style(theme::toolbar_style).ui(ui, |ui| {
             crate::brand::show(ui, 26.0);
             ui.label(RichText::new("Open Process").font(theme::semibold(14.0)));
             ui.add_space(10.0);

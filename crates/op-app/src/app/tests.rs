@@ -142,11 +142,14 @@ fn bpmn_evaluation_ui() {
 
 #[test]
 fn screenshots() {
-    let mut h = harness(false);
-    shot(&mut h, "bpmn_light");
-
-    let mut h = harness(true);
-    shot(&mut h, "bpmn_dark");
+    for (dark, theme) in [(false, "light"), (true, "dark")] {
+        let mut h = harness(dark);
+        shot(&mut h, &format!("bpmn_{theme}"));
+        for (label, name) in [("Home", "home"), ("File", "file"), ("Style ▾", "style"), ("Inspector", "inspector")] {
+            h.hover_at(h.get_by_label(label).rect().center());
+            shot(&mut h, &format!("toolbar_hover_{name}_{theme}"));
+        }
+    }
 
     let mut h = harness(false);
     h.state_mut().open_model(Model::Petri(examples::mutual_exclusion()), None, false);

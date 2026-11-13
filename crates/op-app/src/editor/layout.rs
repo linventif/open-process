@@ -1,6 +1,9 @@
 //! Common chrome for graphical editors: inspector, configuration, tools and canvas.
 //! Notations supply content/options; spacing, placement and responsive behavior live here.
-use crate::canvas::{self, View};
+use crate::{
+    canvas::{self, View},
+    theme,
+};
 use egui::{Align, Color32, Frame, Id, Layout, Margin, Rect, RichText, Ui};
 use op_core::i18n::tr;
 
@@ -72,11 +75,14 @@ impl DiagramLayout {
     }
 
     pub fn inspector_tabs<T: Copy + PartialEq>(ui: &mut Ui, value: &mut T, tabs: &[(T, &str)], extra: impl FnOnce(&mut Ui, T)) {
-        ui.horizontal_wrapped(|ui| {
-            for &(tab, label) in tabs {
-                ui.selectable_value(value, tab, label);
-            }
-            extra(ui, *value);
+        ui.scope(|ui| {
+            theme::toolbar_style(ui.style_mut());
+            ui.horizontal_wrapped(|ui| {
+                for &(tab, label) in tabs {
+                    ui.selectable_value(value, tab, label);
+                }
+                extra(ui, *value);
+            });
         });
         ui.separator();
     }
@@ -90,6 +96,7 @@ impl DiagramLayout {
         egui::Panel::top(self.id.with("tools"))
             .frame(Frame::new().fill(ui.visuals().panel_fill).inner_margin(Margin::symmetric(12, 4)))
             .show(ui, |ui| {
+                theme::toolbar_style(ui.style_mut());
                 ui.horizontal_wrapped(contents);
             });
     }
@@ -99,6 +106,7 @@ impl DiagramLayout {
             .exact_size(34.0)
             .frame(Frame::new().fill(ui.visuals().panel_fill).inner_margin(Margin::symmetric(12, 4)))
             .show(ui, |ui| {
+                theme::toolbar_style(ui.style_mut());
                 let width = ui.available_width();
                 let compact = width < CONFIG_BREAKPOINT;
                 let inspector_in_menu = width < COMPACT_INSPECTOR_BREAKPOINT;
