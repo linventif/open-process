@@ -1070,6 +1070,10 @@ pub const TABLE: &[(&str, &str)] = &[
     ("Action", "Action"),
     ("Activity diagram {}", "Diagramme d’activité {}"),
     ("Activity final", "Fin d’activité"),
+    (
+        "Add a lane to each pool before arranging.",
+        "Ajoutez un couloir à chaque pool avant la disposition automatique.",
+    ),
     ("Add a rule to define the decision.", "Ajoutez une règle pour définir la décision."),
     ("Add a table before generating DDL.", "Ajoutez une table avant de générer le DDL."),
     (
@@ -1090,8 +1094,17 @@ pub const TABLE: &[(&str, &str)] = &[
     ),
     ("Annotation", "Annotation"),
     ("Approve", "Approuver"),
+    ("Auto arrange", "Disposition automatique"),
     ("Auto increment", "Auto-incrémentation"),
     ("Boolean literal", "Littéral booléen"),
+    (
+        "Cannot arrange a diagram with invalid element references.",
+        "La disposition automatique exige des références d’éléments valides.",
+    ),
+    (
+        "Cannot arrange a diagram with invalid geometry.",
+        "La disposition automatique exige une géométrie valide.",
+    ),
     ("Check incoming and outgoing flows.", "Vérifiez les flux entrants et sortants."),
     (
         "Choose a diagram type to get started.",
@@ -1207,6 +1220,10 @@ pub const TABLE: &[(&str, &str)] = &[
     ("Merge", "Fusion"),
     ("Missing or invalid input: {}", "Entrée absente ou invalide : {}"),
     ("Model an EPC", "Modéliser un EPC"),
+    (
+        "Move elements out of pool headers and separate overlapping pools before arranging.",
+        "Sortez les éléments des en-têtes et séparez les pools superposés avant la disposition automatique.",
+    ),
     (
         "MySQL indexed columns require bounded types within the key size limit: {}",
         "Les colonnes indexées MySQL exigent des types bornés respectant la taille maximale de clé : {}",

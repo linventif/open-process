@@ -398,6 +398,7 @@ impl BpmnEditor {
     }
 
     fn status_bar(&mut self, ui: &mut Ui, layout: DiagramLayout) {
+        let mut arrange = false;
         let seq = self.diagram.flows.iter().filter(|f| f.kind == FlowKind::Sequence).count();
         let status = FooterStatus {
             summary: trf(
@@ -418,8 +419,41 @@ impl BpmnEditor {
                 issues: Some(&mut self.show_issues),
             },
             status,
-            |ui| canvas::style_menu(ui, &mut self.diagram.style, false),
+            |ui| {
+                canvas::style_menu(ui, &mut self.diagram.style, false);
+                if ui
+                    .add_enabled(
+                        !self.diagram.nodes.is_empty() || !self.diagram.pools.is_empty(),
+                        egui::Button::new(tr("Auto arrange")),
+                    )
+                    .clicked()
+                {
+                    arrange = true;
+                    if ui.stack().iter().any(|stack| stack.kind() == Some(egui::UiKind::Menu)) {
+                        ui.close_kind(egui::UiKind::Menu);
+                    }
+                }
+            },
         );
+        if arrange {
+            self.auto_arrange();
+        }
+    }
+
+    fn auto_arrange(&mut self) {
+        self.history.sync(&self.diagram, false);
+        match op_core::bpmn::layout::auto_arrange(&mut self.diagram) {
+            Ok(()) => {
+                self.drag = None;
+                self.editing = None;
+                self.connect_pending = None;
+                self.dnd = None;
+                self.fit_request = true;
+                self.status.clear();
+                self.history.sync(&self.diagram, false);
+            }
+            Err(e) => self.status = e,
+        }
     }
 
     fn canvas(&mut self, ui: &mut Ui) {

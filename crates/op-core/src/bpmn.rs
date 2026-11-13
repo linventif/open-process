@@ -6,6 +6,8 @@ use crate::geom::{Pos, Rect};
 use crate::i18n::{tr, trf};
 use serde::{Deserialize, Serialize};
 
+pub mod layout;
+
 pub type Id = u32;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
