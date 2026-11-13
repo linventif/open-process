@@ -1,9 +1,11 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
 
 jobs:
   test:
@@ -20,8 +22,8 @@ jobs:
       - name: Linux dependencies
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libgtk-3-dev
-      - run: cargo test --workspace
-      - run: cargo build --release -p op-app
+      - run: cargo test --locked --workspace -- --test-threads=1
+      - run: cargo build --locked --release -p op-app
 
   wasm:
     name: Web build
@@ -32,4 +34,4 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
-      - run: cargo build -p op-app --target wasm32-unknown-unknown
+      - run: cargo build --locked -p op-app --target wasm32-unknown-unknown

@@ -2,14 +2,24 @@ name: Release binaries
 
 on:
   push:
+    branches: [main]
     tags: ["v*"]
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
+  verify:
+    name: Tests and web build
+    uses: ./.github/workflows/ci.yml
+
   build:
     name: ${{ matrix.target }}
+    needs: verify
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -24,15 +34,58 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
       - name: Linux dependencies
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libgtk-3-dev
-      - run: cargo build --release -p op-app --target ${{ matrix.target }}
+      - run: cargo build --locked --release -p op-app --target ${{ matrix.target }}
       - name: Package
         shell: bash
         run: |
           mkdir -p out
           cp target/${{ matrix.target }}/release/open-process${{ matrix.ext }} out/open-process-${{ matrix.target }}${{ matrix.ext }}
-      - uses: softprops/action-gh-release@v2
+      - uses: actions/upload-artifact@v4
         with:
-          files: out/*
+          name: binary-${{ matrix.target }}
+          path: out/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: binary-*
+          merge-multiple: true
+          path: out
+      - name: Choose release tag
+        id: release
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            tag="$GITHUB_REF_NAME"
+          else
+            tag="main-${GITHUB_RUN_NUMBER}-${GITHUB_SHA:0:7}"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: Publish all platform binaries
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: true
+          prerelease: false
+          make_latest: "true"
+          fail_on_unmatched_files: true
+          files: |
+            out/open-process-x86_64-pc-windows-msvc.exe
+            out/open-process-x86_64-unknown-linux-gnu
+            out/open-process-aarch64-apple-darwin
+            out/open-process-x86_64-apple-darwin

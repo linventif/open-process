@@ -70,10 +70,15 @@ Le bouton « Ouvrir la version cloud » mène à
 localement dans le navigateur. L’hébergement du site vitrine n’installe pas
 automatiquement l’application WebAssembly.
 
-Les nouveaux binaires sont construits par GitHub Actions quand un tag `v*` est
-poussé. Sur Linux et macOS, il peut être nécessaire d’autoriser l’exécution du
-binaire (`chmod +x`). Les bibliothèques système et l’outil de compilation sont
-décrits dans le README principal.
+Chaque push sur `main` lance les tests Linux, Windows et macOS ainsi que le build
+WebAssembly. Après leur réussite et celle des quatre builds natifs, GitHub Actions
+publie une release `main-<numéro du run>-<SHA court>` avec tous les binaires. Les
+boutons du site utilisent automatiquement cette dernière release. Les tags `v*`
+continuent aussi à déclencher une release.
+
+Sur Linux et macOS, il peut être nécessaire d’autoriser l’exécution du binaire
+(`chmod +x`). Les bibliothèques système et l’outil de compilation sont décrits
+dans le README principal.
 
 ## Vérifications rapides
 

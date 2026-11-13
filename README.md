@@ -97,6 +97,17 @@ trunk serve --release      # http://127.0.0.1:8080
 `trunk build --release` produces a static site in `dist/` that can be hosted anywhere
 (the included GitHub Actions workflow publishes it to GitHub Pages).
 
+### Automatic releases
+
+Every push to `main` runs the CI tests on Linux, Windows and macOS and checks the
+WebAssembly build. Once those checks pass, the release workflow builds binaries
+for Linux x64, Windows x64, macOS Apple Silicon and macOS Intel. It publishes them
+together in a GitHub Release tagged `main-<run number>-<short commit SHA>`.
+The website's download buttons pick up that latest release automatically.
+
+Pushing a `v*` tag still publishes a release using that tag. The workflow uses
+GitHub's built-in token; no additional release secret is needed.
+
 ## Project layout
 
 The product website lives in [`website/`](website/). It is a standalone static
