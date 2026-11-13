@@ -58,6 +58,7 @@ fn home_navigation() {
         ("Define a decision table", "dmn.table"),
         ("Model an EPC", "epc"),
         ("Design an activity diagram", "uml.activity"),
+        ("Design a database", "database.schema"),
     ] {
         h.get_by_label(label).scroll_to_me();
         h.run_steps(12);
@@ -939,6 +940,150 @@ fn active_view_settings(h: &Harness<'static, OpenProcessApp>) -> serde_json::Val
 }
 
 #[test]
+fn database_tables_relationships_history_and_ddl_views() {
+    use crate::database_editor::DatabaseEditor;
+    use op_core::database::Dialect;
+    let mut h = harness(false);
+    h.state_mut().new_document("database.schema", None);
+    h.run_steps(4);
+    assert!(
+        h.state().docs.last().unwrap().editor.export().is_err(),
+        "an empty schema cannot produce DDL"
+    );
+    h.get_by_label("Add table").click();
+    h.run_steps(4);
+    h.get_by_label("Add table").click();
+    h.run_steps(4);
+    let e = h
+        .state()
+        .docs
+        .last()
+        .unwrap()
+        .editor
+        .as_any()
+        .downcast_ref::<DatabaseEditor>()
+        .unwrap();
+    assert_eq!(e.schema.tables.len(), 2);
+    assert!(e.schema.tables[0].columns[0].primary_key);
+    let a = e.table_screen_center(e.schema.tables[0].id);
+    let b = e.table_screen_center(e.schema.tables[1].id);
+    h.get_by_label("Connect").click();
+    h.run_steps(3);
+    click(&mut h, b);
+    click(&mut h, a);
+    let e = h
+        .state()
+        .docs
+        .last()
+        .unwrap()
+        .editor
+        .as_any()
+        .downcast_ref::<DatabaseEditor>()
+        .unwrap();
+    assert_eq!(e.schema.foreign_keys.len(), 1);
+    assert_eq!(e.schema.tables[1].columns.len(), 2);
+    let original = h.state().docs.last().unwrap().snapshot();
+    let sql = h.state().docs.last().unwrap().editor.export().unwrap().bytes;
+    assert!(std::str::from_utf8(&sql).unwrap().contains("FOREIGN KEY"));
+    let semantic = h.state().docs.last().unwrap().editor.revisions().semantic;
+    h.get_by_label("Select").click();
+    h.run_steps(3);
+    drag(&mut h, b, b + egui::vec2(80.0, 40.0));
+    assert_ne!(h.state().docs.last().unwrap().snapshot(), original);
+    assert_eq!(h.state().docs.last().unwrap().editor.revisions().semantic, semantic);
+    assert_eq!(
+        h.state().docs.last().unwrap().editor.export().unwrap().bytes,
+        sql,
+        "moving tables does not change DDL"
+    );
+    h.state_mut().docs.last_mut().unwrap().editor.execute(crate::editor::UNDO, 0.0);
+    h.run_steps(4);
+    assert_eq!(h.state().docs.last().unwrap().snapshot(), original);
+    h.get_by_label("Target database").click();
+    h.run_steps(3);
+    h.get_by_label("SQLite").click();
+    h.run_steps(4);
+    assert_eq!(
+        h.state()
+            .docs
+            .last()
+            .unwrap()
+            .editor
+            .as_any()
+            .downcast_ref::<DatabaseEditor>()
+            .unwrap()
+            .schema
+            .dialect,
+        Dialect::Sqlite
+    );
+    let StoredDocument::Editable(document) = h.state().docs.last().unwrap().snapshot() else {
+        panic!("editable schema")
+    };
+    let reopened = crate::composition::registry().open(&document).unwrap();
+    assert_eq!(reopened.snapshot(), StoredDocument::Editable(document));
+    assert!(
+        std::str::from_utf8(&reopened.export().unwrap().bytes)
+            .unwrap()
+            .contains("PRAGMA foreign_keys = ON")
+    );
+    h.get_by_label("SQL / DDL").click();
+    h.run_steps(5);
+    assert!(h.query_by_label("Copy DDL").is_some());
+    let before_copy = h.state().docs.last().unwrap().snapshot();
+    h.get_by_label("Copy DDL").click();
+    h.run_steps(4);
+    assert_eq!(h.state().docs.last().unwrap().snapshot(), before_copy);
+    let uid = h.state().docs.last().unwrap().uid;
+    assert_eq!(dock::panes_of(&h.state().tree, uid).len(), 2);
+    shot(&mut h, "database_ddl_split");
+}
+
+#[test]
+fn database_example_renders_in_both_themes_and_columns_undo_atomically() {
+    use crate::database_editor::DatabaseEditor;
+    for dark in [false, true] {
+        let mut h = harness(dark);
+        h.state_mut().open_example("database.shop");
+        h.run_steps(5);
+        let original = h.state().docs.last().unwrap().snapshot();
+        let total = h
+            .state()
+            .docs
+            .last()
+            .unwrap()
+            .editor
+            .as_any()
+            .downcast_ref::<DatabaseEditor>()
+            .unwrap()
+            .schema
+            .tables[0]
+            .columns
+            .len();
+        h.get_by_label("Add column").click();
+        h.run_steps(4);
+        assert_eq!(
+            h.state()
+                .docs
+                .last()
+                .unwrap()
+                .editor
+                .as_any()
+                .downcast_ref::<DatabaseEditor>()
+                .unwrap()
+                .schema
+                .tables[0]
+                .columns
+                .len(),
+            total + 1
+        );
+        h.state_mut().docs.last_mut().unwrap().editor.execute(crate::editor::UNDO, 0.0);
+        h.run_steps(3);
+        assert_eq!(h.state().docs.last().unwrap().snapshot(), original);
+        shot(&mut h, if dark { "database_example_dark" } else { "database_example_light" });
+    }
+}
+
+#[test]
 fn new_graph_notations_create_connect_move_undo_and_reopen() {
     fn exercise<K: crate::flow_editor::Notation>(kind: &str, first: &str, second: &str, dark: bool) {
         let mut h = harness(dark);
@@ -1102,6 +1247,7 @@ fn diagram_editors_share_configuration_controls_in_wide_and_narrow_panes() {
         ("uml.use-case", true),
         ("epc", false),
         ("uml.activity", true),
+        ("database.schema", false),
     ] {
         for width in [1400.0, 420.0, 280.0] {
             let mut h = harness_sized(dark, [width, 860.0]);

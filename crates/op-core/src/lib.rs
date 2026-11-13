@@ -9,6 +9,7 @@ pub mod answers;
 pub mod bpmn;
 pub mod bpmn_xml;
 pub mod convert;
+pub mod database;
 pub mod dmn;
 pub mod document;
 pub mod epc;

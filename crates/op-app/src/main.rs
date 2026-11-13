@@ -10,6 +10,7 @@ mod bpmn_editor;
 mod brand;
 mod canvas;
 mod composition;
+mod database_editor;
 mod dmn_editor;
 mod dock;
 mod editor;

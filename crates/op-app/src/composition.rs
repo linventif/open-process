@@ -10,6 +10,7 @@ pub fn registry() -> &'static DiagramRegistry {
         crate::uml_editor::register(&mut registry);
         crate::flow_editor::register(&mut registry);
         crate::dmn_editor::register(&mut registry);
+        crate::database_editor::register(&mut registry);
         crate::mining_editor::register(&mut registry);
         registry.validate().expect("built-in identifiers are unique");
         registry
