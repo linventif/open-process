@@ -38,6 +38,8 @@ fn home_navigation() {
     h.run_steps(4);
     assert_eq!(h.state().docs[0].uid, uid);
     let name = format!("{} *", h.state().docs[0].name());
+    h.get_by_label(&name).scroll_to_me();
+    h.run_steps(12);
     h.get_by_label(&name).click();
     h.run_steps(4);
     assert!(!h.state().show_home);
@@ -53,7 +55,12 @@ fn home_navigation() {
         ("Discover a process", "log"),
         ("Design a class diagram", "class"),
         ("Map use cases", "usecase"),
+        ("Define a decision table", "dmn.table"),
+        ("Model an EPC", "epc"),
+        ("Design an activity diagram", "uml.activity"),
     ] {
+        h.get_by_label(label).scroll_to_me();
+        h.run_steps(12);
         h.get_by_label(label).click();
         h.run_steps(4);
         assert!(!h.state().show_home);
@@ -64,6 +71,8 @@ fn home_navigation() {
         h.state_mut().close(0);
         h.run_steps(4);
     }
+    h.get_by_label("Evaluate costs and durations").scroll_to_me();
+    h.run_steps(12);
     h.get_by_label("Evaluate costs and durations").click();
     h.run_steps(4);
     assert!(h.query_by_label("Process evaluation").is_some());
@@ -930,9 +939,170 @@ fn active_view_settings(h: &Harness<'static, OpenProcessApp>) -> serde_json::Val
 }
 
 #[test]
+fn new_graph_notations_create_connect_move_undo_and_reopen() {
+    fn exercise<K: crate::flow_editor::Notation>(kind: &str, first: &str, second: &str, dark: bool) {
+        let mut h = harness(dark);
+        h.state_mut().new_document(kind, None);
+        h.run_steps(5);
+        h.get_by_label(first).click();
+        h.run_steps(3);
+        click(&mut h, egui::pos2(330.0, 300.0));
+        h.get_by_label(second).click();
+        h.run_steps(3);
+        click(&mut h, egui::pos2(650.0, 400.0));
+        let editor = h
+            .state()
+            .docs
+            .last()
+            .unwrap()
+            .editor
+            .as_any()
+            .downcast_ref::<crate::flow_editor::FlowEditor<K>>()
+            .unwrap();
+        assert_eq!(editor.diagram.nodes.len(), 2);
+        let a = editor.node_screen_center(editor.diagram.nodes[0].id);
+        let b = editor.node_screen_center(editor.diagram.nodes[1].id);
+        h.get_by_label("Connect").click();
+        h.run_steps(3);
+        click(&mut h, a);
+        click(&mut h, b);
+        let original = h.state().docs.last().unwrap().snapshot();
+        let editor = h
+            .state()
+            .docs
+            .last()
+            .unwrap()
+            .editor
+            .as_any()
+            .downcast_ref::<crate::flow_editor::FlowEditor<K>>()
+            .unwrap();
+        assert_eq!(editor.diagram.flows.len(), 1);
+        h.get_by_label("Select").click();
+        h.run_steps(3);
+        drag(&mut h, b, b + egui::vec2(100.0, 30.0));
+        assert_ne!(h.state().docs.last().unwrap().snapshot(), original);
+        h.state_mut().docs.last_mut().unwrap().editor.execute(crate::editor::UNDO, 0.0);
+        h.run_steps(3);
+        assert_eq!(h.state().docs.last().unwrap().snapshot(), original);
+        let stored = h.state().docs.last().unwrap().editor.snapshot();
+        let StoredDocument::Editable(document) = stored else {
+            panic!("editable diagram")
+        };
+        let reopened = crate::composition::registry().open(&document).unwrap();
+        assert_eq!(reopened.snapshot(), StoredDocument::Editable(document));
+        assert!(std::str::from_utf8(&reopened.export().unwrap().bytes).unwrap().contains("<svg"));
+        shot(&mut h, &format!("new_{kind}"));
+    }
+    exercise::<op_core::epc::EpcKind>("epc", "Event", "Function", false);
+    exercise::<op_core::activity::ActivityKind>("uml.activity", "Initial node", "Action", true);
+}
+
+#[test]
+fn decision_table_edits_evaluates_exports_and_undoes() {
+    let mut h = harness(false);
+    h.state_mut().open_example("dmn.discount");
+    h.run_steps(5);
+    h.get_by_label("Evaluate decision").click();
+    h.run_steps(4);
+    assert!(h.query_by_label("Matched rules: 1").is_some());
+    let original = h.state().docs.last().unwrap().snapshot();
+    h.get_by_label("Add input").click();
+    h.run_steps(4);
+    let editor = h
+        .state()
+        .docs
+        .last()
+        .unwrap()
+        .editor
+        .as_any()
+        .downcast_ref::<crate::dmn_editor::DmnEditor>()
+        .unwrap();
+    assert_eq!(editor.table.inputs.len(), 2);
+    assert_eq!(editor.table.rules[0].inputs.len(), 2);
+    assert!(
+        h.query_by_label("Matched rules: 1").is_none(),
+        "editing invalidates a previous result"
+    );
+    h.state_mut().docs.last_mut().unwrap().editor.execute(crate::editor::UNDO, 0.0);
+    h.run_steps(3);
+    assert_eq!(h.state().docs.last().unwrap().snapshot(), original);
+    let export = h.state().docs.last().unwrap().editor.export().unwrap();
+    let document = crate::composition::registry().load(&export.bytes).unwrap();
+    let reopened = crate::composition::registry().open(&document).unwrap();
+    assert_eq!(reopened.snapshot(), original);
+    assert!(
+        h.state()
+            .docs
+            .last()
+            .unwrap()
+            .editor
+            .export_as("csv")
+            .unwrap()
+            .bytes
+            .starts_with(b"\"input:amount\"")
+    );
+    shot(&mut h, "new_dmn_table");
+    h.state_mut().docs.last_mut().unwrap().editor.rename("Discount model".into());
+    h.state_mut().docs.last_mut().unwrap().editor.execute(crate::editor::UNDO, 0.0);
+    assert_eq!(h.state().docs.last().unwrap().snapshot(), original);
+}
+
+#[test]
+fn new_notation_workspace_restores_multiple_independent_views() {
+    for (kind, example) in [
+        ("epc", "epc.order"),
+        ("uml.activity", "uml.activity.order"),
+        ("dmn.table", "dmn.discount"),
+    ] {
+        let mut h = harness(false);
+        h.state_mut().open_example(example);
+        h.run_steps(4);
+        shot(&mut h, &format!("example_{kind}"));
+        let uid = h.state().docs.last().unwrap().uid;
+        h.state_mut().open_beside(
+            Pane {
+                doc: uid,
+                view: View::Editor,
+            },
+            false,
+        );
+        h.run_steps(4);
+        let before = h.state().docs.last().unwrap().snapshot();
+        let workspace = h.state().docs.last().unwrap().editor.workspace();
+        let mut states: Vec<(u64, serde_json::Value)> = serde_json::from_value(workspace).unwrap();
+        assert_eq!(states.len(), 2);
+        states[0].1["inspector"] = false.into();
+        states[1].1["inspector"] = true.into();
+        if kind != "dmn.table" {
+            states[0].1["snap"] = false.into();
+            states[1].1["snap"] = true.into();
+        }
+        h.state_mut()
+            .docs
+            .last_mut()
+            .unwrap()
+            .editor
+            .restore_workspace(&serde_json::to_value(&states).unwrap());
+        h.run_steps(4);
+        let restored: Vec<(u64, serde_json::Value)> = serde_json::from_value(h.state().docs.last().unwrap().editor.workspace()).unwrap();
+        for (id, state) in states {
+            assert_eq!(restored.iter().find(|(i, _)| *i == id).unwrap().1["inspector"], state["inspector"]);
+        }
+        assert_eq!(h.state().docs.last().unwrap().snapshot(), before);
+    }
+}
+
+#[test]
 fn diagram_editors_share_configuration_controls_in_wide_and_narrow_panes() {
     let mut wide_positions = Vec::new();
-    for (kind, dark) in [("bpmn", false), ("petri", true), ("uml.class", false), ("uml.use-case", true)] {
+    for (kind, dark) in [
+        ("bpmn", false),
+        ("petri", true),
+        ("uml.class", false),
+        ("uml.use-case", true),
+        ("epc", false),
+        ("uml.activity", true),
+    ] {
         for width in [1400.0, 420.0, 280.0] {
             let mut h = harness_sized(dark, [width, 860.0]);
             h.state_mut().new_document(kind, None);

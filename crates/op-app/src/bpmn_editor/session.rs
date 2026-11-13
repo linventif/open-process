@@ -215,7 +215,11 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
     ]);
     registry.imports.extend([ImportDescriptor {
         extensions: &["bpmn", "xml"],
-        accepts: |s| s.starts_with('<') && op_core::xml::root_name(s).as_deref() == Some("definitions"),
+        accepts: |s| {
+            s.starts_with('<')
+                && op_core::xml::root_name(s).as_deref() == Some("definitions")
+                && op_core::xml::parse(s).is_ok_and(|root| root.children.iter().any(|c| c.name == "process"))
+        },
         decode: |s| op_core::bpmn_xml::import(s).map(|d| JsonCodec::new("bpmn").encode(&d)),
     }]);
     registry.workflows.push(WorkflowDescriptor {
