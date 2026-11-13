@@ -1,0 +1,25 @@
+{
+  "name": "@open-process/website",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.4.0",
+  "scripts": {
+    "dev": "astro dev --host 0.0.0.0",
+    "check": "astro check",
+    "build": "bun run build:site && bun run build:app",
+    "build:site": "astro check && astro build",
+    "build:app": "bun run scripts/build-app.ts",
+    "preview": "astro preview --host 0.0.0.0",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@astrojs/sitemap": "3.7.4",
+    "astro": "7.4.11"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.4",
+    "@astrojs/check": "0.9.12",
+    "typescript": "6.0.3"
+  }
+}

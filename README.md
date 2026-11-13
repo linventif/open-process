@@ -82,7 +82,7 @@ Linux needs the usual windowing libraries (`libxkbcommon`, X11 or Wayland).
 
 ### Browser
 
-Open the cloud app at [open-process.linv.dev](https://open-process.linv.dev).
+Open the cloud app at [open-process.linv.dev/app](https://open-process.linv.dev/app/).
 Your session is saved locally in your browser.
 
 To run it locally:
@@ -94,8 +94,9 @@ cd crates/op-app
 trunk serve --release      # http://127.0.0.1:8080
 ```
 
-`trunk build --release` produces a static site in `dist/` that can be hosted anywhere
-(the included GitHub Actions workflow publishes it to GitHub Pages).
+`trunk build --release` produces the standalone WebAssembly app in `dist/`.
+For the shared Cloudflare Pages site, run `bun run build` in `website/`: it builds
+the Astro presentation and puts the app under `website/dist/app/`.
 
 ### Automatic releases
 
@@ -110,10 +111,11 @@ GitHub's built-in token; no additional release secret is needed.
 
 ## Project layout
 
-The product website lives in [`website/`](website/). It is a standalone static
-site with English/French content, application screenshots and GitHub release
-downloads. See [`website/README.md`](website/README.md) for local preview and
-Cloudflare Pages deployment settings.
+The product website lives in [`website/`](website/): Astro, TypeScript and Bun,
+with English/French HTML pages, SEO metadata, screenshots and release downloads.
+A single Cloudflare Pages build serves the presentation at `/`, French at `/fr/`
+and the WebAssembly app at `/app/`. See [`website/README.md`](website/README.md)
+for development and Cloudflare build settings.
 
 ```
 crates/

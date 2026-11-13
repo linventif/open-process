@@ -1,62 +1,93 @@
-# Open Process — site vitrine
+# Open Process — site Astro, TypeScript et Bun
 
-Site statique autonome, sans framework, installation ni compilation. Le dossier
-`website/` est directement publiable sur Cloudflare Pages. L’application Rust et sa
-version WebAssembly restent dans `crates/op-app/` ; ce dossier présente le produit.
+Un seul projet Cloudflare Pages sert la vitrine et l’application :
 
-## Aperçu local
+- <https://open-process.linv.dev/> : présentation anglaise, générée en HTML par Astro.
+- <https://open-process.linv.dev/fr/> : présentation française, avec sa propre URL.
+- <https://open-process.linv.dev/app/> : application Rust compilée en WebAssembly.
 
-Depuis la racine du dépôt :
+## Développement
+
+Installer Bun 1.4.0 et Node.js 24, puis :
 
 ```sh
-python3 -m http.server 8080 --directory website
+cd website
+bun install --frozen-lockfile
+bun run dev
 ```
 
-Ouvrir <http://localhost:8080>. `index.html` fonctionne aussi directement, mais un
-serveur permet de vérifier le même comportement qu’en hébergement.
+Ouvrir <http://localhost:4321>. Le serveur Astro recharge les pages modifiées.
+Pour développer l’application Rust en parallèle, utiliser `trunk serve` dans
+`crates/op-app/` ; l’application complète est disponible dans l’aperçu de production.
+
+```sh
+bun run build
+bun test
+bun run preview
+```
+
+Le build vérifie les types TypeScript et Astro, génère la vitrine, puis compile
+l’application avec Trunk dans `dist/app/`. Il nécessite Rust et la cible
+`wasm32-unknown-unknown`. Sur Linux x64, le script installe Rust et Trunk 0.22.1
+s’ils manquent, dans le dossier ignoré `.tools/`, sans modifier le profil shell.
+Sur Windows ou macOS, installer Rust et Trunk avant le premier build.
+
+`bun run build:site` et `bun run build:app` permettent de reconstruire chaque
+partie séparément ; le premier recrée `dist/`, il faut donc le lancer avant le second.
+L’aperçu sert le dossier final : la vitrine à `/`, le français à `/fr/`, l’app à `/app/`.
 
 ## Cloudflare Pages
 
-Créer un projet **Pages**, connecter le dépôt `linventif/open-process` et utiliser :
+Connecter le dépôt `linventif/open-process` à un projet **Pages** :
 
 | Paramètre | Valeur |
 | --- | --- |
 | Branche de production | `main` |
-| Framework | Aucun / None |
-| Répertoire racine | Racine du dépôt (laisser vide) |
-| Commande de build | `exit 0` |
-| Répertoire de sortie | `website` |
+| Framework | Astro |
+| Répertoire racine | `website` |
+| Commande de build | `bun install --frozen-lockfile && bun run build` |
+| Répertoire de sortie | `dist` |
+| Variable `BUN_VERSION` | `1.4.0` |
+| Variable `NODE_VERSION` | `24` |
+| Domaine personnalisé | `open-process.linv.dev` |
 
-Le [guide officiel Cloudflare pour les sites HTML statiques](https://developers.cloudflare.com/pages/framework-guides/deploy-anything/)
-décrit ce déploiement. Pour un projet Pages **Direct Upload**, envoyer simplement
-le contenu de `website/` (avec `index.html` à la racine de l’envoi).
+Le domaine se configure dans **Custom domains** du projet Pages. Le build contient
+les deux parties : aucun deuxième projet ni proxy n’est nécessaire pour `/app/`.
+La première compilation Rust télécharge la chaîne d’outils et les dépendances.
 
-`_headers` fournit les en-têtes HTTP ; `404.html` évite le comportement de repli
-SPA de Pages sur les chemins inexistants. Aucune variable d’environnement,
-fonction serveur ou clé API n’est nécessaire.
+Le domaine de production est configuré dans `src/lib/site.ts`. La variable
+optionnelle `SITE_URL` peut le remplacer par une autre origine HTTPS. Les previews
+Cloudflare gardent les URL canoniques de production et déclarent `noindex` et un
+`robots.txt` qui interdit l’indexation. Le dossier `dist/` peut aussi être envoyé
+par **Direct Upload** après `bun run build`.
 
-## Contenu et liens
+Voir les documentations officielles [Astro sur Cloudflare](https://docs.astro.build/en/guides/deploy/cloudflare/)
+et [configuration des builds Pages](https://developers.cloudflare.com/pages/configuration/build-configuration/).
 
-- `index.html` : contenu anglais utilisable sans JavaScript, métadonnées et liens.
-- `styles.css` : mise en page responsive, polices Inter locales, mouvement réduit.
-- `script.js` : traduction FR/EN, préférence locale, onglets de captures,
-  agrandissement et résolution de la dernière release publique.
-- `assets/` : logo SVG **1C · Lien fléché**, choisi dans la session Claude de création
-  du logo, et vraies captures de l’application, converties en WebP.
-- `assets/fonts/Inter-LICENSE.txt` : licence SIL OFL des polices distribuées.
+## SEO et contenu
 
-L’anglais est la langue par défaut, comme dans l’application. Le bouton FR/EN
-mémorise le choix si le navigateur autorise le stockage local. Les captures
-montrent l’interface anglaise ; le site traduit leurs légendes et descriptions.
+- HTML anglais et français généré au build : titres, descriptions, contenu et liens
+  restent lisibles sans JavaScript.
+- URL canoniques, `hreflang` anglais/français/x-default, Open Graph et cartes Twitter.
+- Données structurées `SoftwareApplication` avec licence, gratuité et lien vers l’app.
+- `sitemap-index.xml`, sitemap localisé et `robots.txt` générés au build ; l’app et la
+  page 404 sont exclus du sitemap, et `/app/` porte un en-tête `noindex`.
+- CSS et TypeScript regroupés avec noms de fichiers versionnés, captures WebP,
+  dimensions d’images explicites, police Inter locale et cache des assets.
+- Navigation clavier, onglets de captures et agrandissement conservés. Le bouton de
+  langue est un vrai lien vers l’autre URL, qui fonctionne aussi sans JavaScript.
 
-Les liens GitHub ciblent `https://github.com/linventif/open-process`. Une seule
-requête publique vers l’API GitHub recherche la dernière release stable. Les
-boutons proposent un téléchargement direct **uniquement si le fichier existe**
-dans les assets de cette release. Sinon, ils mènent à la liste des versions.
-L’absence de release et les erreurs réseau ou limitations d’API ont un message
-dédié ; aucun jeton GitHub n’est utilisé.
+Les traductions sont dans `src/lib/messages.ts`, le contenu dans
+`src/components/Landing.astro`, les métadonnées dans `src/layouts/Page.astro` et les
+interactions dans `src/scripts/site.ts`. `public/assets/` conserve le logo, les
+captures et les licences des polices. `_headers` applique des politiques séparées
+à la vitrine et à l’application, qui utilise WebAssembly et des scripts générés.
 
-Les noms de fichiers correspondent au workflow `.github/workflows/release.yml` :
+## Téléchargements et CI/CD
+
+Une requête publique à l’API GitHub charge la dernière release stable. Les liens
+se transforment en téléchargements directs si le binaire existe, sinon ils restent
+dirigés vers les releases. Aucun jeton n’est exposé dans le navigateur.
 
 | Système | Asset |
 | --- | --- |
@@ -65,27 +96,13 @@ Les noms de fichiers correspondent au workflow `.github/workflows/release.yml` :
 | macOS Apple Silicon | `open-process-aarch64-apple-darwin` |
 | macOS Intel | `open-process-x86_64-apple-darwin` |
 
-Le bouton « Ouvrir la version cloud » mène à
-<https://open-process.linv.dev>. La session de l’application est conservée
-localement dans le navigateur. L’hébergement du site vitrine n’installe pas
-automatiquement l’application WebAssembly.
+GitHub Actions vérifie le build Pages complet et les tests Bun avant de publier
+les releases natives. Chaque push sur `main` publie une release
+`main-<numéro du run>-<SHA court>` après réussite des tests et des quatre builds.
+Les tags `v*` restent pris en charge. Cloudflare Pages construit et déploie le site
+avec son intégration Git ; l’ancien déploiement GitHub Pages est remplacé.
 
-Chaque push sur `main` lance les tests Linux, Windows et macOS ainsi que le build
-WebAssembly. Après leur réussite et celle des quatre builds natifs, GitHub Actions
-publie une release `main-<numéro du run>-<SHA court>` avec tous les binaires. Les
-boutons du site utilisent automatiquement cette dernière release. Les tags `v*`
-continuent aussi à déclencher une release.
-
-Sur Linux et macOS, il peut être nécessaire d’autoriser l’exécution du binaire
-(`chmod +x`). Les bibliothèques système et l’outil de compilation sont décrits
-dans le README principal.
-
-## Vérifications rapides
-
-```sh
-node --check website/script.js
-git diff --check
-```
-
-Vérifier aussi les onglets, l’agrandissement et sa fermeture avec Échap, le choix
-FR/EN après rechargement, les deux architectures macOS et la mise en page mobile.
+Les tests Bun vérifient les liens de releases, les métadonnées des deux langues,
+le sitemap et la présence de l’app dans le dossier final. Les tests sur le dossier
+final se lancent après le build. La validation visuelle couvre aussi les onglets,
+la navigation FR/EN, le dialogue de capture, les téléchargements et le mobile.

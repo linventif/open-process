@@ -1,0 +1,68 @@
+---
+import { messages, type Language } from "../lib/messages";
+import { cloudApp, repository } from "../lib/site";
+import { isPreview } from "../lib/deployment";
+import "../styles/global.css";
+
+interface Props { lang: Language; title?: string; description?: string; noindex?: boolean }
+const { lang, title = messages[lang].title, description = messages[lang].description, noindex = false } = Astro.props;
+const site = Astro.site!;
+const canonical = new URL(lang === "fr" ? "/fr/" : "/", site);
+const image = new URL("/assets/bpmn.webp", site);
+const robots = noindex || isPreview ? "noindex, nofollow" : "index, follow, max-image-preview:large";
+const structuredData = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Open Process",
+  url: canonical.href,
+  description,
+  inLanguage: lang,
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Windows, macOS, Linux, Web",
+  isAccessibleForFree: true,
+  offers: { "@type": "Offer", price: "0", priceCurrency: "EUR" },
+  downloadUrl: `${repository}/releases`,
+  installUrl: cloudApp,
+  license: [`${repository}/blob/main/LICENSE-MIT`, `${repository}/blob/main/LICENSE-APACHE`],
+  screenshot: image.href,
+};
+---
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f7f7f2" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="robots" content={robots} />
+    {!noindex && <>
+      <link rel="canonical" href={canonical} />
+      <link rel="alternate" hreflang="en" href={new URL("/", site)} />
+      <link rel="alternate" hreflang="fr" href={new URL("/fr/", site)} />
+      <link rel="alternate" hreflang="x-default" href={new URL("/", site)} />
+    </>}
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Open Process" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical.href} />
+    <meta property="og:locale" content={lang === "fr" ? "fr_FR" : "en_GB"} />
+    <meta property="og:locale:alternate" content={lang === "fr" ? "en_GB" : "fr_FR"} />
+    <meta property="og:image" content={image.href} />
+    <meta property="og:image:width" content="1400" />
+    <meta property="og:image:height" content="860" />
+    <meta property="og:image:alt" content={messages[lang].bpmnAlt} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={image.href} />
+    <meta name="twitter:image:alt" content={messages[lang].bpmnAlt} />
+    <link rel="icon" type="image/svg+xml" href="/assets/logo.svg" />
+    <link rel="preload" href="/assets/fonts/Inter-Regular.ttf" as="font" type="font/ttf" crossorigin />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    {!noindex && <script type="application/ld+json" set:html={JSON.stringify(structuredData).replace(/</g, "\\u003c")} />}
+  </head>
+  <body><slot /></body>
+</html>

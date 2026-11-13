@@ -1,5 +1,12 @@
 /target
 /dist
+/website/node_modules
+/website/dist
+/website/.astro
+/website/.tools
+/website/.env
+/website/.env.*
+!/website/.env.example
 **/*.rs.bk
 .DS_Store
 
