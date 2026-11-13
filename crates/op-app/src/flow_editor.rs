@@ -733,6 +733,7 @@ fn register_one<K: Notation>(registry: &mut DiagramRegistry, order: usize) {
     });
     registry.examples.push(ExampleDescriptor {
         id: K::EXAMPLE,
+        kind: K::ID,
         label: K::EXAMPLE_LABEL,
         create: || JsonCodec::new(K::ID).encode(&K::example()),
     });

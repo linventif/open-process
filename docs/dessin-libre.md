@@ -9,7 +9,8 @@ natif + WebAssembly. Le composant React officiel Excalidraw n’est pas embarqu�
 Dans **File → New…**, le bouton **+** ou **Ctrl/Cmd+N**, rechercher « dessin »
 en français ou « whiteboard » et choisir **Nouveau dessin libre**. La carte
 **Dessiner librement** de l’accueil crée le même document. Un exemple est
-disponible depuis le bouton **Exemples** de la grille **File → New…**,
+disponible depuis le bouton **Exemples** de la carte **Nouveau dessin libre**,
+dans la grille **File → New…** ou sur la carte **Dessiner librement** de l’accueil,
 puis **Dessin libre – Idée partagée**.
 
 La palette verticale à gauche du canvas propose sélection, main, rectangle, ellipse, losange, ligne,

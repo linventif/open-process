@@ -54,11 +54,14 @@ Le module expose une fonction `register(&mut DiagramRegistry)` qui ajoute :
 - Un `DiagramDescriptor` par type de document, avec fabrique vide, fabrique d'ouverture
   et fonction `icon` pour son pictogramme vectoriel.
 - Ses importeurs externes, s'il en possède ; un export n'implique pas un import.
-- Ses exemples et éventuels lanceurs de workflow pour l'accueil.
+- Ses exemples et éventuels lanceurs de workflow pour l'accueil. Chaque
+  `ExampleDescriptor` fournit `kind`, l’identifiant canonique du diagramme associé,
+  pour alimenter le bouton **Exemples** de sa carte dans les deux grilles.
 
 Déclarer le module Rust puis appeler son `register` dans
 [composition.rs](../crates/op-app/src/composition.rs). Les identifiants de types,
-les alias et les exemples sont vérifiés pour éviter les doublons.
+les alias et les exemples sont vérifiés pour éviter les doublons. Un exemple
+qui référence un type de diagramme non enregistré est également refusé.
 
 Les commandes et vues utilisent des identifiants explicites tels que
 `state-machine.validate`. Les libellés utilisent des clés de traduction stables,

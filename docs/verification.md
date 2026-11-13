@@ -471,19 +471,24 @@ la documentation contrôlés, sans erreur. `git diff --check` réussit.
 Aucun nouveau test interactif dans un navigateur ni contrôle Windows/macOS
 n’a été exécuté pour cet ajout.
 
-## Exemples dans la grille de sélection
+## Exemples sur les cartes de diagrammes
 
-Le bouton **Exemples** du sélecteur de documents remplace File → Examples et
-utilise les déclarations du registre. Les tests existants du sélecteur ont été
-étendus : accès à tous les exemples à 1 400, 420 et 280 px, fermeture du menu
-par Échap sans fermer le sélecteur, annulation sans modifier le document et
-ouverture d’un exemple dans le groupe d’onglets d’origine. Le contenu de
-l’exemple ouvert est comparé à celui du registre. Les captures
-`target/screenshots/new_document_examples_1400.png` et
-`new_document_examples_280.png` ont été inspectées visuellement.
+Le bouton **Exemples** se trouve sur chaque carte de type de diagramme, dans
+l’accueil et le sélecteur. Son menu ne contient que les exemples associés à
+ce type par `ExampleDescriptor::kind`. Le registre refuse les références à
+un type inconnu ; un nouveau test vérifie que chaque fabrique produit bien
+le type déclaré et un document ouvrable.
+
+Les tests d’interaction existants vérifient la position du bouton dans sa carte
+à 1 400, 420 et 280 px, le filtrage des exemples, l’absence de document vierge
+à l’ouverture du menu et sa fermeture par Échap sans fermer le sélecteur.
+Ils ouvrent un exemple depuis l’accueil et depuis une recherche dans un groupe
+d’onglets partagé, comparent son contenu au registre et préservent le document
+déjà ouvert. Les captures `target/screenshots/new_document_grid_1400.png`,
+`new_document_examples_280.png` et `home_french.png` ont été inspectées.
 
 La suite séquentielle `cargo test --locked --offline --workspace -- --test-threads=1`
-passe les **124 tests Rust** (50 application, 69 cœur et 5 intégration).
+passe les **125 tests Rust** (51 application, 69 cœur et 5 intégration).
 Les vérifications native et WebAssembly de `op-app`, `cargo fmt --all -- --check`,
 les 156 liens locaux de documentation et `git diff --check` réussissent.
 Le site n’a pas changé ; aucun nouveau test navigateur ou build release

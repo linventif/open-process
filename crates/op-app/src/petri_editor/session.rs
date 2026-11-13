@@ -233,16 +233,19 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
     registry.examples.extend([
         ExampleDescriptor {
             id: "petri.mutex",
+            kind: "petri",
             label: key("petri.petri_mutual_exclusion"),
             create: || JsonCodec::new("petri").encode(&examples::mutual_exclusion()),
         },
         ExampleDescriptor {
             id: "petri.producer",
+            kind: "petri",
             label: key("petri.petri_producer_consumer"),
             create: || JsonCodec::new("petri").encode(&examples::producer_consumer()),
         },
         ExampleDescriptor {
             id: "petri.philosophers",
+            kind: "petri",
             label: key("petri.petri_dining_philosophers"),
             create: || JsonCodec::new("petri").encode(&examples::dining_philosophers()),
         },

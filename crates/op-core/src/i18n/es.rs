@@ -1338,6 +1338,7 @@ pub const TABLE: &[(&str, &str)] = &[
     ("view.matrices", "Matrices"),
     ("view.states", "Estados"),
     ("workspace.continue_work", "Continuar tu trabajo"),
+    ("workspace.examples_for", "Ejemplos de {}"),
     ("workspace.get_started", "Empezar"),
     ("workspace.home", "Inicio"),
     (

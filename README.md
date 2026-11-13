@@ -30,7 +30,7 @@ Written in Rust with [egui](https://github.com/emilk/egui): a single code base t
 - Drag the bottom-right handle to resize; system boundaries move their contained use cases once, including in group selections; the same containment rules apply to copy/paste and export
 - Model diagnostics report invalid multiplicities, invalid endpoints, missing names and inheritance cycles
 - Pan/zoom, grid snapping, fit to view, undo/redo, split tabs, `.opx` save/open and session restoration, PNG and **PlantUML (`.puml`) export**
-- Choose class or use-case diagrams in the grid opened by **File → New…** or the tab bar's **+** button; its **Examples** button offers two ready-to-edit UML examples
+- Choose class or use-case diagrams in the grid opened by **File → New…** or the tab bar's **+** button; each type card has an **Examples** button with samples for that diagram type
 
 ### BPMN 2.0 editor
 - Start / intermediate (catch & throw) / end events with triggers (message, timer, error, signal, conditional, terminate)

@@ -157,6 +157,7 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
     });
     registry.examples.push(ExampleDescriptor {
         id: "whiteboard.ideas",
+        kind: "whiteboard",
         label: key("drawing.free_drawing_shared_idea"),
         create: || JsonCodec::new("whiteboard").encode(&op_core::whiteboard::example()),
     });

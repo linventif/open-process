@@ -407,6 +407,7 @@ pub fn register(registry: &mut DiagramRegistry) {
     });
     registry.examples.push(ExampleDescriptor {
         id: "dmn.discount",
+        kind: "dmn.table",
         label: key("dmn.dmn_discount_decision"),
         create: || JsonCodec::new("dmn.table").encode(&dmn::example()),
     });

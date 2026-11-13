@@ -17,6 +17,8 @@ pub struct DiagramDescriptor {
 
 pub struct ExampleDescriptor {
     pub id: &'static str,
+    /// Canonical diagram identifier used to group examples on their type card.
+    pub kind: &'static str,
     pub label: &'static str,
     pub create: fn() -> Document,
 }
@@ -69,6 +71,9 @@ impl DiagramRegistry {
         for e in &self.examples {
             if !ids.insert(e.id) {
                 return Err(format!("Duplicate example identifier: {}", e.id));
+            }
+            if !self.diagrams.iter().any(|d| d.id == e.kind) {
+                return Err(format!("Unknown diagram kind for example {}: {}", e.id, e.kind));
             }
         }
         Ok(())
@@ -199,6 +204,13 @@ mod tests {
     #[test]
     fn duplicate_identifiers_and_ambiguous_imports_are_rejected() {
         assert!(DiagramRegistry::new(vec![descriptor(), descriptor()], vec![], vec![]).is_err());
+        let example = ExampleDescriptor {
+            id: "test.unknown-example",
+            kind: "unknown-kind",
+            label: "Example",
+            create: || unreachable!(),
+        };
+        assert!(DiagramRegistry::new(vec![descriptor()], vec![example], vec![]).is_err());
         let importer = || ImportDescriptor {
             extensions: &["txt"],
             accepts: |_| true,
@@ -206,6 +218,15 @@ mod tests {
         };
         let registry = DiagramRegistry::new(vec![], vec![], vec![importer(), importer()]).unwrap();
         assert!(matches!(registry.load(b"text"), Err(ReadError::Invalid(_))));
+    }
+    #[test]
+    fn registered_examples_create_their_declared_diagram_kind() {
+        let registry = crate::composition::registry();
+        for example in &registry.examples {
+            let document = (example.create)();
+            assert_eq!(document.kind, example.kind, "{} must belong to its declared card", example.id);
+            assert!(registry.open(&document).is_ok());
+        }
     }
     #[test]
     fn xml_import_detection_does_not_depend_on_namespace_prefixes() {

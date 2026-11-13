@@ -107,11 +107,13 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
     registry.examples.extend([
         ExampleDescriptor {
             id: "log.first",
+            kind: "event-log",
             label: key("mining.log_abcd_acbd_ef"),
             create: || log_example(EXAMPLE_1),
         },
         ExampleDescriptor {
             id: "log.second",
+            kind: "event-log",
             label: key("mining.log_abcd_acbd_aed"),
             create: || log_example(EXAMPLE_2),
         },

@@ -2,7 +2,7 @@
 
 use crate::theme;
 use egui::{Color32, Rect, RichText, Sense, Stroke, StrokeKind, Ui, pos2, vec2};
-use op_core::i18n::tr;
+use op_core::i18n::{tr, trf};
 
 #[derive(Clone, Copy)]
 pub enum Action {
@@ -83,7 +83,7 @@ pub fn show(ui: &mut Ui, docs: &[Document], registry: &crate::editor::DiagramReg
                 });
                 ui.add_space(26.0);
 
-                if let Some(chosen) = process_grid(ui, &processes) {
+                if let Some(chosen) = process_grid(ui, &processes, registry) {
                     action = Some(chosen);
                 }
 
@@ -105,18 +105,6 @@ pub fn show(ui: &mut Ui, docs: &[Document], registry: &crate::editor::DiagramReg
                     });
                 }
 
-                ui.add_space(24.0);
-                ui.heading(tr("workspace.start_example"));
-                ui.add_space(6.0);
-                ui.horizontal_wrapped(|ui| {
-                    for e in &registry.examples {
-                        let label = tr(e.label);
-                        let example = Action::Example(e.id, None);
-                        if ui.button(label).clicked() {
-                            action = Some(example);
-                        }
-                    }
-                });
                 ui.add_space(30.0);
             });
         });
@@ -125,7 +113,7 @@ pub fn show(ui: &mut Ui, docs: &[Document], registry: &crate::editor::DiagramReg
 }
 
 /// The creation picker and home page share their cards, sizing and breakpoints.
-pub fn diagram_grid(ui: &mut Ui, registry: &crate::editor::DiagramRegistry, query: &str) -> Option<&'static str> {
+pub fn diagram_grid(ui: &mut Ui, registry: &crate::editor::DiagramRegistry, query: &str) -> Option<Action> {
     let query = query.trim().to_lowercase();
     let mut processes: Vec<_> = registry
         .diagrams
@@ -151,13 +139,10 @@ pub fn diagram_grid(ui: &mut Ui, registry: &crate::editor::DiagramRegistry, quer
         ui.label(tr("workspace.no_matching_diagram_types"));
         return None;
     }
-    match process_grid(ui, &processes) {
-        Some(Action::New(kind)) => Some(kind),
-        _ => None,
-    }
+    process_grid(ui, &processes, registry)
 }
 
-fn process_grid(ui: &mut Ui, processes: &[Process]) -> Option<Action> {
+fn process_grid(ui: &mut Ui, processes: &[Process], registry: &crate::editor::DiagramRegistry) -> Option<Action> {
     let width = ui.available_width();
     let columns = if width >= 960.0 {
         3
@@ -174,8 +159,13 @@ fn process_grid(ui: &mut Ui, processes: &[Process]) -> Option<Action> {
         .spacing(vec2(gap, gap))
         .show(ui, |ui| {
             for (i, process) in processes.iter().enumerate() {
-                if process_card(ui, process, card_width) {
-                    chosen = Some(process.action);
+                let examples: Vec<_> = registry
+                    .examples
+                    .iter()
+                    .filter(|e| matches!(process.action, Action::New(kind) if kind == e.kind))
+                    .collect();
+                if let Some(action) = process_card(ui, process, card_width, &examples) {
+                    chosen = Some(action);
                 }
                 if (i + 1) % columns == 0 {
                     ui.end_row();
@@ -185,7 +175,7 @@ fn process_grid(ui: &mut Ui, processes: &[Process]) -> Option<Action> {
     chosen
 }
 
-fn process_card(ui: &mut Ui, process: &Process, width: f32) -> bool {
+fn process_card(ui: &mut Ui, process: &Process, width: f32, examples: &[&crate::editor::ExampleDescriptor]) -> Option<Action> {
     let (rect, response) = ui.allocate_exact_size(vec2(width, 222.0), Sense::click());
     let response = response.on_hover_cursor(egui::CursorIcon::PointingHand);
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tr(process.title)));
@@ -245,13 +235,44 @@ fn process_card(ui: &mut Ui, process: &Process, width: f32) -> bool {
             theme::medium(12.5),
             process.color,
         );
-        p.text(
-            rect.right_bottom() + vec2(-20.0, -22.0),
-            egui::Align2::RIGHT_CENTER,
-            "→",
-            egui::FontId::proportional(19.0),
-            process.color,
-        );
+        if examples.is_empty() {
+            p.text(
+                rect.right_bottom() + vec2(-20.0, -22.0),
+                egui::Align2::RIGHT_CENTER,
+                "→",
+                egui::FontId::proportional(19.0),
+                process.color,
+            );
+        }
     }
-    response.clicked()
+    let mut chosen = None;
+    let mut examples_clicked = false;
+    if !examples.is_empty() {
+        // The card already occupies its grid cell; this child places its button
+        // inside that rectangle without advancing the grid a second time.
+        let mut footer = ui.new_child(
+            egui::UiBuilder::new()
+                .id_salt(("card_examples", examples[0].kind))
+                .max_rect(Rect::from_min_max(
+                    rect.left_bottom() + vec2(18.0, -38.0),
+                    rect.right_bottom() - vec2(12.0, 10.0),
+                ))
+                .layout(egui::Layout::right_to_left(egui::Align::Center)),
+        );
+        let examples_response = footer
+            .menu_button(tr("menu.examples"), |ui| {
+                for example in examples {
+                    if ui.button(tr(example.label)).clicked() {
+                        chosen = Some(Action::Example(example.id, None));
+                        ui.close();
+                    }
+                }
+            })
+            .response
+            .on_hover_text(tr("workspace.start_example"));
+        examples_clicked = examples_response.clicked();
+        examples_response
+            .widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, trf("workspace.examples_for", &[&tr(process.title)])));
+    }
+    chosen.or_else(|| (response.clicked() && !examples_clicked).then_some(process.action))
 }

@@ -48,10 +48,12 @@ défilement et adaptation à la largeur. Cette grille réutilise les composants
 de l’accueil. Choisir une carte crée le document ; annuler ou appuyer sur Échap
 ferme le sélecteur. Depuis un groupe d’onglets partagé, le nouveau document
 est créé dans le groupe à l’origine de l’action.
-Le bouton **Exemples**, en tête de cette grille, propose les modèles d’exemple
-déclarés par les modules. Il remplace l’ancien sous-menu File → Examples.
-Choisir un exemple ferme le sélecteur et conserve également le groupe d’onglets
-à l’origine de l’ouverture.
+Chaque carte de type de diagramme propose son bouton **Exemples**, en bas à
+droite, avec uniquement les exemples de ce type. Le même composant est utilisé
+dans l’accueil et le sélecteur. Les cartes sans exemple et les lanceurs de
+workflow gardent leur action principale. Choisir un exemple ferme le sélecteur
+et conserve le groupe d’onglets à l’origine de l’ouverture. Ouvrir le menu
+d’exemples ne crée pas de document vierge.
 
 Les pictogrammes des cartes représentent leur notation : événement/tâche/passerelle
 BPMN, places et transition Petri, classes reliées, acteur/cas d’utilisation,

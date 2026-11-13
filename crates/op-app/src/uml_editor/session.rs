@@ -183,11 +183,13 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
     registry.examples.extend([
         ExampleDescriptor {
             id: "uml.classes",
+            kind: "uml.class",
             label: key("uml.uml_order_classes"),
             create: || JsonCodec::new("uml.class").encode(&examples::uml_classes()),
         },
         ExampleDescriptor {
             id: "uml.use-cases",
+            kind: "uml.use-case",
             label: key("uml.uml_online_shop_use_cases"),
             create: || JsonCodec::new("uml.use-case").encode(&examples::uml_use_cases()),
         },

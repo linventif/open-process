@@ -50,6 +50,21 @@ fn home_navigation() {
     assert!(h.state().show_home);
     assert!(h.state().docs.is_empty());
 
+    h.get_by_label("Examples for Model a process").click();
+    h.run_steps(4);
+    assert!(h.state().show_home);
+    assert!(h.state().docs.is_empty());
+    assert!(h.query_by_label(tr("petri.petri_mutual_exclusion")).is_none());
+    h.get_by_label(tr("bpmn.bpmn_order_handling")).click();
+    h.run_steps(4);
+    let expected = crate::composition::registry()
+        .open(&crate::composition::registry().example("bpmn.order").unwrap())
+        .unwrap();
+    assert_eq!(h.state().docs.len(), 1);
+    assert_eq!(h.state().docs[0].snapshot(), expected.snapshot());
+    h.state_mut().close(0);
+    h.run_steps(4);
+
     for (label, kind) in [
         ("Simulate and analyze", "petri"),
         ("Discover a process", "log"),
@@ -1222,14 +1237,19 @@ fn new_document_picker_is_a_responsive_registry_grid() {
             assert!(b.top() > a.bottom());
         }
         shot(&mut h, &format!("new_document_grid_{width}"));
-        let examples = h.get_by_label("Examples").rect().center();
+        let examples = h.get_by_label("Examples for New BPMN diagram").rect();
+        assert!(a.contains_rect(examples), "the examples button belongs to its card");
+        let examples = examples.center();
         click(&mut h, examples);
         h.run_steps(4);
+        assert!(h.state().new_picker.is_some());
+        assert_eq!(h.state().docs.len(), 1, "opening examples must not create a blank document");
         shot(&mut h, &format!("new_document_examples_{width}"));
         for example in &crate::composition::registry().examples {
-            assert!(
+            assert_eq!(
                 h.query_by_label(tr(example.label)).is_some(),
-                "{} missing at {width}px",
+                example.kind == "bpmn",
+                "{} at {width}px",
                 tr(example.label)
             );
         }
@@ -1295,7 +1315,9 @@ fn new_document_from_a_split_tab_bar_stays_in_that_group() {
         let near = h.state().new_picker.as_ref().unwrap().near.unwrap();
         let group = h.state().tree.tiles.parent_of(near);
         if from_example {
-            h.get_by_label("Examples").click();
+            h.get_by_label("Search diagram types").type_text("database");
+            h.run_steps(4);
+            h.get_by_label("Examples for New database schema").click();
             h.run_steps(4);
             h.get_by_label(tr("database.database_shop_schema")).click();
         } else {

@@ -168,6 +168,7 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
     });
     registry.examples.push(ExampleDescriptor {
         id: "database.shop",
+        kind: "database.schema",
         label: key("database.database_shop_schema"),
         create: || JsonCodec::new("database.schema").encode(&database::example()),
     });

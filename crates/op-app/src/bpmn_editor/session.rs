@@ -209,11 +209,13 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
     registry.examples.extend([
         ExampleDescriptor {
             id: "bpmn.evaluation",
+            kind: "bpmn",
             label: key("bpmn.bpmn_process_p_evaluation"),
             create: || JsonCodec::new("bpmn").encode(&examples::evaluation_process()),
         },
         ExampleDescriptor {
             id: "bpmn.order",
+            kind: "bpmn",
             label: key("bpmn.bpmn_order_handling"),
             create: || JsonCodec::new("bpmn").encode(&examples::order_process()),
         },
