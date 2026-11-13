@@ -1,0 +1,218 @@
+//! Built-in example models (also used in tests).
+
+use crate::bpmn::*;
+use crate::geom::Pos;
+use crate::i18n::tr;
+use crate::petri::{NodeRef, PetriNet};
+
+/// Order handling process with a pool, two lanes, XOR and AND gateways.
+pub fn order_process() -> BpmnDiagram {
+    let mut d = BpmnDiagram::new(tr("Order handling"));
+    let pool = d.add_pool(Pos::new(0.0, 0.0));
+    d.add_lane(pool);
+    {
+        let p = d.pool_mut(pool).unwrap();
+        p.name = tr("Online shop").into();
+        p.width = 1140.0;
+        p.lanes[0].name = tr("Sales").into();
+        p.lanes[0].height = 200.0;
+        p.lanes[1].name = tr("Warehouse").into();
+        p.lanes[1].height = 200.0;
+    }
+    let node = |d: &mut BpmnDiagram, kind, x, y, name: &str| {
+        let id = d.add_node(kind, Pos::new(x, y));
+        d.node_mut(id).unwrap().name = name.into();
+        id
+    };
+    let s = node(
+        &mut d,
+        NodeKind::StartEvent(EventTrigger::Message),
+        90.0,
+        100.0,
+        tr("Order received"),
+    );
+    let check = node(&mut d, NodeKind::Task(TaskType::User), 200.0, 100.0, tr("Check order"));
+    let ok = node(&mut d, NodeKind::Gateway(GatewayType::Exclusive), 330.0, 100.0, tr("Order valid?"));
+    let reject = node(&mut d, NodeKind::Task(TaskType::Send), 460.0, 40.0, tr("Notify rejection"));
+    let e_rej = node(&mut d, NodeKind::EndEvent(EventTrigger::None), 600.0, 40.0, tr("Order rejected"));
+    let split = node(&mut d, NodeKind::Gateway(GatewayType::Parallel), 460.0, 300.0, "");
+    let invoice = node(&mut d, NodeKind::Task(TaskType::Service), 600.0, 140.0, tr("Send invoice"));
+    let pack = node(&mut d, NodeKind::Task(TaskType::Manual), 600.0, 300.0, tr("Pack goods"));
+    let ship = node(&mut d, NodeKind::Task(TaskType::Manual), 760.0, 300.0, tr("Ship goods"));
+    let join = node(&mut d, NodeKind::Gateway(GatewayType::Parallel), 900.0, 300.0, "");
+    let e_ok = node(&mut d, NodeKind::EndEvent(EventTrigger::None), 1040.0, 300.0, tr("Order fulfilled"));
+    for (a, b) in [
+        (s, check),
+        (check, ok),
+        (ok, reject),
+        (reject, e_rej),
+        (ok, split),
+        (split, invoice),
+        (split, pack),
+        (pack, ship),
+        (ship, join),
+        (invoice, join),
+        (join, e_ok),
+    ] {
+        d.add_flow(a, b).unwrap();
+    }
+    for f in &mut d.flows {
+        if f.from == ok && f.to == reject {
+            f.name = tr("no").into();
+        }
+        if f.from == ok && f.to == split {
+            f.name = tr("yes").into();
+        }
+    }
+    d
+}
+
+fn connect(n: &mut PetriNet, arcs: &[(NodeRef, NodeRef)]) {
+    for &(a, b) in arcs {
+        n.add_arc(a, b).unwrap();
+    }
+}
+
+fn named_place(n: &mut PetriNet, name: &str, x: f32, y: f32, tokens: u32) -> NodeRef {
+    let id = n.add_place(Pos::new(x, y), tokens);
+    n.place_mut(id).unwrap().name = name.into();
+    NodeRef::Place(id)
+}
+
+fn named_transition(n: &mut PetriNet, name: &str, x: f32, y: f32) -> NodeRef {
+    let id = n.add_transition(Pos::new(x, y));
+    n.transition_mut(id).unwrap().name = name.into();
+    NodeRef::Transition(id)
+}
+
+/// Two processes sharing a critical section protected by a mutex.
+pub fn mutual_exclusion() -> PetriNet {
+    let mut n = PetriNet::new(tr("Mutual exclusion"));
+    let mtx = named_place(&mut n, "mutex", 420.0, 200.0, 1);
+    // Each process is a cycle drawn as a diamond: idle → enter → critical → leave → idle,
+    // with the critical section on the side of the shared mutex.
+    for (k, cx, side) in [(1, 200.0f32, 1.0f32), (2, 640.0, -1.0)] {
+        let idle = named_place(&mut n, &format!("idle{k}"), cx - 100.0 * side, 200.0, 1);
+        let enter = named_transition(&mut n, &format!("enter{k}"), cx, 110.0);
+        let crit = named_place(&mut n, &format!("critical{k}"), cx + 100.0 * side, 200.0, 0);
+        let leave = named_transition(&mut n, &format!("leave{k}"), cx, 290.0);
+        connect(
+            &mut n,
+            &[
+                (idle, enter),
+                (mtx, enter),
+                (enter, crit),
+                (crit, leave),
+                (leave, idle),
+                (leave, mtx),
+            ],
+        );
+    }
+    n
+}
+
+/// Producer / consumer with a bounded buffer of size 3 (complementary place).
+pub fn producer_consumer() -> PetriNet {
+    let mut n = PetriNet::new(tr("Producer / consumer"));
+    let ready_p = named_place(&mut n, "ready to produce", 80.0, 100.0, 1);
+    let produce = named_transition(&mut n, "produce", 180.0, 40.0);
+    let ready_d = named_place(&mut n, "ready to deliver", 80.0, 260.0, 0);
+    let deliver = named_transition(&mut n, "deliver", 180.0, 320.0);
+    let buffer = named_place(&mut n, "buffer", 320.0, 260.0, 0);
+    let free = named_place(&mut n, "free slots", 320.0, 100.0, 3);
+    let remove = named_transition(&mut n, "remove", 460.0, 320.0);
+    let ready_c = named_place(&mut n, "ready to consume", 560.0, 260.0, 0);
+    let consume = named_transition(&mut n, "consume", 460.0, 40.0);
+    let ready_r = named_place(&mut n, "ready to remove", 560.0, 100.0, 1);
+    connect(
+        &mut n,
+        &[
+            (ready_p, produce),
+            (produce, ready_d),
+            (ready_d, deliver),
+            (deliver, ready_p),
+            (free, deliver),
+            (deliver, buffer),
+            (buffer, remove),
+            (remove, free),
+            (ready_r, remove),
+            (remove, ready_c),
+            (ready_c, consume),
+            (consume, ready_r),
+        ],
+    );
+    n
+}
+
+/// Classic dining philosophers (3 philosophers): has a deadlock.
+pub fn dining_philosophers() -> PetriNet {
+    let mut n = PetriNet::new(tr("Dining philosophers"));
+    let k = 3;
+    let (cx, cy) = (420.0f32, 420.0f32);
+    let angle = |i: usize| -std::f32::consts::FRAC_PI_2 + i as f32 * std::f32::consts::TAU / k as f32;
+    // Forks sit between two philosophers.
+    let forks: Vec<NodeRef> = (0..k)
+        .map(|i| {
+            let a = angle(i) + std::f32::consts::PI / k as f32;
+            named_place(&mut n, &format!("fork{}", i + 1), cx + 150.0 * a.cos(), cy + 150.0 * a.sin(), 1)
+        })
+        .collect();
+    for i in 0..k {
+        let a = angle(i);
+        let (u, v) = ((a.cos(), a.sin()), (-a.sin(), a.cos()));
+        // r: distance from the center along u, t: offset along v
+        let at = |r: f32, t: f32| (cx + r * u.0 + t * v.0, cy + r * u.1 + t * v.1);
+        let p = |n: &mut PetriNet, name: &str, (x, y): (f32, f32), tok| named_place(n, &format!("{name}{}", i + 1), x, y, tok);
+        let t = |n: &mut PetriNet, name: &str, (x, y): (f32, f32)| named_transition(n, &format!("{name}{}", i + 1), x, y);
+        let think = p(&mut n, "thinking", at(360.0, 0.0), 1);
+        let take_l = t(&mut n, "take left", at(300.0, 80.0));
+        let has_l = p(&mut n, "has left", at(220.0, 80.0), 0);
+        let take_r = t(&mut n, "take right", at(170.0, 0.0));
+        let eat = p(&mut n, "eating", at(220.0, -80.0), 0);
+        let release = t(&mut n, "release", at(300.0, -80.0));
+        let left = forks[i];
+        let right = forks[(i + k - 1) % k];
+        connect(
+            &mut n,
+            &[
+                (think, take_l),
+                (left, take_l),
+                (take_l, has_l),
+                (has_l, take_r),
+                (right, take_r),
+                (take_r, eat),
+                (eat, release),
+                (release, think),
+                (release, left),
+                (release, right),
+            ],
+        );
+    }
+    n
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::analysis::{BehaviouralReport, StateSpace};
+
+    #[test]
+    fn examples_are_valid() {
+        let d = order_process();
+        assert!(d.validate().is_empty(), "{:?}", d.validate());
+        let conv = crate::convert::bpmn_to_petri(&d);
+        assert!(matches!(
+            crate::analysis::soundness(&conv.net, 10_000),
+            crate::analysis::Soundness::Sound
+        ));
+
+        let pc = producer_consumer();
+        let r = BehaviouralReport::compute(&pc, &StateSpace::explore(&pc, 10_000));
+        assert_eq!(r.bounded, Some(true));
+        assert_eq!(r.live, Some(true));
+
+        let dp = dining_philosophers();
+        let r = BehaviouralReport::compute(&dp, &StateSpace::explore(&dp, 10_000));
+        assert_eq!(r.deadlock_free, Some(false));
+    }
+}
