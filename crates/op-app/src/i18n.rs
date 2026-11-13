@@ -133,7 +133,9 @@ mod tests {
 
     /// Stable message keys passed to `tr(`, `trf(` or `key(`.
     fn translatable(src: &str) -> Vec<String> {
-        let src = src.split("\n#[cfg(test)]\nmod tests").next().unwrap_or(src);
+        // Windows checkouts may use CRLF; keep the test-module boundary detectable.
+        let src = src.replace("\r\n", "\n");
+        let src = src.split("\n#[cfg(test)]\nmod tests").next().unwrap_or(&src);
         let mut out = Vec::new();
         let b = src.as_bytes();
         for pat in ["tr(", "trf(", "key("] {
@@ -167,6 +169,28 @@ mod tests {
             }
         }
         out
+    }
+
+    #[test]
+    fn translatable_ignores_tests_with_lf_and_crlf() {
+        let source = concat!(
+            "fn production() {\n",
+            "    tr(\"file.save\");\n",
+            "    trf(\n        \"file.open_failed\", &[\"file\", \"error\"]);\n",
+            "    key(\"drawing.choose_tool\");\n",
+            "}\n",
+            "#[cfg(test)]\n",
+            "mod tests {\n",
+            "    fn example() { tr(\"test.only\"); }\n",
+            "}\n",
+        );
+        for newline in ["\n", "\r\n"] {
+            assert_eq!(
+                translatable(&source.replace('\n', newline)),
+                ["file.save", "file.open_failed", "drawing.choose_tool"],
+                "source with {newline:?} line endings",
+            );
+        }
     }
 
     #[test]

@@ -65,6 +65,9 @@ rendre l’erreur visible.
 Les tests vérifient l’unicité et la syntaxe des clés, la présence des mêmes clés
 dans chaque catalogue, les paramètres, les sauts de ligne et l’utilisation de
 chaque message. La couverture des polices embarquées inclut les trois langues.
+Le contrôle des usages exclut le module de tests après normalisation des fins
+de ligne LF et CRLF, pour reconnaître la même frontière sur Linux et Windows.
+Un test de régression couvre les deux formats de source.
 
 ```sh
 cargo test --locked -p op-core i18n
