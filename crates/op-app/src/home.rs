@@ -87,28 +87,9 @@ pub fn show(ui: &mut Ui, docs: &[Document], registry: &crate::editor::DiagramReg
                 });
                 ui.add_space(26.0);
 
-                let columns = if width >= 960.0 {
-                    3
-                } else if width >= 600.0 {
-                    2
-                } else {
-                    1
-                };
-                let gap = 16.0;
-                let card_width = (width - gap * (columns - 1) as f32) / columns as f32;
-                egui::Grid::new("home_processes")
-                    .num_columns(columns)
-                    .spacing(vec2(gap, gap))
-                    .show(ui, |ui| {
-                        for (i, process) in processes.iter().enumerate() {
-                            if process_card(ui, process, card_width) {
-                                action = Some(process.action);
-                            }
-                            if (i + 1) % columns == 0 {
-                                ui.end_row();
-                            }
-                        }
-                    });
+                if let Some(chosen) = process_grid(ui, &processes) {
+                    action = Some(chosen);
+                }
 
                 if !docs.is_empty() {
                     ui.add_space(24.0);
@@ -145,6 +126,67 @@ pub fn show(ui: &mut Ui, docs: &[Document], registry: &crate::editor::DiagramReg
         });
     });
     action
+}
+
+/// The creation picker and home page share their cards, sizing and breakpoints.
+pub fn diagram_grid(ui: &mut Ui, registry: &crate::editor::DiagramRegistry, query: &str) -> Option<&'static str> {
+    let query = query.trim().to_lowercase();
+    let mut processes: Vec<_> = registry
+        .diagrams
+        .iter()
+        .filter(|d| {
+            query.is_empty()
+                || format!("{} {} {} {} {}", tr(d.new_label), tr(d.title), tr(d.description), d.badge, d.id)
+                    .to_lowercase()
+                    .contains(&query)
+        })
+        .map(|d| Process {
+            order: d.home_order,
+            title: d.new_label,
+            description: d.description,
+            badge: d.badge,
+            color: d.color,
+            icon: d.icon,
+            action: Action::New(d.id),
+        })
+        .collect();
+    processes.sort_by_key(|p| p.order);
+    if processes.is_empty() {
+        ui.label(tr("No matching diagram types."));
+        return None;
+    }
+    match process_grid(ui, &processes) {
+        Some(Action::New(kind)) => Some(kind),
+        _ => None,
+    }
+}
+
+fn process_grid(ui: &mut Ui, processes: &[Process]) -> Option<Action> {
+    let width = ui.available_width();
+    let columns = if width >= 960.0 {
+        3
+    } else if width >= 600.0 {
+        2
+    } else {
+        1
+    };
+    let gap = 16.0;
+    let card_width = ((width - gap * (columns - 1) as f32) / columns as f32).max(1.0);
+    let mut chosen = None;
+    egui::Grid::new("document_type_cards")
+        .num_columns(columns)
+        .spacing(vec2(gap, gap))
+        .show(ui, |ui| {
+            for (i, process) in processes.iter().enumerate() {
+                if process_card(ui, process, card_width) {
+                    chosen = Some(process.action);
+                }
+                if (i + 1) % columns == 0 {
+                    ui.end_row();
+                }
+            }
+        });
+    chosen
 }
 
 fn process_card(ui: &mut Ui, process: &Process, width: f32) -> bool {

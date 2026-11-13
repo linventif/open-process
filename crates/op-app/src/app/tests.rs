@@ -312,6 +312,14 @@ fn uml_editors_by_mouse() {
         let mut h = harness(false);
         h.get_by_label("File").click();
         h.run_steps(2);
+        h.get_by_label(&format!(
+            "New… {}",
+            h.ctx.format_shortcut(&KeyboardShortcut::new(Modifiers::COMMAND, Key::N))
+        ))
+        .click();
+        h.run_steps(4);
+        h.get_by_label(label).scroll_to_me();
+        h.run_steps(12);
         h.get_by_label(label).click();
         h.run_steps(4);
         assert_eq!(uml(&h).diagram.kind, kind);
@@ -937,6 +945,127 @@ fn active_view_settings(h: &Harness<'static, OpenProcessApp>) -> serde_json::Val
     let pane = dock::panes_of(&h.state().tree, doc.uid)[0];
     let views: Vec<(u64, serde_json::Value)> = serde_json::from_value(doc.editor.workspace()).unwrap();
     views.into_iter().find(|(id, _)| *id == pane.0).unwrap().1
+}
+
+#[test]
+fn new_document_picker_is_a_responsive_registry_grid() {
+    for width in [1400.0, 420.0, 280.0] {
+        let mut h = harness_sized(false, [width, 860.0]);
+        let original = h.state().docs[0].snapshot();
+        h.get_by_label("File").click();
+        h.run_steps(3);
+        assert!(h.query_by_label("New BPMN diagram").is_none(), "File contains one New entry");
+        h.get_by_label(&format!(
+            "New… {}",
+            h.ctx.format_shortcut(&KeyboardShortcut::new(Modifiers::COMMAND, Key::N))
+        ))
+        .click();
+        h.run_steps(5);
+        assert!(h.state().new_picker.is_some());
+        assert_eq!(h.state().docs.len(), 1);
+        let a = h.get_by_label("New BPMN diagram").rect();
+        let b = h
+            .get_by_label(tr(crate::composition::registry().find("petri").unwrap().new_label))
+            .rect();
+        assert!(a.left() >= 0.0 && a.right() <= width, "picker cards fit at {width}px: {a:?}");
+        if width > 1000.0 {
+            assert!((a.top() - b.top()).abs() < 1.0);
+            assert!(b.left() > a.right());
+        } else {
+            assert!(b.top() > a.bottom());
+        }
+        shot(&mut h, &format!("new_document_grid_{width}"));
+        let cancel = h.get_by_label("Cancel").rect().center();
+        click(&mut h, cancel);
+        h.run_steps(4);
+        assert!(h.state().new_picker.is_none());
+        assert_eq!(h.state().docs[0].snapshot(), original);
+    }
+}
+
+#[test]
+fn new_document_picker_filters_cancels_and_opens_from_tabs_and_shortcut() {
+    let mut h = harness(false);
+    let original = h.state().docs[0].snapshot();
+    h.get_by_label("New document").click();
+    h.run_steps(5);
+    h.get_by_label("Search diagram types").type_text("no such notation");
+    h.run_steps(4);
+    assert!(h.query_by_label("No matching diagram types.").is_some());
+    key(&mut h, Key::Escape);
+    h.run_steps(4);
+    assert!(h.state().new_picker.is_none());
+    assert_eq!(h.state().docs.len(), 1);
+    h.key_press_modifiers(Modifiers::COMMAND, Key::N);
+    h.run_steps(5);
+    assert!(h.state().new_picker.is_some());
+    h.get_by_label("Search diagram types").type_text("database");
+    h.run_steps(4);
+    assert!(h.query_by_label("New database schema").is_some());
+    assert!(h.query_by_label("New BPMN diagram").is_none());
+    shot(&mut h, "new_document_grid_filtered");
+    h.get_by_label("New database schema").click();
+    h.run_steps(4);
+    assert!(h.state().new_picker.is_none());
+    assert_eq!(h.state().docs.last().unwrap().editor.kind(), "database.schema");
+    assert_eq!(h.state().docs[0].snapshot(), original);
+}
+
+#[test]
+fn new_document_from_a_split_tab_bar_stays_in_that_group() {
+    let mut h = harness(true);
+    let uid = h.state().docs[0].uid;
+    h.state_mut().open_beside(
+        Pane {
+            doc: uid,
+            view: View::Editor,
+        },
+        false,
+    );
+    h.run_steps(5);
+    let position = h
+        .get_all_by_label("New document")
+        .map(|n| n.rect().center())
+        .max_by(|a, b| a.x.total_cmp(&b.x))
+        .unwrap();
+    click(&mut h, position);
+    let near = h.state().new_picker.as_ref().unwrap().near.unwrap();
+    let group = h.state().tree.tiles.parent_of(near);
+    h.get_by_label("Search diagram types").type_text("epc");
+    h.run_steps(4);
+    h.get_by_label("New EPC diagram").click();
+    h.run_steps(4);
+    let uid = h.state().docs.last().unwrap().uid;
+    let pane = dock::panes_of(&h.state().tree, uid)[0];
+    assert_eq!(h.state().tree.tiles.parent_of(pane), group);
+}
+
+#[test]
+fn file_exports_are_grouped_and_follow_the_active_document() {
+    for (kind, formats, png) in [
+        ("bpmn", vec!["Export BPMN 2.0 XML (.bpmn)…"], true),
+        ("dmn.table", vec!["Export DMN XML (.dmn)…", "Export decision table (.csv)…"], false),
+        ("epc", vec!["Export SVG (.svg)…", "Export Graphviz (.dot)…"], true),
+        ("database.schema", vec!["Export SQL DDL (.sql)…"], true),
+    ] {
+        let mut h = harness(false);
+        h.state_mut().new_document(kind, None);
+        h.run_steps(4);
+        h.get_by_label("File").click();
+        h.run_steps(3);
+        for label in &formats {
+            assert!(h.query_by_label(label).is_none(), "exports live in the submenu");
+        }
+        h.get_by_label("Export").click();
+        h.run_steps(4);
+        for label in formats {
+            assert!(h.query_by_label(label).is_some(), "{kind}: {label}");
+        }
+        assert_eq!(h.query_by_label("Export image (PNG)…").is_some(), png);
+        if kind == "bpmn" {
+            shot(&mut h, "file_export_submenu");
+        }
+    }
 }
 
 #[test]

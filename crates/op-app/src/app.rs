@@ -8,6 +8,8 @@ use egui::{Key, KeyboardShortcut, Modifiers, RichText, Ui};
 use op_core::document::Document;
 use op_core::i18n::{tr, trf};
 
+mod new_document;
+
 #[cfg(test)]
 use crate::{bpmn_editor::BpmnEditor, petri_editor::PetriEditor, uml_editor::UmlEditor};
 #[cfg(test)]
@@ -29,7 +31,7 @@ enum DockEvent {
     Close(u64),
     ClosePane(u64, egui_tiles::TileId),
     Host(u64, HostEvent),
-    New(&'static str, Option<egui_tiles::TileId>),
+    New(Option<egui_tiles::TileId>),
     Beside(Pane, bool),
 }
 
@@ -44,6 +46,7 @@ pub struct OpenProcessApp {
     show_shortcuts: bool,
     confirm_close: Option<usize>,
     show_home: bool,
+    new_picker: Option<new_document::Picker>,
     persistence_ready: bool,
 }
 
@@ -62,6 +65,7 @@ impl OpenProcessApp {
             show_shortcuts: false,
             confirm_close: None,
             show_home: true,
+            new_picker: None,
             persistence_ready: true,
         };
         if let Some(storage) = cc.storage {
@@ -377,7 +381,7 @@ impl OpenProcessApp {
                 }
                 HostEvent::Message(m) => self.message = Some((m, false)),
             },
-            DockEvent::New(kind, near) => self.new_document(kind, near),
+            DockEvent::New(near) => self.open_new_picker(near),
             DockEvent::Beside(pane, vertical) => {
                 if let Some(i) = self.docs.iter().position(|d| d.uid == pane.doc) {
                     self.active = i;
@@ -388,6 +392,9 @@ impl OpenProcessApp {
     }
 
     fn shortcuts(&mut self, ui: &mut Ui) {
+        if self.new_picker.is_some() {
+            return;
+        }
         let sc = |m: Modifiers, k: Key| KeyboardShortcut::new(m, k);
         let cmd = Modifiers::COMMAND;
         let cmd_shift = Modifiers::COMMAND | Modifiers::SHIFT;
@@ -416,7 +423,7 @@ impl OpenProcessApp {
             self.io.open_dialog(ui.ctx(), self.registry.extensions());
         }
         if new {
-            self.new_document("bpmn", None);
+            self.open_new_picker(None);
         }
     }
 
@@ -454,10 +461,15 @@ impl OpenProcessApp {
             }
             ui.separator();
             ui.menu_button(tr("File"), |ui| {
-                for d in &self.registry.diagrams {
-                    if ui.button(tr(d.new_label)).clicked() {
-                        self.new_document(d.id, None);
-                    }
+                if ui
+                    .add(
+                        egui::Button::new(tr("New…"))
+                            .shortcut_text(ui.ctx().format_shortcut(&KeyboardShortcut::new(Modifiers::COMMAND, Key::N))),
+                    )
+                    .clicked()
+                {
+                    self.open_new_picker(None);
+                    ui.close();
                 }
                 ui.separator();
                 if ui
@@ -485,20 +497,29 @@ impl OpenProcessApp {
                 if ui.add_enabled(has_doc, egui::Button::new(tr("Save as…"))).clicked() {
                     self.save(true);
                 }
-                let exports = self.docs.get(self.active).map(|d| d.editor.exports()).unwrap_or_default();
-                for export in exports {
-                    if ui.add_enabled(has_doc, egui::Button::new(tr(export.label))).clicked() {
-                        self.export(export.id);
-                    }
-                }
-                let png = has_doc && self.docs.get(self.active).is_some_and(|d| d.editor.enabled(PNG));
-                if ui
-                    .add_enabled(png, egui::Button::new(tr("Export image (PNG)…")))
-                    .on_hover_text(tr("Picture of the visible diagram"))
-                    .clicked()
-                {
-                    self.execute(PNG, 0.0);
-                }
+                ui.add_enabled_ui(has_doc, |ui| {
+                    ui.menu_button(tr("Export"), |ui| {
+                        let exports = self.docs.get(self.active).map(|d| d.editor.exports()).unwrap_or_default();
+                        for export in exports {
+                            if ui.button(tr(export.label)).clicked() {
+                                self.export(export.id);
+                                ui.close();
+                            }
+                        }
+                        let png = self.docs.get(self.active).is_some_and(|d| d.editor.enabled(PNG));
+                        if png {
+                            ui.separator();
+                            if ui
+                                .button(tr("Export image (PNG)…"))
+                                .on_hover_text(tr("Picture of the visible diagram"))
+                                .clicked()
+                            {
+                                self.execute(PNG, 0.0);
+                                ui.close();
+                            }
+                        }
+                    });
+                });
                 ui.separator();
                 ui.menu_button(tr("Examples"), |ui| {
                     for e in &self.registry.examples {
@@ -639,6 +660,7 @@ impl OpenProcessApp {
 
     fn dialogs(&mut self, ui: &Ui) {
         let ctx = ui.ctx().clone();
+        self.new_document_dialog(&ctx);
         if self.show_about {
             egui::Window::new(tr("About Open Process")).collapsible(false).resizable(false).open(&mut self.show_about).show(&ctx, |ui| {
                 ui.horizontal(|ui| {
@@ -658,7 +680,7 @@ impl OpenProcessApp {
                 .show(&ctx, |ui| {
                     egui::Grid::new("shortcuts").striped(true).show(ui, |ui| {
                         for (k, v) in [
-                            ("Ctrl+N / Ctrl+O / Ctrl+S", tr("New BPMN / open / save")),
+                            ("Ctrl+N / Ctrl+O / Ctrl+S", tr("New document / open / save")),
                             ("Ctrl+Z / Ctrl+Shift+Z", tr("Undo / redo")),
                             (tr("Del / Backspace"), tr("Delete selection")),
                             ("Esc", tr("Back to the select tool")),
@@ -750,7 +772,6 @@ struct DockBehavior<'a> {
     docs: &'a mut Vec<Doc>,
     active_uid: Option<u64>,
     events: Vec<DockEvent>,
-    registry: &'static DiagramRegistry,
 }
 
 impl DockBehavior<'_> {
@@ -958,16 +979,13 @@ impl egui_tiles::Behavior<Pane> for DockBehavior<'_> {
     fn tab_bar_trailing_ui(&mut self, tiles: &egui_tiles::Tiles<Pane>, ui: &mut Ui, _tile_id: egui_tiles::TileId, tabs: &egui_tiles::Tabs) {
         ui.add_space(6.0);
         let near = tabs.children.first().copied().filter(|c| tiles.get(*c).is_some());
-        ui.menu_button(RichText::new("+").font(theme::semibold(16.0)), |ui| {
-            for d in &self.registry.diagrams {
-                if ui.button(tr(d.new_label)).clicked() {
-                    self.events.push(DockEvent::New(d.id, near));
-                    ui.close();
-                }
-            }
-        })
-        .response
-        .on_hover_text(tr("New document"));
+        let response = ui
+            .button(RichText::new("+").font(theme::semibold(16.0)))
+            .on_hover_text(tr("New document"));
+        response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tr("New document")));
+        if response.clicked() {
+            self.events.push(DockEvent::New(near));
+        }
     }
 }
 
@@ -1023,7 +1041,6 @@ impl eframe::App for OpenProcessApp {
             docs: &mut self.docs,
             active_uid,
             events: Vec::new(),
-            registry: self.registry,
         };
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(panel).inner_margin(egui::Margin {
