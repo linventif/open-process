@@ -20,6 +20,7 @@ mod home;
 mod i18n;
 mod icons;
 mod io;
+mod mermaid_editor;
 mod mining_editor;
 mod petri_editor;
 mod platform;

@@ -40,6 +40,7 @@ flowchart TD
 | Nouvelles notations | [DMN](../crates/op-app/src/dmn_editor.rs) et [graphes EPC/activité](../crates/op-app/src/flow_editor.rs). |
 | Schéma relationnel et DDL | [database.rs](../crates/op-core/src/database.rs), [générateurs SQL](../crates/op-core/src/database/ddl.rs), [éditeur](../crates/op-app/src/database_editor.rs). |
 | Dessin libre | [modèle typé](../crates/op-core/src/whiteboard.rs), [éditeur](../crates/op-app/src/whiteboard_editor.rs), [session](../crates/op-app/src/whiteboard_editor/session.rs). |
+| Mermaid | [Model/SVG](../crates/op-core/src/mermaid.rs), [editor](../crates/op-app/src/mermaid_editor.rs), [preview job](../crates/op-app/src/mermaid_editor/preview.rs). |
 | Enveloppe et codecs typés | [document/envelope.rs](../crates/op-core/src/document/envelope.rs). |
 | Reprise des sessions | [platform/persistence.rs](../crates/op-app/src/platform/persistence.rs). |
 | Exécution des tâches | [platform/jobs.rs](../crates/op-app/src/platform/jobs.rs), [tâche Petri](../crates/op-app/src/petri_editor/analysis_job.rs), [worker](../crates/op-app/analysis-worker.js). |
@@ -202,7 +203,9 @@ Web Worker utilisant le même binaire Wasm. Les résultats sont acceptés seulem
 pour le même contenu sémantique, la même limite et la même langue. Un déplacement
 seul conserve le cache. La fermeture du document abandonne la tâche.
 
-L'annulation native est vérifiée pendant l'exploration et entre les phases ; une
-phase d'invariants déjà commencée peut finir en arrière-plan. Le worker web est
-terminé directement. Mining et l'évaluation conservent leur exécution actuelle :
-le pilote de tâches porte sur Petri, conformément au périmètre du plan.
+Native cancellation is checked during exploration and between phases; an
+invariant phase already running may finish in the background. The web worker
+is terminated directly. Mining and process evaluation keep their existing
+execution paths. The initial background-job pilot covered Petri; [Mermaid](mermaid.md)
+now reuses that transport for SVG generation and preview rasterization,
+explicitly dispatched in composition.

@@ -46,9 +46,14 @@ conservées dans `op-core/tests/fixtures/v1/`.
 - `model_version` décrit le contenu de cette notation.
 - `model` contient son modèle typé sérialisé, y compris sa présentation persistante.
 
-Les identifiants enregistrés sont `bpmn`, `petri`, `uml.class`, `uml.use-case` et
-`event-log`. Le module UML peut partager son implémentation pour les deux types.
+Les identifiants enregistrés sont `bpmn`, `petri`, `uml.class`, `uml.use-case`,
+`event-log` et `mermaid`. Le module UML peut partager son implémentation pour les deux types.
 Une fois écrits dans des fichiers, ces identifiants deviennent un contrat de compatibilité.
+
+The `mermaid` document type uses model version 1 with `name` and `source`.
+It preserves incomplete or invalid drafts without saving derived previews.
+Its addition changes neither the envelope nor historical models; see
+[the Mermaid editor](mermaid.md).
 
 Le codec encode et décode le modèle concret. Le shell manipule l'enveloppe et la
 session ; il n'extrait pas lui-même les champs métier. Une représentation JSON

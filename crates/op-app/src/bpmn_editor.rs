@@ -411,7 +411,7 @@ impl BpmnEditor {
                 view: &mut self.view,
                 canvas: self.last_canvas,
                 fit: &mut self.fit_request,
-                snap: &mut self.snap,
+                snap: Some(&mut self.snap),
                 inspector: &mut self.show_inspector,
                 issues: Some(&mut self.show_issues),
             },

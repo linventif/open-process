@@ -114,6 +114,16 @@ pub fn mining(p: &Painter, r: Rect, c: Color32) {
     g.line(&[(26.0, 17.0), (26.0, 23.0)]);
     g.circle(26.0, 27.0, 3.0, false);
 }
+pub fn mermaid(p: &Painter, r: Rect, c: Color32) {
+    let g = Glyph::new(p, r, c);
+    g.line(&[(8.0, 6.0), (2.0, 16.0), (8.0, 26.0)]);
+    g.line(&[(24.0, 6.0), (30.0, 16.0), (24.0, 26.0)]);
+    g.rect(12.0, 4.0, 8.0, 6.0, 1.0);
+    g.line(&[(16.0, 10.0), (16.0, 17.0), (11.0, 17.0), (11.0, 23.0)]);
+    g.line(&[(16.0, 17.0), (21.0, 17.0), (21.0, 23.0)]);
+    g.rect(8.0, 23.0, 6.0, 5.0, 1.0);
+    g.rect(18.0, 23.0, 6.0, 5.0, 1.0);
+}
 pub fn evaluation(p: &Painter, r: Rect, c: Color32) {
     let g = Glyph::new(p, r, c);
     g.circle(22.0, 10.0, 7.0, false);

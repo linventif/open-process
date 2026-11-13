@@ -18,6 +18,7 @@ pub mod examples;
 pub mod flow;
 pub mod geom;
 pub mod i18n;
+pub mod mermaid;
 pub mod mining;
 pub mod petri;
 pub mod pnml;

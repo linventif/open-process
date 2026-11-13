@@ -75,6 +75,7 @@ fn home_navigation() {
         ("Design an activity diagram", "uml.activity"),
         ("Design a database", "database.schema"),
         ("Sketch freely", "whiteboard"),
+        ("Create with Mermaid", "mermaid"),
     ] {
         h.get_by_label(label).scroll_to_me();
         h.run_steps(12);
@@ -123,6 +124,58 @@ fn home_navigation() {
     h.get_by_label("English").click();
     h.run_steps(4);
     assert!(h.query_by_label("Model a process").is_some());
+}
+
+#[test]
+fn mermaid_creator_opens_from_home_edits_templates_and_renders_at_responsive_widths() {
+    for width in [1400.0, 420.0, 280.0] {
+        let mut h = Harness::builder()
+            .with_size([width, 860.0])
+            .build_eframe(|cc| OpenProcessApp::new(cc, Vec::new(), crate::composition::registry()));
+        h.ctx.set_theme(egui::Theme::Light);
+        h.run_steps(4);
+        h.get_by_label("Create with Mermaid").scroll_to_me();
+        h.run_steps(12);
+        h.get_by_label("Create with Mermaid").click();
+        h.run_steps(5);
+        assert_eq!(h.state().docs.len(), 1);
+        assert_eq!(h.state().docs[0].editor.kind(), "mermaid");
+        let initial = h.state().docs[0].snapshot();
+        if width < 760.0 {
+            if width < 360.0 {
+                h.get_by_label("Options").click();
+                h.run_steps(3);
+            }
+            h.get_by_label("Inspector").click();
+            h.run_steps(4);
+            h.key_press(Key::Escape);
+            h.run_steps(3);
+        }
+        assert!(h.query_by_label("Mermaid code").is_some());
+        h.get_by_label("Templates").click();
+        h.run_steps(3);
+        h.get_by_label("Sequence diagram").click();
+        h.run_steps(4);
+        let expected = op_core::mermaid::TEMPLATES[1].source.as_bytes();
+        assert_eq!(h.state().docs[0].editor.export().unwrap().bytes, expected);
+        h.state_mut().docs[0].editor.execute(UNDO, 0.0);
+        h.run_steps(3);
+        assert_eq!(h.state().docs[0].snapshot(), initial);
+        h.state_mut().docs[0].editor.execute(REDO, 0.0);
+        h.run_steps(3);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while h.state().docs[0].editor.export_as("svg").is_err() {
+            assert!(std::time::Instant::now() < deadline, "Mermaid preview timed out");
+            std::thread::sleep(std::time::Duration::from_millis(5));
+            h.run_steps(3);
+        }
+        assert!(
+            String::from_utf8(h.state().docs[0].editor.export_as("svg").unwrap().bytes)
+                .unwrap()
+                .contains("Submit request")
+        );
+        shot(&mut h, &format!("mermaid_creator_{width}"));
+    }
 }
 
 #[test]

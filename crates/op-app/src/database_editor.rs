@@ -201,7 +201,7 @@ impl DatabaseEditor {
                     view: &mut self.state.camera,
                     canvas: self.state.canvas,
                     fit: &mut self.state.fit,
-                    snap: &mut self.state.snap,
+                    snap: Some(&mut self.state.snap),
                     inspector: &mut self.state.inspector,
                     issues: None,
                 },

@@ -22,7 +22,7 @@ pub struct CanvasControls<'a> {
     pub view: &'a mut View,
     pub canvas: Rect,
     pub fit: &'a mut bool,
-    pub snap: &'a mut bool,
+    pub snap: Option<&'a mut bool>,
     pub inspector: &'a mut Option<bool>,
     pub issues: Option<&'a mut bool>,
 }
@@ -186,7 +186,9 @@ impl DiagramLayout {
 }
 
 fn view_options(ui: &mut Ui, controls: &mut CanvasControls<'_>, extra_options: impl FnOnce(&mut Ui)) {
-    ui.checkbox(controls.snap, tr("canvas.snap_grid"));
+    if let Some(snap) = controls.snap.as_deref_mut() {
+        ui.checkbox(snap, tr("canvas.snap_grid"));
+    }
     if let Some(issues) = controls.issues.as_deref_mut() {
         ui.checkbox(issues, tr("editor.show_issues"));
     }

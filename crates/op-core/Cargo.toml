@@ -10,3 +10,4 @@ rust-version.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 quick-xml.workspace = true
+mermaid-svg = "0.7"

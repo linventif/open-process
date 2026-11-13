@@ -534,3 +534,45 @@ Les captures navigateur avant et après rechargement ont été inspectées.
 
 Les liens locaux ont été vérifiés. Les contrôles Windows/macOS et la matrice CI
 complète n’ont pas été exécutés pour cette évolution.
+
+## Mermaid editor and preview
+
+The `mermaid` document module adds source editing, five templates, background
+preview rendering and Mermaid/SVG exports through the notation registry.
+
+Eight new tests cover SVG rendering, header detection, Mermaid/log import
+separation, invalid drafts, `.opx` compatibility, history, independent views,
+stale jobs, error recovery and responsive creation at 1,400, 420 and 280 pixels.
+The native screenshots at 1,400 and 280 pixels were inspected.
+
+Checks executed:
+
+```sh
+cargo test --locked --offline --workspace -- --test-threads=1
+cargo test --locked --offline -p op-core mermaid
+cargo test --locked --offline -p op-app mermaid_editor -- --test-threads=1
+cargo check --locked --offline -p op-app
+cargo check --locked --offline -p op-app --target wasm32-unknown-unknown
+cargo fmt --all -- --check
+git diff --check
+cd website
+CARGO_NET_OFFLINE=true bun run build:app
+cd ../crates/op-app
+trunk build --release --locked --public-url / --dist /tmp/open-process-mermaid-root
+```
+
+The workspace suite passes: **61 application tests, 72 core tests and five document
+integration tests**. Native/Wasm checks, formatting and patch checks pass. The
+Mermaid-specific tests also pass after the final header-detection additions.
+
+The actual Trunk release builds were served locally under `/app/` and at `/`.
+Headless Firefox checks exercised the shared worker for flowchart, sequence,
+class, state, ER and Gantt inputs on both paths, checking SVG output, PNG
+signatures and syntax-error responses. The final `mermaid-svg` engine passes;
+the first engine candidate compiled but failed at runtime because it called
+`std::time::Instant` during layout. Gantt's today marker is disabled in derived
+rendering to avoid a system-clock call; source documents remain intact.
+
+Local documentation links passed. Windows/macOS and the complete CI matrix were
+not run for this extension; no website-content build or new Bun test run is
+claimed. See [the Mermaid guide](mermaid.md) for rendering limitations.
