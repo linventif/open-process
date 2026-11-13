@@ -1,8 +1,10 @@
 ---
 import { messages, type Language } from "../lib/messages";
+import { cloudApp } from "../lib/site";
 interface Props { lang: Language }
 const { lang } = Astro.props;
 const t = messages[lang];
+const appPath = new URL(cloudApp).pathname;
 const releaseCopy = {
   initial: t.releaseInitial, none: t.releaseNone, error: t.releaseError,
   available: t.releaseAvailable, download: t.download, viewReleases: t.viewReleases,
@@ -19,7 +21,7 @@ const releaseCopy = {
       </nav>
       <div class="header-actions">
         <a id="language-toggle" class="language-toggle" href={lang === "en" ? "/fr/" : "/"} hreflang={lang === "en" ? "fr" : "en"} lang={lang === "en" ? "fr" : "en"} aria-label={lang === "en" ? "Passer en français" : "Switch to English"}><span aria-hidden="true">◎</span><span>{lang === "en" ? "FR" : "EN"}</span></a>
-        <a class="button button-small button-dark" href="#download"><span>{t.getApp}</span><span aria-hidden="true">↗</span></a>
+        <a class="button button-small button-dark" href={appPath}><span>{t.getApp}</span><span aria-hidden="true">↗</span></a>
       </div>
     </div>
   </header>
@@ -31,7 +33,7 @@ const releaseCopy = {
         <div>
           <h1 id="hero-title"><span>{t.heroLine1}</span><br><span>{t.heroLine2}</span><span class="accent">.</span></h1>
           <p class="hero-description">{t.heroDescription}</p>
-          <div class="hero-actions"><a class="button button-dark" href="#download"><span>{t.downloadFree}</span><span aria-hidden="true">↓</span></a><a class="text-link" href="#explore"><span>{t.seeInside}</span><span aria-hidden="true">↘</span></a></div>
+          <div class="hero-actions"><a class="button button-dark" href={appPath}><span>{t.openWeb}</span><span aria-hidden="true">↗</span></a><a class="text-link" href="#download"><span>{t.download}</span><span aria-hidden="true">↓</span></a></div>
           <p class="platform-note">{t.platformNote}</p>
         </div>
         <aside class="process-note">
@@ -93,7 +95,7 @@ const releaseCopy = {
         <article class="download-card"><svg class="os-icon" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true"><path d="M21 2c.2 3-1.8 5.5-4.7 5.6C16 4.8 18.2 2.3 21 2M25.2 23.7c-.8 1.8-2.1 4.1-3.9 4.2-1.7.1-2.2-1-4.3-1-2.2 0-2.8 1-4.4 1C9.1 27.8 5.7 20.1 6.5 15.5c.6-3.5 3-5.8 5.9-5.9 1.8 0 3 1.1 4.5 1.1 1.4 0 2.7-1.1 4.6-1.1 2.1.1 3.8 1 4.8 2.4-4.1 2.4-3.6 7.5.4 9.1-.3.9-.8 1.8-1.5 2.6"/></svg><h3>macOS</h3><label class="sr-only" for="mac-architecture">{t.macArchitecture}</label><select id="mac-architecture" class="os-select"><option value="mac-arm">{t.macArm}</option><option value="mac-intel">Intel · 64-bit</option></select><p class="download-note">{t.macNote}</p><a class="button button-outline download-link" data-platform="mac" href="https://github.com/linventif/open-process/releases"><span data-download-label>{t.viewReleases}</span><span aria-hidden="true">↗</span></a></article>
         <article class="download-card"><svg class="os-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M11 12V8a5 5 0 0 1 10 0v4c0 3 5 7 5 11 0 3-4 5-10 5S6 26 6 23c0-4 5-8 5-11Z"/><path d="m12 27-6 2-3-3 5-5m12 6 6 2 3-3-5-5m-11-15v3m6-3v3m-6 3 3 2 3-2"/></svg><h3>Linux</h3><p class="os-detail">Intel / AMD · x86_64</p><p class="download-note">{t.linuxNote}</p><a class="button button-outline download-link" data-platform="linux" href="https://github.com/linventif/open-process/releases"><span data-download-label>{t.viewReleases}</span><span aria-hidden="true">↗</span></a></article>
       </div>
-      <div class="browser-callout"><div class="browser-icon" aria-hidden="true">◎</div><div><h3>{t.browserTitle}</h3><p>{t.browserBody}</p></div><a class="text-link" href="/app/"><span>{t.browserLink}</span><span aria-hidden="true">↗</span></a></div>
+      <div class="browser-callout"><div class="browser-icon" aria-hidden="true">◎</div><div><h3>{t.browserTitle}</h3><p>{t.browserBody}</p></div><a class="text-link" href={appPath}><span>{t.browserLink}</span><span aria-hidden="true">↗</span></a></div>
     </section>
 
     <section class="open-source container" aria-labelledby="source-title"><div><p class="eyebrow">{t.sourceEyebrow}</p><h2 id="source-title">{t.sourceTitle}</h2><p>{t.sourceBody}</p><div class="source-links"><a class="text-link" href="https://github.com/linventif/open-process"><span>{t.sourceLink}</span><span aria-hidden="true">↗</span></a><a class="text-link muted" href="https://github.com/linventif/open-process/issues"><span>{t.issueLink}</span><span aria-hidden="true">↗</span></a></div></div><div class="terminal"><div class="terminal-heading"><span class="terminal-dot" aria-hidden="true"></span><span>{t.terminalTitle}</span></div><pre><code><span class="code-comment"># <span>{t.terminalComment}</span></span>
