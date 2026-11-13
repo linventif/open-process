@@ -95,6 +95,7 @@ mod tests {
         ("bpmn.rs", include_str!("../../op-core/src/bpmn.rs")),
         ("convert.rs", include_str!("../../op-core/src/convert.rs")),
         ("examples.rs", include_str!("../../op-core/src/examples.rs")),
+        ("evaluation.rs", include_str!("../../op-core/src/evaluation.rs")),
         ("mining.rs", include_str!("../../op-core/src/mining.rs")),
         ("petri.rs", include_str!("../../op-core/src/petri.rs")),
         ("style.rs", include_str!("../../op-core/src/style.rs")),

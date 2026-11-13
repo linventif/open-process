@@ -5,6 +5,62 @@ use crate::geom::Pos;
 use crate::i18n::tr;
 use crate::petri::{NodeRef, PetriNet};
 
+/// Process P from the process-evaluation exercise: A1; AND(A2; XOR(A5,A6), A3; A4, A7); A8.
+pub fn evaluation_process() -> BpmnDiagram {
+    let mut d = BpmnDiagram::new(tr("Process P – evaluation"));
+    let positions = [
+        (160.0, 180.0),
+        (400.0, 100.0),
+        (400.0, 240.0),
+        (560.0, 240.0),
+        (660.0, 40.0),
+        (660.0, 140.0),
+        (560.0, 360.0),
+        (1000.0, 180.0),
+    ];
+    let a: Vec<_> = positions
+        .iter()
+        .enumerate()
+        .map(|(i, &(x, y))| {
+            let id = d.add_node(NodeKind::Task(TaskType::Abstract), Pos::new(x, y));
+            d.node_mut(id).unwrap().name = format!("A{}", i + 1);
+            id
+        })
+        .collect();
+    let start = d.add_node(NodeKind::StartEvent(EventTrigger::None), Pos::new(50.0, 180.0));
+    let split = d.add_node(NodeKind::Gateway(GatewayType::Parallel), Pos::new(280.0, 180.0));
+    let choice = d.add_node(NodeKind::Gateway(GatewayType::Exclusive), Pos::new(520.0, 100.0));
+    let merge = d.add_node(NodeKind::Gateway(GatewayType::Exclusive), Pos::new(790.0, 100.0));
+    let join = d.add_node(NodeKind::Gateway(GatewayType::Parallel), Pos::new(880.0, 180.0));
+    let end = d.add_node(NodeKind::EndEvent(EventTrigger::None), Pos::new(1120.0, 180.0));
+    for (from, to) in [
+        (start, a[0]),
+        (a[0], split),
+        (split, a[1]),
+        (split, a[2]),
+        (split, a[6]),
+        (a[1], choice),
+        (choice, a[4]),
+        (choice, a[5]),
+        (a[4], merge),
+        (a[5], merge),
+        (merge, join),
+        (a[2], a[3]),
+        (a[3], join),
+        (a[6], join),
+        (join, a[7]),
+        (a[7], end),
+    ] {
+        d.add_flow(from, to).unwrap();
+    }
+    for flow in &mut d.flows {
+        if flow.from == choice {
+            flow.name = "1/2".into();
+        }
+    }
+    d
+}
+
 /// Order handling process with a pool, two lanes, XOR and AND gateways.
 pub fn order_process() -> BpmnDiagram {
     let mut d = BpmnDiagram::new(tr("Order handling"));

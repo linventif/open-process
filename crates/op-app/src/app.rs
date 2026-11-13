@@ -588,6 +588,10 @@ impl OpenProcessApp {
                 }
                 ui.separator();
                 ui.menu_button(tr("Examples"), |ui| {
+                    if ui.button(tr("BPMN – Process P evaluation")).clicked() {
+                        self.open_model(Model::Bpmn(examples::evaluation_process()), None, false);
+                        ui.close();
+                    }
                     if ui.button(tr("BPMN – Order handling")).clicked() {
                         self.open_model(Model::Bpmn(examples::order_process()), None, false);
                     }
@@ -1252,6 +1256,27 @@ mod tests {
             Ok(img) => img.save(dir.join(format!("{name}.png"))).unwrap(),
             Err(e) => eprintln!("rendering unavailable: {e}"),
         }
+    }
+
+    #[test]
+    fn bpmn_evaluation_ui() {
+        let mut h = harness(false);
+        h.state_mut().open_model(Model::Bpmn(examples::evaluation_process()), None, false);
+        h.run_steps(4);
+        h.get_by_label("Evaluation").click();
+        h.run_steps(4);
+        assert!(h.query_by_label("Process evaluation").is_some());
+        assert!(h.query_by_label("Cost CAi").is_some());
+        assert!(h.query_by_label("Duration TAi").is_some());
+        assert!(
+            h.get_by_label("A2").rect().top() > h.get_by_label("A1").rect().bottom(),
+            "one activity per table row"
+        );
+        assert!(
+            h.get_by_label("Process evaluation").rect().left() > 900.0,
+            "the inspector leaves room for the diagram"
+        );
+        shot(&mut h, "bpmn_evaluation");
     }
 
     #[test]

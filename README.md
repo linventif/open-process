@@ -26,6 +26,15 @@ Written in Rust with [egui](https://github.com/emilk/egui): a single code base t
 - Live model validation (missing start/end, dangling elements, implicit splits/joins, unlabeled XOR branches…)
 - **Import / export BPMN 2.0 XML with diagram interchange** (Bizagi, Camunda, bpmn.io, Signavio, Visual Paradigm…)
 - **Convert to a Petri net** (workflow net) to check soundness
+- **Process evaluation**: enter each activity's cost CAi and duration TAi in the inspector's
+  **Evaluation** tab. See possible traces, their cost equations and values, and the mean
+  execution-time equation for equiprobable XOR choices with no waiting. Sequences add
+  durations; parallel AND branches use their maximum. Choices inside parallel branches
+  are expanded before averaging. Includes the course's **Process P** under Examples.
+  Supports acyclic, structured XOR/AND diagrams (sub-processes are atomic activities).
+  Costs and durations default to zero and are saved in `.opx` and BPMN XML extensions.
+  At most 256 choice scenarios are evaluated; trace display is limited to 512 words,
+  with an explicit notice when shortened, while the calculated values remain exact.
 
 ### Petri net editor & analysis
 - Places, transitions, weighted arcs, inhibitor arcs, place capacities, silent (τ) transitions
@@ -95,6 +104,7 @@ crates/
     pnml.rs       PNML import/export
     convert.rs    BPMN ↔ Petri net translations
     mining.rs     event logs, relation matrix, Alpha algorithm, trace replay
+    evaluation.rs traces, activity costs and expected process execution time
   op-app/    egui/eframe application (desktop + web)
 ```
 
@@ -108,7 +118,7 @@ Run the tests with `cargo test --workspace`.
 - [ ] Siphons & traps, home markings, coverability-based liveness hints
 - [ ] Coloured / timed / stochastic Petri nets
 - [ ] More process mining: directly-follows graph with frequencies, Alpha+ (short loops), inductive / heuristic miner, conformance metrics (fitness, precision)
-- [ ] Process evaluation: enumerate the traces of a BPMN model, cost and duration formulas
+- [x] Process evaluation: enumerate the traces of an acyclic structured BPMN model, cost and duration formulas
 - [ ] BPMN simulation (token flow, resources, durations) and KPIs
 - [ ] DMN decision tables, EPC, UML activity diagrams
 

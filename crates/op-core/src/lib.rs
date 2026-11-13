@@ -9,6 +9,7 @@ pub mod bpmn;
 pub mod bpmn_xml;
 pub mod convert;
 pub mod document;
+pub mod evaluation;
 pub mod examples;
 pub mod geom;
 pub mod i18n;

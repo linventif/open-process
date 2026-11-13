@@ -4,6 +4,78 @@
 //! line breaks of the English text; the tests check both.
 
 pub const TABLE: &[(&str, &str)] = &[
+    ("Evaluation", "Évaluation"),
+    ("Process evaluation", "Évaluation du processus"),
+    ("Process P – evaluation", "Processus P – évaluation"),
+    ("BPMN – Process P evaluation", "BPMN – Évaluation du processus P"),
+    (
+        "Equiprobable choices, no waiting between activities. Use the same time and cost units throughout.",
+        "Choix équiprobables, sans attente entre les activités. Utilisez des unités de temps et de coût cohérentes.",
+    ),
+    (
+        "Values default to zero. Sub-processes are treated as single activities.",
+        "Les valeurs sont initialisées à zéro. Les sous-processus sont traités comme des activités uniques.",
+    ),
+    ("Activity values", "Valeurs des activités"),
+    ("Activity", "Activité"),
+    ("Cost CAi", "Coût CAi"),
+    ("Duration TAi", "Durée TAi"),
+    ("Equations", "Équations"),
+    (
+        "ni(σ) counts the occurrences of activity Ai in trace σ.",
+        "ni(σ) compte les occurrences de l'activité Ai dans la trace σ.",
+    ),
+    ("Sequence: T = T1 + … + Tk", "Séquence : T = T1 + … + Tk"),
+    ("Parallel (AND): T = max(T1, …, Tk)", "Parallèle (AND) : T = max(T1, …, Tk)"),
+    ("Choice (XOR): E[T] = (T1 + … + Tk) / k", "Choix (XOR) : E[T] = (T1 + … + Tk) / k"),
+    (
+        "For choices inside parallel branches, compute each scenario's maximum before averaging.",
+        "Pour les choix dans des branches parallèles, calculez le maximum de chaque scénario avant de faire la moyenne.",
+    ),
+    ("Mean execution time", "Temps moyen d'exécution"),
+    ("Traces and costs", "Traces et coûts"),
+    (
+        "A scenario fixes the XOR choices. All its parallel interleavings have the same cost and elapsed time; their count does not change its probability.",
+        "Un scénario fixe les choix XOR. Tous ses entrelacements parallèles ont le même coût et la même durée ; leur nombre ne change pas sa probabilité.",
+    ),
+    ("Scenario {} · probability 1/{}", "Scénario {} · probabilité 1/{}"),
+    (
+        "Trace display limit reached; cost and time calculations remain exact.",
+        "Limite d'affichage des traces atteinte ; les calculs de coût et de temps restent exacts.",
+    ),
+    ("Copy equations and traces", "Copier les équations et les traces"),
+    (
+        "Evaluation requires an acyclic process with structured XOR/AND gateways and one start event.",
+        "L'évaluation nécessite un processus sans boucle, avec des passerelles XOR/AND structurées et un seul événement de début.",
+    ),
+    (
+        "Evaluation supports 1 to 256 flow nodes.",
+        "L'évaluation accepte de 1 à 256 éléments de flux.",
+    ),
+    (
+        "Evaluation supports XOR and AND gateways; OR, event-based and complex gateways need additional semantics.",
+        "L'évaluation accepte les passerelles XOR et AND ; les passerelles OR, événementielles et complexes nécessitent des règles supplémentaires.",
+    ),
+    (
+        "Evaluation assumes zero-duration events without timers or special termination semantics.",
+        "L'évaluation suppose des événements de durée nulle, sans temporisation ni terminaison particulière.",
+    ),
+    (
+        "The branches must have matching, properly nested XOR/AND joins.",
+        "Les branches doivent avoir des jonctions XOR/AND correspondantes et correctement imbriquées.",
+    ),
+    (
+        "Evaluation exceeds the limit of 256 choice scenarios; simplify the process.",
+        "L'évaluation dépasse la limite de 256 scénarios de choix ; simplifiez le processus.",
+    ),
+    (
+        "Activity costs and durations must be finite, non-negative numbers.",
+        "Les coûts et durées des activités doivent être des nombres finis et positifs ou nuls.",
+    ),
+    (
+        "The calculated cost or duration exceeds the numeric range.",
+        "Le coût ou la durée calculée dépasse la plage numérique.",
+    ),
     // ---- Application: menus, dialogs, messages
     ("'{}' has unsaved changes.", "« {} » contient des modifications non enregistrées."),
     ("About Open Process", "À propos d'Open Process"),

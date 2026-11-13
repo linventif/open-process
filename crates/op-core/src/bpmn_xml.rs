@@ -12,6 +12,7 @@ const NS: &[(&str, &str)] = &[
     ("xmlns:bpmndi", "http://www.omg.org/spec/BPMN/20100524/DI"),
     ("xmlns:dc", "http://www.omg.org/spec/DD/20100524/DC"),
     ("xmlns:di", "http://www.omg.org/spec/DD/20100524/DI"),
+    ("xmlns:op", "https://open-process.app/schema/evaluation"),
 ];
 
 fn node_xml_id(n: &Node) -> String {
@@ -155,13 +156,26 @@ pub fn export(d: &BpmnDiagram) -> String {
             let incoming: Vec<&Flow> = d.incoming(n.id).collect();
             let outgoing: Vec<&Flow> = d.outgoing(n.id).collect();
             let def = trigger.and_then(|t| t.xml_definition());
-            if incoming.is_empty() && outgoing.is_empty() && def.is_none() && n.documentation.is_empty() {
+            if incoming.is_empty()
+                && outgoing.is_empty()
+                && def.is_none()
+                && n.documentation.is_empty()
+                && !matches!(n.kind, NodeKind::Task(_) | NodeKind::SubProcess)
+            {
                 w.empty(&tag, &a);
                 continue;
             }
             w.open(&tag, &a);
             if !n.documentation.is_empty() {
                 w.text_element("bpmn:documentation", &[], &n.documentation);
+            }
+            if matches!(n.kind, NodeKind::Task(_) | NodeKind::SubProcess) {
+                w.open("bpmn:extensionElements", &[]);
+                w.empty(
+                    "op:activityMetrics",
+                    &[("cost", n.cost.to_string()), ("duration", n.duration.to_string())],
+                );
+                w.close("bpmn:extensionElements");
             }
             for fl in incoming {
                 w.text_element("bpmn:incoming", &[], &flow_id(fl));
@@ -456,6 +470,17 @@ pub fn import(src: &str) -> Result<BpmnDiagram, String> {
                 e.attr("name").unwrap_or("").to_string()
             };
             n.documentation = e.text_at(&["documentation"]).unwrap_or("").to_string();
+            if let Some(metrics) = e.child("extensionElements").and_then(|e| e.child("activityMetrics")) {
+                for (name, target) in [("cost", &mut n.cost), ("duration", &mut n.duration)] {
+                    if let Some(raw) = metrics.attr(name) {
+                        let value: f64 = raw.parse().map_err(|_| format!("Invalid activity {name}: {raw}"))?;
+                        if !value.is_finite() || value < 0.0 {
+                            return Err(format!("Invalid activity {name}: {raw}"));
+                        }
+                        *target = value;
+                    }
+                }
+            }
             if let Some((w, h)) = size {
                 n.w = w;
                 n.h = h;

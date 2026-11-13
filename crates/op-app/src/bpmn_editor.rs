@@ -45,6 +45,7 @@ enum Drag {
 enum SideTab {
     Properties,
     Validation,
+    Evaluation,
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -1287,17 +1288,19 @@ impl BpmnEditor {
     fn side_panel(&mut self, ui: &mut Ui) {
         ui.add_space(4.0);
         let n_issues = self.diagram.validate().len();
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             let vlabel = if n_issues == 0 {
                 tr("Validation ✔").to_string()
             } else {
                 trf("Validation ({})", &[&n_issues])
             };
-            crate::theme::segmented(
-                ui,
-                &mut self.tab,
-                &[(SideTab::Properties, tr("Properties")), (SideTab::Validation, vlabel.as_str())],
-            );
+            for (tab, label) in [
+                (SideTab::Properties, tr("Properties")),
+                (SideTab::Validation, vlabel.as_str()),
+                (SideTab::Evaluation, tr("Evaluation")),
+            ] {
+                ui.selectable_value(&mut self.tab, tab, label);
+            }
         });
         ui.separator();
         egui::ScrollArea::vertical()
@@ -1305,7 +1308,106 @@ impl BpmnEditor {
             .show(ui, |ui| match self.tab {
                 SideTab::Properties => self.properties(ui),
                 SideTab::Validation => self.validation(ui),
+                SideTab::Evaluation => self.evaluation(ui),
             });
+    }
+
+    fn evaluation(&mut self, ui: &mut Ui) {
+        use op_core::evaluation;
+        ui.heading(tr("Process evaluation"));
+        ui.label(tr(
+            "Equiprobable choices, no waiting between activities. Use the same time and cost units throughout.",
+        ));
+        ui.label(tr("Values default to zero. Sub-processes are treated as single activities."));
+        let activities: Vec<_> = evaluation::activities(&self.diagram).collect();
+        crate::theme::section_title(ui, tr("Activity values"));
+        egui::Grid::new("activity_metrics").num_columns(3).striped(true).show(ui, |ui| {
+            ui.strong(tr("Activity"));
+            ui.strong(tr("Cost CAi"));
+            ui.strong(tr("Duration TAi"));
+            ui.end_row();
+            for (id, symbol) in &activities {
+                let n = self.diagram.node_mut(*id).unwrap();
+                ui.label(symbol).on_hover_text(&n.name);
+                ui.add(egui::DragValue::new(&mut n.cost).range(0.0..=f64::MAX).speed(0.1));
+                ui.add(egui::DragValue::new(&mut n.duration).range(0.0..=f64::MAX).speed(0.1));
+                ui.end_row();
+            }
+        });
+        for (id, symbol) in &activities {
+            let n = self.diagram.node(*id).unwrap();
+            if n.name == *symbol {
+                continue;
+            }
+            ui.small(format!(
+                "{symbol} = {}",
+                if n.name.is_empty() { n.kind.label() } else { n.name.clone() }
+            ));
+        }
+        crate::theme::section_title(ui, tr("Equations"));
+        ui.label("C(σ) = Σi ni(σ) × CAi");
+        ui.small(tr("ni(σ) counts the occurrences of activity Ai in trace σ."));
+        ui.label(tr("Sequence: T = T1 + … + Tk"));
+        ui.label(tr("Parallel (AND): T = max(T1, …, Tk)"));
+        ui.label(tr("Choice (XOR): E[T] = (T1 + … + Tk) / k"));
+        ui.small(tr(
+            "For choices inside parallel branches, compute each scenario's maximum before averaging.",
+        ));
+        let report = match evaluation::evaluate(&self.diagram) {
+            Ok(r) => r,
+            Err(message) => {
+                ui.colored_label(Palette::for_ui(ui).bad, message);
+                return;
+            }
+        };
+        crate::theme::section_title(ui, tr("Mean execution time"));
+        ui.add(egui::Label::new(&report.duration_formula).wrap().selectable(true));
+        ui.strong(format!("T(P) = {}", report.mean_duration));
+        let symbols: std::collections::HashMap<_, _> = activities.into_iter().collect();
+        let mut writeup = format!("{}\nT(P) = {}\n", report.duration_formula, report.mean_duration);
+        crate::theme::section_title(ui, tr("Traces and costs"));
+        ui.small(tr("A scenario fixes the XOR choices. All its parallel interleavings have the same cost and elapsed time; their count does not change its probability."));
+        for (i, s) in report.scenarios.iter().enumerate() {
+            let title = trf("Scenario {} · probability 1/{}", &[&(i + 1), &s.denominator]);
+            let cost = format!("C(σ) = {} = {}", s.cost_formula, s.cost);
+            let duration = format!("T = {} = {}", s.duration_formula, s.duration);
+            writeup.push_str(&format!("\n{title}\n{cost}\n{duration}\n"));
+            let traces: Vec<_> = s
+                .traces
+                .iter()
+                .map(|t| {
+                    if t.is_empty() {
+                        "ε".into()
+                    } else {
+                        t.iter().map(|id| symbols[id].as_str()).collect::<Vec<_>>().join(" → ")
+                    }
+                })
+                .collect();
+            for trace in &traces {
+                writeup.push_str(trace);
+                writeup.push('\n');
+            }
+            if s.traces_truncated {
+                writeup.push_str(tr("Trace display limit reached; cost and time calculations remain exact."));
+                writeup.push('\n');
+            }
+            egui::CollapsingHeader::new(title)
+                .id_salt(("scenario", i))
+                .default_open(report.scenarios.len() <= 4)
+                .show(ui, |ui| {
+                    ui.add(egui::Label::new(cost).wrap().selectable(true));
+                    ui.add(egui::Label::new(duration).wrap().selectable(true));
+                    for trace in &traces {
+                        ui.add(egui::Label::new(trace).wrap().selectable(true));
+                    }
+                    if s.traces_truncated {
+                        ui.label(tr("Trace display limit reached; cost and time calculations remain exact."));
+                    }
+                });
+        }
+        if ui.button(tr("Copy equations and traces")).clicked() {
+            ui.ctx().copy_text(writeup);
+        }
     }
 
     fn group_panel(&mut self, ui: &mut Ui) {
@@ -1484,6 +1586,14 @@ impl BpmnEditor {
                     if let Some(l) = &lane {
                         ui.label(tr("Lane"));
                         ui.label(l);
+                        ui.end_row();
+                    }
+                    if matches!(n.kind, NodeKind::Task(_) | NodeKind::SubProcess) {
+                        ui.label(tr("Cost CAi"));
+                        ui.add(egui::DragValue::new(&mut n.cost).range(0.0..=f64::MAX).speed(0.1));
+                        ui.end_row();
+                        ui.label(tr("Duration TAi"));
+                        ui.add(egui::DragValue::new(&mut n.duration).range(0.0..=f64::MAX).speed(0.1));
                         ui.end_row();
                     }
                 });

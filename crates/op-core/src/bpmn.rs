@@ -227,6 +227,11 @@ pub struct Node {
     /// Free text documentation.
     #[serde(default)]
     pub documentation: String,
+    /// Processing cost and execution duration (in user-chosen, consistent units).
+    #[serde(default)]
+    pub cost: f64,
+    #[serde(default)]
+    pub duration: f64,
 }
 
 impl Node {
@@ -355,6 +360,8 @@ impl BpmnDiagram {
             w,
             h,
             documentation: String::new(),
+            cost: 0.0,
+            duration: 0.0,
         });
         id
     }
