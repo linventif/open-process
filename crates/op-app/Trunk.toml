@@ -1,0 +1,4 @@
+[build]
+target = "index.html"
+dist = "../../dist"
+# For GitHub Pages under /<repo>/, build with: trunk build --release --public-url /<repo>/
