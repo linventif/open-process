@@ -220,6 +220,7 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
     registry.diagrams.extend([DiagramDescriptor {
         id: "petri",
         home_order: 1,
+        icon: crate::icons::petri,
         aliases: &[],
         new_label: key("New Petri net"),
         title: key("Simulate and analyze"),

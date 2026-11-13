@@ -905,19 +905,7 @@ fn paint_trigger(painter: &Painter, c: Pos2, s: f32, t: EventTrigger, color: Col
 fn paint_tool_icon(p: &Painter, r: Rect, c: Color32, tool: Tool) {
     let pal = Palette::new(false);
     match tool {
-        Tool::Select => {
-            let ctr = r.center();
-            let pts = vec![
-                ctr + vec2(-6.0, -10.0),
-                ctr + vec2(7.0, 2.0),
-                ctr + vec2(1.0, 3.0),
-                ctr + vec2(4.0, 10.0),
-                ctr + vec2(1.0, 11.0),
-                ctr + vec2(-2.0, 4.0),
-                ctr + vec2(-6.0, 8.0),
-            ];
-            p.add(Shape::closed_line(pts, Stroke::new(1.6, c)));
-        }
+        Tool::Select => crate::icons::select(p, r, c),
         Tool::Connect => {
             let a = r.left_bottom() + vec2(1.0, -1.0);
             let b = r.right_top() + vec2(-1.0, 1.0);

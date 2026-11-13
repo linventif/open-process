@@ -239,12 +239,7 @@ impl UmlEditor {
                                 let response = canvas::icon_button(ui, self.tool == *tool, label, |p, r, color| {
                                     let stroke = Stroke::new(1.4, color);
                                     match tool {
-                                        Tool::Select => {
-                                            p.add(Shape::closed_line(
-                                                vec![r.left_top(), r.center_bottom(), r.center(), r.right_center()],
-                                                stroke,
-                                            ));
-                                        }
+                                        Tool::Select => crate::icons::select(p, r, color),
                                         Tool::Connect => {
                                             p.line_segment([r.left_bottom(), r.right_top()], stroke);
                                             canvas::arrow_head(p, r.right_top(), vec2(1.0, -1.0), 7.0, color, false);

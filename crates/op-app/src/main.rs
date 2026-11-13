@@ -15,6 +15,7 @@ mod editor;
 mod history;
 mod home;
 mod i18n;
+mod icons;
 mod io;
 mod mining_editor;
 mod petri_editor;

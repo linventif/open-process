@@ -10,6 +10,7 @@ pub struct DiagramDescriptor {
     pub description: &'static str,
     pub badge: &'static str,
     pub color: egui::Color32,
+    pub icon: crate::icons::Icon,
     pub create: fn(usize) -> Document,
     pub open: fn(&Document) -> Result<Box<dyn EditorSession>, ReadError>,
 }
@@ -26,6 +27,7 @@ pub struct WorkflowDescriptor {
     pub description: &'static str,
     pub badge: &'static str,
     pub color: egui::Color32,
+    pub icon: crate::icons::Icon,
     pub example: &'static str,
     pub command: Option<&'static str>,
 }
@@ -176,6 +178,7 @@ mod tests {
             description: "Decision table",
             badge: "TEST",
             color: egui::Color32::GRAY,
+            icon: crate::icons::decision_table,
             create: |_| JsonCodec::new("test.decision-table").encode(&vec![vec!["true".to_string(), "approve".to_string()]]),
             open: |d| Ok(Session::boxed(Table(JsonCodec::new("test.decision-table").decode(d)?))),
         }

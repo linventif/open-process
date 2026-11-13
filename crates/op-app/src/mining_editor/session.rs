@@ -89,6 +89,7 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
     registry.diagrams.extend([DiagramDescriptor {
         id: "event-log",
         home_order: 2,
+        icon: crate::icons::mining,
         aliases: &["log"],
         new_label: key("New event log (process discovery)"),
         title: key("Discover a process"),

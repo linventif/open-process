@@ -191,6 +191,7 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
     registry.diagrams.extend([DiagramDescriptor {
         id: "bpmn",
         home_order: 0,
+        icon: crate::icons::bpmn,
         aliases: &[],
         new_label: key("New BPMN diagram"),
         title: key("Model a process"),
@@ -219,6 +220,7 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
     }]);
     registry.workflows.push(WorkflowDescriptor {
         home_order: 3,
+        icon: crate::icons::evaluation,
         title: key("Evaluate costs and durations"),
         description: key("Explore Process P to calculate traces, activity costs and mean execution time."),
         badge: "BPMN · CA / TA",

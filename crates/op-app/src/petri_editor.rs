@@ -1035,18 +1035,7 @@ fn paint_tool_icon(p: &Painter, r: Rect, c: Color32, tool: Tool, boxed: bool) {
     let s = Stroke::new(1.6, c);
     let ctr = r.center();
     match tool {
-        Tool::Select => {
-            let pts = vec![
-                ctr + vec2(-6.0, -10.0),
-                ctr + vec2(7.0, 2.0),
-                ctr + vec2(1.0, 3.0),
-                ctr + vec2(4.0, 10.0),
-                ctr + vec2(1.0, 11.0),
-                ctr + vec2(-2.0, 4.0),
-                ctr + vec2(-6.0, 8.0),
-            ];
-            p.add(egui::Shape::closed_line(pts, s));
-        }
+        Tool::Select => crate::icons::select(p, r, c),
         Tool::Place => {
             p.circle_stroke(ctr, 10.0, s);
         }

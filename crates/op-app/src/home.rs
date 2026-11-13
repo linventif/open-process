@@ -26,6 +26,7 @@ struct Process {
     description: &'static str,
     badge: &'static str,
     color: Color32,
+    icon: crate::icons::Icon,
     action: Action,
 }
 
@@ -39,6 +40,7 @@ pub fn show(ui: &mut Ui, docs: &[Document], registry: &crate::editor::DiagramReg
             description: d.description,
             badge: d.badge,
             color: d.color,
+            icon: d.icon,
             action: Action::New(d.id),
         })
         .collect();
@@ -48,6 +50,7 @@ pub fn show(ui: &mut Ui, docs: &[Document], registry: &crate::editor::DiagramReg
         description: w.description,
         badge: w.badge,
         color: w.color,
+        icon: w.icon,
         action: Action::Example(w.example, w.command),
     }));
     processes.sort_by_key(|p| p.order);
@@ -98,7 +101,7 @@ pub fn show(ui: &mut Ui, docs: &[Document], registry: &crate::editor::DiagramReg
                     .spacing(vec2(gap, gap))
                     .show(ui, |ui| {
                         for (i, process) in processes.iter().enumerate() {
-                            if process_card(ui, process, card_width, i) {
+                            if process_card(ui, process, card_width) {
                                 action = Some(process.action);
                             }
                             if (i + 1) % columns == 0 {
@@ -144,7 +147,7 @@ pub fn show(ui: &mut Ui, docs: &[Document], registry: &crate::editor::DiagramReg
     action
 }
 
-fn process_card(ui: &mut Ui, process: &Process, width: f32, index: usize) -> bool {
+fn process_card(ui: &mut Ui, process: &Process, width: f32) -> bool {
     let (rect, response) = ui.allocate_exact_size(vec2(width, 222.0), Sense::click());
     let response = response.on_hover_cursor(egui::CursorIcon::PointingHand);
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tr(process.title)));
@@ -168,7 +171,7 @@ fn process_card(ui: &mut Ui, process: &Process, width: f32, index: usize) -> boo
             9.0,
             process.color.gamma_multiply(if ui.visuals().dark_mode { 0.22 } else { 0.1 }),
         );
-        paint_icon(&p, icon, process.color, index);
+        (process.icon)(&p, icon.shrink(4.0), process.color);
         p.text(
             pos2(icon.right() + 10.0, icon.center().y),
             egui::Align2::LEFT_CENTER,
@@ -213,58 +216,4 @@ fn process_card(ui: &mut Ui, process: &Process, width: f32, index: usize) -> boo
         );
     }
     response.clicked()
-}
-
-fn paint_icon(p: &egui::Painter, r: Rect, color: Color32, index: usize) {
-    let c = r.center();
-    let stroke = Stroke::new(1.6, color);
-    match index {
-        0 => {
-            p.line_segment([c - vec2(14.0, 0.0), c + vec2(14.0, 0.0)], stroke);
-            p.rect_filled(Rect::from_center_size(c, vec2(16.0, 12.0)), 3.0, color);
-            p.circle_stroke(c - vec2(14.0, 0.0), 3.0, stroke);
-            p.circle_stroke(c + vec2(14.0, 0.0), 3.0, stroke);
-        }
-        1 => {
-            p.line_segment([c - vec2(10.0, 0.0), c + vec2(10.0, 0.0)], stroke);
-            p.circle_stroke(c - vec2(11.0, 0.0), 5.0, stroke);
-            p.circle_filled(c - vec2(11.0, 0.0), 1.8, color);
-            p.rect_filled(Rect::from_center_size(c, vec2(3.0, 16.0)), 0.0, color);
-            p.circle_stroke(c + vec2(11.0, 0.0), 5.0, stroke);
-        }
-        2 => {
-            for i in 0..3 {
-                let y = c.y - 9.0 + i as f32 * 9.0;
-                p.circle_filled(pos2(c.x - 11.0, y), 2.0, color);
-                p.line_segment([pos2(c.x - 4.0, y), pos2(c.x + 12.0 - i as f32 * 3.0, y)], stroke);
-            }
-        }
-        3 => {
-            for (i, height) in [10.0, 23.0, 17.0].into_iter().enumerate() {
-                p.rect_filled(
-                    Rect::from_min_size(c + vec2(-13.0 + i as f32 * 10.0, 12.0 - height), vec2(6.0, height)),
-                    2.0,
-                    color,
-                );
-            }
-        }
-        4 => {
-            let class = Rect::from_center_size(c, vec2(26.0, 26.0));
-            p.rect_stroke(class, 3.0, stroke, StrokeKind::Inside);
-            for y in [-4.0, 4.0] {
-                p.line_segment([pos2(class.left(), c.y + y), pos2(class.right(), c.y + y)], stroke);
-            }
-        }
-        _ => {
-            let actor = c - vec2(10.0, 0.0);
-            p.circle_stroke(actor - vec2(0.0, 9.0), 3.0, stroke);
-            p.line_segment([actor - vec2(0.0, 6.0), actor + vec2(0.0, 4.0)], stroke);
-            p.line_segment([actor - vec2(5.0, 2.0), actor + vec2(5.0, -2.0)], stroke);
-            for x in [-4.0, 4.0] {
-                p.line_segment([actor + vec2(0.0, 4.0), actor + vec2(x, 11.0)], stroke);
-            }
-            p.line_segment([actor + vec2(5.0, 0.0), c + vec2(5.0, 0.0)], stroke);
-            p.add(egui::epaint::EllipseShape::stroke(c + vec2(11.0, 0.0), vec2(7.0, 5.0), stroke));
-        }
-    }
 }

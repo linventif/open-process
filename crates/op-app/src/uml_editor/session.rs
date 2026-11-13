@@ -156,6 +156,7 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
         DiagramDescriptor {
             id: "uml.class",
             home_order: 4,
+            icon: crate::icons::class,
             aliases: &["class"],
             new_label: key("New class diagram"),
             title: key("Design a class diagram"),
@@ -168,6 +169,7 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
         DiagramDescriptor {
             id: "uml.use-case",
             home_order: 5,
+            icon: crate::icons::use_case,
             aliases: &["usecase"],
             new_label: key("New use-case diagram"),
             title: key("Map use cases"),
