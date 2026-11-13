@@ -51,7 +51,8 @@ des descripteurs. Le PNG est une commande de capture du canvas quand elle est di
 
 Le module expose une fonction `register(&mut DiagramRegistry)` qui ajoute :
 
-- Un `DiagramDescriptor` par type de document, avec fabrique vide et fabrique d'ouverture.
+- Un `DiagramDescriptor` par type de document, avec fabrique vide, fabrique d'ouverture
+  et fonction `icon` pour son pictogramme vectoriel.
 - Ses importeurs externes, s'il en possède ; un export n'implique pas un import.
 - Ses exemples et éventuels lanceurs de workflow pour l'accueil.
 
@@ -62,6 +63,12 @@ les alias et les exemples sont vérifiés pour éviter les doublons.
 Les commandes et vues utilisent des identifiants explicites tels que
 `state-machine.validate`. Les libellés passent par `key`, `tr` ou `trf` et les
 traductions. Les filtres de fichiers sont issus des importeurs enregistrés.
+
+Les cartes de l’accueil et du sélecteur utilisent l’icône déclarée dans le
+descripteur, indépendamment de `home_order`. Un `WorkflowDescriptor` déclare aussi
+son icône. Les primitives réutilisables se trouvent dans
+[`icons.rs`](../crates/op-app/src/icons.rs) ; `icons::select` conserve le curseur
+de sélection BPMN pour les palettes des éditeurs graphiques.
 
 ## 4. Workflows et calculs
 

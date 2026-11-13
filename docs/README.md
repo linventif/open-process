@@ -18,6 +18,12 @@ le dossier de travail, en préservant les autres modifications locales.
 | [Documents et compatibilité](documents-et-compatibilite.md) | Examiner le stockage, les migrations et la protection des fichiers existants. |
 | [Plan de migration](migration.md) | Consulter les étapes réalisées et leurs résultats. |
 | [Architecture actuelle](architecture-actuelle.md) | Retrouver l’implémentation dans le code. |
+| [Zones de l’interface](interface.md) | Nommer les zones avec un layout SVG et retrouver les composants communs. |
+| [Cible Looping et Bizagi Modeler](parite-looping-bizagi.md) | Comparer les fonctions documentées, mesurer les écarts et ordonner les chantiers. |
+| [Catalogue de diagrammes proposé](catalogue-diagrammes.md) | Choisir les prochaines familles de modèles après les priorités produit. |
+| [DMN, EPC et UML activité](notations-ajoutees.md) | Retrouver les fonctions et limites des trois nouvelles intégrations. |
+| [Base de données et DDL](base-de-donnees-ddl.md) | Concevoir des tables et générer le SQL PostgreSQL, MySQL/MariaDB et SQLite. |
+| [Dessin libre](dessin-libre.md) | Dessiner formes, flèches, notes et tracés à main levée, en natif et sur le web. |
 | [Icône du logiciel](icone.md) | Retrouver les formats et l’intégration de l’identité visuelle. |
 | [Ajout d’une notation](ajouter-une-notation.md) | Implémenter un module et l’enregistrer. |
 | [Vérifications](verification.md) | Retrouver les tests et contrôles exécutés. |

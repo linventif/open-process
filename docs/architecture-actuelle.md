@@ -37,6 +37,9 @@ flowchart TD
 | Nom, destination, état sauvegardé et récupération | [editor/document.rs](../crates/op-app/src/editor/document.rs). |
 | Menus, événements et disposition | [app.rs](../crates/op-app/src/app.rs), [home.rs](../crates/op-app/src/home.rs), [dock.rs](../crates/op-app/src/dock.rs). |
 | Adaptateurs métier/UI | [BPMN](../crates/op-app/src/bpmn_editor/session.rs), [Petri](../crates/op-app/src/petri_editor/session.rs), [UML](../crates/op-app/src/uml_editor/session.rs), [Mining](../crates/op-app/src/mining_editor/session.rs). |
+| Nouvelles notations | [DMN](../crates/op-app/src/dmn_editor.rs) et [graphes EPC/activité](../crates/op-app/src/flow_editor.rs). |
+| Schéma relationnel et DDL | [database.rs](../crates/op-core/src/database.rs), [générateurs SQL](../crates/op-core/src/database/ddl.rs), [éditeur](../crates/op-app/src/database_editor.rs). |
+| Dessin libre | [modèle typé](../crates/op-core/src/whiteboard.rs), [éditeur](../crates/op-app/src/whiteboard_editor.rs), [session](../crates/op-app/src/whiteboard_editor/session.rs). |
 | Enveloppe et codecs typés | [document/envelope.rs](../crates/op-core/src/document/envelope.rs). |
 | Reprise des sessions | [platform/persistence.rs](../crates/op-app/src/platform/persistence.rs). |
 | Exécution des tâches | [platform/jobs.rs](../crates/op-app/src/platform/jobs.rs), [tâche Petri](../crates/op-app/src/petri_editor/analysis_job.rs), [worker](../crates/op-app/analysis-worker.js). |
@@ -46,6 +49,18 @@ flowchart TD
 Le shell possède des `Doc` contenant un `Box<dyn EditorSession>`. L'ancienne enum
 `Editor` n'est plus utilisée. Chaque adaptateur fournit le nom, les commandes,
 les exports et les vues de sa notation, et conserve son modèle Rust concret.
+
+Le sélecteur de création commun se trouve dans
+[`app/new_document.rs`](../crates/op-app/src/app/new_document.rs). Il consomme
+les descripteurs du registre et réutilise la grille de cartes de `home.rs`.
+File, le bouton d’onglets et le raccourci clavier partagent ce sélecteur ; le
+shell ne possède pas une deuxième liste de notations. Les exports déclarés par
+chaque session sont présentés dans un sous-menu File → Export.
+
+Les descripteurs de diagrammes et de workflows portent une fonction `icon`.
+Les modules choisissent un pictogramme dans `icons.rs`, puis l’accueil et le
+sélecteur l’affichent sans déduire la notation de sa position. Ce module UI
+contient également le curseur de sélection commun aux éditeurs graphiques.
 
 `Session<E>` conserve un éditeur et son historique uniques, avec un état typé par
 instance de panneau. Les caméras (y compris celle du graphe Petri) et inspecteurs se sauvegardent séparément du
@@ -70,6 +85,9 @@ cible n'impose pas de déplacer tous les fichiers ni de changer les chemins publ
 
 ## Layout graphique partagé
 
+Le [layout SVG et son vocabulaire](interface.md) identifient les zones de
+l’interface : navigation, onglets, canvas, inspecteur et configuration de vue.
+
 Les éditeurs BPMN, Petri et UML utilisent `DiagramLayout`. La barre de configuration
 partage sa hauteur, son alignement et ses widgets : inspecteur, zoom, aimantation,
 affichage des problèmes quand il est disponible et options spécifiques au module.
@@ -87,7 +105,61 @@ réglages de vue, enregistrés dans la session. Ils ne modifient pas le modèle 
 Les styles de dessin persistants restent la propriété des modèles et sont fournis
 à la barre par un emplacement d'options spécifique à la notation.
 
+Le style des boutons des barres et des onglets de l’inspecteur est également
+partagé via `theme::toolbar_style`. Le thème et les états de survol/sélection
+restent indépendants du contenu métier et de la disposition des panneaux.
+
+Les nouveaux éditeurs EPC et UML activité utilisent le même layout graphique.
+Leurs modèles typés `Diagram<EpcKind>` et `Diagram<ActivityKind>` partagent les
+mécanismes d’identité et de géométrie de `op-core/src/flow.rs` ; chaque type de
+nœud conserve ses règles. `flow_editor.rs` réutilise les interactions pour ces
+deux usages concrets sans ajouter de cas au shell.
+
+Les tables DMN disposent d’un modèle, d’un évaluateur et d’un éditeur tabulaire
+distincts. Elles utilisent le shell, l’historique, l’inspecteur et les actions
+communs, avec un défilement de table adapté. Leurs fonctions et limites sont
+précisées dans [les notations ajoutées](notations-ajoutees.md). Les chantiers
+Looping et Bizagi restent décrits comme cibles dans [la matrice de couverture](parite-looping-bizagi.md).
+
+Le module de base de données ajoute un modèle relationnel typé, un éditeur
+ERD/MPD et une vue `database.ddl`. Les deux vues partagent tables, clés et
+historique ; les caméras et sélections restent locales. Le SQL est généré dans
+`op-core` pour PostgreSQL, MySQL/MariaDB et SQLite. La géométrie ne déclenche pas
+une nouvelle génération. Voir [les fonctions et limites](base-de-donnees-ddl.md).
+
+Le [dessin libre](dessin-libre.md) utilise le type `whiteboard`, un modèle et un
+historique typés indépendants des notations métier. Les points des tracés sont
+normalisés dans les bornes de l’élément pour conserver leur direction lors
+d’un déplacement ou redimensionnement. Le module réutilise `DiagramLayout`
+pour son inspecteur, sa configuration et son canvas. Sa palette verticale
+réutilise `canvas::floating`, comme BPMN et Petri. Il s’enregistre
+dans la composition, avec son exemple et son export SVG. Caméra et préférences
+restent dans chaque vue ; la géométrie du dessin est son contenu sémantique.
+
+## Langues de l’interface
+
+L’application propose l’anglais (`en`), le français (`fr`) et l’espagnol (`es`).
+Les tables de traduction et le type `Lang` vivent dans
+[`op-core/src/i18n/`](../crates/op-core/src/i18n/mod.rs). Les messages sont indexés par leur texte anglais ; les catalogues français et
+espagnol partagent les paramètres et sauts de ligne. Les tests contrôlent la
+couverture des appels et la cohérence des traductions.
+
+Le menu déroulant de [`op-app/src/i18n.rs`](../crates/op-app/src/i18n.rs) affiche
+le drapeau et le code de la langue active. Il permet de choisir directement
+English, Français ou Español et indique la langue sélectionnée. Le choix est
+restauré avec la clé existante `open-process-lang`, sans modifier les documents
+`.opx` ni les anciennes valeurs de préférence. La vitrine possède les routes
+`/`, `/fr/` et `/es/`, accessibles depuis un menu déroulant HTML utilisable sans
+JavaScript ; voir [son README](../website/README.md).
+
 ## Historique, sauvegarde et analyses
+
+La disposition automatique BPMN est calculée dans
+[`bpmn/layout.rs`](../crates/op-core/src/bpmn/layout.rs), sans dépendance UI.
+Le module BPMN expose la commande `bpmn.auto-arrange` et son bouton via
+l’emplacement d’options de `DiagramLayout`. L’opération forme une étape
+d’historique ; elle change la géométrie et conserve les appartenances aux
+pools/couloirs ainsi que les propriétés et connexions métier.
 
 L'historique par instantanés regroupe les gestes et sait les annuler sans ajouter
 une étape. Il couvre aussi le texte et les réponses Mining. Les révisions

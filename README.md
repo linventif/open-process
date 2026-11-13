@@ -30,7 +30,7 @@ Written in Rust with [egui](https://github.com/emilk/egui): a single code base t
 - Drag the bottom-right handle to resize; system boundaries move their contained use cases once, including in group selections; the same containment rules apply to copy/paste and export
 - Model diagnostics report invalid multiplicities, invalid endpoints, missing names and inheritance cycles
 - Pan/zoom, grid snapping, fit to view, undo/redo, split tabs, `.opx` save/open and session restoration, PNG and **PlantUML (`.puml`) export**
-- Available from **File → New class diagram / New use-case diagram**, or the tab bar's **+** menu; two ready-to-edit examples under **File → Examples**
+- Choose class or use-case diagrams in the grid opened by **File → New…** or the tab bar's **+** button; two ready-to-edit examples under **File → Examples**
 
 ### BPMN 2.0 editor
 - Start / intermediate (catch & throw) / end events with triggers (message, timer, error, signal, conditional, terminate)
@@ -74,7 +74,10 @@ Written in Rust with [egui](https://github.com/emilk/egui): a single code base t
 - Command line: `cargo run -p op-core --example alpha -- log.txt` prints the full write-up
 
 ### Everywhere
+- **Free drawing**: a native/web whiteboard with shapes, arrows, sticky notes, text and freehand strokes; colors, sketch mode, selection, resizing, undo/redo, `.opx` save/open and SVG/PNG exports in the shared editor layout.
 - **Home screen**: a responsive grid to start modelling, simulation, process discovery, evaluation or UML diagrams; open a file, explore examples or resume an open document
+- **New document picker**: File → New, the tab bar’s + button and Ctrl/Cmd+N open the same searchable grid of registered document types. Exports are grouped under File → Export.
+- **BPMN auto arrange**: undoable left-to-right layout that preserves pool/lane membership, available in the view configuration bar or its compact Options menu.
 - **Split views**: drag a tab onto the edge of any pane to split it (e.g. BPMN on the left, Petri matrices on the right); matrices, analysis, states and the reachability graph can each get their own pane
 - **Rubber-band selection** (drag on empty space), Shift+click, Ctrl+A, move / align / distribute / delete a group; Space+drag or right/middle drag to pan
 - **Drag & drop** elements from the floating palette onto the canvas (or onto a flow to insert them)
@@ -137,8 +140,8 @@ GitHub's built-in token; no additional release secret is needed.
 ## Project layout
 
 The product website lives in [`website/`](website/): Astro, TypeScript and Bun,
-with English/French HTML pages, SEO metadata, screenshots and release downloads.
-A single Cloudflare Pages build serves the presentation at `/`, French at `/fr/`
+with English/French/Spanish HTML pages, SEO metadata, screenshots and release downloads.
+A single Cloudflare Pages build serves English at `/`, French at `/fr/`, Spanish at `/es/`
 and the WebAssembly app at `/app/`. See [`website/README.md`](website/README.md)
 for development and Cloudflare build settings.
 
@@ -169,15 +172,23 @@ See [`AGENTS.md`](AGENTS.md) for repository contribution instructions.
 
 ## Roadmap
 
+The next product targets are Looping and Bizagi Modeler, followed by a broader
+Visual Paradigm scope. See the [feature comparison and delivery stages](docs/parite-looping-bizagi.md)
+and the [proposed diagram catalogue](docs/catalogue-diagrammes.md).
+
 - [ ] SVG / PNG export of diagrams
-- [ ] French / English UI
+- [x] English / French / Spanish UI
 - [ ] Multi-selection, copy/paste, alignment guides
 - [ ] Siphons & traps, home markings, coverability-based liveness hints
 - [ ] Coloured / timed / stochastic Petri nets
 - [ ] More process mining: directly-follows graph with frequencies, Alpha+ (short loops), inductive / heuristic miner, conformance metrics (fitness, precision)
 - [x] Process evaluation: enumerate the traces of an acyclic structured BPMN model, cost and duration formulas
 - [ ] BPMN simulation (token flow, resources, durations) and KPIs
-- [ ] DMN decision tables, EPC, UML activity diagrams
+- [x] Initial DMN decision tables, EPC and UML activity editors — [supported features and limits](docs/notations-ajoutees.md)
+- [ ] Complete DMN/FEEL, extended EPC and UML activity coverage
+- [ ] Merise MCD → MLD → MPD/SQL and SQL reverse engineering
+- [x] Initial relational database editor and PostgreSQL, MySQL/MariaDB, SQLite DDL generation — [features and limits](docs/base-de-donnees-ddl.md)
+- [ ] Bizagi Modeler feature coverage: BPMN, documentation, simulation and collaboration
 
 Contributions are welcome!
 
