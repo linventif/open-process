@@ -5,7 +5,10 @@
 
 pub mod analysis;
 pub mod bpmn;
+pub mod bpmn_xml;
 pub mod geom;
 pub mod i18n;
 pub mod petri;
+pub mod pnml;
 pub mod style;
+pub mod xml;
