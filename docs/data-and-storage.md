@@ -25,9 +25,10 @@ Changed documents are saved about once per second while the app runs. Native
 file writes use one background writer and atomic replacement; closing a document
 or exiting finishes pending writes. Browser saves also flush on page hiding and
 normal unload events. Abrupt process termination or power loss can interrupt
-changes not yet confirmed. Storage errors remain visible and unsaved nonempty
-documents retain close confirmation. An untouched empty draft creates no library
-file; an existing diagram cleared to empty updates its automatic copy.
+changes not yet confirmed. Normal automatic saving is silent; storage errors
+remain visible and unsaved nonempty documents retain close confirmation. An
+untouched empty draft creates no library file; an existing diagram cleared to
+empty updates its automatic copy.
 
 **Save/Save as** creates or updates a user-chosen native file, or downloads a
 browser copy. Automatic saving writes the managed copy independently of that

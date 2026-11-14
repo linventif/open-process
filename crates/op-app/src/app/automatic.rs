@@ -156,23 +156,10 @@ impl OpenProcessApp {
     }
 
     pub(super) fn automatic_status(&self, ui: &mut Ui) {
-        if !self.automatic.enabled() && self.automatic_error.is_none() {
-            return;
-        }
-        if self.docs.is_empty() && self.automatic_error.is_none() {
-            return;
-        }
+        let Some(error) = &self.automatic_error else { return };
         egui::Panel::bottom("automatic_save_status").show(ui, |ui| {
-            if let Some(error) = &self.automatic_error {
-                ui.colored_label(ui.visuals().error_fg_color, trf("autosave.failed", &[&error]));
-            } else {
-                let pending = self.automatic.pending()
-                    || self.docs.iter().any(|doc| {
-                        (doc.editor.has_content() || doc.archive.is_some()) && doc.autosaved_revision != Some(doc.editor.revisions())
-                    });
-                let status = if pending { tr("autosave.saving") } else { tr("autosave.saved") };
-                ui.small(status).on_hover_text(&self.automatic.location);
-            }
+            ui.colored_label(ui.visuals().error_fg_color, trf("autosave.failed", &[&error]))
+                .on_hover_text(&self.automatic.location);
         });
     }
 

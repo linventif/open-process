@@ -34,8 +34,6 @@ pub const TABLE: &[(&str, &str)] = &[
     ("app.close_tab", "Close tab"),
     ("autosave.library", "Saved diagrams"),
     ("drawing.invalid_attachment", "Invalid drawing connection attachment"),
-    ("autosave.saving", "Saving automatically…"),
-    ("autosave.saved", "Saved automatically"),
     ("autosave.browser_location", "This browser's local storage"),
     ("autosave.failed", "Automatic save failed: {}. Save a copy manually."),
     (

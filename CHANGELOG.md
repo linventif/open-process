@@ -19,6 +19,7 @@ does not distinguish the automatic `main-*` releases.
 
 ### Editing
 
+- Hide routine automatic-save status messages; keep storage errors visible.
 - Keep the home scrollbar at the window's right edge while its cards stay centered.
 - Attach free-drawing lines/arrows to shapes, keep endpoints following movement
   and resizing, and retarget them with endpoint handles. Whiteboard model v2

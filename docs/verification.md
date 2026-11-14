@@ -774,3 +774,16 @@ All **184 workspace tests** pass sequentially. Native and WebAssembly
 `cargo check --locked -p op-app`, formatting, local Markdown targets and
 `git diff --check` pass. Release builds, browser runs, Windows/macOS and
 deployment were not repeated for this layout-only change.
+
+## Silent routine automatic saving — 14 November 2026
+
+The routine saving/saved status panel and its English, French and Spanish
+messages were removed. The bottom panel now appears only for automatic-save
+errors, with the storage location available on hover. Scheduling, write
+acknowledgements, close/exit flushing and manual save behavior are unchanged.
+
+All **184 workspace tests** pass sequentially, including automatic-save
+failure/retry and translation inventory checks. Native and WebAssembly
+`cargo check --locked -p op-app`, formatting, local Markdown targets and
+`git diff --check` pass. Release builds, browser runs, Windows/macOS and
+deployment were not repeated for this presentation change.
