@@ -175,22 +175,7 @@ impl Palette {
     }
 
     pub fn for_ui(ui: &Ui) -> Self {
-        let mut palette = Self::new(ui.visuals().dark_mode);
-        if crate::theme::active(ui.ctx()) != crate::theme::PresetId::Classic {
-            let p = crate::theme::current(ui.ctx()).colors(ui.visuals().dark_mode);
-            palette.bg = crate::theme::color(p.canvas);
-            palette.grid = crate::theme::color(p.border);
-            palette.ink = crate::theme::color(p.text);
-            palette.arc = crate::theme::color(p.muted);
-            palette.text = crate::theme::color(p.text);
-            palette.muted = crate::theme::color(p.muted);
-            palette.fill = crate::theme::color(p.surface);
-            palette.task_fill = crate::theme::color(p.surface);
-            palette.pool_header = crate::theme::color(p.background);
-            palette.border = crate::theme::color(p.border);
-            palette.select = crate::theme::color(p.accent);
-        }
-        palette
+        Self::new(ui.visuals().dark_mode)
     }
 }
 
@@ -350,13 +335,13 @@ pub fn icon_button(ui: &mut Ui, selected: bool, tooltip: &str, paint: impl FnOnc
     let accent = crate::theme::accent(ui);
     let enabled = ui.is_enabled();
     if selected {
-        ui.painter().rect_filled(rect, crate::theme::radius(ui), accent);
+        ui.painter().rect_filled(rect, crate::theme::CONTROL_RADIUS, accent);
     } else if response.hovered() && enabled {
         ui.painter()
-            .rect_filled(rect, crate::theme::radius(ui), ui.visuals().widgets.hovered.bg_fill);
+            .rect_filled(rect, crate::theme::CONTROL_RADIUS, ui.visuals().widgets.hovered.bg_fill);
     }
     let color = if selected {
-        crate::theme::color(crate::theme::current(ui.ctx()).colors(ui.visuals().dark_mode).on_accent)
+        crate::theme::accent_text(ui)
     } else if enabled {
         ui.visuals().text_color()
     } else {
@@ -389,7 +374,7 @@ pub fn floating(ctx: &egui::Context, id: egui::Id, pos: Pos2, pivot: egui::Align
             egui::Frame::new()
                 .fill(v.window_fill)
                 .stroke(Stroke::new(1.0, v.widgets.noninteractive.bg_stroke.color))
-                .corner_radius(crate::theme::current(ctx).card_radius)
+                .corner_radius(crate::theme::CARD_RADIUS)
                 .shadow(v.popup_shadow)
                 .inner_margin(6.0)
                 .show(ui, add);

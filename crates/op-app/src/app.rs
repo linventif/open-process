@@ -50,7 +50,6 @@ pub struct OpenProcessApp {
     show_about: bool,
     show_shortcuts: bool,
     exam_mode: bool,
-    appearance_context: egui::Context,
     confirm_close: Option<usize>,
     show_home: bool,
     new_picker: Option<new_document::Picker>,
@@ -64,7 +63,8 @@ pub struct OpenProcessApp {
 impl OpenProcessApp {
     pub fn new(cc: &eframe::CreationContext<'_>, files: Vec<String>, registry: &'static DiagramRegistry) -> Self {
         crate::theme::apply(&cc.egui_ctx);
-        crate::theme::load(&cc.egui_ctx, cc.storage);
+        #[cfg(target_arch = "wasm32")]
+        crate::theme::load_web_color_mode(&cc.egui_ctx);
         crate::i18n::load(cc.storage);
         // UI tests opt into an isolated library explicitly; they never write user folders.
         let automatic = if cfg!(test) {
@@ -86,7 +86,6 @@ impl OpenProcessApp {
             show_about: false,
             show_shortcuts: false,
             exam_mode: false,
-            appearance_context: cc.egui_ctx.clone(),
             confirm_close: None,
             show_home: true,
             new_picker: None,
@@ -748,7 +747,6 @@ impl OpenProcessApp {
                 ui.label(RichText::new(tr("app.tip_drag_tab_onto_edge_pane_split")).small().weak());
                 ui.separator();
                 ui.label(tr("ui.theme"));
-                theme::menu(ui);
                 egui::widgets::global_theme_preference_buttons(ui);
             });
             ui.menu_button(tr("menu.tools"), |ui| {
@@ -785,9 +783,6 @@ impl OpenProcessApp {
             });
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 theme_toggle(ui);
-                if ui.available_width() > 155.0 {
-                    theme::menu(ui);
-                }
                 crate::i18n::language_menu(ui);
                 if self.exam_mode {
                     ui.label(RichText::new(tr("exam.mode")).strong());
@@ -1042,8 +1037,8 @@ impl egui_tiles::Behavior<Pane> for DockBehavior<'_> {
             let p = ui.painter();
             let rect = rect.with_min_y(rect.top() + 3.0);
             let top_round = egui::CornerRadius {
-                nw: theme::radius(ui),
-                ne: theme::radius(ui),
+                nw: theme::CONTROL_RADIUS,
+                ne: theme::CONTROL_RADIUS,
                 sw: 0,
                 se: 0,
             };
@@ -1059,7 +1054,7 @@ impl egui_tiles::Behavior<Pane> for DockBehavior<'_> {
                 );
                 p.hline(rect.x_range(), rect.bottom(), egui::Stroke::new(2.0, v.window_fill));
             } else if hovered {
-                p.rect_filled(rect.shrink2(egui::vec2(0.0, 3.0)), theme::radius(ui), v.widgets.hovered.bg_fill);
+                p.rect_filled(rect.shrink2(egui::vec2(0.0, 3.0)), theme::CONTROL_RADIUS, v.widgets.hovered.bg_fill);
             }
             let cy = rect.center().y;
             let mut x = rect.left() + 12.0;
@@ -1277,7 +1272,6 @@ impl eframe::App for OpenProcessApp {
             self.thumbnails.save(storage, &self.docs, &self.automatic.entries);
         }
         crate::i18n::save(storage);
-        crate::theme::save(&self.appearance_context, storage);
     }
 
     fn auto_save_interval(&self) -> std::time::Duration {

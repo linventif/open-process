@@ -153,7 +153,7 @@ fn document_card(ui: &mut Ui, doc: &Document, width: f32) -> bool {
         let p = ui.painter().with_clip_rect(rect);
         let emphasized = response.hovered() || response.has_focus();
         let accent = theme::accent(ui);
-        let radius = theme::card_radius(ui);
+        let radius = theme::CARD_RADIUS;
         p.rect_filled(
             rect,
             radius,
@@ -298,7 +298,7 @@ fn process_card(ui: &mut Ui, process: &Process, width: f32, examples: &[&crate::
     if ui.is_rect_visible(rect) {
         let emphasized = response.hovered() || response.has_focus();
         let p = ui.painter().with_clip_rect(rect);
-        let radius = theme::card_radius(ui);
+        let radius = theme::CARD_RADIUS;
         p.rect_filled(rect, radius, ui.visuals().window_fill);
         p.rect_stroke(
             rect,
@@ -313,7 +313,7 @@ fn process_card(ui: &mut Ui, process: &Process, width: f32, examples: &[&crate::
         let icon = Rect::from_min_size(rect.min + vec2(18.0, 18.0), vec2(44.0, 40.0));
         p.rect_filled(
             icon,
-            theme::radius(ui),
+            theme::CONTROL_RADIUS,
             process.color.gamma_multiply(if ui.visuals().dark_mode { 0.22 } else { 0.1 }),
         );
         (process.icon)(&p, icon.shrink(4.0), process.color);

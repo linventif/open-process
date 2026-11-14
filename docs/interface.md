@@ -12,8 +12,8 @@ The diagram collects optional slots to give them names; a notation need not show
 every component. Proportions/colors explain structure rather than propose moving
 panels or adopting a new product theme.
 
-The [appearance guide](identite-graphique.md) describes the eight selectable
-application/site themes, their original default, geometry and O → P signature. The
+The [visual identity guide](identite-graphique.md) describes the Classic
+application/site styling, light/dark color modes, geometry and O → P signature. The
 annotated diagram remains a structural reference.
 
 ## Shared vocabulary

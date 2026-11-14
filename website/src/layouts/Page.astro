@@ -3,8 +3,7 @@ import { messages, languages, localizedPath, languageLocales, type Language, typ
 import { cloudApp, repository } from "../lib/site";
 import { isPreview } from "../lib/deployment";
 import "../styles/global.css";
-import "../styles/appearance.css";
-import ThemePicker from "../components/ThemePicker.astro";
+import "../styles/color-mode.css";
 
 interface Props { lang: Language; page?: LegalPage; title?: string; description?: string; noindex?: boolean }
 const { lang, page, title = messages[lang].title, description = messages[lang].description, noindex = false } = Astro.props;
@@ -44,11 +43,11 @@ const structuredData = page ? {
 };
 ---
 <!doctype html>
-<html lang={lang} data-theme="classic" data-mode="light" data-layout="classic">
+<html lang={lang} data-mode="light">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#252923" />
+    <meta name="theme-color" content="#f7f7f2" />
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
     <meta name="description" content={description} />
@@ -82,5 +81,5 @@ const structuredData = page ? {
     <link rel="sitemap" href="/sitemap-index.xml" />
     {!noindex && <script type="application/ld+json" set:html={JSON.stringify(structuredData).replace(/</g, "\\u003c")} />}
   </head>
-  <body><ThemePicker lang={lang} /><slot /></body>
+  <body><slot /><script>import "../scripts/color-mode";</script></body>
 </html>

@@ -59,16 +59,18 @@ copy; simultaneous applications are not a collaborative editing system. Keep sep
 files for backups. The [compatibility guide](documents-et-compatibilite.md)
 documents the file and session schemas.
 
-## Appearance preferences
+## Color-mode preference
 
-The application stores its selected theme family in `open-process-appearance-v1`
-through eframe's existing local preference storage. The website uses the
-separate browser-local `open-process-site-appearance-v1` key for its family and
-light/dark choice. Website language navigation retains that choice. Valid
-`theme` and `mode` URL parameters can select an appearance when opening the web
-app; they contain no document content. Reset restores Classic. Neither setting
-changes `.opx` or workspace document data, and neither is sent to an account
-service. Clearing browser site data also removes the website preference.
+Classic is the only theme. The application's existing eframe preferences retain
+its light/dark choice; the retired `open-process-appearance-v1` family setting is
+no longer read or written. The website stores only `light` or `dark` in
+`open-process-color-mode-v1`. It migrates the color mode from its former
+`open-process-site-appearance-v1` setting and removes that old key when storage
+is writable. Language navigation retains the mode independently of language.
+Explicit `mode` URL parameters may choose a web-app color mode; old `theme`
+parameters cannot choose another family. These settings contain no document
+content and do not change `.opx` or workspace schemas. Clearing browser site data
+also removes the mode preference.
 
 ## Drawing clipboard
 

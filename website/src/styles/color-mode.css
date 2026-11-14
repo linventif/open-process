@@ -1,0 +1,41 @@
+/* Classic is the only identity; color mode remains a local viewing preference. */
+:root {
+  --brand: #e39b2e; --accent: #a96e14; --radius: 7px; --card-radius: 12px;
+  --button-radius: 8px; --on-accent: #fff; --dark-bg: #1c1e23;
+  --dark-text: #e4e7ec; --dark-muted: #969ca8; --dark-accent: #7892ff;
+}
+:root[data-mode="dark"] {
+  --paper: #1c1e23; --white: #23262c; --ink: #e4e7ec; --muted: #969ca8;
+  --line: #32363e; --accent: #7892ff; --brand: #7892ff; --on-accent: #14161a;
+}
+.brand-dot, .accent { color: var(--brand); }
+.color-mode-toggle { display: grid; place-items: center; flex-shrink: 0; width: 28px; height: 30px; padding: 0; background: transparent; color: inherit; border: 0; border-radius: 7px; }
+.color-mode-toggle:hover { background: var(--white); }
+.color-mode-sun, [data-mode="dark"] .color-mode-moon { display: none; }
+[data-mode="dark"] .color-mode-sun { display: inline; }
+:where(select, button, a, summary):focus-visible { outline-color: var(--accent); }
+.language-options { background: var(--white); color: var(--ink); border-color: var(--line); border-radius: var(--radius); }
+.language-options a:hover { background: var(--paper); }
+.catalogue-badge, .storage-grid .mono, .feature li::before { color: var(--accent); }
+.terminal { background: var(--dark-bg); color: var(--dark-text); border-color: var(--line); }
+.terminal-heading, .code-comment, .terminal > a { color: var(--dark-muted); }
+.code-accent { color: var(--dark-accent); }
+.learning { background: var(--dark-bg); color: var(--dark-text); }
+.learning-copy .eyebrow, .learning-copy > p:not(.eyebrow), .learning-steps p, .learning-footer { color: var(--dark-muted); }
+.light-link { color: var(--dark-text); }
+.learning .accent, .step-marker, .learning-footer > .mono { color: var(--dark-accent); }
+.preview-tabs button[aria-selected="true"] { background: var(--white); color: var(--ink); border-color: var(--line); }
+.preview-tabs button:hover { background: var(--white); }
+.download-card, .catalogue-card { background: var(--white); }
+.showcase-toolbar { background: var(--paper); }
+.terminal, .download-card, .catalogue-card, dialog { border-radius: var(--card-radius); }
+.button { border-radius: var(--button-radius); }
+.status-dot { background: var(--brand); }
+[data-mode="dark"] .brand img { mix-blend-mode: normal; }
+[data-mode="dark"] .button-dark { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+[data-mode="dark"] .button-outline:hover { background: var(--accent); color: var(--on-accent); }
+[data-mode="dark"] .dialog-toolbar button:hover { background: var(--white); }
+[data-mode="dark"] .language-options a:focus-visible { background: var(--paper); }
+@media (max-width: 760px) { .header-actions { gap: 10px; } }
+@media (max-width: 390px) { .header-inner { gap: 10px; } .site-header .brand { font-size: 14px; } .header-actions { gap: 8px; } .header-actions > .button { white-space: nowrap; } .header-actions > .button > span[aria-hidden] { display: none; } }
+@media (max-width: 360px) { .header-inner { gap: 8px; } .site-header .brand { font-size: 13px; } .header-actions { gap: 6px; } .color-mode-toggle { width: 26px; } .site-header .language-toggle .language-flag { display: none; } }

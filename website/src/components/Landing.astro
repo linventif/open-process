@@ -1,6 +1,7 @@
 ---
 import { messages, type Language } from "../lib/messages";
 import LanguageMenu from "./LanguageMenu.astro";
+import ColorModeToggle from "./ColorModeToggle.astro";
 import SiteFooter from "./SiteFooter.astro";
 import { cloudApp, repository } from "../lib/site";
 interface Props { lang: Language }
@@ -47,6 +48,7 @@ const catalogue = [
         <a href="https://github.com/linventif/open-process" class="nav-github">GitHub <span aria-hidden="true">↗</span></a>
       </nav>
       <div class="header-actions">
+        <ColorModeToggle lang={lang} />
         <LanguageMenu lang={lang} />
         <a class="button button-small button-dark" href={appPath}><span>{t.getApp}</span><span aria-hidden="true">↗</span></a>
       </div>

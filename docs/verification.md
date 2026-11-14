@@ -1128,3 +1128,40 @@ profiles were closed afterwards.
 
 These are local Linux/Firefox checks. Native release builds, Windows/macOS
 rendering, Safari/Chromium, deployment and the remote CI matrix were not run.
+
+
+## Classic as the sole theme — 14 November 2026
+
+Classic is now the only application and website identity. The alternative
+families, palette catalogue, comparison bar, swatches, family preferences and
+alternative preview images have been removed. Shared application radii remain
+centralized in `theme.rs`. The existing application color-mode controls remain;
+the website has a compact translated sun/moon button. Its former preference
+migrates only the light/dark choice to a mode-only key. Retired `theme` parameters
+cannot restore another family. Documents, histories, language preferences and
+`.opx` schemas are unchanged.
+
+The complete sequential workspace command passes **213 tests**: 98 application
+and 115 core tests. A regression checks that old theme URLs leave Classic's
+palette intact while valid color-mode parameters still work. The Classic gallery
+test preserves document snapshots while rendering eight views in both modes.
+The exporter refreshes 16 real Classic images and the eight stable fallback URLs.
+Native and WebAssembly compilation checks, workspace formatting, local Markdown
+links and patch whitespace checks pass.
+
+The full website build passes with no Astro diagnostics, including the Trunk
+WebAssembly release build. All **12 Bun tests** pass. They cover retained color
+modes from old preference values, mode-only app links, ignored retired URL
+parameters, removal of theme controls from all nine localized pages and the 16
+remaining gallery images.
+
+Firefox checks under the shipped CSP pass on the nine presentation/legal pages
+in both modes at 1440, 390 and 320 CSS pixels. They cover overflow, header overlap,
+a single-line mobile app button, preference migration, reload/language retention,
+retired URL normalization, app links and gallery enlargement. The compiled web
+app renders Classic dark colors even when opened with an obsolete Cloud link.
+Desktop/mobile and application captures were visually inspected. The existing
+Astro server on `localhost:4321` also passes a live selector-removal, gallery and
+mode-persistence check, and was left running. Temporary test servers and browser
+profiles were closed. Native release builds, other operating systems/browsers,
+deployment and the remote CI matrix were not run.
