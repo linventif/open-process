@@ -8,6 +8,7 @@ use egui::{Key, KeyboardShortcut, Modifiers, RichText, Ui};
 use op_core::document::Document;
 use op_core::i18n::{tr, trf};
 
+mod automatic;
 mod new_document;
 mod thumbnails;
 
@@ -24,7 +25,10 @@ use op_core::{
 
 #[cfg(test)]
 use crate::platform::persistence::LegacyV1 as Persisted;
-use crate::platform::persistence::{self, Workspace};
+use crate::platform::{
+    autosave,
+    persistence::{self, Workspace},
+};
 
 /// Things the panes ask the application to do (handled after the layout pass).
 enum DockEvent {
@@ -50,12 +54,25 @@ pub struct OpenProcessApp {
     new_picker: Option<new_document::Picker>,
     thumbnails: thumbnails::Thumbnails,
     persistence_ready: bool,
+    automatic: autosave::Library,
+    automatic_error: Option<String>,
+    automatic_attempts: std::collections::HashMap<u64, f64>,
 }
 
 impl OpenProcessApp {
     pub fn new(cc: &eframe::CreationContext<'_>, files: Vec<String>, registry: &'static DiagramRegistry) -> Self {
         crate::theme::apply(&cc.egui_ctx);
         crate::i18n::load(cc.storage);
+        // UI tests opt into an isolated library explicitly; they never write user folders.
+        let automatic = if cfg!(test) {
+            Ok(autosave::Library::disabled())
+        } else {
+            autosave::Library::open(cc.egui_ctx.clone())
+        };
+        let (automatic, automatic_error) = match automatic {
+            Ok(library) => (library, None),
+            Err(error) => (autosave::Library::disabled(), Some(error)),
+        };
         let mut app = Self {
             registry,
             docs: Vec::new(),
@@ -70,6 +87,9 @@ impl OpenProcessApp {
             new_picker: None,
             thumbnails: thumbnails::Thumbnails::default(),
             persistence_ready: true,
+            automatic,
+            automatic_error,
+            automatic_attempts: Default::default(),
         };
         if let Some(storage) = cc.storage {
             let restored = match persistence::load(storage) {
@@ -80,11 +100,18 @@ impl OpenProcessApp {
                     None
                 }
             };
-            if let Some(p) = restored {
+            if let Some(mut p) = restored {
+                if let Err(error) = app.resolve_automatic_workspace(&mut p) {
+                    app.message = Some((trf("autosave.failed", &[&error]), true));
+                    app.persistence_ready = false;
+                }
                 // Restore documents, then remap the pane ids of the saved layout.
                 let mut map = std::collections::HashMap::new();
                 for (old, m, path, views) in p.docs {
                     let mut d = Doc::new(m, path, false, registry);
+                    if let Some(entry) = p.autosave.remove(&old) {
+                        app.restore_automatic_reference(&mut d, entry);
+                    }
                     d.editor.restore_workspace(&views);
                     map.insert(old, d.uid);
                     app.docs.push(d);
@@ -326,6 +353,7 @@ impl OpenProcessApp {
     fn close(&mut self, i: usize) {
         if i < self.docs.len() {
             let d = self.docs.remove(i);
+            self.automatic_attempts.remove(&d.uid);
             dock::remove_doc(&mut self.tree, d.uid);
         }
         if self.docs.is_empty() {
@@ -335,6 +363,7 @@ impl OpenProcessApp {
     }
 
     fn request_close(&mut self, i: usize) {
+        self.flush_automatic_document(i);
         let Some(doc) = self.docs.get(i) else {
             return;
         };
@@ -363,7 +392,31 @@ impl OpenProcessApp {
                 }
             })
             .collect::<Vec<_>>();
-        match home::show(ui, &docs, self.registry) {
+        let saved = self
+            .automatic
+            .entries
+            .iter()
+            .enumerate()
+            .filter(|(_, entry)| {
+                !self
+                    .docs
+                    .iter()
+                    .any(|doc| doc.archive.as_ref().is_some_and(|open| open.id == entry.id))
+            })
+            .map(|(index, entry)| {
+                let descriptor = self.registry.find(&entry.kind);
+                home::Document {
+                    uid: index as u64,
+                    name: entry.name.clone(),
+                    kind: descriptor.map(|d| d.badge).unwrap_or("?").into(),
+                    color: descriptor.map(|d| d.color).unwrap_or(egui::Color32::GRAY),
+                    dirty: false,
+                    icon: descriptor.map(|d| d.icon).unwrap_or(crate::icons::note),
+                    thumbnail: None,
+                }
+            })
+            .collect::<Vec<_>>();
+        match home::show(ui, &docs, &saved, self.registry) {
             Some(Action::New(kind)) => self.new_document(kind, None),
             Some(Action::Example(id, command)) => {
                 self.open_example(id);
@@ -377,6 +430,7 @@ impl OpenProcessApp {
                     self.set_active(i);
                 }
             }
+            Some(Action::Saved(index)) => self.open_automatic_document(index),
             None => {}
         }
     }
@@ -1037,7 +1091,13 @@ impl egui_tiles::Behavior<Pane> for DockBehavior<'_> {
 }
 
 impl eframe::App for OpenProcessApp {
+    #[cfg(target_arch = "wasm32")]
+    fn as_any_mut(&mut self) -> Option<&mut dyn std::any::Any> {
+        Some(self)
+    }
+
     fn ui(&mut self, ui: &mut Ui, _frame: &mut eframe::Frame) {
+        self.automatic_status(ui);
         self.thumbnails.poll(ui.ctx(), &self.docs);
         let preview_was_blocked = self.thumbnail_capture_blocked(ui.ctx());
         for (name, bytes) in self.io.poll() {
@@ -1086,6 +1146,7 @@ impl eframe::App for OpenProcessApp {
                 .frame(egui::Frame::new().fill(panel))
                 .show(ui, |ui| self.home(ui));
             self.dialogs(ui);
+            self.save_automatically(ui.ctx());
             return;
         }
 
@@ -1114,7 +1175,20 @@ impl eframe::App for OpenProcessApp {
             .filter(|&i| dock::panes_of(&self.tree, self.docs[i].uid).is_empty())
             .collect();
         for i in orphan.into_iter().rev() {
-            self.close(i);
+            self.flush_automatic_document(i);
+            if self.docs[i].editor.has_content() && self.docs[i].dirty() {
+                dock::add_tab(
+                    &mut self.tree,
+                    Pane {
+                        doc: self.docs[i].uid,
+                        view: View::Editor,
+                    },
+                    None,
+                );
+                self.request_close(i);
+            } else {
+                self.close(i);
+            }
         }
         for doc in &mut self.docs {
             let instances: Vec<_> = dock::panes_of(&self.tree, doc.uid).into_iter().map(|id| id.0).collect();
@@ -1123,24 +1197,31 @@ impl eframe::App for OpenProcessApp {
         self.dialogs(ui);
         let blocked = preview_was_blocked || self.thumbnail_capture_blocked(ui.ctx());
         self.thumbnails.capture(ui.ctx(), &self.docs, previews, blocked);
+        self.save_automatically(ui.ctx());
     }
 
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        let p = Workspace {
-            version: 3,
-            docs: self
-                .docs
-                .iter()
-                .map(|d| (d.uid, d.snapshot(), d.path.clone(), d.editor.workspace()))
-                .collect(),
-            active: self.active,
-            tree: self.tree.clone(),
-        };
+        #[cfg(target_arch = "wasm32")]
+        self.flush_automatic_documents();
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let completed = self.automatic.poll();
+            self.complete_automatic(completed);
+        }
+        let p = self.workspace_snapshot();
         if self.persistence_ready {
             storage.set_string(persistence::KEY, serde_json::to_string(&p).expect("workspace is serializable"));
             self.thumbnails.save(storage, &self.docs);
         }
         crate::i18n::save(storage);
+    }
+
+    fn auto_save_interval(&self) -> std::time::Duration {
+        std::time::Duration::from_secs(2)
+    }
+
+    fn on_exit(&mut self) {
+        self.flush_automatic_documents();
     }
 }
 

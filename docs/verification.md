@@ -611,3 +611,53 @@ pool-only BPMN, invalid source, original data and deletion with undo available.
 Native/WebAssembly checks, strict Clippy, formatting, local documentation links
 and `git diff --check` passed. Release builds, new browser runs, Windows/macOS
 and deployment were not repeated for this change.
+
+## Automatic local document library — 14 November 2026
+
+Desktop builds resolve the OS Documents folder, create Open Process and write
+UUID-named `.opx` files with metadata sidecars. Browser builds use one
+`open-process-document-<uuid>` local-storage record per diagram. The home screen
+reopens closed saved diagrams. Manual destinations/downloads remain explicit;
+automatic saving never writes an imported or manually chosen source path.
+The document envelope/model versions and historical `.opx` fixtures are unchanged.
+
+The native single-writer queue acknowledges exact submitted snapshots and close/
+exit barriers finish pending writes. Browser page-hide/unload handlers flush
+automatic records and workspace state. Failed or stale writes retain pending
+content. Workspace v4 reads v1/v2/v3 without deleting old keys and references
+confirmed copies instead of duplicating browser payloads. Pending workspace edits
+whose record advanced elsewhere are retained as a separate automatic copy.
+
+The final workspace suite passes: **82 application tests, 87 core tests, seven
+document integration tests and two generated-case tests (178 total)**. New
+regressions cover in-flight edits followed by close, manual-file isolation,
+home-library reopening/restart, failed destination/retry, same-name identities,
+stale revisions, original JSON bytes, compact/mixed workspace ordering, missing
+references and pending-edit preservation after another writer advances. Storage
+tests use temporary directories and do not create a library in the tester's real
+Documents folder. The library screenshot was inspected during development.
+
+Native Linux and Trunk/WebAssembly release builds, native/Wasm checks, strict
+Clippy, formatting, local documentation links and `git diff --check` pass. Nine
+Bun build/output tests and two Python packaging tests pass; the browser helper
+also passes Python compilation. The website's content sources did not change,
+so a new Astro content build was not needed.
+
+Headless Firefox checks the final `/app/` artifacts under the shipped CSP:
+
+```sh
+python3 scripts/check-web-worker.py --smoke autosave --timeout 70
+python3 scripts/check-web-worker.py
+```
+
+The autosave scenario opens a library diagram in the real app, deletes its
+content, flushes on page hiding, simulates `QuotaExceededError`, checks the prior
+record and pending payload, retries successfully and reopens after reload. The
+worker scenario checks all four tasks, cancellation and malformed inputs.
+
+An offline Rust dependency audit against the previously fetched RustSec commit
+`4ef2df8e` reports zero vulnerabilities and the same five maintenance warnings;
+this is not a fresh online database check. Windows/macOS, abrupt power-loss
+durability, simultaneous-writer transactional merging, the remote CI matrix and
+production deployment were not validated locally. Browser quota/clearing and
+unconfirmed changes during abrupt termination remain practical storage limits.

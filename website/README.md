@@ -136,9 +136,12 @@ cancellation and error handling against the shipped app CSP:
 
 ```sh
 python3 ../scripts/check-web-worker.py
+python3 ../scripts/check-web-worker.py --smoke autosave --timeout 70
 ```
 
-The check uses a temporary browser profile and a server bound to `127.0.0.1`.
+The checks use a temporary browser profile and a server bound to `127.0.0.1`.
+The autosave check exercises the real app, local-storage writes, page hiding,
+quota failure/retry and reopening after a reload.
 For Snap-packaged Firefox it uses the direct executable to avoid launcher/profile
 namespace restrictions; `--firefox PATH` selects another executable. This is an
 explicit local check, not a step currently run by CI.

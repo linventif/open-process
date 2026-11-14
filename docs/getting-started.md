@@ -35,25 +35,29 @@ a token game and analysis, while process discovery starts from an event log.
 
 ## Save and reopen your work
 
-Use **File → Save** or **Ctrl/Cmd+S** to save an editable `.opx` document.
-The desktop app writes to a chosen file; the browser downloads a file, which
-must finish downloading to be available outside the browser. Subsequent browser
-saves create downloads rather than updating the original file in place.
-The browser retains the modified marker and close confirmation after starting a
-download. Verify the downloaded file before choosing **Close without saving**.
+Work is saved automatically. Desktop versions create **Documents/Open Process**
+and write editable `.opx` copies there. The browser keeps automatic copies in
+local storage for the app's origin. **Saved diagrams** on the home screen reopens
+documents after their tabs have been closed.
+
+**File → Save**, **Save as** and **Ctrl/Cmd+S** remain available for manual copies:
+choose a file on desktop or download an `.opx` file in the browser. Later native
+**Save** writes that chosen file; automatic saving continues in the managed
+folder. Browser downloads create independent files and must finish before they
+are available outside the browser.
 
 Empty documents close directly from their tab or **File → Close tab**, even if
 they were renamed or all their elements were deleted. A blank source/log or a
-default decision table without rules also closes directly. Unsaved content,
-customized decision clauses, exercise answers and recoverable original data
-retain the save confirmation.
+default decision table without rules also closes directly. Closing a nonempty
+document finishes its automatic save first. If saving fails, its content stays
+open with a save confirmation and an error; a manual copy can then be saved.
 
 Use **File → Open** or **Ctrl/Cmd+O** to reopen a saved file or import one of the
 supported formats. Files can also be dragged onto the application.
 
-The application can restore a previous local session. This is separate from a
-saved file: keep `.opx` copies of work you need to retain or move to another
-device. See [data and storage](data-and-storage.md) for details and deletion.
+The application also restores open tabs and layout. Keep manual `.opx` copies of
+work you need to move to another device or retain independently of browser data.
+See [data and storage](data-and-storage.md) for timing, limits and deletion.
 
 ## Export and interpret results
 

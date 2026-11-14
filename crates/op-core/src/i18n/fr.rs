@@ -35,6 +35,18 @@ pub const TABLE: &[(&str, &str)] = &[
         "Choisissez un type de diagramme pour commencer.",
     ),
     ("app.close_tab", "Fermer l'onglet"),
+    ("autosave.library", "Diagrammes enregistrés"),
+    ("autosave.saving", "Enregistrement automatique…"),
+    ("autosave.saved", "Enregistré automatiquement"),
+    ("autosave.browser_location", "Stockage local de ce navigateur"),
+    (
+        "autosave.failed",
+        "Échec de l'enregistrement automatique : {}. Enregistrez une copie manuellement.",
+    ),
+    (
+        "autosave.conflict",
+        "Ce diagramme a été modifié ailleurs. Rouvrez sa copie enregistrée avant de continuer.",
+    ),
     ("app.close_without_saving", "Fermer sans enregistrer"),
     ("app.confirm_close_tab", "Fermer l'onglet ?"),
     ("app.del_backspace", "Suppr / Retour arrière"),

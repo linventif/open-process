@@ -32,6 +32,18 @@ pub const TABLE: &[(&str, &str)] = &[
     ("app.back_select_tool", "Volver a la herramienta de selección"),
     ("app.choose_diagram_type_get_started", "Elige un tipo de diagrama para empezar."),
     ("app.close_tab", "Cerrar pestaña"),
+    ("autosave.library", "Diagramas guardados"),
+    ("autosave.saving", "Guardando automáticamente…"),
+    ("autosave.saved", "Guardado automáticamente"),
+    ("autosave.browser_location", "Almacenamiento local de este navegador"),
+    (
+        "autosave.failed",
+        "Error al guardar automáticamente: {}. Guarda una copia manualmente.",
+    ),
+    (
+        "autosave.conflict",
+        "Este diagrama se modificó en otro lugar. Abre su copia guardada antes de continuar.",
+    ),
     ("app.close_without_saving", "Cerrar sin guardar"),
     ("app.confirm_close_tab", "¿Cerrar pestaña?"),
     ("app.del_backspace", "Supr / Retroceso"),

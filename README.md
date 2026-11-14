@@ -29,8 +29,8 @@ French and Spanish are also available.
 | **Mermaid** | Source editor, live preview, flow/sequence/class/state/ER templates, source import/export and SVG export. | Uses a Rust renderer with its own syntax coverage, rather than the official JavaScript engine. [Details](docs/mermaid.md). |
 
 Graphical editors share navigation, grid and zoom controls, an inspector and
-responsive layout. Documents support undo/redo, editable `.opx` saves, local
-session restoration and multiple docked views where supported. The home screen
+responsive layout. Documents support undo/redo, automatic local saving, editable
+`.opx` copies, session restoration and multiple docked views where supported. The home screen
 and **File → New…** provide searchable document cards and examples by type.
 **File → Export** lists the active document's formats, including PNG capture
 where available. PNG captures the visible diagram region.
@@ -77,9 +77,12 @@ Desktop distributions include:
 Standalone Linux/macOS binaries are also published. See the
 [icon and packaging guide](docs/icone.md) for package details.
 
-Files and restored sessions are stored locally. Browser saves download files;
-there is no account-based document sync. Keep `.opx` backups rather than relying
-only on session restoration. See [data and storage](docs/data-and-storage.md).
+Desktop versions automatically create **Documents/Open Process** and keep editable
+copies there. The web app automatically keeps diagrams in the browser's local
+storage. Closed diagrams remain available under **Saved diagrams** on the home
+screen. **Save/Save as** still writes a chosen file on desktop or downloads an
+`.opx` copy in the browser. Keep separate copies for sharing and backup; see
+[data and storage](docs/data-and-storage.md).
 
 <a id="running"></a>
 

@@ -74,8 +74,9 @@ The reader supports historical files; the app writes v2. The adapter maps `Bpmn`
 `Petri` and `Log` to stable IDs, and distinguishes UML class/use-case content.
 Migrations deterministically produce validated models or explicit errors.
 
-Opening an old file does not rewrite it. In-memory migration becomes persistent
-only on an explicit save. New files must reopen, but older application versions
+Opening an old file does not rewrite its source. Automatic saving writes a
+separate managed copy; an explicit manual save can update the chosen source.
+New files must reopen, but older application versions
 are not guaranteed to read them.
 
 Missing types and future versions must not become empty documents or overwrite
@@ -127,11 +128,11 @@ is reported even if replacement already occurred. Filesystem/platform durability
 still applies; filesystem-specific metadata is outside this guarantee. Retain
 independent backups.
 
-Browser saving reports **download started**, retaining the modified marker and
-close confirmation because the app cannot confirm that the file was retained.
-Check the downloaded file before choosing **Close without saving**. Only a
-confirmed native write updates the saved reference; cancellation/failure leaves
-it unchanged.
+Browser manual saving reports **download started**; that action alone does not
+confirm that the file was retained. A confirmed automatic local-storage write
+also establishes a saved reference, independently of the downloaded file.
+Native manual/automatic writes and successful local-storage writes acknowledge
+their exact snapshot; cancellation/failure leaves that reference unchanged.
 
 Saving rechecks typed storage invariants and the encoded size before writing an
 editable document, so it cannot overwrite a valid file with content the reader
@@ -140,15 +141,23 @@ document. Business diagnostics that do not violate storage safety remain drafts.
 
 ## Workspace persistence
 
-Legacy RON keys `open-process-v1` and `open-process-v2` evolve separately from
-`.opx`. JSON under `open-process-v3` stores document envelopes/IDs, panel
-references and view states with appropriate validation.
+Legacy RON keys `open-process-v1`/`open-process-v2` and JSON `open-process-v3`
+evolve separately from `.opx`. The v4 JSON workspace under `open-process-v4`
+stores open-document/panel IDs, view state, references to acknowledged automatic
+copies, and full envelopes for pending changes. Browser records use separate
+`open-process-document-<uuid>` keys; native `.opx` copies have UUID metadata
+sidecars in Documents/Open Process. Recovery metadata preserves the original-byte
+mode even when an unsupported file contains otherwise parseable JSON.
 
 Restoration reads old keys without deleting them. New data is written only after
 successful migration. Failure or missing modules must leave recoverable data;
 a missing view uses a fallback without losing the document. A file destination
-alone does not prove a document was saved: restored documents remain marked
-unsaved when the actual saved state is unknown.
+alone does not prove a document was saved: restoration checks the automatic copy
+and revision before trusting its saved state. A missing/unreadable referenced
+copy reports an error and prevents overwriting the original workspace key. Old
+keys remain available; older applications do not understand v4 library references.
+Pending workspace edits are retained as a separate automatic copy if another
+writer advanced their original record, preserving both versions on restoration.
 
 ## Home preview cache
 

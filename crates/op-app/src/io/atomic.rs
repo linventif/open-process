@@ -5,7 +5,7 @@ use std::{
     path::Path,
 };
 
-pub(super) fn write(path: &Path, bytes: &[u8]) -> io::Result<()> {
+pub(crate) fn write(path: &Path, bytes: &[u8]) -> io::Result<()> {
     replace_with(path, |file| file.write_all(bytes))
 }
 

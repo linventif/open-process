@@ -7,7 +7,7 @@ use op_core::i18n::{key, tr, trf};
 use std::sync::{Arc, Mutex};
 
 #[cfg(not(target_arch = "wasm32"))]
-mod atomic;
+pub(crate) mod atomic;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum SaveOutcome {

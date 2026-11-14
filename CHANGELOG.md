@@ -9,6 +9,10 @@ does not distinguish the automatic `main-*` releases.
 
 ### Editing
 
+- Automatically save desktop documents in Documents/Open Process and browser
+  documents in local storage; reopen closed diagrams from the home library.
+- Keep manual Save/Save as copies independent, report automatic-save failures,
+  and migrate older workspaces without removing their original storage keys.
 - Close empty documents directly from their tabs or the File menu while retaining
   save confirmation for unsaved content and recoverable originals.
 

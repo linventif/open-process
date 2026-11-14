@@ -6,27 +6,51 @@ of the production hosting provider.
 
 ## Documents and sessions
 
-Models and analyses are handled by the application on your device. Opening a
-file reads it locally; saving on desktop writes a chosen file, and saving in the
-browser creates a download. The current document open/save paths do not upload
-your model to an application server.
+Models and analyses are handled by the application on your device. Automatic
+saving keeps document content, names, geometry, styles, source and exercise
+answers locally. Closing a tab retains its last automatic copy; **Saved diagrams**
+on the home screen reopens it.
 
-Desktop saves stage and sync a temporary file before replacing the destination.
-Browser saves report that a download was started and retain the modified marker:
-the application cannot confirm that the downloaded file reached your storage.
-Verify the file before closing the document. See the
+- **Desktop:** the application creates **Open Process** inside the OS Documents
+  folder, including redirected Documents locations. Linux uses `~/Documents`
+  when no Documents directory is configured. Each document gets a stable UUID
+  filename (`<id>.opx`) and a small `<id>.json` metadata file. Renaming a document
+  retains its identity, and documents sharing a name keep separate copies.
+- **Browser:** each automatic document is a local-storage record under
+  `open-process-document-<id>`, belonging to the app's origin and browser profile.
+  The open workspace references confirmed records without duplicating their
+  entire payloads.
+
+Changed documents are saved about once per second while the app runs. Native
+file writes use one background writer and atomic replacement; closing a document
+or exiting finishes pending writes. Browser saves also flush on page hiding and
+normal unload events. Abrupt process termination or power loss can interrupt
+changes not yet confirmed. Storage errors remain visible and unsaved nonempty
+documents retain close confirmation. An untouched empty draft creates no library
+file; an existing diagram cleared to empty updates its automatic copy.
+
+**Save/Save as** creates or updates a user-chosen native file, or downloads a
+browser copy. Automatic saving writes the managed copy independently of that
+manual destination; opening/importing a file does not automatically overwrite
+its source. The current document paths do not upload models to an application
+server. Desktop writes stage and sync before replacement. Browser downloads
+report that a download was started; a successful automatic local-storage write
+can independently confirm a local saved copy. See the
 [save outcomes and import limits](documents-et-compatibilite.md#import-safety-and-save-outcomes).
 
-Session restoration stores the content of open documents, their view state and
-layout locally through eframe's persistence layer. Desktop sessions use local
-application storage; browser sessions use the browser's local storage for the
-site. Language settings and cached document preview images are also persisted.
-The session can therefore contain model text and previews even when no `.opx`
-file has been saved.
+Session restoration stores open-document references, pending unsaved payloads,
+view state and layout through eframe's persistence layer. Desktop sessions use
+application storage; browser sessions use local storage. Language settings and
+cached previews are also persisted. Confirmed automatic copies are acknowledged
+separately from the manual destination and from in-flight edits.
 
 There is no account-based document sync in these storage paths. Another browser,
 profile, device or site origin has its own session. Private browsing, storage
-limits or clearing site data can remove the browser session. Keep separate `.opx`
+limits or clearing site data can remove the browser library and session. Local
+storage has a browser-defined quota shared with session/preferences/previews;
+quota or permission failures are reported instead of marking the write saved.
+Stale document revisions are rejected rather than silently replacing a newer
+copy; simultaneous applications are not a collaborative editing system. Keep separate `.opx`
 files for backups. The [compatibility guide](documents-et-compatibilite.md)
 documents the file and session schemas.
 
@@ -42,11 +66,15 @@ Export any documents you want to keep first.
   storage for Open Process. The location depends on the operating system and
   eframe version. If you need help finding it, provide your OS and app release
   through [support](../SUPPORT.md); do not delete unrelated application folders.
+- **Desktop automatic library:** quit the application and remove the managed
+  `.opx` and matching `.json` files from **Documents/Open Process**, or remove that
+  folder to clear the library. The app recreates the folder on its next launch.
 - **Saved files:** `.opx` files, exports and downloaded copies are separate.
   Remove those through your file manager if you no longer want them.
 
-Closing a document or deleting a downloaded file does not by itself clear every
-persisted session or preview, including legacy session data.
+Closing a document keeps its automatic copy. Removing a manual/downloaded file
+does not delete its automatic copy or every persisted session/preview, including
+legacy session data.
 
 ## Website and external services
 

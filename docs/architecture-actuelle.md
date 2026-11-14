@@ -44,6 +44,7 @@ flowchart TD
 | UML class ↔ Mermaid conversion | [Typed conversion](../crates/op-core/src/mermaid/conversion.rs), commands owned by the UML and Mermaid editor adapters; [features and limits](mermaid.md#converting-uml-class-diagrams). |
 | Envelope and typed codecs | [document/envelope.rs](../crates/op-core/src/document/envelope.rs). |
 | Session restoration | [platform/persistence.rs](../crates/op-app/src/platform/persistence.rs). |
+| Automatic document library | [platform/autosave.rs](../crates/op-app/src/platform/autosave.rs), coordinated by [app/automatic.rs](../crates/op-app/src/app/automatic.rs). |
 | Background execution | [Jobs](../crates/op-app/src/platform/jobs.rs), [Petri task](../crates/op-app/src/petri_editor/analysis_job.rs), [worker](../crates/op-app/analysis-worker.js). |
 
 ## Documents and views
@@ -173,7 +174,19 @@ caches are outside this estimate. Mutation generations let built-in sessions ski
 JSON reconstruction on unchanged frames. Commands still force observation;
 backends without a generation retain the comparison fallback.
 
-The app writes `.opx` v2, reads v1 and migrates legacy RON sessions into JSON v3.
+The app writes `.opx` v2, reads v1 and migrates v1/v2 RON and v3 JSON sessions into
+the v4 workspace. Automatic copies have stable UUIDs, separate from runtime pane
+IDs and manually chosen paths. Native copies live in Documents/Open Process;
+browser records live in local storage. The home screen lists closed saved
+documents as well as resumable open tabs.
+
+One bounded native writer acknowledges exact submitted snapshots; edits made
+during a write remain pending. Close/exit barriers finish older work before
+submitting the latest state. Browser storage errors are observed directly rather
+than inferred from eframe's error-free storage interface. Web lifecycle handlers
+use eframe's whole-application access API to flush before page hiding/unload;
+notation editors retain their typed boundary and test-only probes. Workspace v4
+references acknowledged copies and retains full payloads for pending changes.
 Unknown file bytes remain recoverable. See [compatibility](documents-et-compatibilite.md).
 
 Petri analysis runs on private snapshots through a native worker pool or a Web

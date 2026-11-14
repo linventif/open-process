@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the compiled Wasm worker smoke tests in a temporary headless Firefox profile."""
+"""Run Wasm worker or automatic-storage checks in a temporary headless Firefox profile."""
 import argparse
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
@@ -28,15 +28,15 @@ def default_firefox():
     return executable
 
 
-def verify(dist, firefox, timeout, prefix):
+def verify(dist, firefox, timeout, prefix, smoke_name="worker"):
     if not prefix.startswith("/") or not prefix.endswith("/"):
         raise ValueError("The application prefix must start and end with /")
     if not (dist / prefix.strip("/") / "index.html").is_file():
-        raise RuntimeError("Build the site and Wasm app before running worker checks")
+        raise RuntimeError("Build the site and Wasm app before running browser checks")
     done = threading.Event()
     report = {}
     token = secrets.token_hex(16)
-    smoke = ROOT / "crates/op-app/tests/worker-smoke.html"
+    smoke = ROOT / f"crates/op-app/tests/{smoke_name}-smoke.html"
     # Exercise the same application policy that the Pages build ships.
     header_file = dist / "_headers"
     if not header_file.is_file():
@@ -57,7 +57,7 @@ def verify(dist, firefox, timeout, prefix):
             super().end_headers()
 
         def do_GET(self):
-            if urlsplit(self.path).path == f"{prefix}worker-smoke.html":
+            if urlsplit(self.path).path == f"{prefix}{smoke_name}-smoke.html":
                 data = smoke.read_bytes()
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -93,7 +93,7 @@ def verify(dist, firefox, timeout, prefix):
             with tempfile.TemporaryFile(mode="w+") as log:
                 browser = subprocess.Popen([
                     firefox, "--headless", "--no-remote", "--profile", profile,
-                    f"http://127.0.0.1:{server.server_port}{prefix}worker-smoke.html?report={token}",
+                    f"http://127.0.0.1:{server.server_port}{prefix}{smoke_name}-smoke.html?report={token}",
                 ], stdout=log, stderr=log, env=env)
                 try:
                     received = done.wait(timeout)
@@ -112,7 +112,7 @@ def verify(dist, firefox, timeout, prefix):
         server.server_close()
     print(json.dumps(report, indent=2))
     if not report.get("ok"):
-        raise RuntimeError("The browser worker checks failed")
+        raise RuntimeError("The browser checks failed")
 
 
 if __name__ == "__main__":
@@ -121,5 +121,6 @@ if __name__ == "__main__":
     parser.add_argument("--firefox", default=default_firefox())
     parser.add_argument("--timeout", type=int, default=50)
     parser.add_argument("--app-prefix", default="/app/")
+    parser.add_argument("--smoke", choices=["worker", "autosave"], default="worker")
     args = parser.parse_args()
-    verify(args.dist.resolve(), args.firefox, args.timeout, args.app_prefix)
+    verify(args.dist.resolve(), args.firefox, args.timeout, args.app_prefix, args.smoke)

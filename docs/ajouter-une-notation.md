@@ -38,6 +38,10 @@ Implement `EditorBackend` beside the editor. Existing adapters include
   Count notation-specific elements, source and authored configuration, excluding
   names and view state. The default `true` preserves confirmation for backends
   that do not declare an emptiness rule and for recovery sessions.
+  This also distinguishes unused drafts from documents needing an automatic
+  library copy. An existing copy cleared to empty is still saved. Automatic
+  storage uses the generic document/session boundary; new types need no central
+  storage catalogue or platform-specific persistence code.
 
 `Session::boxed(editor)` supplies the application interface, view handling and
 revision tracking. Do not put the model or history into view state. A text editor

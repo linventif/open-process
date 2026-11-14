@@ -10,6 +10,7 @@ pub enum Action {
     Example(&'static str, Option<&'static str>),
     Open,
     Resume(u64),
+    Saved(usize),
 }
 
 pub struct Document {
@@ -32,7 +33,7 @@ struct Process {
     action: Action,
 }
 
-pub fn show(ui: &mut Ui, docs: &[Document], registry: &crate::editor::DiagramRegistry) -> Option<Action> {
+pub fn show(ui: &mut Ui, docs: &[Document], saved: &[Document], registry: &crate::editor::DiagramRegistry) -> Option<Action> {
     let mut processes: Vec<_> = registry
         .diagrams
         .iter()
@@ -88,10 +89,21 @@ pub fn show(ui: &mut Ui, docs: &[Document], registry: &crate::editor::DiagramReg
                 if !docs.is_empty() {
                     ui.heading(tr("workspace.continue_work"));
                     ui.add_space(10.0);
-                    if let Some(uid) = document_grid(ui, docs) {
+                    if let Some(uid) = document_grid(ui, docs, "resume_document_cards") {
                         action = Some(Action::Resume(uid));
                     }
                     ui.add_space(26.0);
+                }
+
+                if !saved.is_empty() {
+                    ui.heading(tr("autosave.library"));
+                    ui.add_space(10.0);
+                    if let Some(index) = document_grid(ui, saved, "saved_document_cards") {
+                        action = Some(Action::Saved(index as usize));
+                    }
+                    ui.add_space(26.0);
+                }
+                if !docs.is_empty() || !saved.is_empty() {
                     ui.heading(tr("file.new_document"));
                     ui.add_space(10.0);
                 }
@@ -107,24 +119,21 @@ pub fn show(ui: &mut Ui, docs: &[Document], registry: &crate::editor::DiagramReg
     action
 }
 
-fn document_grid(ui: &mut Ui, docs: &[Document]) -> Option<u64> {
+fn document_grid(ui: &mut Ui, docs: &[Document], id: &str) -> Option<u64> {
     let gap = 16.0;
     let columns = ((ui.available_width() + gap) / (240.0 + gap)).floor().clamp(1.0, 4.0) as usize;
     let width = ((ui.available_width() - gap * (columns - 1) as f32) / columns as f32).max(1.0);
     let mut chosen = None;
-    egui::Grid::new("resume_document_cards")
-        .num_columns(columns)
-        .spacing(vec2(gap, gap))
-        .show(ui, |ui| {
-            for (i, doc) in docs.iter().enumerate() {
-                if document_card(ui, doc, width) {
-                    chosen = Some(doc.uid);
-                }
-                if (i + 1) % columns == 0 {
-                    ui.end_row();
-                }
+    egui::Grid::new(id).num_columns(columns).spacing(vec2(gap, gap)).show(ui, |ui| {
+        for (i, doc) in docs.iter().enumerate() {
+            if document_card(ui, doc, width) {
+                chosen = Some(doc.uid);
             }
-        });
+            if (i + 1) % columns == 0 {
+                ui.end_row();
+            }
+        }
+    });
     chosen
 }
 

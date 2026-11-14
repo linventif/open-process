@@ -65,13 +65,32 @@ fn main() {
             .expect("missing #the_canvas_id")
             .dyn_into::<web_sys::HtmlCanvasElement>()
             .expect("#the_canvas_id is not a canvas");
-        let result = eframe::WebRunner::new()
+        let runner = eframe::WebRunner::new();
+        let result = runner
             .start(
                 canvas,
                 web_options,
                 Box::new(|cc| Ok(Box::new(app::OpenProcessApp::new(cc, Vec::new(), composition::registry())))),
             )
             .await;
+        if result.is_ok() {
+            if let Some(window) = web_sys::window() {
+                for event in ["pagehide", "beforeunload", "visibilitychange"] {
+                    let handle = runner.clone();
+                    let callback = wasm_bindgen::closure::Closure::<dyn FnMut(web_sys::Event)>::new(move |_| {
+                        if let Some(mut app) = handle.app_mut::<app::OpenProcessApp>() {
+                            app.save_browser_now();
+                        }
+                    });
+                    if window
+                        .add_event_listener_with_callback(event, callback.as_ref().unchecked_ref())
+                        .is_ok()
+                    {
+                        callback.forget();
+                    }
+                }
+            }
+        }
         if let Some(loading) = document.get_element_by_id("loading") {
             match result {
                 Ok(_) => loading.remove(),

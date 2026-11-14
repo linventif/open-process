@@ -64,6 +64,21 @@ BPMN evaluation and Mermaid now share a
 bounded native pool or Web Worker loading the app's Wasm. Cancellation, numeric
 limits and transfer limits apply without an additional job library.
 
+## D9 — Save local document copies independently of manual destinations
+
+Automatic saving is the normal document lifecycle. A managed native library in
+Documents/Open Process and per-document browser local-storage records retain
+closed documents. UUIDs avoid name collisions and preserve identity on rename;
+v4 workspace references avoid duplicating confirmed browser payloads. Manual
+Save/Save as retains the chosen-file/download workflow. Confirmed writes alone
+update the saved reference; failures retain content and close confirmation.
+
+Native-only `directories` resolves Documents through OS mechanisms, including
+Windows redirection and XDG locations. The existing `uuid` dependency becomes
+direct with random identities for native and web; neither dependency changes
+domain models. A single native writer owns queued filesystem operations. Revision
+checks detect stale copies, with no claim of cross-process transactional merging.
+
 ## Follow-up considerations
 
 - Contracts are exercised by UML, BPMN, Petri and Mining.
