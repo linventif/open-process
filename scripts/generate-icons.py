@@ -44,7 +44,7 @@ def main():
         image.resize((size, size), Image.Resampling.LANCZOS).save(path, optimize=True)
 
     png(ICONS / "open-process.png", 512)
-    rasterize(svg.replace("#1B2A41", "#F7F7F2")).resize((512, 512), Image.Resampling.LANCZOS).save(
+    rasterize(svg.replace("#252923", "#F3F1E8")).resize((512, 512), Image.Resampling.LANCZOS).save(
         ICONS / "open-process-light.png", optimize=True,
     )
     image.save(ICONS / "open-process.ico", sizes=[(s, s) for s in (16, 24, 32, 48, 64, 128, 256)])
@@ -52,7 +52,7 @@ def main():
     for name, size in (("favicon.png", 32), ("apple-touch-icon.png", 180), ("icon-192.png", 192), ("icon-512.png", 512)):
         png(WEB / name, size)
     image.save(WEB / "favicon.ico", sizes=[(s, s) for s in (16, 32, 48)])
-    favicon = svg.replace('</svg>', '  <style>@media (prefers-color-scheme: dark) { g { stroke: #F7F7F2; } }</style>\n</svg>')
+    favicon = svg.replace('</svg>', '  <style>@media (prefers-color-scheme: dark) { g { stroke: #F3F1E8; } }</style>\n</svg>')
     (WEB / "favicon.svg").write_text(favicon)
     site_icons = ROOT / "website/public/icons"
     site_icons.mkdir(parents=True, exist_ok=True)
@@ -61,6 +61,7 @@ def main():
             shutil.copyfile(path, site_icons / path.name)
     shutil.copyfile(ICONS / "open-process.png", ROOT / "website/public/assets/logo.png")
     shutil.copyfile(ICONS / "open-process.svg", ROOT / "website/public/assets/logo.svg")
+    (ROOT / "website/public/assets/logo-light.svg").write_text(svg.replace("#252923", "#F3F1E8"))
 
 
 if __name__ == "__main__":

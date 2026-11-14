@@ -16,7 +16,7 @@ const updated = new Intl.DateTimeFormat(lang, { dateStyle: "long", timeZone: "UT
   <a class="skip-link" href="#main">{messages[lang].skip}</a>
   <header class="site-header">
     <div class="container header-inner">
-      <a class="brand" href={localizedPath(lang)} aria-label="Open Process"><img src="/assets/logo.svg" width="45" height="45" alt=""><span>Open Process<span class="brand-dot">.</span></span></a>
+      <a class="brand" href={localizedPath(lang)} aria-label="Open Process"><img src="/assets/logo-light.svg" width="45" height="45" alt=""><span>Open Process<span class="brand-dot">.</span></span></a>
       <div class="header-actions">
         <LanguageMenu lang={lang} page={page} />
         <a class="button button-small button-dark" href={new URL(cloudApp).pathname}><span>{messages[lang].getApp}</span><span aria-hidden="true">↗</span></a>

@@ -4,7 +4,7 @@
 
 The master is [open-process.svg](../crates/op-app/assets/icons/open-process.svg),
 a vector of circles and paths without a background or embedded image. It uses
-the navy/amber O → P motif with transparent gaps. The historical raster proposal
+the graphite/vermilion O → P motif with transparent gaps. The historical raster proposal
 remains in [source.png](../crates/op-app/assets/icons/source.png), with
 [generation prompts](../crates/op-app/assets/icons/source-prompt.txt), but no
 longer generates platform icons.
@@ -36,7 +36,7 @@ python3 scripts/generate-icons.py
 
 The script renders the SVG transparently, writes PNG/ICO/ICNS under
 `crates/op-app/assets/icons/` and synchronizes website copies. It also produces
-light strokes for egui dark mode; it does not run AI generation. Generated assets
+light strokes for egui dark mode and the website header; it does not run AI generation. Generated assets
 are committed, so conversion tools are unnecessary for normal Rust/site CI builds.
 No additional Rust dependency was introduced for the icon.
 

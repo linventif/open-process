@@ -69,6 +69,15 @@ use **Direct Upload** with `dist/` after `bun run build`.
 References: [Astro on Cloudflare](https://docs.astro.build/en/guides/deploy/cloudflare/)
 and [Pages build configuration](https://developers.cloudflare.com/pages/configuration/build-configuration/).
 
+## Visual identity
+
+The site and application share the [Open Process workshop identity](../docs/identite-graphique.md):
+paper and graphite surfaces, vermilion actions, Inter typography, construction
+lines and small frame corners. The header uses the generated light O → P mark;
+the footer uses the regular mark. `src/components/ProcessSketch.astro` supplies
+the decorative branching process, while the gallery shows real app captures.
+Palette tokens in `src/styles/global.css` match `crates/op-app/src/theme.rs`.
+
 ## SEO and content
 
 - Build-generated English/French/Spanish HTML: titles, descriptions, content and
@@ -116,15 +125,15 @@ The [CNIL information guidance](https://www.cnil.fr/fr/conformite-rgpd-informati
 was consulted for the notice structure. These pages do not establish an audit or
 certification of the production service's legal compliance.
 
-Commit-time validation: `bun run build` passed, including Astro checks with no
+Local validation: `bun run build` passed, including Astro checks with no
 diagnostics and the Trunk release build of the WebAssembly app. All nine Bun
-tests passed against the combined output. Generated HTML checks covered the six
-legal routes, canonical/alternate URLs, metadata, sitemap entries, CSP routes,
-scripts and 198 local links, assets and section anchors, plus localized home-page
-footer links. Earlier interactive Firefox verification could not start because
-automatic permission review for the temporary local server/browser run timed
-out. No new browser session was run, and no visual or interactive browser result
-is claimed.
+tests passed against the combined output. The initial generated-HTML checks
+covered the six legal routes, canonical/alternate URLs, metadata, sitemap entries,
+CSP routes, scripts, local links, assets and section anchors, plus localized
+home-page footer links. The subsequent identity refresh also checked all nine
+presentation/legal pages in Firefox at 320, 390, 768 and 1440 CSS pixels, including
+language navigation, Escape/outside-click closure, footer links and section links.
+See [the verification record](../docs/verification.md) for scope and limits.
 
 The presentation covers the eleven registered document types and the BPMN
 cost/duration workflow, in home-screen order. Cards link to the corresponding
@@ -150,9 +159,9 @@ converted at quality 90 from UI captures in ignored `target/screenshots/`:
 
 The sequential application UI suite generates these source captures. Inspect
 them before replacing the website assets, and keep captions/alternative text
-consistent with their content. The 14 November refresh uses the captures from
-the grid-aware layout checkout (`cd389d3`); it does not generate mock application
-screens or require an external image service.
+consistent with their content. The 14 November identity refresh regenerates these captures from the
+shared paper/graphite/vermilion application theme. It does not generate mock
+application screens or require an external image service.
 
 The transparent logo and favicons in `public/icons/` derive from shared native/web
 vector artwork. See [the icon guide](../docs/icone.md) to regenerate formats.

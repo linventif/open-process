@@ -124,16 +124,16 @@ impl Palette {
         if dark {
             Palette {
                 dark,
-                bg: c(22, 24, 28),
-                grid: c(46, 50, 58),
-                ink: c(176, 184, 198),
-                arc: c(140, 148, 164),
-                text: c(228, 231, 236),
-                muted: c(150, 156, 168),
-                fill: c(34, 37, 44),
-                task_fill: c(33, 42, 62),
-                pool_header: c(38, 41, 48),
-                border: c(54, 58, 66),
+                bg: c(27, 31, 27),
+                grid: c(56, 64, 52),
+                ink: c(199, 205, 190),
+                arc: c(166, 175, 156),
+                text: crate::theme::PAPER,
+                muted: c(182, 188, 174),
+                fill: c(43, 48, 41),
+                task_fill: c(43, 48, 41),
+                pool_header: c(52, 59, 49),
+                border: c(76, 85, 72),
                 select: crate::theme::ACCENT_DARK,
                 ok: c(64, 200, 120),
                 bad: c(248, 100, 100),
@@ -149,16 +149,16 @@ impl Palette {
         } else {
             Palette {
                 dark,
-                bg: c(252, 252, 253),
-                grid: c(212, 216, 224),
-                ink: c(58, 64, 78),
-                arc: c(96, 104, 120),
-                text: c(30, 34, 40),
-                muted: c(110, 117, 130),
-                fill: Color32::WHITE,
-                task_fill: c(240, 245, 255),
-                pool_header: c(244, 245, 248),
-                border: c(225, 228, 234),
+                bg: crate::theme::SHEET,
+                grid: crate::theme::BORDER,
+                ink: crate::theme::INK,
+                arc: crate::theme::MUTED,
+                text: crate::theme::INK,
+                muted: crate::theme::MUTED,
+                fill: crate::theme::SHEET,
+                task_fill: crate::theme::SHEET,
+                pool_header: crate::theme::PAPER,
+                border: crate::theme::BORDER,
                 select: crate::theme::ACCENT,
                 ok: c(22, 163, 74),
                 bad: c(220, 38, 38),
@@ -335,9 +335,9 @@ pub fn icon_button(ui: &mut Ui, selected: bool, tooltip: &str, paint: impl FnOnc
     let accent = crate::theme::accent(ui.visuals().dark_mode);
     let enabled = ui.is_enabled();
     if selected {
-        ui.painter().rect_filled(rect, 8.0, accent);
+        ui.painter().rect_filled(rect, 3.0, accent);
     } else if response.hovered() && enabled {
-        ui.painter().rect_filled(rect, 8.0, ui.visuals().widgets.hovered.bg_fill);
+        ui.painter().rect_filled(rect, 3.0, ui.visuals().widgets.hovered.bg_fill);
     }
     let color = if selected {
         Color32::WHITE
@@ -361,7 +361,7 @@ pub fn toolbar_separator(ui: &mut Ui) {
     );
 }
 
-/// Floating, rounded panel drawn over a canvas (tool palettes, banners).
+/// Floating panel drawn over a canvas (tool palettes, banners).
 pub fn floating(ctx: &egui::Context, id: egui::Id, pos: Pos2, pivot: egui::Align2, add: impl FnOnce(&mut Ui)) -> Rect {
     egui::Area::new(id)
         .fixed_pos(pos)
@@ -373,7 +373,7 @@ pub fn floating(ctx: &egui::Context, id: egui::Id, pos: Pos2, pivot: egui::Align
             egui::Frame::new()
                 .fill(v.window_fill)
                 .stroke(Stroke::new(1.0, v.widgets.noninteractive.bg_stroke.color))
-                .corner_radius(12.0)
+                .corner_radius(3.0)
                 .shadow(v.popup_shadow)
                 .inner_margin(6.0)
                 .show(ui, add);

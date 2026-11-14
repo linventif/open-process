@@ -1035,8 +1035,8 @@ impl egui_tiles::Behavior<Pane> for DockBehavior<'_> {
             let p = ui.painter();
             let rect = rect.with_min_y(rect.top() + 3.0);
             let top_round = egui::CornerRadius {
-                nw: 9,
-                ne: 9,
+                nw: 3,
+                ne: 3,
                 sw: 0,
                 se: 0,
             };
@@ -1052,13 +1052,13 @@ impl egui_tiles::Behavior<Pane> for DockBehavior<'_> {
                 );
                 p.hline(rect.x_range(), rect.bottom(), egui::Stroke::new(2.0, v.window_fill));
             } else if hovered {
-                p.rect_filled(rect.shrink2(egui::vec2(0.0, 3.0)), 8.0, v.widgets.hovered.bg_fill);
+                p.rect_filled(rect.shrink2(egui::vec2(0.0, 3.0)), 3.0, v.widgets.hovered.bg_fill);
             }
             let cy = rect.center().y;
             let mut x = rect.left() + 12.0;
             if !kind.is_empty() {
                 let badge = egui::Rect::from_min_size(egui::pos2(x, cy - 8.0), egui::vec2(badge_w, 16.0));
-                p.rect_filled(badge, 5.0, color.gamma_multiply(if v.dark_mode { 0.28 } else { 0.14 }));
+                p.rect_filled(badge, 2.0, color.gamma_multiply(if v.dark_mode { 0.28 } else { 0.14 }));
                 p.galley(badge.center() - badge_g.size() / 2.0, badge_g, color);
                 x = badge.right() + 8.0;
             }

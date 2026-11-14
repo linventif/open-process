@@ -73,16 +73,22 @@ pub fn show(ui: &mut Ui, docs: &[Document], saved: &[Document], registry: &crate
             ui.vertical(|ui| {
                 ui.set_width(width);
                 ui.add_space(30.0);
-                crate::brand::show(ui, 64.0);
-                ui.add_space(8.0);
-                ui.label(
-                    RichText::new(tr("workspace.workspace"))
-                        .font(theme::semibold(10.5))
-                        .color(theme::accent(ui.visuals().dark_mode))
-                        .extra_letter_spacing(1.5),
-                );
+                ui.horizontal(|ui| {
+                    crate::brand::show(ui, 52.0);
+                    ui.vertical(|ui| {
+                        ui.label(RichText::new("Open Process").font(theme::semibold(24.0)));
+                        ui.label(
+                            RichText::new(tr("workspace.workspace"))
+                                .font(egui::FontId::monospace(10.5))
+                                .color(theme::accent(ui.visuals().dark_mode))
+                                .extra_letter_spacing(1.5),
+                        );
+                    });
+                });
+                ui.add_space(12.0);
+                ui.separator();
                 ui.add_space(6.0);
-                ui.label(RichText::new(tr("workspace.what_would_you_like_do")).font(theme::semibold(30.0)));
+                ui.label(RichText::new(tr("workspace.what_would_you_like_do")).font(theme::semibold(32.0)));
                 ui.label(RichText::new(tr("workspace.model_discover_understand_processes")).size(15.0).weak());
                 ui.add_space(14.0);
                 ui.horizontal_wrapped(|ui| {
@@ -155,16 +161,16 @@ fn document_card(ui: &mut Ui, doc: &Document, width: f32) -> bool {
         let accent = theme::accent(ui.visuals().dark_mode);
         p.rect_filled(
             rect,
-            12.0,
+            3.0,
             if emphasized {
-                ui.visuals().selection.bg_fill.gamma_multiply(0.12)
+                ui.visuals().widgets.hovered.bg_fill
             } else {
                 ui.visuals().window_fill
             },
         );
         p.rect_stroke(
             rect,
-            12.0,
+            3.0,
             if emphasized {
                 Stroke::new(1.5, accent)
             } else {
@@ -174,9 +180,9 @@ fn document_card(ui: &mut Ui, doc: &Document, width: f32) -> bool {
         );
         let preview = Rect::from_min_size(rect.min + vec2(8.0, 8.0), vec2((width - 16.0).max(1.0), preview_height));
         if let Some(texture) = doc.thumbnail.filter(|_| !crate::editor::exam::active(ui.ctx())) {
-            egui::Image::new((texture, preview.size())).corner_radius(6).paint_at(ui, preview);
+            egui::Image::new((texture, preview.size())).corner_radius(2).paint_at(ui, preview);
         } else {
-            p.rect_filled(preview, 6.0, doc.color.gamma_multiply(0.09));
+            p.rect_filled(preview, 2.0, ui.visuals().faint_bg_color);
             (doc.icon)(&p, Rect::from_center_size(preview.center(), vec2(64.0, 64.0)), doc.color);
         }
         let title_y = preview.bottom() + 20.0;
@@ -291,36 +297,40 @@ fn process_grid(ui: &mut Ui, processes: &[Process], registry: &crate::editor::Di
 }
 
 fn process_card(ui: &mut Ui, process: &Process, width: f32, examples: &[&crate::editor::ExampleDescriptor]) -> Option<Action> {
+    let accent = theme::accent(ui.visuals().dark_mode);
     let (rect, response) = ui.allocate_exact_size(vec2(width, 222.0), Sense::click());
     let response = response.on_hover_cursor(egui::CursorIcon::PointingHand);
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tr(process.title)));
     if ui.is_rect_visible(rect) {
         let emphasized = response.hovered() || response.has_focus();
         let p = ui.painter().with_clip_rect(rect);
-        p.rect_filled(rect, 12.0, ui.visuals().window_fill);
+        p.rect_filled(rect, 3.0, ui.visuals().window_fill);
         p.rect_stroke(
             rect,
-            12.0,
+            3.0,
             if emphasized {
-                Stroke::new(1.5, process.color)
+                Stroke::new(1.5, accent)
             } else {
                 ui.visuals().widgets.noninteractive.bg_stroke
             },
             StrokeKind::Inside,
         );
         let icon = Rect::from_min_size(rect.min + vec2(18.0, 18.0), vec2(44.0, 40.0));
-        p.rect_filled(
-            icon,
-            9.0,
-            process.color.gamma_multiply(if ui.visuals().dark_mode { 0.22 } else { 0.1 }),
+        p.rect_filled(icon, 2.0, ui.visuals().panel_fill);
+        p.rect_stroke(icon, 2.0, ui.visuals().widgets.noninteractive.bg_stroke, StrokeKind::Inside);
+        p.line_segment(
+            [rect.left_top() + vec2(18.0, 1.5), rect.left_top() + vec2(62.0, 1.5)],
+            Stroke::new(3.0, theme::accent(ui.visuals().dark_mode)),
         );
-        (process.icon)(&p, icon.shrink(4.0), process.color);
+        (process.icon)(&p, icon.shrink(4.0), ui.visuals().text_color());
+        let marker = Rect::from_center_size(rect.right_top() + vec2(-20.0, 22.0), vec2(5.0, 5.0));
+        p.rect_filled(marker, 0.0, process.color);
         p.text(
             pos2(icon.right() + 10.0, icon.center().y),
             egui::Align2::LEFT_CENTER,
             process.badge,
-            theme::semibold(10.5),
-            process.color,
+            egui::FontId::monospace(10.5),
+            accent,
         );
 
         let text_width = width - 36.0;
@@ -348,7 +358,7 @@ fn process_card(ui: &mut Ui, process: &Process, width: f32, examples: &[&crate::
             egui::Align2::LEFT_CENTER,
             tr("workspace.get_started"),
             theme::medium(12.5),
-            process.color,
+            accent,
         );
         if examples.is_empty() {
             p.text(
@@ -356,7 +366,7 @@ fn process_card(ui: &mut Ui, process: &Process, width: f32, examples: &[&crate::
                 egui::Align2::RIGHT_CENTER,
                 "→",
                 egui::FontId::proportional(19.0),
-                process.color,
+                accent,
             );
         }
     }

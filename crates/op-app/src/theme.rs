@@ -1,4 +1,4 @@
-//! Visual identity: fonts (Inter), colors, spacing, rounding and shadows
+//! Open Process workshop identity: Inter, paper, graphite and vermilion
 //! for both light and dark themes.
 
 use egui::epaint::Shadow;
@@ -9,9 +9,14 @@ pub const SEMIBOLD: &str = "semibold";
 pub const MEDIUM: &str = "medium";
 pub const HAND: &str = "hand";
 
-/// Brand accent.
-pub const ACCENT: Color32 = Color32::from_rgb(76, 110, 245);
-pub const ACCENT_DARK: Color32 = Color32::from_rgb(120, 146, 255);
+/// Identity tokens shared with the website; see docs/identite-graphique.md.
+pub const PAPER: Color32 = Color32::from_rgb(243, 241, 232);
+pub const SHEET: Color32 = Color32::from_rgb(252, 251, 247);
+pub const INK: Color32 = Color32::from_rgb(37, 41, 35);
+pub const ACCENT: Color32 = Color32::from_rgb(196, 71, 45);
+pub const ACCENT_DARK: Color32 = Color32::from_rgb(245, 139, 111);
+pub const BORDER: Color32 = Color32::from_rgb(199, 201, 188);
+pub const MUTED: Color32 = Color32::from_rgb(97, 103, 95);
 
 /// Badge colors of the document kinds.
 pub const KIND_BPMN: Color32 = Color32::from_rgb(59, 130, 246);
@@ -92,27 +97,27 @@ fn visuals(v: &mut Visuals, dark: bool) {
     let accent = accent(dark);
     let (panel, window, extreme, border, text, weak, inactive, hovered, active) = if dark {
         (
-            c(28, 30, 35),
-            c(35, 38, 44),
-            c(20, 22, 26),
-            c(50, 54, 62),
-            c(228, 231, 236),
-            c(150, 156, 168),
-            c(44, 48, 55),
-            c(54, 59, 68),
-            c(62, 74, 120),
+            c(35, 39, 34),
+            c(43, 48, 41),
+            c(27, 31, 27),
+            c(76, 85, 72),
+            PAPER,
+            c(182, 188, 174),
+            c(52, 59, 49),
+            c(64, 72, 60),
+            c(85, 57, 44),
         )
     } else {
         (
-            c(246, 247, 249),
-            c(255, 255, 255),
-            c(255, 255, 255),
-            c(225, 228, 234),
-            c(30, 34, 40),
-            c(105, 112, 125),
-            c(236, 238, 242),
-            c(225, 229, 236),
-            c(214, 222, 252),
+            PAPER,
+            SHEET,
+            SHEET,
+            BORDER,
+            INK,
+            MUTED,
+            c(232, 231, 220),
+            c(222, 224, 211),
+            c(244, 221, 208),
         )
     };
     v.dark_mode = dark;
@@ -120,24 +125,24 @@ fn visuals(v: &mut Visuals, dark: bool) {
     v.window_fill = window;
     v.extreme_bg_color = extreme;
     v.text_edit_bg_color = Some(extreme);
-    v.faint_bg_color = if dark { c(33, 36, 42) } else { c(242, 244, 247) };
-    v.code_bg_color = if dark { c(40, 44, 52) } else { c(238, 240, 244) };
+    v.faint_bg_color = if dark { c(39, 44, 37) } else { c(237, 236, 225) };
+    v.code_bg_color = if dark { c(47, 54, 44) } else { c(232, 231, 220) };
     v.hyperlink_color = accent;
     v.weak_text_color = Some(weak);
     v.override_text_color = Some(text);
     v.window_stroke = Stroke::new(1.0, border);
-    v.window_corner_radius = CornerRadius::same(12);
-    v.menu_corner_radius = CornerRadius::same(10);
+    v.window_corner_radius = CornerRadius::same(3);
+    v.menu_corner_radius = CornerRadius::same(3);
     let shadow_color = Color32::from_black_alpha(if dark { 110 } else { 28 });
     v.window_shadow = Shadow {
-        offset: [0, 8],
-        blur: 28,
+        offset: [3, 4],
+        blur: 0,
         spread: 0,
         color: shadow_color,
     };
     v.popup_shadow = Shadow {
-        offset: [0, 4],
-        blur: 16,
+        offset: [2, 3],
+        blur: 0,
         spread: 0,
         color: shadow_color,
     };
@@ -147,7 +152,7 @@ fn visuals(v: &mut Visuals, dark: bool) {
     v.collapsing_header_frame = false;
     v.indent_has_left_vline = false;
 
-    let r = CornerRadius::same(7);
+    let r = CornerRadius::same(3);
     let w = &mut v.widgets;
     w.noninteractive.bg_fill = window;
     w.noninteractive.weak_bg_fill = panel;
@@ -157,7 +162,7 @@ fn visuals(v: &mut Visuals, dark: bool) {
 
     w.inactive.bg_fill = inactive;
     w.inactive.weak_bg_fill = inactive;
-    w.inactive.bg_stroke = Stroke::NONE;
+    w.inactive.bg_stroke = Stroke::new(1.0, border);
     w.inactive.fg_stroke = Stroke::new(1.0, text);
     w.inactive.corner_radius = r;
 
@@ -193,14 +198,14 @@ pub fn menu_style(style: &mut egui::Style) {
 pub fn toolbar_style(style: &mut egui::Style) {
     let dark = style.visuals.dark_mode;
     let hover = if dark {
-        Color32::from_rgb(46, 50, 59)
+        Color32::from_rgb(64, 72, 60)
     } else {
-        Color32::from_rgb(230, 234, 241)
+        Color32::from_rgb(222, 224, 211)
     };
     let selected = if dark {
-        Color32::from_rgb(46, 59, 94)
+        Color32::from_rgb(85, 57, 44)
     } else {
-        Color32::from_rgb(225, 232, 255)
+        Color32::from_rgb(244, 221, 208)
     };
     style.spacing.button_padding = vec2(6.0, 4.0);
     style.visuals.selection.bg_fill = selected;
@@ -214,7 +219,7 @@ pub fn toolbar_style(style: &mut egui::Style) {
         state.bg_stroke = Stroke::NONE;
     }
     for state in [&mut widgets.inactive, &mut widgets.hovered, &mut widgets.active, &mut widgets.open] {
-        state.corner_radius = CornerRadius::same(6);
+        state.corner_radius = CornerRadius::same(3);
         state.fg_stroke.width = 1.0;
         state.expansion = 0.0;
     }
@@ -232,22 +237,22 @@ pub fn section_title(ui: &mut egui::Ui, title: &str) {
     ui.add_space(2.0);
 }
 
-/// A rounded "card" frame (for grouped content).
+/// A ruled paper frame for grouped content.
 pub fn card(ui: &egui::Ui) -> egui::Frame {
     egui::Frame::new()
         .fill(ui.visuals().window_fill)
         .stroke(ui.visuals().widgets.noninteractive.bg_stroke)
-        .corner_radius(CornerRadius::same(12))
+        .corner_radius(CornerRadius::same(3))
         .inner_margin(Margin::same(16))
 }
 
-/// Segmented control (pill tabs). Returns true if the value changed.
+/// Segmented control. Returns true if the value changed.
 pub fn segmented<T: PartialEq + Copy>(ui: &mut egui::Ui, value: &mut T, options: &[(T, &str)]) -> bool {
     let mut changed = false;
     let dark = ui.visuals().dark_mode;
     egui::Frame::new()
         .fill(ui.visuals().widgets.inactive.bg_fill)
-        .corner_radius(CornerRadius::same(9))
+        .corner_radius(CornerRadius::same(3))
         .inner_margin(Margin::same(3))
         .show(ui, |ui| {
             ui.spacing_mut().item_spacing.x = 2.0;
@@ -258,7 +263,7 @@ pub fn segmented<T: PartialEq + Copy>(ui: &mut egui::Ui, value: &mut T, options:
                     let fill = if selected { ui.visuals().window_fill } else { Color32::TRANSPARENT };
                     let btn = egui::Button::new(text)
                         .fill(fill)
-                        .corner_radius(CornerRadius::same(7))
+                        .corner_radius(CornerRadius::same(2))
                         .stroke(if selected {
                             Stroke::new(1.0, ui.visuals().widgets.noninteractive.bg_stroke.color)
                         } else {
@@ -269,7 +274,7 @@ pub fn segmented<T: PartialEq + Copy>(ui: &mut egui::Ui, value: &mut T, options:
                         // subtle lift
                         ui.painter().rect_stroke(
                             r.rect,
-                            7.0,
+                            2.0,
                             Stroke::new(1.0, Color32::from_black_alpha(10)),
                             egui::StrokeKind::Outside,
                         );
@@ -286,8 +291,12 @@ pub fn segmented<T: PartialEq + Copy>(ui: &mut egui::Ui, value: &mut T, options:
 
 /// Filled accent button for primary actions.
 pub fn primary_button<'a>(ui: &egui::Ui, text: &str) -> egui::Button<'a> {
-    egui::Button::new(egui::RichText::new(text.to_owned()).font(semibold(13.0)).color(Color32::WHITE))
-        .fill(accent(ui.visuals().dark_mode))
-        .corner_radius(CornerRadius::same(8))
-        .min_size(vec2(0.0, 30.0))
+    egui::Button::new(
+        egui::RichText::new(text.to_owned())
+            .font(semibold(13.0))
+            .color(if ui.visuals().dark_mode { INK } else { SHEET }),
+    )
+    .fill(accent(ui.visuals().dark_mode))
+    .corner_radius(CornerRadius::same(3))
+    .min_size(vec2(0.0, 30.0))
 }

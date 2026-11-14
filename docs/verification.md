@@ -1050,3 +1050,39 @@ terms/privacy pages, their metadata, canonical/alternate URLs, sitemap entries,
 CSP routes, scripts, localized footer links and 198 local links/assets/anchors.
 No new browser session, native release build, Windows/macOS run, deployment or
 remote CI matrix was performed during this validation.
+
+
+## Shared Open Process visual identity — 14 November 2026
+
+The application and presentation site share a paper/graphite/vermilion identity,
+Inter typography, small frame corners and ruled controls. The home/creation grid
+uses neutral icons with a single action accent; small registry-color markers
+retain notation identification. Canvas surfaces and selection colors follow the
+shared theme, while authored drawing styles and semantic diagram colors remain
+unchanged. The O → P SVG, generated native/web icons, web loading colors and all
+eight real application captures in the website gallery were refreshed. The
+[identity guide](identite-graphique.md) documents tokens and maintenance.
+
+The complete sequential workspace suite passes **211 tests** (96 application and
+115 core tests). Four home tests were rerun successfully after the final card
+marker refinement. Eight existing gallery/UI tests were rerun after aligning the
+shared floating palettes and tool buttons with the small frame corners. Native
+and WebAssembly `cargo check --locked -p op-app` pass
+without warnings. Two existing packaging tests pass. Workspace formatting, local
+Markdown links and patch whitespace checks pass.
+
+The full website build passes with no Astro diagnostics, including the Trunk
+WebAssembly release build, followed by all nine Bun tests. Local Firefox checks
+cover the three home pages and six legal pages at actual viewport widths of
+320, 390, 768 and 1440 CSS pixels. They check horizontal overflow, loaded images,
+language switching, Escape/outside-click closure, legal footer/section links and
+gallery switching/enlargement. WebDriver BiDi set the smaller viewports because
+ordinary Firefox window resizing stopped at 500 px. The initial mobile header
+wrapping was corrected before the final browser run. Temporary browser profiles
+and loopback servers were shut down by the check.
+
+Desktop/mobile website captures, the catalogue, and light/dark application views
+were visually inspected. Seven principal text/button color pairs have calculated
+contrast ratios of at least 4.5:1; this is a palette check, not a complete
+accessibility audit. Native release builds, Windows/macOS display, deployment
+and the remote CI matrix were not run for this identity change.
