@@ -19,6 +19,8 @@ does not distinguish the automatic `main-*` releases.
 
 ### Editing
 
+- Make BPMN auto arrange respect grid snapping and align mixed-shape centers,
+  keeping flows attached to the placed shapes and preserving lane membership.
 - Hide routine automatic-save status messages; keep storage errors visible.
 - Keep the home scrollbar at the window's right edge while its cards stay centered.
 - Attach free-drawing lines/arrows to shapes, keep endpoints following movement

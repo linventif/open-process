@@ -1876,8 +1876,8 @@ fn file_exports_are_grouped_and_follow_the_active_document() {
 }
 
 #[test]
-fn bpmn_auto_arrange_is_available_in_wide_and_compact_configuration_and_undoes() {
-    for width in [1400.0, 420.0] {
+fn bpmn_auto_arrange_respects_grid_in_wide_and_compact_views_and_undoes() {
+    for (width, snap) in [(1400.0, true), (420.0, true), (1400.0, false), (420.0, false)] {
         let mut h = harness_sized(false, [width, 860.0]);
         let original = h.state().docs[0].snapshot();
         let semantic = h.state().docs[0].editor.revisions().semantic;
@@ -1887,17 +1887,27 @@ fn bpmn_auto_arrange_is_available_in_wide_and_compact_configuration_and_undoes()
             h.get_by_label("Options").click();
             h.run_steps(3);
         }
+        if !snap {
+            h.get_by_label("Snap to grid").click();
+            h.run_steps(3);
+            if width < 720.0 {
+                h.get_by_label("Options").click();
+                h.run_steps(3);
+            }
+        }
         h.get_by_label("Auto arrange").click();
         h.run_steps(5);
         let arranged = h.state().docs[0].snapshot();
         assert_ne!(arranged, original);
+        let editor = h.state().docs[0].editor.as_any().downcast_ref::<BpmnEditor>().unwrap();
+        assert_eq!(editor.diagram.nodes.iter().all(|n| n.pos == n.pos.snapped(10.0)), snap);
         assert_eq!(h.state().docs[0].editor.revisions().semantic, semantic);
         assert_eq!(
             EditorBackend::semantic_document(h.state().docs[0].editor.as_any().downcast_ref::<BpmnEditor>().unwrap()),
             business
         );
         assert!(h.state().docs[0].editor.enabled(UNDO));
-        shot(&mut h, &format!("bpmn_auto_arranged_{width}"));
+        shot(&mut h, &format!("bpmn_auto_arranged_{width}_{snap}"));
         h.state_mut().docs[0].editor.execute(UNDO, 0.0);
         h.run_steps(4);
         assert_eq!(h.state().docs[0].snapshot(), original);

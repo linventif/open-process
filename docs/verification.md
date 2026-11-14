@@ -787,3 +787,27 @@ failure/retry and translation inventory checks. Native and WebAssembly
 `cargo check --locked -p op-app`, formatting, local Markdown targets and
 `git diff --check` pass. Release builds, browser runs, Windows/macOS and
 deployment were not repeated for this presentation change.
+
+## Grid-aware BPMN automatic arrangement — 14 November 2026
+
+The BPMN editor passes its active snapping setting and 10-unit step into the
+domain layout. Mixed-size shapes share row centers. When snapping is enabled,
+centers, pool origins, widths and lane heights align outward to the grid,
+preserving shape sizes, clearance and original pool/lane membership. Disabling
+snapping retains fractional placement. Flow geometry resolves from the placed
+shapes using the shared preferred ports/circular boundaries. Invalid grid steps
+are rejected before mutation; repeated arrangement is idempotent.
+
+A new mixed-shape regression failed on the previous layout before the fix.
+The final **188 sequential workspace tests** pass (84 application, 95 core,
+seven document integration and two generated-case tests). Coverage includes
+fractional sizes, several grid steps, multiple pools, complete shape containment,
+nonoverlap, disabled snapping, unchanged business properties and endpoint
+attachment for straight, orthogonal and curved flows. The existing UI regression
+now exercises snapping both on and off through wide/compact controls and checks
+undo/redo. Its wide snapped screenshot was visually inspected.
+
+Native and WebAssembly checks, strict Clippy, formatting, local Markdown targets
+and `git diff --check` pass. Document schemas and compatibility fixtures are
+unchanged. Release builds, browser runs, Windows/macOS and production deployment
+were not repeated for this change.

@@ -77,9 +77,15 @@ PNG where capture is supported. Exports are disabled on home.
 
 For BPMN, Z10 offers **Auto arrange** alongside style; it moves into Z12 in compact
 views and is also available under Tools. It lays out left to right, preserves
-pool/lane membership and fits the active view. Geometry is persistent/undoable;
-pool widths/lane heights may grow to fit content. Invalid geometry and ambiguous
-header containment are diagnosed before mutation.
+pool/lane membership and fits the active view. Rows align node centers across
+different shape sizes. When **Snap to grid** is enabled, those centers and the
+pool/lane geometry use the editor's 10-unit grid; disabling it keeps free
+coordinates. Node sizes are preserved. Flow endpoints are recalculated from the
+placed shapes: side midpoints on rectangles, vertices on gateways and the
+boundary of circular events, rather than rounded away from their shapes.
+Geometry is persistent/undoable; pool widths/lane heights may grow to fit
+content and snapping clearance. Invalid geometry and ambiguous header
+containment are diagnosed before mutation.
 
 These references cover BPMN, Petri, UML, EPC, database and [free drawing](dessin-libre.md).
 Text/table views such as Mining must not simulate a canvas to fit the layout.

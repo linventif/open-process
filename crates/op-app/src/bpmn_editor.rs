@@ -442,7 +442,7 @@ impl BpmnEditor {
 
     fn auto_arrange(&mut self) {
         self.history.sync(&self.diagram, false);
-        match op_core::bpmn::layout::auto_arrange(&mut self.diagram) {
+        match op_core::bpmn::layout::auto_arrange(&mut self.diagram, self.snap.then_some(GRID)) {
             Ok(()) => {
                 self.drag = None;
                 self.editing = None;
