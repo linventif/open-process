@@ -58,7 +58,8 @@ pub fn show(ui: &mut Ui, docs: &[Document], saved: &[Document], registry: &crate
     }));
     processes.sort_by_key(|p| p.order);
     let mut action = None;
-    egui::ScrollArea::vertical().id_salt("home_scroll").show(ui, |ui| {
+    let scroll = egui::ScrollArea::vertical().id_salt("home_scroll").auto_shrink([false, true]);
+    scroll.show(ui, |ui| {
         let width = (ui.available_width() - 40.0).clamp(0.0, 1120.0);
         let inset = ((ui.available_width() - width) / 2.0).max(0.0);
         ui.horizontal(|ui| {

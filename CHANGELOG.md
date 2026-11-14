@@ -19,6 +19,7 @@ does not distinguish the automatic `main-*` releases.
 
 ### Editing
 
+- Keep the home scrollbar at the window's right edge while its cards stay centered.
 - Attach free-drawing lines/arrows to shapes, keep endpoints following movement
   and resizing, and retarget them with endpoint handles. Whiteboard model v2
   reads v1 drawings and saves typed attachments with undo/redo and SVG support.

@@ -761,3 +761,16 @@ warnings**: `ttf-parser` 0.25.1, `zbus_names` 4.3.5, `zvariant` 5.15.1 and
 Online Bun audit reports no advisories. These findings describe dependency
 advisories, not a complete application security assessment. Windows/macOS,
 the remote CI/release matrix and production deployment were not run locally.
+
+## Home scrollbar placement — 14 November 2026
+
+The home scroll area no longer shrinks horizontally to the occupied content
+width. Its vertical scrollbar stays at the window's right edge while the cards
+retain their centered, width-limited responsive layout. The existing home
+navigation, document-card and responsive-grid checks pass; generated light and
+dark home screenshots were visually inspected.
+
+All **184 workspace tests** pass sequentially. Native and WebAssembly
+`cargo check --locked -p op-app`, formatting, local Markdown targets and
+`git diff --check` pass. Release builds, browser runs, Windows/macOS and
+deployment were not repeated for this layout-only change.

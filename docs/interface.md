@@ -53,6 +53,10 @@ Cards show a PNG preview, a one-line name with full hover text, type/icon and
 unsaved status. Click/keyboard activation resumes the same document/history.
 The responsive grid uses one to four columns.
 
+Home content stays centered with a maximum width of 1120 logical pixels. Its
+vertical scroll area spans the available window width, keeping the scrollbar
+at the right edge rather than beside the centered cards.
+
 Previews are local captures of displayed content, reduced to 320 × 180 pixels
 with aspect ratio preserved. They do not modify models/cameras and restore from
 a separate bounded cache. Missing previews fall back to notation icons.
