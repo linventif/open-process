@@ -37,10 +37,10 @@ changent de document ou de vue ; les seconds changent le contenu de l’inspecte
 La grille visible dans Z06 est le fond du canvas ; « Snap to grid » règle
 l’aimantation des déplacements.
 
-Sur le canvas Petri, le rayon des places est de 5,5 unités de modèle, soit
-un diamètre de 11 unités avant zoom. Les jetons suivent cette taille ; les
-points d’attache des arcs, l’aperçu de création et la sélection utilisent
-le même rayon. Les noms sous les places conservent leur taille de texte.
+Petri places use a model-space radius of 8.25 units, a diameter of 16.5 before
+zoom, following the later 50% increase. Tokens scale with the radius; arc anchors,
+creation previews and hit testing use the same value. Place labels keep their text size.
+Historical radius changes in the verification record refer to earlier revisions.
 
 Le bouton « + » de Z02, **File → New…** et **Ctrl/Cmd+N** ouvrent le même
 sélecteur de documents : une grille de cartes issue du registre, avec recherche,

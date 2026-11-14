@@ -20,7 +20,7 @@ use op_core::geom::{Pos, dist_to_polyline};
 use op_core::i18n::{tr, trf};
 use op_core::petri::{ArcKind, Id, Marking, NodeRef, OMEGA, PetriNet};
 
-const PLACE_R: f32 = 5.5;
+const PLACE_R: f32 = 8.25;
 const TRANS_W: f32 = 14.0;
 const TRANS_H: f32 = 44.0;
 const GRID: f32 = 10.0;
