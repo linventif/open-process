@@ -334,6 +334,17 @@ impl OpenProcessApp {
         self.active = self.active.min(self.docs.len().saturating_sub(1));
     }
 
+    fn request_close(&mut self, i: usize) {
+        let Some(doc) = self.docs.get(i) else {
+            return;
+        };
+        if doc.editor.has_content() && doc.dirty() {
+            self.confirm_close = Some(i);
+        } else {
+            self.close(i);
+        }
+    }
+
     fn home(&mut self, ui: &mut Ui) {
         use crate::home::{self, Action};
         let docs = self
@@ -397,11 +408,7 @@ impl OpenProcessApp {
             }
             DockEvent::Close(uid) => {
                 if let Some(i) = self.docs.iter().position(|d| d.uid == uid) {
-                    if self.docs[i].dirty() {
-                        self.confirm_close = Some(i);
-                    } else {
-                        self.close(i);
-                    }
+                    self.request_close(i);
                 }
             }
             DockEvent::Host(uid, event) => match event {
@@ -556,7 +563,8 @@ impl OpenProcessApp {
                     .add_enabled(!self.docs.is_empty() && !self.show_home, egui::Button::new(tr("app.close_tab")))
                     .clicked()
                 {
-                    self.confirm_close = Some(self.active);
+                    self.request_close(self.active);
+                    ui.close();
                 }
                 #[cfg(not(target_arch = "wasm32"))]
                 if ui.button(tr("app.quit")).clicked() {

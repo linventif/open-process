@@ -85,6 +85,9 @@ impl EditorBackend for WhiteboardEditor {
     fn content_generation(&self) -> Option<u64> {
         Some(self.history.generation())
     }
+    fn has_content(&self) -> bool {
+        !self.board.elements.is_empty()
+    }
     fn validate_storage(&self) -> Result<(), String> {
         self.board.validate()
     }

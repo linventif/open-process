@@ -34,6 +34,10 @@ Implement `EditorBackend` beside the editor. Existing adapters include
 - Expose `content_generation` from the typed history when all persistent UI
   mutations are observed there. Unchanged frames then skip JSON reconstruction;
   the default `None` retains comparison behavior for other backends.
+- Implement `has_content` so empty documents close without a save prompt.
+  Count notation-specific elements, source and authored configuration, excluding
+  names and view state. The default `true` preserves confirmation for backends
+  that do not declare an emptiness rule and for recovery sessions.
 
 `Session::boxed(editor)` supplies the application interface, view handling and
 revision tracking. Do not put the model or history into view state. A text editor

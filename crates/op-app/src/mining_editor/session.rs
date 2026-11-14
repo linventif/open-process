@@ -30,6 +30,9 @@ impl EditorBackend for MiningEditor {
     fn content_generation(&self) -> Option<u64> {
         Some(self.history.generation())
     }
+    fn has_content(&self) -> bool {
+        !self.text.trim().is_empty() || self.answers.values().any(|answer| !answer.trim().is_empty())
+    }
     fn document(&self) -> Document {
         JsonCodec::new("event-log").encode(&LogDocument {
             name: self.name.clone(),

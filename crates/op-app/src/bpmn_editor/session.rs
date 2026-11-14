@@ -103,6 +103,9 @@ impl EditorBackend for BpmnEditor {
     fn content_generation(&self) -> Option<u64> {
         Some(self.history.generation())
     }
+    fn has_content(&self) -> bool {
+        !self.diagram.nodes.is_empty() || !self.diagram.flows.is_empty() || !self.diagram.pools.is_empty()
+    }
     fn validate_storage(&self) -> Result<(), String> {
         self.diagram.check_storage()
     }

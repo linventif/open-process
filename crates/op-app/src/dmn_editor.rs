@@ -285,6 +285,9 @@ impl EditorBackend for DmnEditor {
     fn content_generation(&self) -> Option<u64> {
         Some(self.history.generation())
     }
+    fn has_content(&self) -> bool {
+        self.table != DecisionTable::new(self.table.name.clone())
+    }
     fn validate_storage(&self) -> Result<(), String> {
         self.table.check_storage()
     }

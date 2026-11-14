@@ -145,6 +145,9 @@ impl EditorBackend for PetriEditor {
     fn content_generation(&self) -> Option<u64> {
         Some(self.history.generation())
     }
+    fn has_content(&self) -> bool {
+        !self.net.places.is_empty() || !self.net.transitions.is_empty() || !self.net.arcs.is_empty()
+    }
     fn validate_storage(&self) -> Result<(), String> {
         self.net.check_storage()
     }

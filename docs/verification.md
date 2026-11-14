@@ -594,3 +594,20 @@ All 169 workspace tests passed with `--test-threads=1`. Native and WebAssembly
 and `git diff --check` passed. The generated home-screen screenshot was inspected.
 No new release build, deployment or Windows/macOS run was performed for this
 presentation change.
+
+## Closing empty documents — 14 November 2026
+
+The tab close button and File menu now share the same close policy. Each typed
+backend reports whether content remains; empty diagrams, whitespace-only source
+or logs and default decision tables close directly, including renamed documents
+and saved diagrams cleared by deletion. Authored configuration, exercise answers
+and recoverable originals retain the conservative confirmation behavior when
+unsaved. The dirty indicator and saved-file reference are unchanged.
+
+All **172 workspace tests** passed with `--test-threads=1` (76 application, 87 core,
+seven document and two generated-case tests). New regressions cover all empty
+editors through both close entry points, nonempty examples, customized clauses,
+pool-only BPMN, invalid source, original data and deletion with undo available.
+Native/WebAssembly checks, strict Clippy, formatting, local documentation links
+and `git diff --check` passed. Release builds, new browser runs, Windows/macOS
+and deployment were not repeated for this change.

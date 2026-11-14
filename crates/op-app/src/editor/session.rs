@@ -70,6 +70,10 @@ pub trait EditorSession {
     fn name(&self) -> &str;
     fn rename(&mut self, name: String);
     fn snapshot(&self) -> StoredDocument;
+    /// Whether closing could discard content; unknown/recovery sessions stay conservative.
+    fn has_content(&self) -> bool {
+        true
+    }
     fn validate_storage(&self) -> Result<(), String> {
         Ok(())
     }
@@ -121,6 +125,10 @@ pub trait EditorBackend: 'static {
     fn name(&self) -> &str;
     fn rename(&mut self, name: String);
     fn document(&self) -> Document;
+    /// The notation decides what content remains, independently of names and view state.
+    fn has_content(&self) -> bool {
+        true
+    }
     fn validate_storage(&self) -> Result<(), String> {
         Ok(())
     }
@@ -224,6 +232,9 @@ impl<E: EditorBackend> EditorSession for Session<E> {
     }
     fn snapshot(&self) -> StoredDocument {
         StoredDocument::Editable(self.editor.document())
+    }
+    fn has_content(&self) -> bool {
+        self.editor.has_content()
     }
     fn validate_storage(&self) -> Result<(), String> {
         self.editor.validate_storage()

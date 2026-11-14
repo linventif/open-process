@@ -7,6 +7,11 @@ does not distinguish the automatic `main-*` releases.
 
 ## Unreleased
 
+### Editing
+
+- Close empty documents directly from their tabs or the File menu while retaining
+  save confirmation for unsaved content and recoverable originals.
+
 ### Reliability and security
 
 - Bound XML imports and reject unsafe BPMN/Petri/UML payloads while preserving

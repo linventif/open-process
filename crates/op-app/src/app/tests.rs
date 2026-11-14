@@ -1201,6 +1201,124 @@ fn independent_views_share_document_history_and_keep_their_cameras() {
 }
 
 #[test]
+fn empty_documents_close_from_tabs_and_file_menu_without_confirmation() {
+    use op_core::document::{DocumentCodec, JsonCodec};
+
+    let registry = crate::composition::registry();
+    let mut h = Harness::builder()
+        .with_size([1400.0, 860.0])
+        .build_eframe(|cc| OpenProcessApp::new(cc, Vec::new(), registry));
+    for descriptor in &registry.diagrams {
+        let document = if descriptor.id == "mermaid" {
+            JsonCodec::new("mermaid").encode(&op_core::mermaid::Diagram {
+                name: "Empty source".into(),
+                source: " \n\t ".into(),
+            })
+        } else {
+            (descriptor.create)(1)
+        };
+        for file_menu in [false, true] {
+            h.state_mut().open_document(document.clone(), None, false);
+            h.state_mut().docs[0].editor.rename("Renamed empty document".into());
+            h.run_steps(3);
+            assert!(h.state().docs[0].dirty(), "{} is still unsaved", descriptor.id);
+            if file_menu {
+                h.get_by_label("File").click();
+                h.run_steps(2);
+                h.get_by_label("Close tab").click();
+            } else {
+                let uid = h.state().docs[0].uid;
+                let pane = dock::panes_of(&h.state().tree, uid)[0];
+                h.state_mut().handle_dock_event(DockEvent::ClosePane(uid, pane));
+            }
+            h.run_steps(3);
+            assert!(h.state().docs.is_empty(), "{} closes directly", descriptor.id);
+            assert!(h.state().confirm_close.is_none());
+            assert!(h.state().show_home);
+        }
+    }
+}
+
+#[test]
+fn documents_with_content_and_recovery_data_keep_close_confirmation() {
+    use op_core::document::{DocumentCodec, JsonCodec};
+
+    let registry = crate::composition::registry();
+    let mut documents: Vec<_> = registry
+        .examples
+        .iter()
+        .map(|example| StoredDocument::Editable((example.create)()))
+        .collect();
+    let mut configured_table = op_core::dmn::DecisionTable::new("Configured clauses");
+    configured_table.inputs[0].name = "age".into();
+    let mut pool_only = BpmnDiagram::new("Pool only");
+    pool_only.add_pool(op_core::geom::Pos::default());
+    documents.extend([
+        StoredDocument::Editable(JsonCodec::new("dmn.table").encode(&configured_table)),
+        StoredDocument::Editable(JsonCodec::new("bpmn").encode(&pool_only)),
+        StoredDocument::Editable(JsonCodec::new("event-log").encode(&LogDocument {
+            answers: [("step:TI".into(), "{A}".into())].into(),
+            ..Default::default()
+        })),
+        StoredDocument::Editable(JsonCodec::new("mermaid").encode(&op_core::mermaid::Diagram {
+            name: "Invalid draft".into(),
+            source: "flowchart TD\n A[Unfinished".into(),
+        })),
+        StoredDocument::Original {
+            bytes: b"unknown original data".to_vec(),
+            reason: "Unrecognized format".into(),
+        },
+    ]);
+    let mut h = Harness::builder().build_eframe(|cc| OpenProcessApp::new(cc, Vec::new(), registry));
+    for document in documents {
+        h.state_mut().open_stored(document, None, false, None);
+        let uid = h.state().docs[0].uid;
+        let before = h.state().docs[0].snapshot();
+        h.state_mut().handle_dock_event(DockEvent::Close(uid));
+        assert_eq!(h.state().confirm_close, Some(0));
+        assert_eq!(h.state().docs[0].snapshot(), before);
+        h.state_mut().confirm_close = None;
+        h.state_mut().close(0);
+    }
+
+    h.state_mut().open_model(Model::Bpmn(examples::order_process()), None, false);
+    h.run_steps(3);
+    h.get_by_label("File").click();
+    h.run_steps(2);
+    h.get_by_label("Close tab").click();
+    h.run_steps(3);
+    assert_eq!(h.state().confirm_close, Some(0));
+    h.get_by_label("Cancel").click();
+    h.run_steps(3);
+    assert_eq!(h.state().docs.len(), 1);
+}
+
+#[test]
+fn deleting_all_saved_diagram_content_allows_closing_without_confirmation() {
+    let mut h = harness(false);
+    let mut diagram = examples::order_process();
+    diagram.pools.clear();
+    h.state_mut().open_model(Model::Bpmn(diagram), Some("saved.opx".into()), true);
+    let index = h.state().active;
+    let uid = h.state().docs[index].uid;
+    assert!(!h.state().docs[index].dirty());
+    h.state_mut().docs[index]
+        .editor
+        .as_any_mut()
+        .downcast_mut::<BpmnEditor>()
+        .unwrap()
+        .select_all();
+    h.state_mut().execute(DELETE, 0.0);
+    h.run_steps(3);
+    assert!(h.state().docs[index].dirty());
+    assert!(!h.state().docs[index].editor.has_content());
+    assert!(h.state().docs[index].editor.enabled(UNDO));
+    h.state_mut().handle_dock_event(DockEvent::Close(uid));
+    assert!(h.state().confirm_close.is_none());
+    assert!(!h.state().docs.iter().any(|doc| doc.uid == uid));
+}
+
+#[test]
 fn unsupported_files_remain_recoverable_byte_for_byte() {
     let mut h = harness(false);
     for bytes in [

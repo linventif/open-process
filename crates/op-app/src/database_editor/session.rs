@@ -82,6 +82,9 @@ impl EditorBackend for DatabaseEditor {
     fn content_generation(&self) -> Option<u64> {
         Some(self.history.generation())
     }
+    fn has_content(&self) -> bool {
+        !self.schema.tables.is_empty() || !self.schema.foreign_keys.is_empty()
+    }
     fn validate_storage(&self) -> Result<(), String> {
         self.schema.check_storage()
     }

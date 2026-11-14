@@ -42,6 +42,12 @@ saves create downloads rather than updating the original file in place.
 The browser retains the modified marker and close confirmation after starting a
 download. Verify the downloaded file before choosing **Close without saving**.
 
+Empty documents close directly from their tab or **File → Close tab**, even if
+they were renamed or all their elements were deleted. A blank source/log or a
+default decision table without rules also closes directly. Unsaved content,
+customized decision clauses, exercise answers and recoverable original data
+retain the save confirmation.
+
 Use **File → Open** or **Ctrl/Cmd+O** to reopen a saved file or import one of the
 supported formats. Files can also be dragged onto the application.
 

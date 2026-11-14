@@ -265,6 +265,9 @@ impl EditorBackend for MermaidEditor {
     fn content_generation(&self) -> Option<u64> {
         Some(self.history.generation())
     }
+    fn has_content(&self) -> bool {
+        !self.diagram.source.trim().is_empty()
+    }
     fn document(&self) -> Document {
         JsonCodec::new("mermaid").encode(&self.diagram)
     }
