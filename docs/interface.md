@@ -23,7 +23,7 @@ annotated diagram remains a structural reference.
 | Z01 | Main navigation / menu bar | Home, File, Edit, View, Tools, Help, language and theme. Shell: `app.rs::menu_bar`. |
 | Z02 | Document tabs / docking | Open documents/views, closure and workspace splitting. `DockBehavior` in `app.rs`, tree in `dock.rs`. |
 | Z03 | Document view / dockable panel | Container in the docking layout. Multiple views may share a model/history. |
-| Z04 | Business action bar | Notation-specific actions such as UML relations/alignment. `DiagramLayout::tools`. |
+| Z04 | Optional business action bar | Necessary notation-specific actions, such as table row editing. `DiagramLayout::tools`. UML does not show this bar. |
 | Z05 | Tool palette | Active tool: select, connect, create. Notation content with `canvas.rs` primitives. |
 | Z06 | Canvas / drawing area | Model rendering, background grid, selection, movement and camera. `DiagramLayout::canvas`. |
 | Z07 | Inspector | Properties, validation or analysis. Frame/responsiveness: `DiagramLayout::inspector`. |
@@ -119,6 +119,20 @@ rows set minimum visible heights. Snap settings, one-step undo/redo and Escape
 cancellation apply in every editor. Lines/arrows in free drawings retain their
 endpoint handles and show an endpoint-editing cursor. Resize feedback is omitted
 from exported images.
+
+UML class and use-case builders group relation types in the floating **Connect**
+tool (Z05). Hover or activate the tool to open a menu with an icon and translated
+name for each valid relation type. The selected type becomes the tool's icon;
+**C** reuses it after switching tools. The menu also supports keyboard activation,
+Escape and dismissal when the pointer leaves the tool/menu. Choosing a type
+clears an unfinished connection without changing the document or its history.
+Create relations by dragging between nodes or clicking the two endpoints.
+
+UML has no horizontal business action bar. For multiple selected nodes,
+**Arrange** is available in the inspector and the canvas context menu. Duplication
+remains in the context menu and **Ctrl/Cmd+D**. UML class conversion to Mermaid
+is available in **Tools** and the canvas context menu, including narrow views;
+exam mode hides it. These actions retain their existing undo/conversion behavior.
 
 Free drawing exposes copy/cut/paste, duplicate, delete and select-all in **Edit**
 and its canvas context menu. **Alt+drag** duplicates a selection in one undoable

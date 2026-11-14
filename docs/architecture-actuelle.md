@@ -96,9 +96,9 @@ editor access through `Any` is restricted to UI probes under `cfg(test)`.
 ## Editor organization
 
 `bpmn_editor/` and `petri_editor/` separate interaction, rendering, inspector/panels
-and session adaptation. `uml_editor/` separates interaction, rendering, inspector
-and session. Mining results live in `mining_editor/results.rs`, with integration
-in `mining_editor/session.rs`. Historical module names remain; the target's
+and session adaptation. `uml_editor/` separates interaction, rendering, inspector,
+tools and session. Mining results live in `mining_editor/results.rs`, with
+integration in `mining_editor/session.rs`. Historical module names remain; the target's
 logical directory tree did not require renaming public paths.
 
 ## Shared graphical layout
@@ -106,8 +106,11 @@ logical directory tree did not require renaming public paths.
 The [annotated layout and vocabulary](interface.md) name navigation, document
 tabs, canvas, inspector and view configuration. Graphical editors use
 `DiagramLayout` for shared bar height, spacing, zoom, snapping, issue visibility
-where supported and notation-specific slots. UML relation/alignment actions use
-the business tools slot rather than a second configuration bar.
+where supported and notation-specific slots. UML has no horizontal business
+action bar: `uml_editor/tools.rs` supplies a hover/click relation picker in the
+floating palette, while alignment/distribution use the selection inspector and
+canvas context menu. Relation type is typed runtime view state, independent of
+the document/history; persisted camera/snap/inspector data keeps its format.
 
 The inspector sits on the right in wide views. Below 760 px it is hidden by
 default; opening it explicitly places a bounded panel above the canvas. Options

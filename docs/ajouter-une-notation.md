@@ -50,8 +50,11 @@ may use `()` as view state and ignore canvas mechanisms.
 Graphical editors use `editor::layout::DiagramLayout` for the inspector,
 `inspector_tabs`, scrollable `inspector_body`, configuration and canvas. Supply
 `CanvasControls`, `FooterStatus` and notation-specific options. Bar heights,
-spacing, zoom and compact-menu thresholds stay in the common component. Extra
-business actions use the `tools` slot.
+spacing, zoom and compact-menu thresholds stay in the common component. Put
+authoring tools in the floating palette and group related variants in a picker,
+as UML does for relation types. Put selection actions in the inspector or canvas
+context menu. Reserve the optional `tools` slot for actions that need a dedicated
+row; omit it when the palette and contextual controls cover the editor's needs.
 
 Resizable canvas elements reuse `canvas::resize` for border/corner picking,
 pointer offsets, system cursors and highlights. Supply a typed target ID and

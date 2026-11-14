@@ -1355,6 +1355,7 @@ pub const TABLE: &[(&str, &str)] = &[
     ),
     ("uml.operations", "Opérations"),
     ("uml.realization", "Réalisation"),
+    ("uml.relation_types", "Types de relations"),
     (
         "uml.relation_not_valid_these_elements",
         "Cette relation n’est pas valide pour ces éléments.",
@@ -1372,7 +1373,7 @@ pub const TABLE: &[(&str, &str)] = &[
     ("uml.uml_order_classes", "UML – Classes d’une commande"),
     (
         "uml.use_arrange_align_distribute_selection",
-        "Utilisez Disposition pour aligner ou répartir la sélection.",
+        "Alignez ou répartissez les éléments sélectionnés.",
     ),
     ("uml.use_case", "Cas d’utilisation"),
     ("uml.use_case_diagram", "Diagramme de cas d’utilisation {}"),

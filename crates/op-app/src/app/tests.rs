@@ -5,6 +5,7 @@ use op_core::geom::Pos;
 
 mod appearance;
 mod resize;
+mod uml_tools;
 mod whiteboard_editing;
 
 fn harness(dark: bool) -> Harness<'static, OpenProcessApp> {
@@ -194,6 +195,12 @@ fn uml_mermaid_conversion_buttons_open_independent_editable_documents() {
         let source_uid = h.state().docs[source_index].uid;
         let original = uml(&h).diagram.clone();
         let count = h.state().docs.len();
+        if width > 700.0 {
+            h.get_by_label("Tools").click();
+        } else {
+            uml_tools::right_click(&mut h, egui::pos2(150.0, 200.0));
+        }
+        h.run_steps(2);
         h.get_by_label("Convert to Mermaid").click();
         h.run_steps(6);
         assert_eq!(h.state().docs.len(), count + 1);
@@ -583,6 +590,8 @@ fn uml_editors_by_mouse() {
         let b = uml(&h).node_screen_center(uml(&h).diagram.nodes[1].id);
         h.get_by_label("Connect").click();
         h.run_steps(2);
+        h.get_by_label("Association").click();
+        h.run_steps(2);
         click(&mut h, a);
         click(&mut h, b);
         assert_eq!(uml(&h).diagram.relations.len(), 1);
@@ -607,7 +616,7 @@ fn uml_editors_by_mouse() {
             h.get_by_label("Use case").click();
             h.run_steps(2);
             click(&mut h, egui::pos2(650.0, 550.0));
-            h.get_by_role(egui::accesskit::Role::ComboBox).click();
+            h.get_by_label("Connect").click();
             h.run_steps(2);
             h.get_by_label("Include").click();
             h.run_steps(2);

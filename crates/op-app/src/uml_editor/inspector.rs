@@ -29,6 +29,7 @@ impl UmlEditor {
             Some(Selection::Node(_)) if self.group.len() > 1 => {
                 ui.heading(trf("uml.elements_selected", &[&self.group.len()]));
                 ui.weak(tr("uml.use_arrange_align_distribute_selection"));
+                ui.menu_button(tr("bpmn.arrange"), |ui| self.arrange_actions(ui));
                 if ui.button(tr("common.delete_selection")).clicked() {
                     self.delete_selection();
                 }

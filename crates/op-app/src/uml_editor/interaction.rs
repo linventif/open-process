@@ -190,7 +190,7 @@ impl UmlEditor {
     }
 
     fn shortcuts(&mut self, ui: &Ui, response: &egui::Response) {
-        if self.editing.is_some() || !response.hovered() || ui.ctx().egui_wants_keyboard_input() {
+        if self.editing.is_some() || !response.hovered() || ui.ctx().egui_wants_keyboard_input() || egui::Popup::is_any_open(ui.ctx()) {
             return;
         }
         let command = ui.input(|i| i.modifiers.command);
@@ -491,6 +491,16 @@ impl UmlEditor {
                 ui.close();
             }
             ui.separator();
+            ui.add_enabled_ui(self.group.len() > 1, |ui| {
+                ui.menu_button(tr("bpmn.arrange"), |ui| self.arrange_actions(ui));
+            });
+            if !crate::editor::exam::active(ui.ctx())
+                && self.diagram.kind == DiagramKind::Class
+                && ui.button(tr("conversion.to_mermaid")).clicked()
+            {
+                self.convert_mermaid = true;
+                ui.close();
+            }
             if ui.button(tr("canvas.zoom_fit")).clicked() {
                 self.request_fit();
                 ui.close();

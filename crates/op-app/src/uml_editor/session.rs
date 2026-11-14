@@ -4,7 +4,7 @@ use crate::editor::*;
 use op_core::document::{Document, DocumentCodec, JsonCodec, ReadError};
 use op_core::i18n::key;
 
-view_state!(UmlEditor, UmlEditorView, uid: u64, view: View, last_canvas: Rect, snap: bool, fit: bool, show_inspector: Option<bool>, tool: Tool, drag: Option<Drag>, editing: Option<(Selection, String, bool)>, pending: Option<Id>, dnd: Option<NodeKind>);
+view_state!(UmlEditor, UmlEditorView, uid: u64, view: View, last_canvas: Rect, snap: bool, fit: bool, show_inspector: Option<bool>, tool: Tool, relation_kind: RelationKind, drag: Option<Drag>, editing: Option<(Selection, String, bool)>, pending: Option<Id>, dnd: Option<NodeKind>);
 
 const COMMANDS: &[CommandDescriptor] = &[
     CommandDescriptor {

@@ -1165,3 +1165,38 @@ Astro server on `localhost:4321` also passes a live selector-removal, gallery an
 mode-persistence check, and was left running. Temporary test servers and browser
 profiles were closed. Native release builds, other operating systems/browsers,
 deployment and the remote CI matrix were not run.
+
+
+## UML relation tools and contextual actions — 14 November 2026
+
+Class and use-case builders no longer show a horizontal business action bar.
+The floating Connect tool opens a relation picker on hover, click or keyboard
+activation, with notation-specific types and matching UML symbols. The chosen
+type becomes the palette icon and remains available through C. Switching types
+clears an unfinished connection. Alignment/distribution moved to the selection
+inspector and canvas context menu. Duplication remains in the context menu and
+its shortcut; class-to-Mermaid conversion remains in Tools and is also available
+in the canvas context menu. Exam mode hides the conversion. Document formats,
+saved view preferences and domain relation rules are unchanged.
+
+The complete sequential workspace suite passes **216 tests**: 101 application
+and 115 core tests. Three new UI regressions cover all seven class relation types
+with click/drag creation and atomic undo/redo, tool selection without document
+edits, remembered types through C, valid use-case choices, keyboard activation,
+Escape, hover dismissal, pending-source cancellation and arrangement access.
+The existing mouse and independent-document conversion tests pass with the new
+controls, including conversion from a 420 px view's context menu.
+
+Native and WebAssembly compilation checks, workspace formatting, local Markdown
+links, the annotated SVG's XML syntax and patch whitespace checks pass. The full
+website build and all **12 Bun tests** pass. The Classic gallery test renders
+16 current views without changing document snapshots; the exporter refreshes
+the two UML images and their stable fallback.
+
+Firefox runs the compiled application under the shipped CSP with a temporary
+profile/server. Real pointer interactions open the relation picker, choose
+Generalization, create two classes and connect them. Captures at 1400 and 420 CSS
+pixels were visually inspected, alongside light/dark UI-test captures and the
+selection context menu. Temporary browser/server processes were closed. Native
+release builds, Windows/macOS display, other browsers, deployment and the remote
+CI matrix were not run.

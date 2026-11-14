@@ -16,6 +16,7 @@ use std::collections::{BTreeSet, HashMap};
 
 mod draw;
 mod interaction;
+mod tools;
 use op_core::uml::*;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -138,65 +139,6 @@ impl UmlEditor {
     pub fn ui(&mut self, ui: &mut Ui) {
         ui.push_id(self.uid, |ui| {
             let layout = DiagramLayout::new(ui, self.uid, self.show_inspector);
-            layout.tools(ui, |ui| {
-                egui::ComboBox::from_id_salt("relation_type")
-                    .selected_text(tr(self.relation_kind.label()))
-                    .show_ui(ui, |ui| {
-                        for &kind in self.diagram.kind.relation_kinds() {
-                            if ui.selectable_label(self.relation_kind == kind, tr(kind.label())).clicked() {
-                                self.relation_kind = kind;
-                                self.tool = Tool::Connect;
-                                self.pending = None;
-                            }
-                        }
-                    });
-                ui.menu_button(tr("bpmn.arrange"), |ui| {
-                    crate::theme::menu_style(ui.style_mut());
-                    if self.group.len() < 2 {
-                        ui.disable();
-                    }
-                    for (label, horizontal, edge) in [
-                        (tr("common.left"), true, -1),
-                        (tr("canvas.center_horizontal"), true, 0),
-                        (tr("common.right"), true, 1),
-                        (tr("common.top"), false, -1),
-                        (tr("canvas.center_vertical"), false, 0),
-                        (tr("common.bottom"), false, 1),
-                    ] {
-                        if ui.button(label).clicked() {
-                            self.align(horizontal, edge);
-                            ui.close();
-                        }
-                    }
-                    if ui
-                        .add_enabled(self.group.len() > 2, egui::Button::new(tr("canvas.distribute_horizontal")))
-                        .clicked()
-                    {
-                        self.distribute(true);
-                        ui.close();
-                    }
-                    if ui
-                        .add_enabled(self.group.len() > 2, egui::Button::new(tr("canvas.distribute_vertical")))
-                        .clicked()
-                    {
-                        self.distribute(false);
-                        ui.close();
-                    }
-                });
-                if ui
-                    .add_enabled(!self.group.is_empty(), egui::Button::new(tr("common.duplicate")))
-                    .clicked()
-                {
-                    let fragment = self.diagram.fragment(&self.group);
-                    self.paste(&fragment);
-                }
-                if !crate::editor::exam::active(ui.ctx())
-                    && self.diagram.kind == DiagramKind::Class
-                    && ui.button(tr("conversion.to_mermaid")).clicked()
-                {
-                    self.convert_mermaid = true;
-                }
-            });
             layout.inspector(ui, |ui| DiagramLayout::inspector_body(ui, |ui| self.properties(ui)));
             self.status_bar(ui, layout);
             layout.canvas(ui, |ui| self.canvas(ui));

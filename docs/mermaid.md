@@ -25,13 +25,13 @@ above the preview.
 
 ## Converting UML class diagrams
 
-In the UML class builder, select **Convert to Mermaid** in the toolbar or the
-**Tools** menu. A new Mermaid document opens with editable `classDiagram` source
-and its preview. Its source can then be exported as `.mmd` with the existing
+In the UML class builder, select **Convert to Mermaid** in the **Tools** menu or
+the canvas context menu. A new Mermaid document opens with editable
+`classDiagram` source and its preview. Its source can then be exported as `.mmd` with the existing
 Mermaid export command. The original UML document remains open and unchanged.
 
 For the reverse direction, open or import a Mermaid `classDiagram` and select
-**Convert to UML classes**, again in the toolbar or **Tools**. This creates a
+**Convert to UML classes** in the Mermaid toolbar or **Tools**. This creates a
 separate editable UML document with its own history and save state. This command
 is disabled for other Mermaid families; UML use-case diagrams are not supported
 by this conversion either. This is an explicit class-diagram mapping, not a
