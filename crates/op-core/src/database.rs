@@ -150,6 +150,10 @@ pub struct Table {
     pub bounds: Rect,
 }
 impl Table {
+    pub fn minimum_size(&self) -> Pos {
+        Pos::new(190.0, (42.0 + self.columns.len() as f32 * 25.0).max(65.0))
+    }
+
     pub fn column(&self, id: Id) -> Option<&Column> {
         self.columns.iter().find(|c| c.id == id)
     }

@@ -50,6 +50,78 @@ fn automatic_copies_preserve_latest_edits_on_close_and_manual_files() {
 }
 
 #[test]
+fn saved_diagram_cards_keep_distinct_previews_after_close_restart_and_reopen() {
+    #[derive(Default)]
+    struct Storage(std::collections::HashMap<String, String>);
+    impl eframe::Storage for Storage {
+        fn get_string(&self, key: &str) -> Option<String> {
+            self.0.get(key).cloned()
+        }
+        fn set_string(&mut self, key: &str, value: String) {
+            self.0.insert(key.into(), value);
+        }
+        fn remove_string(&mut self, key: &str) {
+            self.0.remove(key);
+        }
+        fn flush(&mut self) {}
+    }
+
+    let temporary = tempfile::tempdir().unwrap();
+    let mut h = isolated(temporary.path());
+    let mut previews = std::collections::HashMap::new();
+    for example in ["bpmn.order", "petri.mutex"] {
+        h.state_mut().open_example(example);
+        let index = h.state().active;
+        h.state_mut().docs[index].editor.rename("Same name".into());
+        h.run_steps(8);
+        h.state_mut().flush_automatic_document(index);
+        let doc = &h.state().docs[index];
+        let id = doc.archive.as_ref().unwrap().id.clone();
+        let png = h.state().thumbnails.png(doc).expect("the displayed diagram has a preview").to_vec();
+        previews.insert(id, png);
+        h.state_mut().request_close(index);
+        h.run_steps(4);
+        assert!(h.state().docs.is_empty());
+    }
+    assert_ne!(previews.values().next(), previews.values().nth(1));
+    for entry in &h.state().automatic.entries {
+        assert!(h.state().thumbnails.saved_texture(entry).is_some());
+    }
+    let screenshots = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/screenshots");
+    fs::create_dir_all(&screenshots).unwrap();
+    h.render()
+        .unwrap()
+        .save(screenshots.join("automatic_library_thumbnails.png"))
+        .unwrap();
+    let mut storage = Storage::default();
+    eframe::App::save(h.state_mut(), &mut storage);
+    drop(h);
+
+    let mut restarted = isolated(temporary.path());
+    let ctx = restarted.ctx.clone();
+    let app = restarted.state_mut();
+    app.thumbnails
+        .restore(&storage, &ctx, &Default::default(), &app.docs, &app.automatic.entries);
+    restarted.run_steps(4);
+    assert!(restarted.state().docs.is_empty());
+    for entry in &restarted.state().automatic.entries {
+        assert!(restarted.state().thumbnails.saved_texture(entry).is_some());
+    }
+    restarted.state_mut().open_automatic_document(0);
+    let doc = &restarted.state().docs[0];
+    assert_eq!(
+        restarted.state().thumbnails.png(doc).unwrap(),
+        previews[&doc.archive.as_ref().unwrap().id]
+    );
+    restarted.state_mut().open_automatic_document(0);
+    assert_eq!(
+        restarted.state().docs.len(),
+        1,
+        "reopening a library card resumes its existing document"
+    );
+}
+
+#[test]
 fn automatic_failure_keeps_content_dirty_and_close_confirmation() {
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path().join("Open Process");

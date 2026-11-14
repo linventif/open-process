@@ -24,7 +24,8 @@ pub enum Model {
 pub struct LogDocument {
     pub name: String,
     pub text: String,
-    /// Step-by-step (manual) mode of the Alpha exercise.
+    /// Legacy step-by-step preference, retained when reading and writing older logs.
+    /// Examination mode is now an application preference, outside document content.
     #[serde(default)]
     pub manual: bool,
     /// The student's answers (relations, matrix cells, algorithm steps).

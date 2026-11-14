@@ -6,6 +6,19 @@ use canvas::InlineOutcome;
 const CLIPBOARD: &str = "open_process_uml_clipboard";
 
 impl UmlEditor {
+    fn resize_at(&self, canvas: Rect, pointer: egui::Pos2) -> Option<(Id, canvas::resize::ResizeEdge)> {
+        if self.tool != Tool::Select || self.editing.is_some() || self.dnd.is_some() {
+            return None;
+        }
+        let nodes = self
+            .diagram
+            .nodes
+            .iter()
+            .filter(|n| n.kind == NodeKind::System)
+            .chain(self.diagram.nodes.iter().filter(|n| n.kind != NodeKind::System));
+        canvas::resize::target(self.view, canvas, pointer, nodes.map(|n| (n.id, n.rect())))
+    }
+
     pub(super) fn select_node(&mut self, id: Id, additive: bool) {
         if !additive {
             self.group.clear();
@@ -308,19 +321,12 @@ impl UmlEditor {
                         }
                     }
                     Tool::Select => {
-                        let resize = if let Some(Selection::Node(id)) = self.selection {
-                            self.diagram
-                                .node(id)
-                                .filter(|n| {
-                                    let r = self.view.rect_to_screen(rect, n.rect());
-                                    self.group.len() == 1 && r.right_bottom().distance(screen) < 12.0
-                                })
-                                .map(|n| n.id)
-                        } else {
-                            None
-                        };
-                        if let Some(id) = resize {
-                            self.drag = Some(Drag::Resize(id));
+                        if let Some((id, edge)) = self.resize_at(rect, screen) {
+                            self.select_node(id, false);
+                            self.drag = Some(Drag::Resize {
+                                id,
+                                gesture: canvas::resize::ResizeGesture::new(self.diagram.node(id).unwrap().rect(), edge, start),
+                            });
                         } else if let Some(Selection::Node(id)) = self.hit(start, screen) {
                             if !self.group.contains(&id) {
                                 self.select_node(id, shift);
@@ -360,11 +366,19 @@ impl UmlEditor {
                         }
                     }
                 }
-                Some(Drag::Resize(id)) => {
+                Some(Drag::Resize { id, gesture }) => {
                     if let Some(n) = self.diagram.nodes.iter_mut().find(|n| n.id == *id) {
-                        let p = if self.snap { world.snapped(10.0) } else { world };
-                        n.bounds.w = (p.x - n.bounds.x).clamp(80.0, 2000.0);
-                        n.bounds.h = (p.y - n.bounds.y).clamp(if n.kind == NodeKind::Actor { 130.0 } else { 60.0 }, 2000.0);
+                        let min = n.minimum_size();
+                        let bounds = gesture.apply(
+                            n.rect(),
+                            world,
+                            min,
+                            Pos::new(2000.0, 2000.0_f32.max(min.y)),
+                            self.snap.then_some(10.0),
+                        );
+                        if bounds != n.rect() {
+                            n.bounds = bounds;
+                        }
                     }
                 }
                 Some(Drag::Rubber { start, base }) => {
@@ -449,6 +463,7 @@ impl UmlEditor {
             }
         }
         response.context_menu(|ui| {
+            crate::theme::menu_style(ui.style_mut());
             if ui
                 .add_enabled(
                     self.selection.is_some() && self.group.len() <= 1,
@@ -498,6 +513,16 @@ impl UmlEditor {
             self.draw_node(&painter, rect, n, &pal, exporting);
         }
         if !exporting {
+            let resize = match self.drag {
+                Some(Drag::Resize { id, gesture }) => Some((id, gesture.edge)),
+                None if response.hovered() && !ui.input(|i| i.key_down(Key::Space)) => pointer.and_then(|p| self.resize_at(rect, p)),
+                _ => None,
+            };
+            if let Some((id, edge)) = resize
+                && let Some(node) = self.diagram.node(id)
+            {
+                canvas::resize::feedback(ui, &painter, self.view, rect, node.rect(), edge, pal.select);
+            }
             self.draw_overlays(ui, &painter, rect, &pal);
             self.palette(ui, rect);
             self.inline_editor(ui, rect);

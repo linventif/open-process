@@ -8,4 +8,5 @@ pub use session::*;
 pub mod document;
 pub use document::Doc;
 
+pub mod exam;
 pub mod layout;

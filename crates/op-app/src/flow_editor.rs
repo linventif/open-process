@@ -61,7 +61,8 @@ impl Notation for ActivityKind {
 #[derive(Clone)]
 enum Drag {
     Move { start: Pos, origins: Vec<(Id, Pos)> },
-    Resize(Id),
+    Resize { id: Id, gesture: canvas::resize::ResizeGesture },
+    Pan,
     Connect(Id),
     Rubber { start: Pos, base: BTreeSet<Id> },
 }
@@ -133,6 +134,17 @@ impl<K: Notation> FlowEditor<K> {
     fn hit(&self, p: Pos) -> Option<Id> {
         self.diagram.nodes.iter().rev().find(|n| n.contains(p)).map(|n| n.id)
     }
+    fn resize_at(&self, pointer: egui::Pos2) -> Option<(Id, canvas::resize::ResizeEdge)> {
+        if self.state.connecting || self.state.tool.is_some() {
+            return None;
+        }
+        canvas::resize::target(
+            self.state.camera,
+            self.state.canvas,
+            pointer,
+            self.diagram.nodes.iter().map(|n| (n.id, n.bounds)),
+        )
+    }
     fn connect(&mut self, from: Id, to: Id) {
         self.history.sync(&self.diagram, false);
         if let Some(id) = self.diagram.connect(from, to, "") {
@@ -146,14 +158,17 @@ impl<K: Notation> FlowEditor<K> {
         self.history.sync(&self.diagram, false);
     }
     fn properties(&mut self, ui: &mut Ui) {
-        DiagramLayout::inspector_tabs(
-            ui,
-            &mut self.state.tab,
-            &[(false, tr("common.properties")), (true, tr("common.validation"))],
-            |_, _| {},
-        );
+        let exam = crate::editor::exam::active(ui.ctx());
+        if !exam {
+            DiagramLayout::inspector_tabs(
+                ui,
+                &mut self.state.tab,
+                &[(false, tr("common.properties")), (true, tr("common.validation"))],
+                |_, _| {},
+            );
+        }
         DiagramLayout::inspector_body(ui, |ui| {
-            if self.state.tab {
+            if self.state.tab && !exam {
                 let issues = self.diagram.issues();
                 if issues.is_empty() {
                     ui.label(tr("database.no_structural_issues"));
@@ -220,31 +235,35 @@ impl<K: Notation> FlowEditor<K> {
         {
             let start = self.state.camera.to_world(rect, screen);
             self.history.sync(&self.diagram, false);
-            if let Some(id) = self.hit(start) {
+            if ui.input(|i| i.key_down(Key::Space)) {
+                self.state.drag = Some(Drag::Pan);
+            } else if let Some((id, edge)) = self.resize_at(screen) {
+                self.state.selected.clear();
+                self.state.selected.insert(id);
+                self.state.flow = None;
+                self.state.drag = Some(Drag::Resize {
+                    id,
+                    gesture: canvas::resize::ResizeGesture::new(self.diagram.node(id).unwrap().bounds, edge, start),
+                });
+            } else if let Some(id) = self.hit(start) {
                 if self.state.connecting {
                     self.state.drag = Some(Drag::Connect(id));
                     self.state.pending = Some(id);
                 } else if self.state.tool.is_none() {
-                    let n = self.diagram.node(id).unwrap();
-                    let r = self.state.camera.rect_to_screen(rect, n.bounds);
-                    if self.state.selected.len() == 1 && self.state.selected.contains(&id) && r.right_bottom().distance(screen) < 12.0 {
-                        self.state.drag = Some(Drag::Resize(id));
-                    } else {
-                        if !self.state.selected.contains(&id) {
-                            if !shift {
-                                self.state.selected.clear();
-                            }
-                            self.state.selected.insert(id);
+                    if !self.state.selected.contains(&id) {
+                        if !shift {
+                            self.state.selected.clear();
                         }
-                        let origins = self
-                            .diagram
-                            .nodes
-                            .iter()
-                            .filter(|n| self.state.selected.contains(&n.id))
-                            .map(|n| (n.id, Pos::new(n.bounds.x, n.bounds.y)))
-                            .collect();
-                        self.state.drag = Some(Drag::Move { start, origins });
+                        self.state.selected.insert(id);
                     }
+                    let origins = self
+                        .diagram
+                        .nodes
+                        .iter()
+                        .filter(|n| self.state.selected.contains(&n.id))
+                        .map(|n| (n.id, Pos::new(n.bounds.x, n.bounds.y)))
+                        .collect();
+                    self.state.drag = Some(Drag::Move { start, origins });
                 }
             } else if !self.state.connecting && self.state.tool.is_none() {
                 self.state.drag = Some(Drag::Rubber {
@@ -269,11 +288,16 @@ impl<K: Notation> FlowEditor<K> {
                         }
                     }
                 }
-                Some(Drag::Resize(id)) => {
+                Some(Drag::Pan) => self.state.camera.offset += response.drag_delta(),
+                Some(Drag::Resize { id, gesture }) => {
                     if let Some(n) = self.diagram.nodes.iter_mut().find(|n| n.id == *id) {
-                        let p = if self.state.snap { world.snapped(10.0) } else { world };
-                        n.bounds.w = (p.x - n.bounds.x).clamp(20.0, 2000.0);
-                        n.bounds.h = (p.y - n.bounds.y).clamp(8.0, 2000.0);
+                        n.bounds = gesture.apply(
+                            n.bounds,
+                            world,
+                            Pos::new(20.0, 8.0),
+                            Pos::new(2000.0, 2000.0),
+                            self.state.snap.then_some(10.0),
+                        );
                     }
                 }
                 Some(Drag::Rubber { start, base }) => {
@@ -303,6 +327,7 @@ impl<K: Notation> FlowEditor<K> {
             }
         }
         if response.clicked_by(PointerButton::Primary)
+            && !ui.input(|i| i.key_down(Key::Space))
             && let Some(p) = world
         {
             if let Some(kind) = self.state.tool {
@@ -390,6 +415,16 @@ impl<K: Notation> FlowEditor<K> {
             }
         }
         if !exporting {
+            let resize = match self.state.drag {
+                Some(Drag::Resize { id, gesture }) => Some((id, gesture.edge)),
+                None if response.hovered() && !ui.input(|i| i.key_down(Key::Space)) => pointer.and_then(|p| self.resize_at(p)),
+                _ => None,
+            };
+            if let Some((id, edge)) = resize
+                && let Some(node) = self.diagram.node(id)
+            {
+                canvas::resize::feedback(ui, &p, self.state.camera, rect, node.bounds, edge, pal.select);
+            }
             if let Some(from) = self.state.pending.and_then(|id| self.diagram.node(id))
                 && let Some(to) = pointer.filter(|p| rect.contains(*p))
             {

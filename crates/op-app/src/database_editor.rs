@@ -17,7 +17,8 @@ use std::hash::{Hash, Hasher};
 #[derive(Clone)]
 enum Drag {
     Move { table: Id, start: Pos, origin: Pos },
-    Resize(Id),
+    Resize { id: Id, gesture: canvas::resize::ResizeGesture },
+    Pan,
     Connect(Id),
 }
 #[derive(Clone)]
@@ -153,7 +154,7 @@ impl DatabaseEditor {
             self.schema.add_column(selected.unwrap());
         }
         let relationship_button = ui.add_enabled(selected.is_some(), egui::Button::new(tr("database.add_foreign_key")));
-        egui::Popup::menu(&relationship_button).show(|ui| {
+        egui::Popup::menu(&relationship_button).style(crate::theme::menu_style).show(|ui| {
             let tables: Vec<_> = self.schema.tables.iter().map(|t| (t.id, t.name.clone())).collect();
             for (id, name) in tables {
                 if ui.button(name).clicked()
@@ -164,7 +165,7 @@ impl DatabaseEditor {
                 }
             }
         });
-        if ui.button(tr("database.sql_ddl")).clicked() {
+        if !crate::editor::exam::active(ui.ctx()) && ui.button(tr("database.sql_ddl")).clicked() {
             self.events.push(HostEvent::OpenView(crate::dock::View::from("database.ddl")));
         }
     }

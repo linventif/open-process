@@ -74,6 +74,8 @@ cargo test --locked -p op-app i18n -- --test-threads=1
 The language dropdown and persisted preference use the existing
 `open-process-lang` key. `Lang::default()` is English; loading without a saved
 preference uses that default. Serialized French and Spanish preferences remain valid.
+The dropdown button and each language option separate the decorative flag from
+the text with the theme's horizontal item spacing (8 logical pixels).
 
 The [Astro website](../website/README.md) has separate typed catalogues in
 `website/src/lib/messages.ts`. Its root route is English, with `/fr/` and `/es/`

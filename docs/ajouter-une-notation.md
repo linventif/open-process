@@ -53,6 +53,12 @@ Graphical editors use `editor::layout::DiagramLayout` for the inspector,
 spacing, zoom and compact-menu thresholds stay in the common component. Extra
 business actions use the `tools` slot.
 
+Resizable canvas elements reuse `canvas::resize` for border/corner picking,
+pointer offsets, system cursors and highlights. Supply a typed target ID and
+notation-specific size limits to the shared `geom::ResizeEdge` operation in
+`op-core`. Keep special constraints (such as lane separators or content minima)
+in the domain model, and commit/cancel the gesture through the typed history.
+
 For home-screen previews, `EditorBackend::thumbnail_rect` may return the rendered
 canvas rectangle. The fallback is the whole panel, useful for text/table views.
 The shell owns capture and PNG encoding; modules do not manage preview files or

@@ -1,4 +1,5 @@
 //! Native/web free drawing editor. Shared chrome stays in DiagramLayout.
+mod editing;
 mod interaction;
 mod render;
 mod session;
@@ -8,10 +9,11 @@ use crate::canvas::{self, View};
 use crate::editor::layout::{CanvasControls, DiagramLayout, FooterStatus};
 use crate::editor::*;
 use crate::history::History;
+use editing::ClipboardAction;
 use egui::{Rect, Ui};
-use op_core::geom::{Pos, Rect as Bounds};
+use op_core::geom::Pos;
 use op_core::i18n::{tr, trf};
-use op_core::whiteboard::{Board, Element, Id, Kind, Paint};
+use op_core::whiteboard::{Board, Element, Fragment, Id, Kind, Paint, StackOrder};
 use std::collections::BTreeSet;
 
 #[derive(Clone, Copy, PartialEq)]
@@ -31,10 +33,11 @@ enum Drag {
     Move {
         start: Pos,
         origins: std::collections::HashMap<Id, Pos>,
+        original_selection: Option<BTreeSet<Id>>,
     },
     Resize {
         id: Id,
-        original: Bounds,
+        gesture: canvas::resize::ResizeGesture,
     },
     Endpoint {
         id: Id,
@@ -63,6 +66,10 @@ pub struct BoardView {
     export_png: bool,
     focus_text: bool,
     status: String,
+    pending_clipboard: Option<ClipboardAction>,
+    pending_paste: Option<(Pos, f64)>,
+    paste_count: u32,
+    context_at: Pos,
 }
 impl Default for BoardView {
     fn default() -> Self {
@@ -81,6 +88,10 @@ impl Default for BoardView {
             export_png: false,
             focus_text: false,
             status: String::new(),
+            pending_clipboard: None,
+            pending_paste: None,
+            paste_count: 0,
+            context_at: Pos::default(),
         }
     }
 }
@@ -109,16 +120,17 @@ impl WhiteboardEditor {
         self.history.sync(&self.board, false);
     }
     fn duplicate(&mut self) {
-        self.history.sync(&self.board, false);
-        let mut next = self.board.clone();
-        let selected = next.duplicate(&self.state.selection);
-        if let Err(e) = next.validate() {
-            self.state.status = e;
+        if self.state.selection.is_empty() {
             return;
         }
-        self.board = next;
-        self.state.selection = selected;
-        self.state.status.clear();
+        self.history.sync(&self.board, false);
+        match self.board.paste(&self.board.fragment(&self.state.selection), Pos::new(20.0, 20.0)) {
+            Ok(selected) => {
+                self.state.selection = selected;
+                self.state.status.clear();
+            }
+            Err(error) => self.state.status = error,
+        }
         self.history.sync(&self.board, false);
     }
     fn add(&mut self, element: Element) {
@@ -288,6 +300,9 @@ impl WhiteboardEditor {
     }
     fn show(&mut self, ui: &mut Ui) {
         self.state.selection.retain(|id| self.board.element(*id).is_some());
+        if let Some(action) = self.state.pending_clipboard.take() {
+            self.clipboard_action(ui.ctx(), action, None);
+        }
         let layout = DiagramLayout::new(ui, self.state.uid, self.state.inspector);
         layout.inspector(ui, |ui| self.properties(ui));
         layout.configuration(

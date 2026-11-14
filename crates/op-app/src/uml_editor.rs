@@ -34,7 +34,7 @@ enum Selection {
 #[derive(Clone, Debug)]
 enum Drag {
     Move { start: Pos, origins: Vec<(Id, Pos)> },
-    Resize(Id),
+    Resize { id: Id, gesture: canvas::resize::ResizeGesture },
     Rubber { start: Pos, base: BTreeSet<Id> },
     Connect(Id),
     Pan,
@@ -151,6 +151,7 @@ impl UmlEditor {
                         }
                     });
                 ui.menu_button(tr("bpmn.arrange"), |ui| {
+                    crate::theme::menu_style(ui.style_mut());
                     if self.group.len() < 2 {
                         ui.disable();
                     }
@@ -189,7 +190,10 @@ impl UmlEditor {
                     let fragment = self.diagram.fragment(&self.group);
                     self.paste(&fragment);
                 }
-                if self.diagram.kind == DiagramKind::Class && ui.button(tr("conversion.to_mermaid")).clicked() {
+                if !crate::editor::exam::active(ui.ctx())
+                    && self.diagram.kind == DiagramKind::Class
+                    && ui.button(tr("conversion.to_mermaid")).clicked()
+                {
                     self.convert_mermaid = true;
                 }
             });

@@ -113,6 +113,9 @@ impl MermaidEditor {
     fn show(&mut self, ui: &mut Ui) {
         let layout = DiagramLayout::new(ui, self.state.uid, self.state.inspector);
         layout.tools(ui, |ui| {
+            if crate::editor::exam::active(ui.ctx()) {
+                return;
+            }
             if ui
                 .add_enabled(
                     op_core::mermaid::is_class_source(&self.diagram.source),
@@ -126,14 +129,17 @@ impl MermaidEditor {
         });
         let mut editing = false;
         layout.inspector(ui, |ui| {
-            DiagramLayout::inspector_tabs(
-                ui,
-                &mut self.state.templates,
-                &[(false, tr("mermaid.source")), (true, tr("mermaid.templates"))],
-                |_, _| {},
-            );
+            let exam = crate::editor::exam::active(ui.ctx());
+            if !exam {
+                DiagramLayout::inspector_tabs(
+                    ui,
+                    &mut self.state.templates,
+                    &[(false, tr("mermaid.source")), (true, tr("mermaid.templates"))],
+                    |_, _| {},
+                );
+            }
             DiagramLayout::inspector_body(ui, |ui| {
-                if self.state.templates {
+                if self.state.templates && !exam {
                     ui.label(tr("mermaid.template_hint"));
                     for template in TEMPLATES {
                         if ui.button(tr(template.label)).clicked() {
@@ -145,7 +151,9 @@ impl MermaidEditor {
                         }
                     }
                 } else {
-                    ui.label(tr("mermaid.edit_hint"));
+                    if !exam {
+                        ui.label(tr("mermaid.edit_hint"));
+                    }
                     egui::ScrollArea::horizontal().id_salt("mermaid-code-scroll").show(ui, |ui| {
                         let response = ui
                             .add(

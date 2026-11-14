@@ -4,6 +4,17 @@ use egui::{Align2, FontId, Key, PointerButton, Sense, Stroke, StrokeKind, pos2, 
 use op_core::database::{ForeignKey, Table};
 
 impl DatabaseEditor {
+    fn resize_at(&self, pointer: egui::Pos2) -> Option<(Id, canvas::resize::ResizeEdge)> {
+        if self.state.connecting {
+            return None;
+        }
+        canvas::resize::target(
+            self.state.camera,
+            self.state.canvas,
+            pointer,
+            self.schema.tables.iter().map(|t| (t.id, t.rect())),
+        )
+    }
     fn hit_table(&self, p: Pos) -> Option<Id> {
         self.schema.tables.iter().rev().find(|t| t.rect().contains(p)).map(|t| t.id)
     }
@@ -47,7 +58,16 @@ impl DatabaseEditor {
             && let Some(p) = ui.input(|i| i.pointer.press_origin())
         {
             let start = self.state.camera.to_world(rect, p);
-            if let Some(id) = self.hit_table(start) {
+            if ui.input(|i| i.key_down(Key::Space)) {
+                self.state.drag = Some(Drag::Pan);
+            } else if let Some((id, edge)) = self.resize_at(p) {
+                self.history.sync(&self.schema, false);
+                self.state.selected = Some(id);
+                self.state.drag = Some(Drag::Resize {
+                    id,
+                    gesture: canvas::resize::ResizeGesture::new(self.schema.table(id).unwrap().rect(), edge, start),
+                });
+            } else if let Some(id) = self.hit_table(start) {
                 self.history.sync(&self.schema, false);
                 self.state.selected = Some(id);
                 if self.state.connecting {
@@ -55,16 +75,11 @@ impl DatabaseEditor {
                     self.state.pending = Some(id);
                 } else {
                     let t = self.schema.table(id).unwrap();
-                    let r = self.state.camera.rect_to_screen(rect, t.rect());
-                    self.state.drag = if r.right_bottom().distance(p) < 12.0 {
-                        Some(Drag::Resize(id))
-                    } else {
-                        Some(Drag::Move {
-                            table: id,
-                            start,
-                            origin: Pos::new(t.bounds.x, t.bounds.y),
-                        })
-                    };
+                    self.state.drag = Some(Drag::Move {
+                        table: id,
+                        start,
+                        origin: Pos::new(t.bounds.x, t.bounds.y),
+                    });
                 }
             }
         }
@@ -82,11 +97,20 @@ impl DatabaseEditor {
                         t.bounds.y = origin.y + delta.y;
                     }
                 }
-                Some(Drag::Resize(id)) => {
+                Some(Drag::Pan) => self.state.camera.offset += response.drag_delta(),
+                Some(Drag::Resize { id, gesture }) => {
                     if let Some(t) = self.schema.tables.iter_mut().find(|t| t.id == *id) {
-                        let p = if self.state.snap { p.snapped(10.0) } else { p };
-                        t.bounds.w = (p.x - t.bounds.x).clamp(190.0, 1600.0);
-                        t.bounds.h = (p.y - t.bounds.y).clamp(65.0, 3000.0);
+                        let min = t.minimum_size();
+                        let bounds = gesture.apply(
+                            t.rect(),
+                            p,
+                            min,
+                            Pos::new(1600.0, 3000.0_f32.max(min.y)),
+                            self.state.snap.then_some(10.0),
+                        );
+                        if bounds != t.rect() {
+                            t.bounds = bounds;
+                        }
                     }
                 }
                 _ => {}
@@ -104,6 +128,7 @@ impl DatabaseEditor {
             }
         }
         if response.clicked_by(PointerButton::Primary)
+            && !ui.input(|i| i.key_down(Key::Space))
             && let Some(p) = world
         {
             let hit = self.hit_table(p);
@@ -142,6 +167,16 @@ impl DatabaseEditor {
         if exporting {
             crate::io::request_png_export(ui.ctx(), rect, self.schema.name.clone());
         } else {
+            let resize = match self.state.drag {
+                Some(Drag::Resize { id, gesture }) => Some((id, gesture.edge)),
+                None if response.hovered() && !ui.input(|i| i.key_down(Key::Space)) => pointer.and_then(|p| self.resize_at(p)),
+                _ => None,
+            };
+            if let Some((id, edge)) = resize
+                && let Some(table) = self.schema.table(id)
+            {
+                canvas::resize::feedback(ui, &painter, self.state.camera, rect, table.rect(), edge, pal.select);
+            }
             if self.schema.tables.is_empty() {
                 painter.text(
                     rect.center(),

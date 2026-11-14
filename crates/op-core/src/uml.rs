@@ -83,16 +83,28 @@ pub struct Node {
 }
 
 impl Node {
+    pub fn minimum_size(&self) -> Pos {
+        let height: f32 = if self.kind == NodeKind::Actor { 130.0 } else { 60.0 };
+        Pos::new(
+            80.0,
+            if self.kind.is_classifier() {
+                height.max(
+                    46.0 + self.attributes.lines().count().max(1) as f32 * 20.0
+                        + self.operations.lines().count().max(1) as f32 * 20.0
+                        + 16.0,
+                )
+            } else {
+                height
+            },
+        )
+    }
+
     /// Grow class compartments to keep every member visible.
     pub fn rect(&self) -> Rect {
         let mut r = self.bounds;
-        r.w = r.w.max(80.0);
-        r.h = r.h.max(if self.kind == NodeKind::Actor { 130.0 } else { 60.0 });
-        if self.kind.is_classifier() {
-            r.h = r.h.max(
-                46.0 + self.attributes.lines().count().max(1) as f32 * 20.0 + self.operations.lines().count().max(1) as f32 * 20.0 + 16.0,
-            );
-        }
+        let minimum = self.minimum_size();
+        r.w = r.w.max(minimum.x);
+        r.h = r.h.max(minimum.y);
         r
     }
 

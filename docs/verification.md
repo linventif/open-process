@@ -844,3 +844,209 @@ were not exercised. No Rust models or application behavior are part of this
 website change, and the Rust unit suite/native release matrix was not repeated.
 Parallel application/interface edits in the working tree remain outside this
 website change.
+
+## Menu content padding — 14 November 2026
+
+The shared popup style restores 10 px horizontal and 4 px vertical button
+padding, replacing egui's compact menu defaults. It applies to the language
+dropdown, main menus/submenus, editor and example menus, tab/canvas context
+menus and database relationship picker. Inspectors, cards, dialogs and form
+dropdowns already have their own content margins.
+
+All **188 workspace tests** pass sequentially. Generated language, light/dark
+BPMN context-menu, export submenu and compact-options screenshots were visually
+inspected. Native and WebAssembly `cargo check --locked -p op-app`, formatting,
+local links in `interface.md` and `git diff --check` pass. Release builds, browser
+runs, Windows/macOS and deployment were not repeated for this spacing change.
+
+## Saved diagram thumbnails — 14 November 2026
+
+Closed **Saved diagrams** now reuse the rendered PNG previews already used for
+open documents. The bounded preview cache associates acknowledged captures with
+the automatic copy's stable UUID and revision. It restores closed cards without
+an open workspace, retains compatibility with older UID-based cache entries and
+also flushes previews through the browser lifecycle save path. `.opx`, automatic
+document records and workspace schemas are unchanged. Missing or outdated images
+fall back to notation icons until the document is displayed again.
+
+All **194 workspace tests** pass with sequential execution. New coverage checks
+distinct images for same-named documents after closing, cache persistence,
+restart and reopening; it also rejects advanced/deleted library references and
+previews mismatching a restored draft. The generated
+`target/screenshots/automatic_library_thumbnails.png` was visually inspected.
+Native and WebAssembly `cargo check --locked -p op-app`, formatting, local links
+in the updated documentation and `git diff --check` pass. Release builds, actual
+browser lifecycle/storage runs, Windows/macOS and the remote CI matrix were not
+run for this change. Parallel BPMN/interface edits were preserved.
+
+## Language flag spacing — 14 November 2026
+
+The language button and its three options use the theme's horizontal item
+spacing (8 logical pixels) between flags and text. The generated
+`target/screenshots/language_dropdown.png` was visually inspected; the existing
+home-navigation test passes, including accessible names, selection and closure.
+
+Native and WebAssembly `cargo check --locked -p op-app` pass. The sequential
+workspace test command reports 87 passing application tests and one failure in
+`bpmn_pool_and_lane_resize_gestures_snap_undo_cancel_and_keep_elements_fixed`
+at `app/tests.rs:948` (the unsnapped lane-height assertion). That command stops
+before core tests; a separate `cargo test --locked -p op-core` passes all 108
+tests. The failing BPMN test was not changed as part of the spacing correction.
+UI-module formatting, local links in `traductions.md` and `git diff --check`
+pass. Browser runs, release builds and the remote CI matrix were not repeated.
+
+## BPMN pool and lane border resizing — 14 November 2026
+
+Pool borders and all four corners can be dragged without selecting the pool
+first. Directional system cursors and a highlighted border identify the target;
+hit tolerances stay constant in screen pixels. Internal separators redistribute
+two neighboring lane heights without changing total pool height or other lanes.
+The domain operation preserves element positions, limits shrinking against their
+bounds and normal minimum sizes, and honors optional grid snapping. Typed gesture
+history provides a single undo step and Escape cancellation. No document schema
+or dependencies changed.
+
+Four domain regressions and two UI gesture/cursor tests pass. They cover all
+edges/corners, single/multiple lanes, element constraints, fractional coordinates,
+invalid requests, three actual camera zooms, both themes, grab offsets,
+undo/redo/cancel, panning and creation-tool priority. The earlier unsnapped-height
+failure recorded above was corrected by setting the test camera through the
+saved view state, which otherwise overwrote the direct camera assignment.
+Light/dark hover and resized-pool screenshots were visually inspected.
+
+The complete `cargo test --locked -p op-core` passes **108 tests**. Native and
+WebAssembly checks, formatting of the edited Rust files, local documentation
+links and `git diff --check` pass. The sequential workspace run passed 87 of 88
+application tests, then failed its translation inventory during concurrent exam
+mode edits. Later application-test reruns could not compile because the existing
+`manual_alpha_mode` test still referenced the removed `MiningEditor.manual`
+field. These unrelated in-progress changes prevent claiming a full workspace
+pass. Release builds, browser runs, Windows/macOS and remote CI were not run.
+
+
+## Application-wide exam mode — 14 November 2026
+
+**Tools → Exam mode** replaces Mining's manual-mode selector. It turns off
+pedagogical assistance across open and newly created documents, while keeping
+authored content editable and saveable. The Mining job only parses activity
+headers in this mode; Alpha discovery and soundness are skipped. Answer fields
+and matrix cells contain no model answers, corrections, hints, scores or generated
+previews. The old log `manual` field and existing answers still round trip.
+
+Session guards block assistance commands and generated-answer exports, and open
+result panes show a disabled message. Notation UIs hide validation/evaluation,
+conversions, automatic layout and SQL generation. Petri simulation and background
+analysis are cancelled. Examples, templates and home preview images are hidden.
+Mode changes leave document snapshots and stored view preferences intact.
+
+Two UI regressions pass for menu activation/deactivation, answer preservation,
+matrix editing/undo, serialization, export guards, existing result panes,
+simulation shortcuts and documents created during an exam. A worker regression
+checks that exam output contains activity headers without solutions or soundness,
+and honours cancellation. The three application i18n checks pass after removing
+36 retired manual-mode messages from each catalogue. The first full application
+run passed 89 tests and failed only that retired-message inventory before the
+catalogues were cleaned up. The exam screenshot was visually inspected.
+
+The subsequent complete sequential workspace run passes **90 application tests**
+and **110 core tests** (101 unit tests, 7 document regressions and 2 untrusted-input
+checks). Native and WebAssembly compilation checks pass. The application test
+build reported an unused import in the concurrently edited whiteboard module;
+that warning was absent from the later native check. A minimal `f32` annotation
+was added to the concurrently edited UML minimum-size helper after the compiler
+reported an ambiguous float type. Local documentation links, formatting checks
+for the exam-related Rust files and `git diff --check` pass. These are local Linux
+checks; release builds, an actual browser session, Windows/macOS and remote CI
+were not run for this change.
+
+## Shared border/corner resizing — 14 November 2026
+
+Resizable BPMN objects, UML class/use-case elements, EPC/activity nodes, database
+tables and non-connector free-drawing elements share screen-space border picking,
+grab offsets, directional cursors and highlights. The geometry operation in
+`op-core::geom::ResizeEdge` keeps opposite edges fixed and applies the supplied
+size limits and snapping. Pool/lane constraints remain specific to BPMN. Class
+members and database columns determine minimum visible heights; free-drawing
+connectors retain their endpoint editing and attachments. Existing English,
+French and Spanish resize instructions now describe edge/corner gestures.
+No dependencies or serialized document/view fields were added.
+
+All **202 workspace tests** pass sequentially: 92 application tests, 101 core
+unit tests and nine core integration tests. New coverage exercises eight resize
+directions in all seven graphical editor types, both themes across the editor
+set, different zooms, hover without mutation, offset grabs, fixed opposite edges,
+minimum sizes, fractional resizing with snapping off, atomic undo/redo and Escape
+cancellation. Shared picking tests cover fixed screen tolerance and overlapping
+elements. Existing attached-connector and import/storage regressions pass.
+Representative class, use-case, database, EPC and free-drawing captures were
+visually inspected. The free-drawing test explicitly sets its snap preference
+before testing on/off behavior; its first run had incorrectly assumed snapping
+was enabled by default.
+
+`cargo test --locked -p op-core`, native and WebAssembly compilation checks,
+workspace formatting, local links in the updated documentation and
+`git diff --check` pass. The former exam-related global test failures recorded
+above are resolved in this checkout. Release builds, actual browser interaction,
+Windows/macOS and remote CI were not repeated.
+
+## Examples restricted to creation cards — 14 November 2026
+
+The process-discovery input header no longer shows its separate **Examples**
+dropdown. A source audit found no other editor-level **Examples** menus; home
+and the new-document picker retain their shared card menu and both registered
+sample logs. The two obsolete menu-only translation keys were removed from the
+English, French and Spanish catalogues.
+
+The updated process-discovery screenshot was visually inspected. Home/picker,
+example registry, discovery and translation inventory checks pass. The complete
+workspace command was interrupted by SIGTERM during the UML UI checks; the
+remaining UML, free-drawing and recovery UI tests were rerun successfully in
+short batches, followed by all 32 non-UI application checks and 110 core tests.
+Together the completed runs cover all 202 workspace test cases. Native and
+WebAssembly compilation, formatting, local documentation links and
+`git diff --check` pass. Browser runs, release builds, Windows/macOS and the
+remote CI matrix were not repeated.
+
+## Standard drawing editing — 14 November 2026
+
+Free drawing supports system clipboard copy/cut/paste across drawing documents,
+plain-text paste, Alt-drag duplication (including pressing Alt during a move),
+Shift-constrained movement/drawing, stacking order and F2/Enter text editing.
+The Edit menu consumes registered commands and the canvas has context actions.
+Focused text fields retain their own clipboard and undo. The shell consumes
+Ctrl/Cmd+Shift+Z before Ctrl/Cmd+Z, and Shift+S before S, so redo and Save as are
+not intercepted by the less specific shortcuts. Clipboard selections have a
+separate versioned JSON format; no dependencies or document/session schemas
+changed. Browser keyboard paste uses system clipboard events; browser menu paste
+uses the last application-copied drawing selection.
+
+Five new domain tests cover portable selections, fresh IDs, internal/external
+attachments, malformed/future/over-budget input, atomic rejection, stable stacking
+and constrained geometry. Four new egui interaction tests cover copy/cut/paste
+between documents, native menu-paste requests, styles/freehand/connectors,
+undo/redo, Alt/Shift dragging, cancellation and original selection restoration,
+text-field focus/undo, context/Edit menus, stacking keys, F2 and free pencil
+samples with snapping enabled. The clipboard, context menu and focused text
+screenshots were visually inspected. The full core command passes 115 tests
+(106 unit tests and nine integration tests). The complete sequential workspace
+command passes **211 tests**: 96 application tests and those 115 core tests.
+Native and WebAssembly compilation, workspace formatting, local documentation
+links and patch whitespace checks pass. These are local Linux checks and egui
+clipboard-event simulations; actual OS/browser clipboard integration, release
+builds, Windows/macOS and remote CI were not run for this change.
+
+## Combined pre-commit validation — 14 November 2026
+
+The complete sequential workspace command passes all **211 tests**: 96
+application tests and 115 core tests. The separate core test command, native and
+WebAssembly `cargo check --locked -p op-app`, workspace formatting and
+`git diff --check` also pass. All 110 local links in the changed Markdown files
+resolve to existing files.
+
+The full website `bun run build` passes, including Astro checks with no
+diagnostics and the Trunk WebAssembly release build. All nine Bun tests pass
+against that combined output. Generated HTML checks cover all six localized
+terms/privacy pages, their metadata, canonical/alternate URLs, sitemap entries,
+CSP routes, scripts, localized footer links and 198 local links/assets/anchors.
+No new browser session, native release build, Windows/macOS run, deployment or
+remote CI matrix was performed during this validation.

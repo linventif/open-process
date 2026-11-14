@@ -41,6 +41,12 @@ const COMMANDS: &[CommandDescriptor] = &[
 const VIEWS: &[ViewDescriptor] = &[];
 
 impl EditorBackend for BpmnEditor {
+    fn set_exam_mode(&mut self, active: bool) {
+        if active {
+            self.evaluation_cache.invalidate();
+            self.action = None;
+        }
+    }
     fn thumbnail_rect(&self) -> Option<egui::Rect> {
         Some(self.last_canvas)
     }

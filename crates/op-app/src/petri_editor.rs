@@ -472,12 +472,16 @@ impl PetriEditor {
     // UI
 
     pub fn ui(&mut self, ui: &mut Ui) {
+        if crate::editor::exam::active(ui.ctx()) {
+            self.sim = None;
+            self.analysis_job = None;
+        }
         self.now = ui.input(|i| i.time);
         let layout = DiagramLayout::new(ui, self.uid, self.show_inspector);
         layout.inspector(ui, |ui| self.side_panel(ui));
         self.status_bar(ui, layout);
         layout.canvas(ui, |ui| self.canvas(ui));
-        if self.graph_open {
+        if self.graph_open && !crate::editor::exam::active(ui.ctx()) {
             let mut open = true;
             egui::Window::new(tr("petri.reachability_graph"))
                 .id(egui::Id::unique(("graph_window", self.uid)))
@@ -516,6 +520,9 @@ impl PetriEditor {
                 }
             }
             canvas::toolbar_separator(ui);
+            if crate::editor::exam::active(ui.ctx()) {
+                return;
+            }
             let sim_on = self.sim.is_some();
             let r = canvas::icon_button(ui, sim_on, tr("petri.token_game_simulation_s"), |p, r, c| {
                 let c2 = r.center();

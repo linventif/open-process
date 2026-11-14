@@ -35,7 +35,7 @@ impl PetriEditor {
                 self.arc_pending = None;
             }
         }
-        if keys[5] {
+        if keys[5] && !crate::editor::exam::active(ui.ctx()) {
             self.toggle_simulation(ui.input(|i| i.time));
         }
         if keys[6] {
@@ -332,6 +332,7 @@ impl PetriEditor {
     }
 
     pub(super) fn context_menu(&mut self, ui: &mut Ui) {
+        crate::theme::menu_style(ui.style_mut());
         let (target, w) = self.ctx_target;
         match target {
             Some(Sel::Node(NodeRef::Place(id))) => {

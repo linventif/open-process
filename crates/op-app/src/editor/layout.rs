@@ -123,6 +123,7 @@ impl DiagramLayout {
                     });
                     if compact {
                         ui.menu_button(tr("common.options"), |ui| {
+                            theme::menu_style(ui.style_mut());
                             if inspector_in_menu {
                                 self.inspector_toggle(ui, controls.inspector);
                             }
@@ -189,7 +190,9 @@ fn view_options(ui: &mut Ui, controls: &mut CanvasControls<'_>, extra_options: i
     if let Some(snap) = controls.snap.as_deref_mut() {
         ui.checkbox(snap, tr("canvas.snap_grid"));
     }
-    if let Some(issues) = controls.issues.as_deref_mut() {
+    if !super::exam::active(ui.ctx())
+        && let Some(issues) = controls.issues.as_deref_mut()
+    {
         ui.checkbox(issues, tr("editor.show_issues"));
     }
     extra_options(ui);

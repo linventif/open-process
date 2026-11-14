@@ -6,6 +6,7 @@ mod render;
 mod inspector;
 
 mod interaction;
+mod resize;
 
 mod session;
 pub(crate) use session::register;
@@ -17,12 +18,12 @@ use crate::history::History;
 use egui::{
     Color32, CornerRadius, FontId, Key, Painter, PointerButton, Pos2, Rect, RichText, Sense, Shape, Stroke, StrokeKind, Ui, pos2, vec2,
 };
+use op_core::bpmn::resize::{MIN_LANE_HEIGHT, MIN_POOL_WIDTH, PoolResize};
 use op_core::bpmn::*;
 use op_core::geom::{Pos, dist_to_polyline};
 use op_core::i18n::{key, tr, trf};
 
 const GRID: f32 = 10.0;
-const LANE_HEADER: f32 = 26.0;
 const PAD_BTN: f32 = 26.0;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -45,8 +46,8 @@ pub enum Sel {
 enum Drag {
     Move { node: Id, grab: Pos },
     MovePool { pool: Id, last: Pos },
-    ResizeNode { node: Id },
-    ResizePool { pool: Id },
+    ResizeNode { node: Id, gesture: canvas::resize::ResizeGesture },
+    ResizePool { pool: Id, target: PoolResize, grab: Pos },
     Connect { from: Id },
     MoveGroup { last: Pos },
     Rubber { start: Pos },
@@ -421,6 +422,9 @@ impl BpmnEditor {
             status,
             |ui| {
                 canvas::style_menu(ui, &mut self.diagram.style, false);
+                if crate::editor::exam::active(ui.ctx()) {
+                    return;
+                }
                 if ui
                     .add_enabled(
                         !self.diagram.nodes.is_empty() || !self.diagram.pools.is_empty(),

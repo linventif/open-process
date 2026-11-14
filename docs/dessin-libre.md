@@ -19,15 +19,33 @@ The pencil remains active after a stroke; other drawing tools return to selectio
 
 - Click to select; Shift+click adds/removes elements.
 - Drag empty space for rubber-band selection; Shift preserves prior selection.
-- Drag a selection to move it. A bottom-right handle resizes a single element,
-  including freehand strokes. Lines and arrows have handles at both endpoints.
+- Drag a selection to move it. In the selection tool, drag any bounding-box edge
+  or corner to resize an element, including freehand strokes; prior selection is
+  optional. The highlighted edge and directional cursor identify the target.
+  Lines and arrows have handles at both endpoints with an endpoint-editing cursor.
 - The inspector edits multiline text, dimensions, stroke/fill colors, thickness,
-  font size and sketch mode. Double-click opens it and focuses text editing.
+  font size and sketch mode. Double-click, **F2** or **Enter** on a single selected
+  element opens it and focuses text editing.
 - Style changes affect selected elements and future creations. Without selection,
   they configure the next element.
-- **Ctrl/Cmd+D** duplicates, Delete removes, arrow keys nudge by one unit (ten
-  with Shift), and **Ctrl/Cmd+A** selects all. Drawing shortcuts apply over the
-  canvas when no text field is being edited.
+- **Ctrl/Cmd+C**, **X** and **V** copy, cut and paste selected elements, including
+  between drawing documents. Ordinary clipboard text becomes a text element.
+  **Ctrl/Cmd+D** duplicates with a small offset; **Alt+drag** moves a duplicate
+  while retaining the original selection in place. Alt can also be pressed
+  during a move. Duplication does not replace the clipboard.
+- **Shift+drag** locks movement to the dominant axis. When drawing, Shift makes
+  equal-sided shapes or constrains lines/arrows to 45-degree increments. Pencil
+  points remain free.
+- **Ctrl/Cmd+]** brings the selection forward; **Ctrl/Cmd+[** sends it backward.
+  Add Shift to move directly to the front/back. Relative order within the
+  selection is preserved. **Right-click → Arrange selection** offers the same
+  actions without keyboard-layout-dependent bracket keys.
+- Delete/Backspace removes, arrow keys nudge by one unit (ten with Shift), and
+  **Ctrl/Cmd+A** selects all. Drawing shortcuts apply over the canvas when no
+  text field is being edited; focused fields keep their own clipboard and undo.
+- The **Edit** menu and canvas context menu expose clipboard, duplication,
+  deletion and selection actions. Right-click targets the element under the
+  pointer and preserves a selected group when clicking one of its members.
 - **Escape** cancels the active gesture; completed changes use shared undo/redo.
 - Hand, Space+drag, middle/right drag and scrolling navigate the view. Zoom/fit
   use the common controls.
@@ -39,6 +57,15 @@ Tool shortcuts: **V** select, **H** hand, **R** rectangle, **E** ellipse,
 The shared configuration bar contains **Show grid**, **Snap to grid**, zoom and
 inspector controls. Snapping is off by default; pencil points remain free even
 when it is enabled. Options move into the compact menu in narrow views.
+
+Keyboard paste uses the system clipboard on desktop and web. Desktop menu paste
+requests its contents from the platform. Browser menu paste uses the last drawing
+selection copied in the running application; use **Ctrl/Cmd+V** for external
+clipboard content. Normal keyboard paste centers the selection in the visible
+canvas with a small offset on repeated pastes; context-menu paste uses the
+right-click position. Each cut, paste, duplicate, move and order change is
+undoable. **Ctrl/Cmd+Z** undoes, **Ctrl/Cmd+Shift+Z** or **Ctrl/Cmd+Y** redoes, and
+Escape during Alt+drag removes the duplicates and restores the source selection.
 
 ## Attached lines and arrows
 
@@ -54,8 +81,8 @@ can move freely. Moving a selection containing a connector and one of its shapes
 keeps the other end attached as well. Editing connector width/height releases
 its attachments and resizes its resolved geometry.
 
-Duplicating shapes and their connector remaps attachments to the new shapes.
-Duplicated endpoints whose shapes were not copied remain free. Deleting a shape
+Copying or duplicating shapes and their connector remaps attachments to the new
+shapes. Copied endpoints whose shapes were not copied remain free. Deleting a shape
 leaves surviving connectors at their last endpoint positions. Undo/redo includes
 attachment changes. Canvas rendering, selection, fit and SVG export use the same
 resolved geometry, so exported arrows follow the moved shapes too.
@@ -79,6 +106,13 @@ Multiple panels share one document/history with independent cameras/selections.
 For free drawing, geometry is semantic content: moving a shape also changes the
 semantic revision.
 
+The clipboard uses a separate versioned JSON selection format. Pasting allocates
+fresh IDs, preserves text, styles and normalized stroke points, and validates the
+whole result before replacing the destination. Unsupported selection versions,
+invalid geometry and document limits leave the destination unchanged. Clipboard
+state and pending paste positions are transient; the `.opx` and session schemas
+are unchanged.
+
 **File → Export** provides:
 
 - **SVG:** the whole drawing as vector geometry/editable text, without selection
@@ -92,9 +126,11 @@ semantic revision.
 | --- | --- |
 | Model, geometry, selection, validation | [whiteboard.rs](../crates/op-core/src/whiteboard.rs) |
 | Attachments, indexed geometry and versioned codec | [connections.rs](../crates/op-core/src/whiteboard/connections.rs) |
+| Portable selections, paste and stacking order | [whiteboard/editing.rs](../crates/op-core/src/whiteboard/editing.rs) |
 | SVG export | [whiteboard/svg.rs](../crates/op-core/src/whiteboard/svg.rs) |
 | Tools and inspector | [whiteboard_editor.rs](../crates/op-app/src/whiteboard_editor.rs) |
 | Gestures and keyboard | [interaction.rs](../crates/op-app/src/whiteboard_editor/interaction.rs) |
+| Platform clipboard and context actions | [whiteboard_editor/editing.rs](../crates/op-app/src/whiteboard_editor/editing.rs) |
 | Rendering | [render.rs](../crates/op-app/src/whiteboard_editor/render.rs) |
 | Sessions, commands, registration | [session.rs](../crates/op-app/src/whiteboard_editor/session.rs) |
 | Layout | [editor/layout.rs](../crates/op-app/src/editor/layout.rs) |
@@ -103,7 +139,7 @@ The module registers in `composition.rs` without additional dependencies, a web
 layer or changes to the shell's catalogue.
 
 The module has no network collaboration, images, symbol libraries,
-persistent groups, rotation, cross-document element clipboard or `.excalidraw`
+persistent groups, rotation or `.excalidraw`
 exchange. Text content is
 retained but may be hidden by an undersized box.
 

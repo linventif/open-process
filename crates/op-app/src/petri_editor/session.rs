@@ -73,6 +73,14 @@ const VIEWS: &[ViewDescriptor] = &[
 ];
 
 impl EditorBackend for PetriEditor {
+    fn set_exam_mode(&mut self, active: bool) {
+        if active {
+            self.sim = None;
+            self.analysis_job = None;
+            self.analysis = None;
+            self.request_pane = None;
+        }
+    }
     fn thumbnail_rect(&self) -> Option<egui::Rect> {
         Some(self.last_canvas)
     }

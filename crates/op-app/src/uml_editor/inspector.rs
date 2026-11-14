@@ -4,9 +4,10 @@ use super::*;
 
 impl UmlEditor {
     pub(super) fn properties(&mut self, ui: &mut Ui) {
+        let exam = crate::editor::exam::active(ui.ctx());
         ui.label(tr("document.name"));
         ui.text_edit_singleline(&mut self.diagram.name);
-        let issues = self.diagram.validate();
+        let issues = if exam { vec![] } else { self.diagram.validate() };
         if !issues.is_empty() {
             egui::CollapsingHeader::new(trf("uml.model_issues", &[&issues.len()])).show(ui, |ui| {
                 for (id, message) in &issues {
@@ -54,7 +55,7 @@ impl UmlEditor {
                         egui::TextEdit::multiline(&mut n.attributes)
                             .desired_rows(5)
                             .desired_width(f32::INFINITY)
-                            .hint_text("- name: String"),
+                            .hint_text(if exam { "" } else { "- name: String" }),
                     );
                     content_changed |= attributes_edit.changed();
                     ui.label(tr("uml.operations"));
@@ -62,7 +63,7 @@ impl UmlEditor {
                         egui::TextEdit::multiline(&mut n.operations)
                             .desired_rows(5)
                             .desired_width(f32::INFINITY)
-                            .hint_text("+ submit(): bool"),
+                            .hint_text(if exam { "" } else { "+ submit(): bool" }),
                     );
                     content_changed |= operations_edit.changed();
                     ui.weak(tr("uml.one_member_per_line_visibility_public_private"));

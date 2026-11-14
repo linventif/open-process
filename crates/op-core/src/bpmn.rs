@@ -7,6 +7,7 @@ use crate::i18n::{tr, trf};
 use serde::{Deserialize, Serialize};
 
 pub mod layout;
+pub mod resize;
 
 pub type Id = u32;
 
@@ -282,8 +283,10 @@ pub struct Pool {
     pub lanes: Vec<Lane>,
 }
 
-/// Width of the vertical title band of pools and lanes.
+/// Width of a pool's vertical title band.
 pub const POOL_HEADER: f32 = 30.0;
+/// Width of a lane's vertical title band when several lanes are shown.
+pub const LANE_HEADER: f32 = 26.0;
 
 impl Pool {
     pub fn height(&self) -> f32 {

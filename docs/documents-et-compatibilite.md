@@ -168,13 +168,18 @@ writer advanced their original record, preserving both versions on restoration.
 
 ## Home preview cache
 
-The optional `open-process-thumbnails-v1` key stores PNG previews of open documents,
-separately from sessions and `.opx`. Saving caps the cache at 64 entries and
-512 KiB of PNG data. Restoration remaps IDs; content fingerprints prevent previews
-being reused for a different document revision.
+The optional `open-process-thumbnails-v1` key stores PNG previews of open and
+closed saved documents, separately from sessions, automatic copies and `.opx`.
+Saving caps the combined cache at 64 entries and 512 KiB of PNG data. Open-document
+previews use remapped runtime UIDs and content fingerprints. An optional `archive`
+reference adds the automatic copy's stable UUID and acknowledged revision, so a
+closed library card can restore its image without an open tab. Older cache entries
+without this reference still restore for matching open documents. Changed or
+deleted automatic copies cannot inherit a stale saved preview.
 
 Missing, malformed, stale or invalid PNG entries are ignored. Image dimensions
-are checked before decoding. Cards show type icons until recaptured. These are
+are checked before decoding. Cards show type icons until the document is opened
+and recaptured, including older saved diagrams without a cached image. These are
 derived data: missing previews block neither restoration nor saving, and change
 neither the session schema nor `.opx` format.
 

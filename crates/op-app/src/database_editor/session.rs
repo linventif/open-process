@@ -114,6 +114,9 @@ impl EditorBackend for DatabaseEditor {
     fn commands(&self) -> &'static [CommandDescriptor] {
         COMMANDS
     }
+    fn command_requires_assistance(&self, command: &str) -> bool {
+        command == "database.show-ddl"
+    }
     fn enabled(&self, c: &str) -> bool {
         match c {
             UNDO => self.history.can_undo(),
@@ -158,6 +161,9 @@ impl EditorBackend for DatabaseEditor {
     }
     fn export_label(&self) -> &'static str {
         key("database.export_sql_ddl_sql")
+    }
+    fn export_requires_assistance(&self) -> bool {
+        true
     }
 }
 pub(crate) fn register(registry: &mut DiagramRegistry) {

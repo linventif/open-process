@@ -44,6 +44,10 @@ view state and layout through eframe's persistence layer. Desktop sessions use
 application storage; browser sessions use local storage. Language settings and
 cached previews are also persisted. Confirmed automatic copies are acknowledged
 separately from the manual destination and from in-flight edits.
+Home cards retain captured previews for closed **Saved diagrams** as well as open
+documents. The combined preview cache holds at most 64 images and 512 KiB of PNG
+data. A saved diagram without a valid cached image shows its notation icon until
+opened again. Previews are disposable and are not embedded in exported `.opx` files.
 
 There is no account-based document sync in these storage paths. Another browser,
 profile, device or site origin has its own session. Private browsing, storage
@@ -54,6 +58,16 @@ Stale document revisions are rejected rather than silently replacing a newer
 copy; simultaneous applications are not a collaborative editing system. Keep separate `.opx`
 files for backups. The [compatibility guide](documents-et-compatibilite.md)
 documents the file and session schemas.
+
+## Drawing clipboard
+
+Explicit copy/cut actions in free drawings write the selected elements, including
+their text, styles and internal connections, as versioned JSON to the system
+clipboard. Pasting can transfer them between drawing documents; plain text
+creates a text element. The running app also keeps the last copied drawing
+selection in memory for browser menu paste. Clipboard state is not stored in
+`.opx` files or workspace preferences and is not sent to an application server.
+See the [drawing guide](dessin-libre.md) for keyboard and menu behavior.
 
 ## Remove local data
 

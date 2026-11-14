@@ -5,6 +5,7 @@ use super::*;
 impl MiningEditor {
     pub(super) fn results(&mut self, ui: &mut Ui) {
         let pal = Palette::for_ui(ui);
+        let exam = crate::editor::exam::active(ui.ctx());
         let Some(Computed {
             result, soundness: sound, ..
         }) = &self.computed
@@ -14,7 +15,13 @@ impl MiningEditor {
             return;
         };
         let (log, r) = match result {
-            Ok(x) => x,
+            Ok(MiningOutput::Discovery(log, r)) if !exam => (log, r),
+            Ok(MiningOutput::Exam(activities)) if exam => {
+                ui.label(RichText::new(&self.name).font(theme::semibold(20.0)));
+                exam_sections(ui, activities, &mut self.answers, &pal);
+                return;
+            }
+            Ok(_) => return,
             Err(e) => {
                 ui.add_space(40.0);
                 ui.vertical_centered(|ui| {
@@ -22,7 +29,9 @@ impl MiningEditor {
                     ui.add_space(4.0);
                     ui.label(RichText::new(e).color(ui.visuals().weak_text_color()));
                     ui.add_space(10.0);
-                    ui.label(RichText::new(tr(FORMATS)).color(ui.visuals().weak_text_color()));
+                    if !exam {
+                        ui.label(RichText::new(tr(FORMATS)).color(ui.visuals().weak_text_color()));
+                    }
                 });
                 if ui.button(tr("petri.recompute")).clicked() {
                     self.computed = None;
@@ -53,26 +62,6 @@ impl MiningEditor {
                         .color(ui.visuals().weak_text_color()),
                     );
                 });
-                ui.add_space(16.0);
-                theme::segmented(
-                    ui,
-                    &mut self.manual,
-                    &[(false, tr("style.automatic")), (true, tr("mining.step_step_hand"))],
-                );
-                if self.manual
-                    && ui
-                        .button(tr("mining.check_everything"))
-                        .on_hover_text(tr("mining.check_all_answers"))
-                        .clicked()
-                {
-                    self.manual_ui.checked.insert("matrix".into());
-                    for l in RelationList::ALL {
-                        self.manual_ui.checked.insert(format!("rel:{}", l.key()));
-                    }
-                    for s in Step::ALL {
-                        self.manual_ui.checked.insert(format!("step:{}", s.key()));
-                    }
-                }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui
                         .add(theme::primary_button(ui, tr("mining.deduce_bpmn")))
@@ -93,6 +82,7 @@ impl MiningEditor {
                         action = Some(MiningAction::OpenPetri(net));
                     }
                     ui.menu_button(tr("mining.copy"), |ui| {
+                        theme::menu_style(ui.style_mut());
                         if ui.button(tr("mining.full_write_up_text")).clicked() {
                             copy = Some((r.report(log), tr("mining.write_up_copied")));
                         }
@@ -120,11 +110,6 @@ impl MiningEditor {
                 });
             });
 
-            if self.manual {
-                manual_sections(ui, log, r, &pal, &mut self.answers, &mut self.manual_ui, &mut action, &self.name);
-                ui.add_space(24.0);
-                return;
-            }
             // ---- 2. relations
             let list = |pairs: &[(usize, usize)], sym: &str| -> Vec<String> {
                 pairs.iter().map(|&(a, b)| format!("{}{sym}{}", n(a), n(b))).collect()

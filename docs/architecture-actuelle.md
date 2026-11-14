@@ -63,6 +63,8 @@ Each document card has an **Examples** button. `ExampleDescriptor::kind` filters
 its menu by canonical document type, and registry validation checks those
 references. Factories run only when an example is selected. Selection closes the
 picker and opens the example in the originating tab group, like a blank document.
+Editor content does not expose a second **Examples** menu. Process-discovery
+samples use the registered event-log examples on those same cards.
 
 Diagram and workflow descriptors provide an `icon` function. Modules choose
 symbols from `icons.rs`; cards do not infer a notation from its order. The same
@@ -76,7 +78,10 @@ captures actual rendered content at 320 × 180 pixels, preserving aspect ratio.
 to the displayed panel. Capture changes neither model nor camera. Only one
 capture is pending at a time; navigation, dialogs or geometry changes invalidate
 a delayed result. Revisions avoid capturing every frame. The preview cache
-restores separately; documents without a capture show a type icon.
+restores separately, including closed **Saved diagrams**: acknowledged captures
+use the automatic copy's stable UUID and saved revision rather than a tab's
+runtime UID. Reopening a saved diagram reuses its preview. Documents without a
+valid capture show a type icon until displayed again.
 
 `Session<E>` owns one editor/history with typed state per panel instance. Cameras,
 including the Petri graph camera, and inspectors persist separately from the
@@ -109,6 +114,21 @@ default; opening it explicitly places a bounded panel above the canvas. Options
 move into a menu below 720 px; the inspector button also moves there below 360 px.
 BPMN and Petri share the inspector-tab component.
 
+BPMN pool/lane resize rules live in
+[bpmn/resize.rs](../crates/op-core/src/bpmn/resize.rs). The editor's
+[resize affordances](../crates/op-app/src/bpmn_editor/resize.rs) handle border
+hit testing, directional cursors and highlights. Pointer gestures retain their
+grab offset and use the typed history; internal lane separators redistribute
+adjacent heights, while minimum sizes and contained elements constrain shrinking.
+
+Resizable elements in BPMN, UML, EPC/activity, database and free drawing share
+[canvas/resize.rs](../crates/op-app/src/canvas/resize.rs) for pointer picking,
+grab offsets, cursors and feedback. [geom/resize.rs](../crates/op-core/src/geom/resize.rs)
+owns rectangular border/corner geometry, optional grid snapping and size limits.
+Notation editors supply their typed element IDs and minimum/maximum sizes;
+UML compartments and database columns determine their content-based minima.
+Pool/lane resizing reuses the visual affordances with its own domain constraints.
+
 Snapping, inspector visibility and issue visibility are view preferences, not
 `.opx` model content. Persisted drawing styles belong to models and are supplied
 through a configuration slot. `theme::toolbar_style` shares button appearance
@@ -139,6 +159,15 @@ fallback endpoints. It reuses `DiagramLayout` and
 `canvas::floating`, registers its example and SVG export in composition, and
 keeps cameras/preferences per view. Geometry is semantic content for a drawing.
 
+Portable drawing selections, fresh-ID paste and stable stacking order live in
+[whiteboard/editing.rs](../crates/op-core/src/whiteboard/editing.rs). The editor's
+[editing adapter](../crates/op-app/src/whiteboard_editor/editing.rs) handles
+system clipboard events, an application-local clipboard fallback on the web,
+context actions and Alt-drag duplication. Clipboard fragments are transient,
+separate from the document/view schemas. The shell's Edit menu consumes extra
+`CommandGroup::Edit` descriptors from the active session; no notation-specific
+dispatch is needed. Focused text fields retain clipboard and undo shortcuts.
+
 `geom::Port` supplies preferred rectangle side midpoints and diamond vertices.
 BPMN, UML, EPC/activity, Petri transitions and free drawing reuse this geometry;
 round event/use-case shapes retain boundary-aware routing. Shared canvas port
@@ -148,6 +177,23 @@ Database foreign keys retain their column-row attachments when tables move.
 [Mermaid](mermaid.md) registers a source document with asynchronous preview. It
 reuses the common inspector and configuration; grid snapping is optional and
 absent for this preview because its nodes cannot be dragged.
+
+## Examination preference
+
+The shell owns the application-wide exam toggle. It propagates it through
+`EditorSession::set_exam_mode` to existing and newly opened sessions; the shared
+[exam context](../crates/op-app/src/editor/exam.rs) lets notation UIs suppress
+assistance without changing their typed models or view preferences. Session
+adapters stop transient analysis/simulation work when needed.
+
+`Session<E>` blocks assistance commands and derived result views. Tool commands
+require assistance by default; modules can classify other commands through
+`command_requires_assistance` and generated-answer exports through
+`export_requires_assistance`. Modules also guard their own inspector actions,
+canvas highlights and shortcuts. Mining's exam job returns activity headers
+instead of computed solutions. The preference is not serialized into `.opx` or
+workspace documents; legacy log fields remain readable and writable. See
+[the interface guide](interface.md#exam-mode) for the implemented behavior.
 
 ## Interface languages
 

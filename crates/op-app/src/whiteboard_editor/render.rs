@@ -28,6 +28,41 @@ impl WhiteboardEditor {
             self.draw(&p, e, &geometry, pal.dark);
         }
         if !exporting {
+            match self.state.drag {
+                Some(Drag::Move {
+                    original_selection: Some(_),
+                    ..
+                }) => ui.ctx().set_cursor_icon(egui::CursorIcon::Copy),
+                Some(Drag::Move { .. }) | Some(Drag::Pan) => ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing),
+                _ => {}
+            }
+            let pointer = ui.input(|i| i.pointer.interact_pos());
+            let resize = match self.state.drag {
+                Some(Drag::Resize { id, gesture }) => Some((id, gesture.edge)),
+                None if response.hovered() && !ui.input(|i| i.key_down(egui::Key::Space)) => pointer.and_then(|p| self.resize_at(p)),
+                _ => None,
+            };
+            let endpoint = self.state.tool == Tool::Select
+                && self.state.selection.len() == 1
+                && self
+                    .state
+                    .selection
+                    .first()
+                    .and_then(|id| self.board.element(*id))
+                    .filter(|e| e.kind.is_connector())
+                    .is_some_and(|e| {
+                        geometry
+                            .points(e)
+                            .iter()
+                            .any(|point| pointer.is_some_and(|p| self.state.camera.to_screen(rect, *point).distance(p) < 12.0))
+                    });
+            if matches!(self.state.drag, Some(Drag::Endpoint { .. })) || endpoint && response.hovered() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::Crosshair);
+            } else if let Some((id, edge)) = resize
+                && let Some(element) = self.board.element(id)
+            {
+                canvas::resize::feedback(ui, &p, self.state.camera, rect, element.bounds, edge, pal.select);
+            }
             if let Some(e) = self.preview() {
                 self.draw(&p, &e, &geometry, pal.dark);
             }

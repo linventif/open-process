@@ -3,6 +3,7 @@
 //! The translation tables live in [`op_core::i18n`]; this module adds the
 //! language dropdown of the top bar and the persistence of the choice.
 
+use egui::containers::menu::MenuButton;
 use egui::{Color32, Rect, Stroke, Ui, pos2, vec2};
 use op_core::i18n::{self, Lang, tr};
 
@@ -20,11 +21,13 @@ pub fn save(storage: &mut dyn eframe::Storage) {
 /// Dropdown showing the current language and allowing a direct selection.
 pub fn language_menu(ui: &mut Ui) {
     let lang = i18n::lang();
-    let resp = ui
-        .menu_button((flag_icon(lang), format!("{} ▾", lang.code().to_uppercase())), |ui| {
+    let gap = ui.spacing().item_spacing.x;
+    let button = egui::Button::new((flag_icon(lang), format!("{} ▾", lang.code().to_uppercase()))).gap(gap);
+    let resp = MenuButton::from_button(button)
+        .ui(ui, |ui| {
             for choice in Lang::ALL {
                 if ui
-                    .add(egui::Button::selectable(choice == lang, (flag_icon(choice), choice.native_name())))
+                    .add(egui::Button::selectable(choice == lang, (flag_icon(choice), choice.native_name())).gap(gap))
                     .clicked()
                 {
                     i18n::set_lang(choice);
@@ -33,7 +36,7 @@ pub fn language_menu(ui: &mut Ui) {
                 }
             }
         })
-        .response
+        .0
         .on_hover_text(tr("ui.language"));
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tr("ui.language")));
 }

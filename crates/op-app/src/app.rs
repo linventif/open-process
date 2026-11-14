@@ -49,6 +49,7 @@ pub struct OpenProcessApp {
     message: Option<(String, bool)>,
     show_about: bool,
     show_shortcuts: bool,
+    exam_mode: bool,
     confirm_close: Option<usize>,
     show_home: bool,
     new_picker: Option<new_document::Picker>,
@@ -82,6 +83,7 @@ impl OpenProcessApp {
             message: None,
             show_about: false,
             show_shortcuts: false,
+            exam_mode: false,
             confirm_close: None,
             show_home: true,
             new_picker: None,
@@ -92,6 +94,7 @@ impl OpenProcessApp {
             automatic_attempts: Default::default(),
         };
         if let Some(storage) = cc.storage {
+            let mut map = std::collections::HashMap::new();
             let restored = match persistence::load(storage) {
                 Ok(p) => p,
                 Err(e) => {
@@ -106,7 +109,6 @@ impl OpenProcessApp {
                     app.persistence_ready = false;
                 }
                 // Restore documents, then remap the pane ids of the saved layout.
-                let mut map = std::collections::HashMap::new();
                 for (old, m, path, views) in p.docs {
                     let mut d = Doc::new(m, path, false, registry);
                     if let Some(entry) = p.autosave.remove(&old) {
@@ -152,8 +154,9 @@ impl OpenProcessApp {
                     }
                 }
                 app.active = p.active;
-                app.thumbnails.restore(storage, &cc.egui_ctx, &map, &app.docs);
             }
+            app.thumbnails
+                .restore(storage, &cc.egui_ctx, &map, &app.docs, &app.automatic.entries);
         }
         for f in files {
             #[cfg(not(target_arch = "wasm32"))]
@@ -193,7 +196,8 @@ impl OpenProcessApp {
     }
 
     fn open_stored(&mut self, state: StoredDocument, path: Option<String>, saved: bool, near: Option<egui_tiles::TileId>) {
-        let doc = Doc::new(state, path, saved, self.registry);
+        let mut doc = Doc::new(state, path, saved, self.registry);
+        doc.editor.set_exam_mode(self.exam_mode);
         dock::add_tab(
             &mut self.tree,
             Pane {
@@ -222,6 +226,9 @@ impl OpenProcessApp {
 
     /// Shows a view of the active document in a new pane beside the current one.
     fn open_beside(&mut self, pane: Pane, vertical: bool) {
+        if self.exam_mode && pane.view != View::Editor {
+            return;
+        }
         self.show_home = false;
         let near = self.docs.get(self.active).and_then(|d| {
             dock::find(
@@ -388,7 +395,7 @@ impl OpenProcessApp {
                     color,
                     dirty: doc.dirty(),
                     icon: self.registry.find(doc.editor.kind()).map(|d| d.icon).unwrap_or(crate::icons::note),
-                    thumbnail: self.thumbnails.texture(doc.uid),
+                    thumbnail: self.thumbnails.texture(doc),
                 }
             })
             .collect::<Vec<_>>();
@@ -412,7 +419,7 @@ impl OpenProcessApp {
                     color: descriptor.map(|d| d.color).unwrap_or(egui::Color32::GRAY),
                     dirty: false,
                     icon: descriptor.map(|d| d.icon).unwrap_or(crate::icons::note),
-                    thumbnail: None,
+                    thumbnail: self.thumbnails.saved_texture(entry),
                 }
             })
             .collect::<Vec<_>>();
@@ -492,13 +499,19 @@ impl OpenProcessApp {
         let sc = |m: Modifiers, k: Key| KeyboardShortcut::new(m, k);
         let cmd = Modifiers::COMMAND;
         let cmd_shift = Modifiers::COMMAND | Modifiers::SHIFT;
+        let editing_text = ui.ctx().egui_wants_keyboard_input();
         let (undo, redo, redo2, save, save_as, open, new) = ui.ctx().input_mut(|i| {
+            // egui allows extra Shift modifiers, so consume the specific shortcuts first.
+            let redo = !editing_text && i.consume_shortcut(&sc(cmd_shift, Key::Z));
+            let undo = !editing_text && i.consume_shortcut(&sc(cmd, Key::Z));
+            let save_as = i.consume_shortcut(&sc(cmd_shift, Key::S));
+            let save = i.consume_shortcut(&sc(cmd, Key::S));
             (
-                i.consume_shortcut(&sc(cmd, Key::Z)),
-                i.consume_shortcut(&sc(cmd_shift, Key::Z)),
-                i.consume_shortcut(&sc(cmd, Key::Y)),
-                i.consume_shortcut(&sc(cmd, Key::S)),
-                i.consume_shortcut(&sc(cmd_shift, Key::S)),
+                undo,
+                redo,
+                !editing_text && i.consume_shortcut(&sc(cmd, Key::Y)),
+                save,
+                save_as,
                 i.consume_shortcut(&sc(cmd, Key::O)),
                 i.consume_shortcut(&sc(cmd, Key::N)),
             )
@@ -546,7 +559,8 @@ impl OpenProcessApp {
 
     fn menu_bar(&mut self, ui: &mut Ui) {
         let has_doc = !self.show_home && !self.docs.is_empty();
-        egui::MenuBar::new().style(theme::toolbar_style).ui(ui, |ui| {
+        let menu = egui::MenuBar::new().config(egui::containers::menu::MenuConfig::new().style(theme::menu_style));
+        menu.style(theme::toolbar_style).ui(ui, |ui| {
             crate::brand::show(ui, 26.0);
             ui.label(RichText::new("Open Process").font(theme::semibold(14.0)));
             ui.add_space(10.0);
@@ -659,6 +673,25 @@ impl OpenProcessApp {
                 {
                     self.execute(DELETE, 0.0);
                 }
+                let commands: Vec<_> = self
+                    .docs
+                    .get(self.active)
+                    .map(|d| d.editor.commands())
+                    .unwrap_or(&[])
+                    .iter()
+                    .filter(|c| c.group == CommandGroup::Edit && ![UNDO, REDO, DELETE].contains(&c.id))
+                    .map(|c| (c.id, c.label))
+                    .collect();
+                if !commands.is_empty() {
+                    ui.separator();
+                }
+                for (id, label) in commands {
+                    let enabled = has_doc && self.docs.get(self.active).is_some_and(|d| d.editor.enabled(id));
+                    if ui.add_enabled(enabled, egui::Button::new(tr(label))).clicked() {
+                        self.execute(id, 0.0);
+                        ui.close();
+                    }
+                }
             });
             ui.menu_button(tr("menu.view"), |ui| {
                 if ui
@@ -674,7 +707,7 @@ impl OpenProcessApp {
                 {
                     ui.menu_button(tr("app.open_beside"), |ui| {
                         for view in views {
-                            if ui.button(tr(view.label)).clicked() {
+                            if ui.add_enabled(!self.exam_mode, egui::Button::new(tr(view.label))).clicked() {
                                 self.open_beside(
                                     Pane {
                                         doc: uid,
@@ -715,6 +748,17 @@ impl OpenProcessApp {
                 egui::widgets::global_theme_preference_buttons(ui);
             });
             ui.menu_button(tr("menu.tools"), |ui| {
+                if ui.checkbox(&mut self.exam_mode, tr("exam.mode")).changed() {
+                    crate::editor::exam::set_active(ui.ctx(), self.exam_mode);
+                    for doc in &mut self.docs {
+                        doc.editor.set_exam_mode(self.exam_mode);
+                    }
+                    self.thumbnails.invalidate_scene();
+                }
+                if self.exam_mode {
+                    ui.label(tr("exam.assistance_disabled"));
+                }
+                ui.separator();
                 let commands = self.docs.get(self.active).map(|d| d.editor.commands()).unwrap_or(&[]);
                 for c in commands.iter().filter(|c| c.group == CommandGroup::Tools) {
                     let enabled = has_doc && self.docs.get(self.active).is_some_and(|d| d.editor.enabled(c.id));
@@ -738,6 +782,9 @@ impl OpenProcessApp {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 theme_toggle(ui);
                 crate::i18n::language_menu(ui);
+                if self.exam_mode {
+                    ui.label(RichText::new(tr("exam.mode")).strong());
+                }
             });
         });
     }
@@ -779,6 +826,10 @@ impl OpenProcessApp {
                             (tr("app.double_click_f2"), tr("app.rename")),
                             ("BPMN: V C S I E T X + O", tr("app.select_connect_start_intermediate_end_task_xor")),
                             ("Petri: V P T A K", tr("app.select_place_transition_arc_tokens")),
+                            (tr("drawing.clipboard_keys"), tr("drawing.copy_cut_paste")),
+                            (tr("drawing.duplicate_drag_keys"), tr("drawing.duplicate_drag")),
+                            (tr("drawing.constrain_drag_keys"), tr("drawing.constrain_drag")),
+                            (tr("drawing.order_keys"), tr("drawing.order_selection")),
                             (tr("app.petri_s_space"), tr("app.token_game_random_step")),
                         ] {
                             ui.label(RichText::new(k).monospace());
@@ -1035,6 +1086,7 @@ impl egui_tiles::Behavior<Pane> for DockBehavior<'_> {
                 self.events.push(DockEvent::ClosePane(p.doc, tile_id));
             }
             resp.context_menu(|ui| {
+                theme::menu_style(ui.style_mut());
                 if ui.button(tr("app.split_right")).clicked() {
                     self.events.push(DockEvent::Beside(p.clone(), false));
                     ui.close();
@@ -1048,7 +1100,10 @@ impl egui_tiles::Behavior<Pane> for DockBehavior<'_> {
                     ui.separator();
                     for view in views {
                         if ui
-                            .button(trf("app.open_document_beside", &[&tr(view.label).to_lowercase()]))
+                            .add_enabled(
+                                !crate::editor::exam::active(ui.ctx()),
+                                egui::Button::new(trf("app.open_document_beside", &[&tr(view.label).to_lowercase()])),
+                            )
                             .clicked()
                         {
                             self.events.push(DockEvent::Beside(
@@ -1097,8 +1152,9 @@ impl eframe::App for OpenProcessApp {
     }
 
     fn ui(&mut self, ui: &mut Ui, _frame: &mut eframe::Frame) {
+        crate::editor::exam::set_active(ui.ctx(), self.exam_mode);
         self.automatic_status(ui);
-        self.thumbnails.poll(ui.ctx(), &self.docs);
+        self.thumbnails.poll(ui.ctx(), &self.docs, &self.automatic.entries);
         let preview_was_blocked = self.thumbnail_capture_blocked(ui.ctx());
         for (name, bytes) in self.io.poll() {
             self.load_bytes(name, &bytes);
@@ -1211,7 +1267,7 @@ impl eframe::App for OpenProcessApp {
         let p = self.workspace_snapshot();
         if self.persistence_ready {
             storage.set_string(persistence::KEY, serde_json::to_string(&p).expect("workspace is serializable"));
-            self.thumbnails.save(storage, &self.docs);
+            self.thumbnails.save(storage, &self.docs, &self.automatic.entries);
         }
         crate::i18n::save(storage);
     }

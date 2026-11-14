@@ -3,14 +3,17 @@ use op_core::database::{Column, DefaultValue, ReferentialAction, SqlType, Table}
 
 impl DatabaseEditor {
     pub(super) fn properties(&mut self, ui: &mut Ui) {
-        DiagramLayout::inspector_tabs(
-            ui,
-            &mut self.state.validation,
-            &[(false, tr("common.properties")), (true, tr("common.validation"))],
-            |_, _| {},
-        );
+        let exam = crate::editor::exam::active(ui.ctx());
+        if !exam {
+            DiagramLayout::inspector_tabs(
+                ui,
+                &mut self.state.validation,
+                &[(false, tr("common.properties")), (true, tr("common.validation"))],
+                |_, _| {},
+            );
+        }
         DiagramLayout::inspector_body(ui, |ui| {
-            if self.state.validation {
+            if self.state.validation && !exam {
                 let issues = match self.sql().clone() {
                     Ok(_) => vec![],
                     Err(issues) => issues,

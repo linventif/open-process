@@ -88,18 +88,31 @@ impl BpmnEditor {
             && let Some(w) = press
             && on_pad(press_screen).is_none()
         {
-            let handle = self
-                .resize_handle(canvas)
-                .filter(|(r, _)| press_screen.is_some_and(|p| r.expand(3.0).contains(p)));
-            self.drag = if let Some((_, sel)) = handle {
-                match sel {
-                    Sel::Node(id) => Some(Drag::ResizeNode { node: id }),
-                    Sel::Pool(id) => Some(Drag::ResizePool { pool: id }),
-                    _ => None,
-                }
+            let handle = press_screen.and_then(|p| self.node_resize_at(canvas, p));
+            let pool_resize = press_screen.and_then(|p| self.pool_resize_at(canvas, p));
+            self.drag = if space {
+                Some(Drag::Pan)
+            } else if let Some((node, edge)) = handle {
+                self.group.clear();
+                self.selection = Some(Sel::Node(node));
+                Some(Drag::ResizeNode {
+                    node,
+                    gesture: canvas::resize::ResizeGesture::new(self.diagram.node(node).unwrap().rect(), edge, w),
+                })
+            } else if let Some((pool, target)) = pool_resize {
+                self.group.clear();
+                self.selection = Some(match target {
+                    PoolResize::LaneBoundary(i) => Sel::Lane(pool, i),
+                    _ => Sel::Pool(pool),
+                });
+                self.history.begin(&self.diagram);
+                target.anchor(self.diagram.pool(pool).unwrap()).map(|anchor| Drag::ResizePool {
+                    pool,
+                    target,
+                    grab: w - anchor,
+                })
             } else {
                 match self.tool {
-                    _ if space => Some(Drag::Pan),
                     Tool::Connect => self.hit_node(w).map(|n| Drag::Connect { from: n }).or(Some(Drag::Pan)),
                     _ => match self.hit(w) {
                         Some(Sel::Node(id)) if self.group.contains(&id) => Some(Drag::MoveGroup { last: w }),
@@ -154,24 +167,22 @@ impl BpmnEditor {
                     }
                     self.drag = Some(Drag::MovePool { pool, last: w });
                 }
-                Some(Drag::ResizeNode { node }) => {
-                    let snapped = self.snap(w);
+                Some(Drag::ResizeNode { node, gesture }) => {
                     if let Some(n) = self.diagram.node_mut(node) {
-                        let left = n.pos.x - n.w / 2.0;
-                        let top = n.pos.y - n.h / 2.0;
-                        n.w = (snapped.x - left).max(40.0);
-                        n.h = (snapped.y - top).max(30.0);
-                        n.pos = Pos::new(left + n.w / 2.0, top + n.h / 2.0);
+                        let bounds = gesture.apply(
+                            n.rect(),
+                            w,
+                            Pos::new(40.0, 30.0),
+                            Pos::new(f32::INFINITY, f32::INFINITY),
+                            self.snap.then_some(GRID),
+                        );
+                        n.w = bounds.w;
+                        n.h = bounds.h;
+                        n.pos = bounds.center();
                     }
                 }
-                Some(Drag::ResizePool { pool }) => {
-                    let snapped = self.snap(w);
-                    if let Some(p) = self.diagram.pool_mut(pool) {
-                        p.width = (snapped.x - p.pos.x).max(200.0);
-                        let others: f32 = p.lanes[..p.lanes.len() - 1].iter().map(|l| l.height).sum();
-                        let last = p.lanes.last_mut().unwrap();
-                        last.height = (snapped.y - p.pos.y - others).max(60.0);
-                    }
+                Some(Drag::ResizePool { pool, target, grab }) => {
+                    self.diagram.resize_pool(pool, target, w - grab, self.snap.then_some(GRID));
                 }
                 Some(Drag::MoveGroup { last }) => {
                     let d = w - last;
@@ -275,6 +286,22 @@ impl BpmnEditor {
             self.ctx_target = (hit, w);
         }
         response.context_menu(|ui| self.context_menu(ui));
+
+        let cursor = match self.drag {
+            Some(Drag::ResizePool { target, .. }) => Some(resize::resize_cursor(target)),
+            Some(Drag::ResizeNode { gesture, .. }) => Some(canvas::resize::cursor(gesture.edge)),
+            None if response.hovered() && !space && on_pad(pointer).is_none() => pointer.and_then(|p| {
+                if let Some((_, edge)) = self.node_resize_at(canvas, p) {
+                    Some(canvas::resize::cursor(edge))
+                } else {
+                    self.pool_resize_at(canvas, p).map(|(_, target)| resize::resize_cursor(target))
+                }
+            }),
+            _ => None,
+        };
+        if let Some(cursor) = cursor {
+            ui.ctx().set_cursor_icon(cursor);
+        }
     }
 
     /// Creates the element of `tool` at world position `w` (click or drop).
@@ -419,6 +446,7 @@ impl BpmnEditor {
     }
 
     pub(super) fn context_menu(&mut self, ui: &mut Ui) {
+        crate::theme::menu_style(ui.style_mut());
         let (target, w) = self.ctx_target;
         match target {
             Some(Sel::Node(id)) => {
@@ -429,6 +457,7 @@ impl BpmnEditor {
                 let kind = self.diagram.node(id).map(|n| n.kind);
                 if let Some(NodeKind::Task(current)) = kind {
                     ui.menu_button((node_icon(NodeKind::Task(current)), tr("bpmn.task_type")), |ui| {
+                        crate::theme::menu_style(ui.style_mut());
                         for t in TaskType::ALL {
                             if node_option(ui, t.label(), NodeKind::Task(t), Some(t == current)).clicked() {
                                 if let Some(n) = self.diagram.node_mut(id) {
@@ -441,6 +470,7 @@ impl BpmnEditor {
                 }
                 if let Some(NodeKind::Gateway(current)) = kind {
                     ui.menu_button((node_icon(NodeKind::Gateway(current)), tr("bpmn.gateway_type")), |ui| {
+                        crate::theme::menu_style(ui.style_mut());
                         for g in GatewayType::ALL {
                             if node_option(ui, g.label(), NodeKind::Gateway(g), Some(g == current)).clicked() {
                                 if let Some(n) = self.diagram.node_mut(id) {

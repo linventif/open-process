@@ -66,6 +66,7 @@ pub struct ViewDescriptor {
 
 /// One mutable document and history, independently rendered in multiple panes.
 pub trait EditorSession {
+    fn set_exam_mode(&mut self, _active: bool) {}
     fn kind(&self) -> &str;
     fn name(&self) -> &str;
     fn rename(&mut self, name: String);
@@ -114,6 +115,8 @@ pub trait EditorSession {
 /// Implemented next to each notation, where private view state remains accessible.
 pub trait EditorBackend: 'static {
     type ViewState: Clone;
+    /// Stop transient assistance when the host changes examination mode.
+    fn set_exam_mode(&mut self, _active: bool) {}
     fn capture_view(&self) -> Self::ViewState;
     fn restore_view(&mut self, state: &Self::ViewState);
     fn fresh_view(&self) -> Self::ViewState;
@@ -151,11 +154,19 @@ pub trait EditorBackend: 'static {
     fn commands(&self) -> &'static [CommandDescriptor];
     fn enabled(&self, command: &str) -> bool;
     fn execute(&mut self, command: &str, time: f64) -> Vec<HostEvent>;
+    /// Tool commands provide automatic assistance unless a notation says otherwise.
+    fn command_requires_assistance(&self, command: &str) -> bool {
+        self.commands().iter().any(|c| c.id == command && c.group == CommandGroup::Tools)
+    }
     fn views(&self) -> &'static [ViewDescriptor] {
         &[]
     }
     fn export(&self) -> Result<ExportData, String>;
     fn export_label(&self) -> &'static str;
+    /// Generated answers and code are unavailable during an examination.
+    fn export_requires_assistance(&self) -> bool {
+        false
+    }
     fn exports(&self) -> Vec<ExportDescriptor> {
         vec![ExportDescriptor {
             id: "standard",
@@ -173,6 +184,7 @@ pub trait EditorBackend: 'static {
 
 pub struct Session<E: EditorBackend> {
     editor: E,
+    exam_mode: bool,
     views: HashMap<u64, E::ViewState>,
     active: Option<u64>,
     revisions: Revisions,
@@ -212,6 +224,7 @@ impl<E: EditorBackend> Session<E> {
             presentation: editor.presentation_key(),
             observed_generation: editor.content_generation(),
             editor,
+            exam_mode: false,
             views: HashMap::new(),
             active: None,
             revisions: Revisions::default(),
@@ -220,6 +233,10 @@ impl<E: EditorBackend> Session<E> {
 }
 
 impl<E: EditorBackend> EditorSession for Session<E> {
+    fn set_exam_mode(&mut self, active: bool) {
+        self.exam_mode = active;
+        self.editor.set_exam_mode(active);
+    }
     fn kind(&self) -> &str {
         self.editor.kind()
     }
@@ -243,6 +260,10 @@ impl<E: EditorBackend> EditorSession for Session<E> {
         self.revisions
     }
     fn render(&mut self, ui: &mut Ui, instance: u64, view: &str) -> Vec<HostEvent> {
+        if self.exam_mode && view != "editor" {
+            ui.label(op_core::i18n::tr("exam.assistance_disabled"));
+            return vec![];
+        }
         if self.active.is_none() || (ui.rect_contains_pointer(ui.max_rect()) && ui.input(|i| i.pointer.any_pressed())) {
             self.active = Some(instance);
         }
@@ -281,9 +302,12 @@ impl<E: EditorBackend> EditorSession for Session<E> {
         self.editor.commands()
     }
     fn enabled(&self, command: &str) -> bool {
-        self.editor.enabled(command)
+        !(self.exam_mode && self.editor.command_requires_assistance(command)) && self.editor.enabled(command)
     }
     fn execute(&mut self, command: &str, time: f64) -> Vec<HostEvent> {
+        if self.exam_mode && !self.enabled(command) {
+            return vec![];
+        }
         // Commands affecting the viewport must also update the stored view states.
         if command == FIT {
             for state in self.views.values_mut() {
@@ -310,15 +334,25 @@ impl<E: EditorBackend> EditorSession for Session<E> {
         self.editor.views()
     }
     fn export(&self) -> Result<ExportData, String> {
+        if self.exam_mode && self.editor.export_requires_assistance() {
+            return Err(op_core::i18n::tr("exam.assistance_disabled").into());
+        }
         self.editor.export()
     }
     fn export_label(&self) -> &'static str {
         self.editor.export_label()
     }
     fn exports(&self) -> Vec<ExportDescriptor> {
-        self.editor.exports()
+        if self.exam_mode && self.editor.export_requires_assistance() {
+            vec![]
+        } else {
+            self.editor.exports()
+        }
     }
     fn export_as(&self, format: &str) -> Result<ExportData, String> {
+        if self.exam_mode && self.editor.export_requires_assistance() {
+            return Err(op_core::i18n::tr("exam.assistance_disabled").into());
+        }
         self.editor.export_as(format)
     }
     #[cfg(test)]

@@ -1,5 +1,7 @@
 //! Shared canvas utilities: view transform (pan/zoom), grid, palette and drawing helpers.
 
+pub mod resize;
+
 use egui::epaint::{CubicBezierShape, PathStroke};
 use egui::text::LayoutJob;
 use egui::{Align, Color32, FontId, Painter, Pos2, Rect, Response, Shape, Stroke, Ui, Vec2, pos2, vec2};
@@ -671,6 +673,7 @@ pub fn sketch() -> bool {
 /// Status-bar menu to choose the link style and the sketch mode.
 pub fn style_menu(ui: &mut Ui, style: &mut op_core::style::DiagramStyle, petri: bool) {
     ui.menu_button(tr("canvas.style"), |ui| {
+        crate::theme::menu_style(ui.style_mut());
         if petri {
             use op_core::style::TransitionShape;
             crate::theme::section_title(ui, tr("canvas.transitions"));

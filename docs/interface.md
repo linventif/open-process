@@ -47,11 +47,16 @@ Each document card has an **Examples** button at the bottom right with only that
 type's examples. Home and picker use the same component. Cards without examples
 and workflow launchers retain their primary action. Choosing an example closes
 the picker and preserves the tab group; opening the menu creates no blank document.
+Editors do not duplicate this **Examples** menu; process-discovery sample logs
+are opened from their cards alongside the other notation examples.
 
 On home, **Resume your work** precedes **New document** when documents are open.
 Cards show a PNG preview, a one-line name with full hover text, type/icon and
 unsaved status. Click/keyboard activation resumes the same document/history.
 The responsive grid uses one to four columns.
+**Saved diagrams** uses the same preview cards for closed automatic copies.
+Their previews survive closing tabs and restarting the app; matching names do
+not share images. Opening a saved card resumes that copy.
 
 Home content stays centered with a maximum width of 1120 logical pixels. Its
 vertical scroll area spans the available window width, keeping the scrollbar
@@ -87,11 +92,66 @@ Geometry is persistent/undoable; pool widths/lane heights may grow to fit
 content and snapping clearance. Invalid geometry and ambiguous header
 containment are diagnosed before mutation.
 
+In BPMN's selection tool, hovering a pool border shows a horizontal/vertical
+resize cursor; its four corners show the appropriate diagonal cursor. Dragging
+works without selecting the pool first. A highlighted edge marks the active
+target, with a constant screen-space hit tolerance at every zoom level.
+Dragging an internal lane separator uses the vertical cursor and redistributes
+height between the two adjacent lanes while keeping the overall pool height
+and other lanes fixed. The top/bottom pool edges change the first/last lane.
+Elements retain their positions; shrinking stops at their bounds and the normal
+minimum sizes. Resizing honors snapping and forms one undo step; Escape cancels
+the gesture. Pool headers still move the pool with its elements, and Space-drag
+still pans the canvas.
+
+All resizable canvas elements use the same border/corner interaction in BPMN,
+UML class/use-case diagrams (including actors and system boundaries), EPC,
+UML activities, database schemas and free drawings. The selection tool can grab
+an element's bounding-box edges/corners without selecting it first. The cursor
+indicates the moving direction and the active edge is highlighted. The opposite
+edge remains fixed, and the pointer's initial offset prevents jumps when grabbing
+near a border. Size limits remain notation-specific; class compartments and table
+rows set minimum visible heights. Snap settings, one-step undo/redo and Escape
+cancellation apply in every editor. Lines/arrows in free drawings retain their
+endpoint handles and show an endpoint-editing cursor. Resize feedback is omitted
+from exported images.
+
+Free drawing exposes copy/cut/paste, duplicate, delete and select-all in **Edit**
+and its canvas context menu. **Alt+drag** duplicates a selection in one undoable
+gesture; **Shift+drag** constrains movement/drawing. The context menu also changes
+stacking order. **F2**, Enter or double-click focuses the selected element's text
+in the inspector. Focused text fields keep their own clipboard and undo behavior.
+The shortcut help and [drawing guide](dessin-libre.md) list keyboard equivalents
+and the browser menu-paste fallback.
+
 These references cover BPMN, Petri, UML, EPC, database and [free drawing](dessin-libre.md).
 Text/table views such as Mining must not simulate a canvas to fit the layout.
 DMN shares actions/inspector with scrollable table content and no artificial zoom.
 Database SQL is a secondary selectable-text view sharing the relational document.
 [Mermaid](mermaid.md) uses an inspector for source/templates and a graphical preview.
+
+## Exam mode
+
+**Tools → Exam mode** toggles assistance for the whole application, including
+documents opened afterwards. A label in the navigation bar identifies the active
+mode. It starts disabled on launch and is separate from saved document content.
+
+The process-discovery editor replaces its former manual-mode selector with an
+exam answer form: relation lists, an editable relation matrix and Alpha step
+fields. There are no answer hints, checking/filling buttons, correctness colors,
+scores, generated nets, replay results or solution-copy/export actions. Exam
+preparation only parses activity names in a background job; it does not run Alpha
+discovery or soundness. Answers still save and support undo/redo. Existing logs
+retain their answers and legacy `manual` field when saved.
+
+Other editors hide validation, evaluation and generated results. Petri
+simulation, matrices, analysis, reachability, automatic layout, notation
+conversions and SQL generation are unavailable. Already open result panes show
+an assistance-disabled message, and their commands and shortcuts cannot reopen
+the tools. Examples, workflow launchers, Mermaid templates and cached home
+previews are hidden. Drawing, properties, navigation, undo/redo, `.opx` saving and
+exports of authored diagrams remain available. Disabling exam mode restores
+assistance without replacing the student's answers.
 
 ## Reusable layout and appearance
 
@@ -112,6 +172,18 @@ selection, corner/glyph consistency and keyboard focus outlines across navigatio
 business actions, inspector tabs and configuration. Form fields retain their
 usual style. `DiagramLayout` determines placement; `theme.rs` determines appearance.
 A future component kit would integrate into that common layer.
+
+[canvas/resize.rs](../crates/op-app/src/canvas/resize.rs) owns shared screen-space
+picking, grab offsets, directional cursors and highlights. The UI-independent
+[geometry operation](../crates/op-core/src/geom/resize.rs) moves the requested
+borders with supplied size limits and snapping. Editors retain typed targets,
+models and histories; BPMN lane separators keep their domain-specific operation.
+
+`theme::menu_style` gives popup buttons 10 px of horizontal and 4 px of vertical
+padding, inside the shared 8 px menu frame margin. The main menu bar passes this
+style to its dropdowns (including language) and nested menus. Other editor menus,
+card examples and context menus apply the same style to their contents. Combo-box
+lists retain the normal form-button padding.
 
 ## Rust component libraries: historical investigation
 

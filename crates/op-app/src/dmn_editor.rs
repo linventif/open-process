@@ -61,14 +61,17 @@ impl DmnEditor {
         hash.finish()
     }
     fn properties(&mut self, ui: &mut Ui) {
-        DiagramLayout::inspector_tabs(
-            ui,
-            &mut self.state.tab,
-            &[(false, tr("common.properties")), (true, tr("common.validation"))],
-            |_, _| {},
-        );
+        let exam = crate::editor::exam::active(ui.ctx());
+        if !exam {
+            DiagramLayout::inspector_tabs(
+                ui,
+                &mut self.state.tab,
+                &[(false, tr("common.properties")), (true, tr("common.validation"))],
+                |_, _| {},
+            );
+        }
         DiagramLayout::inspector_body(ui, |ui| {
-            if self.state.tab {
+            if self.state.tab && !exam {
                 let issues = self.table.validate();
                 if issues.is_empty() {
                     ui.label(tr("database.no_structural_issues"));
@@ -81,6 +84,9 @@ impl DmnEditor {
             ui.heading(tr("dmn.decision_table"));
             ui.label(tr("common.name"));
             ui.text_edit_singleline(&mut self.table.name);
+            if exam {
+                return;
+            }
             ui.add_space(12.0);
             ui.label(tr("dmn.input_values_json"));
             ui.add(

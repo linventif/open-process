@@ -131,7 +131,11 @@ impl BpmnEditor {
         }
 
         // Nodes
-        let issues = if self.show_issues { self.diagram.validate() } else { Vec::new() };
+        let issues = if self.show_issues && !crate::editor::exam::active(painter.ctx()) {
+            self.diagram.validate()
+        } else {
+            Vec::new()
+        };
         for n in &self.diagram.nodes {
             let r = v.rect_to_screen(canvas, n.rect());
             let sel = self.selection == Some(Sel::Node(n.id)) || self.group.contains(&n.id);
@@ -182,6 +186,19 @@ impl BpmnEditor {
         // Resize handle
         if let Some((h, _)) = self.resize_handle(canvas) {
             painter.rect(h, CornerRadius::same(2), pal.fill, Stroke::new(1.5, pal.select), StrokeKind::Middle);
+        }
+        if pointer.is_some() {
+            self.draw_pool_resize(painter, canvas, pointer, pal.select);
+            let target = match self.drag {
+                Some(Drag::ResizeNode { node, gesture }) => Some((node, gesture.edge)),
+                None => pointer.and_then(|p| self.node_resize_at(canvas, p)),
+                _ => None,
+            };
+            if let Some((id, edge)) = target
+                && let Some(node) = self.diagram.node(id)
+            {
+                canvas::resize::draw(painter, self.view.rect_to_screen(canvas, node.rect()), edge, pal.select);
+            }
         }
 
         // Context pad (card with shadow behind the buttons)

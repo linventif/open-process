@@ -2,6 +2,9 @@
 
 use serde::{Deserialize, Serialize};
 
+mod resize;
+pub use resize::ResizeEdge;
+
 /// A point in diagram (world) coordinates.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Pos {
@@ -10,6 +13,15 @@ pub struct Pos {
 }
 
 impl Pos {
+    /// Keep only the dominant axis of a displacement.
+    pub fn axis_locked(self) -> Self {
+        if self.x.abs() >= self.y.abs() {
+            Self::new(self.x, 0.0)
+        } else {
+            Self::new(0.0, self.y)
+        }
+    }
+
     pub const fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }

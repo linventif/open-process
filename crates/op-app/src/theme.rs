@@ -182,6 +182,12 @@ fn visuals(v: &mut Visuals, dark: bool) {
     w.open.corner_radius = r;
 }
 
+/// Shared popup appearance, retaining readable padding inside menu rows.
+pub fn menu_style(style: &mut egui::Style) {
+    egui::containers::menu::menu_style(style);
+    style.spacing.button_padding = vec2(10.0, 4.0);
+}
+
 /// Shared quiet buttons for navigation, view configuration and inspector tabs.
 /// Keep the strong background for checkboxes and the accent outline for keyboard focus.
 pub fn toolbar_style(style: &mut egui::Style) {
