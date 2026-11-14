@@ -123,7 +123,7 @@ application in `crates/op-app/dist/`.
 
 ### Website and combined web build
 
-The Astro/TypeScript website uses Bun 1.4.0 and Node.js 24:
+The Astro/TypeScript website uses Bun 1.4.4 and Node.js 26.13.1 LTS:
 
 ```sh
 cd website

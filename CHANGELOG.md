@@ -7,6 +7,16 @@ does not distinguish the automatic `main-*` releases.
 
 ## Unreleased
 
+### Dependencies and CI
+
+- Upgrade resvg/usvg to 0.50 and the wgpu/naga stack to 30.0.2; refresh the Rust
+  lockfile and remove the obsolete rustybuzz dependency.
+- Update Astro to 7.4.12, sitemap to 3.7.5 and website transitive dependencies.
+  Retain TypeScript 6.0.3 to satisfy the current Astro checker's peer constraint.
+- Align tooling with Bun 1.4.4, Node 26.13.1 LTS, Python 3.15.2 and cargo-audit
+  0.23.0. Refresh immutable CI action pins, select the declared Node version
+  explicitly and enable weekly Bun dependency updates.
+
 ### Editing
 
 - Attach free-drawing lines/arrows to shapes, keep endpoints following movement

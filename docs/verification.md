@@ -701,3 +701,63 @@ Windows/macOS, mobile/touch interaction, the remote CI matrix and deployment
 were not run locally. Legacy v1 paths remain independent until their endpoint
 handles are used to attach them. Diagram routing is not a general obstacle-
 avoidance or automatic diagram-layout guarantee.
+
+## Dependency and build-tool refresh — 14 November 2026
+
+The crates.io and npm registries were queried for every direct dependency,
+including platform-specific and test dependencies: **20 Rust crates and five
+website packages**. After updating resvg/usvg from 0.47 to 0.50, all direct Rust
+dependencies resolve to their latest stable releases checked that day. The
+lockfile refresh also moves wgpu/naga to 30.0.2; 25 package names have changed
+version sets or been added/removed. A final online `cargo update --dry-run
+--verbose` proposes zero updates within the declared constraints and Rust 1.95
+minimum. Local Rust checks used rustc 1.98.0; the minimum compiler itself was not
+tested. No document schemas or historical fixtures changed.
+
+| Component | Selected version | Result |
+| --- | --- | --- |
+| Astro | 7.4.12 | Updated |
+| `@astrojs/sitemap` | 3.7.5 | Updated |
+| `@astrojs/check` | 0.9.12 | Already latest |
+| `@types/bun` | 1.4.4 | Already latest |
+| TypeScript | 6.0.3 | Latest compatible 6.x; 7.0.2 excluded by checker peer range |
+| Bun | 1.4.4 | Updated package manager and CI |
+| Node.js | 26.13.1 LTS | Updated `.node-version`, documentation and explicit CI selection |
+| Python | 3.15.2 | Updated CI/release packaging runtime |
+| cargo-audit | 0.23.0 | Updated security workflow |
+| Trunk / wasm-bindgen CLI | 0.22.1 / 0.2.130 | Already latest stable |
+
+The checker declares `typescript: ^5.0.0 || ^6.0.0` in its
+[published manifest](https://registry.npmjs.org/@astrojs/check/0.9.12).
+`bun outdated --no-cache` reports only the unsupported TypeScript major after
+the refresh. The Bun lockfile also updates compatible transitive packages.
+
+GitHub action release tags were checked upstream and dereferenced to immutable
+commit pins. Checkout, Python setup, artifact upload/download and release actions
+were upgraded; Node setup now reads the declared version file. Workflow inputs
+were checked against the pinned action metadata, with archived artifact uploads
+explicitly retained. Bun dependencies join Cargo and actions in weekly Dependabot
+checks. Cloudflare runtime recommendations were updated in the website guide;
+remote Cloudflare environment variables were not inspected or changed.
+
+The final checks pass: **184 sequential workspace tests** (84 application, 91
+core, seven document integration and two generated-case tests), native and Wasm
+`cargo check --locked`, strict Clippy, formatting, a Linux release build, the
+complete Astro/Trunk release build and **nine Bun output tests**. The site checks
+used Bun 1.4.4 and Node 26.13.1. **Two Python packaging tests**, Python compilation
+of the browser helper and **three generated SQLite DDL cases** pass with Python
+3.15.2. These runtime tools were installed in isolated validation directories;
+the system-wide installations were not replaced.
+
+Headless Firefox passes against the final `/app/` artifacts and shipped CSP:
+automatic saving, deletion, quota failure/retry, drawing attachments and reload,
+plus all four background-job types, cancellation and invalid requests. Local
+Markdown targets, workflow YAML/action inputs and `git diff --check` pass.
+
+A fresh online cargo-audit 0.23.0 run against RustSec commit `4ef2df8e`
+(13 November 2026) reports **zero vulnerabilities and four unmaintained-package
+warnings**: `ttf-parser` 0.25.1, `zbus_names` 4.3.5, `zvariant` 5.15.1 and
+`zvariant_derive` 5.15.1. Updating resvg removes the previous rustybuzz warning.
+Online Bun audit reports no advisories. These findings describe dependency
+advisories, not a complete application security assessment. Windows/macOS,
+the remote CI/release matrix and production deployment were not run locally.

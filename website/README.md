@@ -9,7 +9,7 @@ One Cloudflare Pages project serves the presentation site and application:
 
 ## Development
 
-Install Bun 1.4.0 and Node.js 24, then:
+Install Bun 1.4.4 and Node.js 26.13.1 LTS, then:
 
 ```sh
 cd website
@@ -37,6 +37,11 @@ recreates `dist/`, so run it first. Preview serves the final folder: English `/`
 French `/fr/`, Spanish `/es/`, app `/app/`. English is the original site copy and
 default root language; localized routes remain supported.
 
+TypeScript stays on 6.0.3: the current `@astrojs/check` 0.9.12 declares
+`^5.0.0 || ^6.0.0` and does not accept TypeScript 7. Recheck that peer constraint
+when upgrading the checker; avoid forcing an unsupported major version.
+Node's exact version is recorded in `.node-version` and selected explicitly in CI.
+
 ## Cloudflare Pages
 
 Connect `linventif/open-process` to a **Pages** project:
@@ -48,8 +53,8 @@ Connect `linventif/open-process` to a **Pages** project:
 | Root directory | `website` |
 | Build command | `bun install --frozen-lockfile && bun run build` |
 | Output directory | `dist` |
-| `BUN_VERSION` | `1.4.0` |
-| `NODE_VERSION` | `24` |
+| `BUN_VERSION` | `1.4.4` |
+| `NODE_VERSION` | `26.13.1` |
 | Custom domain | `open-process.linv.dev` |
 
 Set the domain through **Custom domains**. The build contains both parts; no
