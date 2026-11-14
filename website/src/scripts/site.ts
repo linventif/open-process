@@ -1,3 +1,4 @@
+import { galleryImage } from "../lib/appearance";
 import { downloadUrl, parseRelease, releasesUrl, type Platform, type Release } from "../lib/releases";
 
 function element<T extends HTMLElement>(selector: string): T {
@@ -14,7 +15,10 @@ let view = 0;
 
 function updatePreview() {
   const tab = tabs[view]!;
-  const src = `/assets/${tab.dataset.view}.webp`;
+  const src = galleryImage(tab.dataset.view ?? "draw", {
+    theme: document.documentElement.dataset.theme ?? "classic",
+    mode: document.documentElement.dataset.mode === "dark" ? "dark" : "light",
+  });
   const caption = tab.dataset.caption ?? "";
   const alt = tab.dataset.alt ?? "";
   image.src = src;
@@ -42,6 +46,8 @@ tabs.forEach((tab, index) => {
     tabs[view]!.focus();
   });
 });
+
+document.addEventListener("open-process-appearance", updatePreview);
 
 element("#expand-preview").addEventListener("click", () => dialog.showModal());
 element("#close-preview").addEventListener("click", () => dialog.close());

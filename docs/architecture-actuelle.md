@@ -195,6 +195,17 @@ instead of computed solutions. The preference is not serialized into `.opx` or
 workspace documents; legacy log fields remain readable and writable. See
 [the interface guide](interface.md#exam-mode) for the implemented behavior.
 
+## Appearance preferences
+
+The [shared appearance catalogue](../crates/op-app/assets/appearance.json) supplies
+colors and geometry to the app and website. `theme/presets.rs` owns a typed
+`PresetId`, context-local selection and separate preference persistence. Classic
+restores the previous default; seven other families support light/dark colors.
+Shared canvas primitives and home cards consume theme geometry rather than
+copying it into each notation. Models, histories, cameras and `.opx` schemas do
+not contain appearance preferences. The website passes explicit theme/mode
+parameters when opening the web app. See the [appearance guide](identite-graphique.md).
+
 ## Interface languages
 
 English (`en`) is the first-run and fallback language. French (`fr`) and Spanish

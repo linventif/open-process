@@ -244,7 +244,7 @@ fn card_section(ui: &mut Ui, number: &str, title: &str, subtitle: &str, add: imp
         ui.set_width(ui.available_width());
         ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
             ui.horizontal(|ui| {
-                let accent = theme::accent(ui.visuals().dark_mode);
+                let accent = theme::accent(ui);
                 let (rect, _) = ui.allocate_exact_size(egui::vec2(22.0, 22.0), egui::Sense::hover());
                 ui.painter().circle_filled(rect.center(), 11.0, accent);
                 ui.painter().text(

@@ -3,6 +3,7 @@ use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use op_core::geom::Pos;
 
+mod appearance;
 mod resize;
 mod whiteboard_editing;
 

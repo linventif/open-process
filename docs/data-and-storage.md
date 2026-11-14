@@ -59,6 +59,17 @@ copy; simultaneous applications are not a collaborative editing system. Keep sep
 files for backups. The [compatibility guide](documents-et-compatibilite.md)
 documents the file and session schemas.
 
+## Appearance preferences
+
+The application stores its selected theme family in `open-process-appearance-v1`
+through eframe's existing local preference storage. The website uses the
+separate browser-local `open-process-site-appearance-v1` key for its family and
+light/dark choice. Website language navigation retains that choice. Valid
+`theme` and `mode` URL parameters can select an appearance when opening the web
+app; they contain no document content. Reset restores Classic. Neither setting
+changes `.opx` or workspace document data, and neither is sent to an account
+service. Clearing browser site data also removes the website preference.
+
 ## Drawing clipboard
 
 Explicit copy/cut actions in free drawings write the selected elements, including

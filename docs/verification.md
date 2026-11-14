@@ -1086,3 +1086,45 @@ were visually inspected. Seven principal text/button color pairs have calculated
 contrast ratios of at least 4.5:1; this is a palette check, not a complete
 accessibility audit. Native release builds, Windows/macOS display, deployment
 and the remote CI matrix were not run for this identity change.
+
+
+## Selectable appearance families — 14 November 2026
+
+Classic restores the previous default appearance. Cloud, Lilac, Blossom, Lagoon,
+Midnight, Graphite and Workshop offer alternatives with distinct colors, corners,
+shadows and website compositions. All families support light/dark colors. The
+website's sticky selector, swatches and Reset use translated EN/FR/ES labels and
+a browser-local preference. The app has a context-local typed selection and a
+separate persisted setting. Explicit website app links pass the family and mode
+to the local `/app/` route. Saved languages, documents, histories, cameras and
+`.opx` schemas retain their previous behavior.
+
+The complete sequential workspace command passes **215 tests**: 100 application
+tests and 115 core tests. New tests cover preference restoration and malformed
+values, isolated application contexts, explicit URL overrides, the real theme
+menu and preservation of document snapshots, view state, history revisions and
+language. The gallery test checks snapshots while generating 128 real captures
+across eight views, eight families and two modes. The exporter validates and
+converts all 128 images, updating the eight stable Classic fallback URLs.
+
+Native and WebAssembly `cargo check --locked -p op-app` pass without warnings.
+The full website build passes with no Astro diagnostics, including the Trunk
+WebAssembly release build. All **12 Bun tests** pass, including preference/query
+fallbacks, matching local app destinations, translated controls and the presence
+of all 128 gallery images. Two packaging tests pass. Workspace formatting,
+Markdown links and patch whitespace checks pass.
+
+Firefox checks under the shipped CSP cover all eight families in both modes at
+1440, 390 and 320 CSS pixels. They check actual gallery images, horizontal
+overflow, matching app-link parameters, reload/language persistence, Reset,
+explicit preview URLs, changing an existing preview URL, invalid browser storage
+and gallery enlargement. The compiled WebAssembly application also starts from
+an explicit Cloud/dark URL; its rendered palette matches the catalogue. Desktop,
+mobile and application captures were visually inspected after transitions
+settled. The existing Astro development server on `localhost:4321` was also
+checked: its shared catalogue, selector, real images and reload behavior work.
+That user-owned server was left running. Temporary test servers and browser
+profiles were closed afterwards.
+
+These are local Linux/Firefox checks. Native release builds, Windows/macOS
+rendering, Safari/Chromium, deployment and the remote CI matrix were not run.

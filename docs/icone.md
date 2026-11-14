@@ -4,7 +4,7 @@
 
 The master is [open-process.svg](../crates/op-app/assets/icons/open-process.svg),
 a vector of circles and paths without a background or embedded image. It uses
-the graphite/vermilion O → P motif with transparent gaps. The historical raster proposal
+the navy/amber O → P motif with transparent gaps. The historical raster proposal
 remains in [source.png](../crates/op-app/assets/icons/source.png), with
 [generation prompts](../crates/op-app/assets/icons/source-prompt.txt), but no
 longer generates platform icons.

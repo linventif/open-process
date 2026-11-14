@@ -3,6 +3,15 @@
 //! Keep keys identical across catalogs; preserve placeholders and line breaks.
 
 pub const TABLE: &[(&str, &str)] = &[
+    ("appearance.themes", "Thèmes"),
+    ("appearance.classic", "Classique"),
+    ("appearance.cloud", "Nuage"),
+    ("appearance.lilac", "Lilas"),
+    ("appearance.blossom", "Floraison"),
+    ("appearance.lagoon", "Lagon"),
+    ("appearance.midnight", "Minuit"),
+    ("appearance.graphite", "Graphite"),
+    ("appearance.workshop", "Atelier"),
     ("activity.action", "Action"),
     ("activity.activity_final", "Fin d’activité"),
     ("activity.approve", "Approuver"),

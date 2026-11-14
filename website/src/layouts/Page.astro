@@ -3,6 +3,8 @@ import { messages, languages, localizedPath, languageLocales, type Language, typ
 import { cloudApp, repository } from "../lib/site";
 import { isPreview } from "../lib/deployment";
 import "../styles/global.css";
+import "../styles/appearance.css";
+import ThemePicker from "../components/ThemePicker.astro";
 
 interface Props { lang: Language; page?: LegalPage; title?: string; description?: string; noindex?: boolean }
 const { lang, page, title = messages[lang].title, description = messages[lang].description, noindex = false } = Astro.props;
@@ -42,7 +44,7 @@ const structuredData = page ? {
 };
 ---
 <!doctype html>
-<html lang={lang}>
+<html lang={lang} data-theme="classic" data-mode="light" data-layout="classic">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -80,5 +82,5 @@ const structuredData = page ? {
     <link rel="sitemap" href="/sitemap-index.xml" />
     {!noindex && <script type="application/ld+json" set:html={JSON.stringify(structuredData).replace(/</g, "\\u003c")} />}
   </head>
-  <body><slot /></body>
+  <body><ThemePicker lang={lang} /><slot /></body>
 </html>

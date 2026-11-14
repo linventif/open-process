@@ -1,0 +1,32 @@
+---
+import { messages, type Language } from "../lib/messages";
+import { presets } from "../lib/appearance";
+interface Props { lang: Language }
+const { lang } = Astro.props;
+const t = messages[lang];
+const labels = {
+  classic: [t.themeClassic, t.themeClassicDescription], cloud: [t.themeCloud, t.themeCloudDescription],
+  lilac: [t.themeLilac, t.themeLilacDescription], blossom: [t.themeBlossom, t.themeBlossomDescription],
+  lagoon: [t.themeLagoon, t.themeLagoonDescription], midnight: [t.themeMidnight, t.themeMidnightDescription],
+  graphite: [t.themeGraphite, t.themeGraphiteDescription], workshop: [t.themeWorkshop, t.themeWorkshopDescription],
+} as Record<string, readonly string[]>;
+---
+<aside class="appearance-bar" aria-label={t.themeLabel}>
+  <div class="container appearance-inner">
+    <label class="appearance-label" for="appearance-theme">{t.themeLabel}<span>{String(presets.length).padStart(2, "0")}</span></label>
+    <div class="appearance-controls">
+      <select id="appearance-theme" aria-describedby="appearance-caption">
+        {presets.map(preset => <option value={preset.id} data-description={labels[preset.id]![1]}>{labels[preset.id]![0]}</option>)}
+      </select>
+      <select id="appearance-mode" aria-label={t.themeMode}>
+        <option value="light">{t.themeLight}</option><option value="dark">{t.themeDark}</option>
+      </select>
+    </div>
+    <div class="appearance-swatches" role="group" aria-label={t.themeLabel}>
+      {presets.map(preset => <button type="button" data-theme-choice={preset.id} aria-label={labels[preset.id]![0]} aria-pressed={preset.id === "classic" ? "true" : "false"} title={labels[preset.id]![0]}><span></span></button>)}
+    </div>
+    <p id="appearance-caption">{t.themeClassicDescription}</p>
+    <button type="button" class="appearance-reset" id="appearance-reset">{t.themeReset}</button>
+  </div>
+</aside>
+<script>import "../scripts/appearance";</script>
