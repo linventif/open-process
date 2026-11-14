@@ -811,3 +811,36 @@ Native and WebAssembly checks, strict Clippy, formatting, local Markdown targets
 and `git diff --check` pass. Document schemas and compatibility fixtures are
 unchanged. Release builds, browser runs, Windows/macOS and production deployment
 were not repeated for this change.
+
+## Presentation website refresh — 14 November 2026
+
+The English, French and Spanish presentation now covers the eleven document
+types and BPMN evaluation workflow in home-screen order, with links to the
+implemented-feature guides. Copy and search/social metadata include free
+drawing, database design, UML and Mermaid alongside BPMN/Petri/discovery.
+A local-saving section explains the desktop Documents/Open Process library,
+browser local storage and separate manual `.opx` copies.
+
+Eight WebP screenshots replace/extend the previous four, using actual application
+UI captures from checkout `cd389d3`. The first preview is drawing; its counter
+derives from the rendered tabs. Captions, alternative text, keyboard tabs and
+the enlargement dialog follow the selected image. The website README records
+asset provenance. The obsolete source-build README anchor was corrected.
+
+`bun run build` passes with Bun 1.4.4 and Node 26.13.1: Astro/TypeScript checks,
+localized static generation and the Trunk release application under `/app/`.
+All **nine Bun tests** pass. A local Chromium run under the shipped presentation
+CSP checks all three routes, twelve catalogue entries, eight previews/dialogs,
+keyboard navigation and six widths from 320 to 1440 px for each language.
+It also checks the static catalogue, initial screenshot and language navigation
+with JavaScript disabled. No local asset failures, horizontal/tab overflow,
+browser exceptions or CSP violations were observed. French desktop/mobile,
+catalogue and storage screenshots were visually inspected.
+
+Local Markdown/repository-guide targets and patch whitespace were checked.
+GitHub release responses in browser checks were mocked; live release services,
+production Cloudflare deployment, other browser engines and the remote CI matrix
+were not exercised. No Rust models or application behavior are part of this
+website change, and the Rust unit suite/native release matrix was not repeated.
+Parallel application/interface edits in the working tree remain outside this
+website change.

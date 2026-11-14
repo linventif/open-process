@@ -25,6 +25,11 @@ const structuredData = {
   installUrl: cloudApp,
   license: [`${repository}/blob/main/LICENSE-MIT`, `${repository}/blob/main/LICENSE-APACHE`],
   screenshot: image.href,
+  featureList: [messages[lang].drawTitle, messages[lang].databaseTitle,
+    messages[lang].umlTitle, messages[lang].bpmnTitle, messages[lang].usecaseTitle,
+    messages[lang].petriTitle, messages[lang].miningTitle, messages[lang].evaluationTitle,
+    messages[lang].dmnTitle, messages[lang].epcTitle, messages[lang].activityTitle,
+    messages[lang].mermaidTitle],
   image: new URL("/assets/logo.svg", site).href,
 };
 ---

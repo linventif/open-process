@@ -32,7 +32,7 @@ function updatePreview() {
   image.src = src;
   image.alt = alt;
   element("#preview-caption").textContent = caption;
-  element("#preview-number").textContent = `0${view + 1} / 04`;
+  element("#preview-number").textContent = `${String(view + 1).padStart(2, "0")} / ${String(tabs.length).padStart(2, "0")}`;
   element("#preview-panel").setAttribute("aria-labelledby", tab.id);
   element<HTMLImageElement>("#dialog-image").src = src;
   element<HTMLImageElement>("#dialog-image").alt = alt;

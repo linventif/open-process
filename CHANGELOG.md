@@ -51,6 +51,8 @@ does not distinguish the automatic `main-*` releases.
 
 ### Documentation and community
 
+- Refresh the presentation website in English, French and Spanish with the
+  current diagram catalogue, eight application captures and local-saving guidance.
 - Rewrote the README around registered editors, current formats and known limits.
 - Made English the default project documentation language, translated the
   architecture/notation/website guides and interface diagram, and documented

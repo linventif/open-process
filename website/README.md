@@ -91,6 +91,34 @@ in `src/scripts/site.ts`. `public/assets/` contains the logo, screenshots and fo
 licenses. `_headers` separates presentation-site policy from the app's WebAssembly
 and generated scripts.
 
+The presentation covers the eleven registered document types and the BPMN
+cost/duration workflow, in home-screen order. Cards link to the corresponding
+repository guides. Keep feature descriptions within the implemented scope in
+those guides; translations share the English message keys. The local-saving
+section distinguishes desktop Documents/Open Process, browser local storage and
+manual `.opx` copies. Clearing browser storage removes its automatic copies.
+
+The gallery has eight actual application captures, with drawing first. Its
+counter derives from the rendered tabs. All assets are 1400 × 860 WebP images,
+converted at quality 90 from UI captures in ignored `target/screenshots/`:
+
+| Website asset | Application capture |
+| --- | --- |
+| `draw.webp` | `whiteboard_example_dark.png` |
+| `database.webp` | `database_example_light.png` |
+| `uml.webp` | `uml_classes_light.png` |
+| `bpmn.webp` | `bpmn_auto_arranged_1400_true.png` |
+| `petri.webp` | `petri_matrices.png` |
+| `mining.webp` | `mining_top.png` |
+| `mermaid.webp` | `mermaid_creator_1400.png` |
+| `split.webp` | `split_bpmn_matrices.png` |
+
+The sequential application UI suite generates these source captures. Inspect
+them before replacing the website assets, and keep captions/alternative text
+consistent with their content. The 14 November refresh uses the captures from
+the grid-aware layout checkout (`cd389d3`); it does not generate mock application
+screens or require an external image service.
+
 The transparent logo and favicons in `public/icons/` derive from shared native/web
 vector artwork. See [the icon guide](../docs/icone.md) to regenerate formats.
 
