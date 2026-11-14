@@ -5,7 +5,9 @@ use crate::i18n::{key, tr};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
+mod connections;
 pub mod svg;
+pub use connections::{Attachment, Geometry, WhiteboardCodec};
 pub type Id = u64;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -45,6 +47,9 @@ impl Kind {
     pub fn is_path(self) -> bool {
         matches!(self, Self::Line | Self::Arrow | Self::Freehand)
     }
+    pub fn is_connector(self) -> bool {
+        matches!(self, Self::Line | Self::Arrow)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -75,6 +80,10 @@ pub struct Element {
     pub points: Vec<Pos>,
     pub text: String,
     pub paint: Paint,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start_attachment: Option<Attachment>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub end_attachment: Option<Attachment>,
 }
 impl Element {
     pub fn new(kind: Kind, from: Pos, to: Pos, mut paint: Paint) -> Self {
@@ -102,6 +111,8 @@ impl Element {
             points,
             text: String::new(),
             paint,
+            start_attachment: None,
+            end_attachment: None,
         }
     }
     pub fn freehand(points: &[Pos], paint: Paint) -> Option<Self> {
@@ -129,6 +140,18 @@ impl Element {
             .map(|p| Pos::new(self.bounds.x + p.x * self.bounds.w, self.bounds.y + p.y * self.bounds.h))
             .collect()
     }
+    pub fn set_endpoints(&mut self, from: Pos, to: Pos) {
+        self.bounds = Rect::new(
+            from.x.min(to.x),
+            from.y.min(to.y),
+            (to.x - from.x).abs().max(1.0),
+            (to.y - from.y).abs().max(1.0),
+        );
+        self.points = [from, to]
+            .into_iter()
+            .map(|p| Pos::new((p.x - self.bounds.x) / self.bounds.w, (p.y - self.bounds.y) / self.bounds.h))
+            .collect();
+    }
     pub fn hit(&self, p: Pos, tolerance: f32) -> bool {
         if self.kind.is_path() {
             return dist_to_polyline(p, &self.world_points()) <= tolerance + self.paint.width / 2.0;
@@ -150,6 +173,7 @@ pub struct Board {
     next_id: Id,
 }
 impl Board {
+    pub const CODEC: WhiteboardCodec = WhiteboardCodec;
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
@@ -158,40 +182,98 @@ impl Board {
         }
     }
     pub fn add(&mut self, mut e: Element) -> Id {
-        e.id = self.next_id;
-        self.next_id += 1;
+        let mut used = self.elements.iter().map(|e| e.id).collect();
+        e.id = self.allocate_id(&mut used);
         let id = e.id;
         self.elements.push(e);
+        id
+    }
+    fn allocate_id(&mut self, used: &mut std::collections::HashSet<Id>) -> Id {
+        let mut id = if self.next_id == 0 || self.next_id == Id::MAX {
+            1
+        } else {
+            self.next_id
+        };
+        while used.contains(&id) {
+            id = if id >= Id::MAX - 1 { 1 } else { id + 1 };
+        }
+        used.insert(id);
+        self.next_id = if id >= Id::MAX - 1 { 1 } else { id + 1 };
         id
     }
     pub fn element(&self, id: Id) -> Option<&Element> {
         self.elements.iter().find(|e| e.id == id)
     }
     pub fn hit(&self, p: Pos, tolerance: f32) -> Option<Id> {
-        self.elements.iter().rev().find(|e| e.hit(p, tolerance)).map(|e| e.id)
+        self.geometry().hit(p, tolerance)
     }
     pub fn delete(&mut self, ids: &BTreeSet<Id>) {
+        let geometry = self.geometry();
+        let detached: std::collections::HashMap<_, _> = self
+            .elements
+            .iter()
+            .filter(|e| {
+                !ids.contains(&e.id)
+                    && [e.start_attachment, e.end_attachment]
+                        .into_iter()
+                        .flatten()
+                        .any(|a| ids.contains(&a.element))
+            })
+            .map(|e| (e.id, geometry.points(e)))
+            .collect();
+        for e in &mut self.elements {
+            let Some(points) = detached.get(&e.id) else { continue };
+            e.set_endpoints(points[0], points[1]);
+            if e.start_attachment.is_some_and(|a| ids.contains(&a.element)) {
+                e.start_attachment = None;
+            }
+            if e.end_attachment.is_some_and(|a| ids.contains(&a.element)) {
+                e.end_attachment = None;
+            }
+        }
         self.elements.retain(|e| !ids.contains(&e.id));
     }
     pub fn duplicate(&mut self, ids: &BTreeSet<Id>) -> BTreeSet<Id> {
-        let copies: Vec<_> = self.elements.iter().filter(|e| ids.contains(&e.id)).cloned().collect();
-        copies
-            .into_iter()
-            .map(|mut e| {
-                e.bounds.x += 20.0;
-                e.bounds.y += 20.0;
-                self.add(e)
+        let geometry = self.geometry();
+        let copies: Vec<_> = self
+            .elements
+            .iter()
+            .filter(|e| ids.contains(&e.id))
+            .map(|e| {
+                let mut copy = e.clone();
+                if e.kind.is_connector() {
+                    let points = geometry.points(e);
+                    copy.set_endpoints(points[0], points[1]);
+                }
+                copy
             })
-            .collect()
+            .collect();
+        let mut remap = std::collections::HashMap::new();
+        let mut used = self.elements.iter().map(|e| e.id).collect();
+        for mut e in copies {
+            let original = e.id;
+            e.bounds.x += 20.0;
+            e.bounds.y += 20.0;
+            let id = self.allocate_id(&mut used);
+            e.id = id;
+            self.elements.push(e);
+            remap.insert(original, id);
+        }
+        let copied: BTreeSet<_> = remap.values().copied().collect();
+        for e in self.elements.iter_mut().filter(|e| copied.contains(&e.id)) {
+            for attachment in [&mut e.start_attachment, &mut e.end_attachment] {
+                *attachment = attachment.and_then(|a| {
+                    remap.get(&a.element).map(|element| Attachment {
+                        element: *element,
+                        port: a.port,
+                    })
+                });
+            }
+        }
+        copied
     }
     pub fn bounds(&self) -> Option<Rect> {
-        let first = self.elements.first()?.bounds;
-        Some(self.elements.iter().skip(1).fold(first, |a, e| {
-            let b = e.bounds;
-            let x = a.x.min(b.x);
-            let y = a.y.min(b.y);
-            Rect::new(x, y, a.right().max(b.right()) - x, a.bottom().max(b.bottom()) - y)
-        }))
+        self.geometry().bounds()
     }
     pub fn validate(&self) -> Result<(), String> {
         let mut ids = BTreeSet::new();
@@ -200,7 +282,7 @@ impl Board {
             points = points.saturating_add(e.points.len());
             if !ids.insert(e.id)
                 || e.id == 0
-                || e.id >= self.next_id
+                || e.id == Id::MAX
                 || self.next_id == Id::MAX
                 || ![e.bounds.x, e.bounds.y, e.bounds.w, e.bounds.h]
                     .iter()
@@ -224,6 +306,14 @@ impl Board {
         }
         if self.next_id == 0 || self.next_id == Id::MAX || self.elements.len() > 20_000 || points > 200_000 {
             return Err(tr("drawing.free_drawing_exceeds_supported_size").into());
+        }
+        let geometry = self.geometry();
+        for e in &self.elements {
+            for attachment in [e.start_attachment, e.end_attachment].into_iter().flatten() {
+                if !e.kind.is_connector() || !geometry.valid_attachment(e.id, attachment) {
+                    return Err(tr("drawing.invalid_attachment").into());
+                }
+            }
         }
         Ok(())
     }
@@ -254,6 +344,9 @@ pub fn example() -> Board {
     );
     title.text = tr("drawing.shared_idea").into();
     b.add(title);
+    let mut arrow = b.elements[1].clone();
+    b.attach_connector(&mut arrow, Pos::new(270.0, 160.0), Pos::new(410.0, 170.0), 12.0);
+    b.elements[1] = arrow;
     b
 }
 

@@ -659,25 +659,20 @@ impl Issue {
 // -------------------------------------------------------------------------
 // Flow routing (shared by the editor and the BPMN DI export)
 
-/// Point where the ray from the node center towards `toward` leaves the node shape.
+/// Preferred attachment: rectangle side midpoint, gateway vertex, or circular boundary.
 pub fn boundary_point(n: &Node, toward: Pos) -> Pos {
     let c = n.pos;
     let (dx, dy) = (toward.x - c.x, toward.y - c.y);
     if dx.abs() < 1e-3 && dy.abs() < 1e-3 {
-        return c;
+        return crate::geom::Port::Right.point(n.rect());
     }
-    let (hw, hh) = (n.w / 2.0, n.h / 2.0);
+    let hw = n.w / 2.0;
     let t = match n.kind {
         k if k.is_event() => {
             let len = (dx * dx + dy * dy).sqrt();
             hw / len
         }
-        NodeKind::Gateway(_) => 1.0 / (dx.abs() / hw + dy.abs() / hh),
-        _ => {
-            let tx = if dx.abs() > 1e-6 { hw / dx.abs() } else { f32::INFINITY };
-            let ty = if dy.abs() > 1e-6 { hh / dy.abs() } else { f32::INFINITY };
-            tx.min(ty)
-        }
+        _ => return crate::geom::Port::toward(n.rect(), toward).point(n.rect()),
     };
     Pos::new(c.x + dx * t, c.y + dy * t)
 }
@@ -770,6 +765,26 @@ pub fn route_orthogonal(diagram: &BpmnDiagram, f: &Flow) -> Vec<Pos> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rectangle_and_gateway_flows_keep_preferred_ports_after_moves() {
+        use crate::{geom::Port, style::EdgeStyle};
+        let mut diagram = BpmnDiagram::new("Ports");
+        let from = diagram.add_node(NodeKind::Gateway(GatewayType::Parallel), Pos::new(10.0, 20.0));
+        let to = diagram.add_node(NodeKind::Task(TaskType::User), Pos::new(250.0, 170.0));
+        let flow = diagram.add_flow(from, to).unwrap();
+        for style in [EdgeStyle::Straight, EdgeStyle::Orthogonal, EdgeStyle::Curved] {
+            diagram.style.edges = style;
+            for offset in [Pos::new(0.0, 0.0), Pos::new(-320.0, 240.0)] {
+                diagram.node_mut(to).unwrap().pos = Pos::new(250.0, 170.0) + offset;
+                let points = route(&diagram, diagram.flow(flow).unwrap());
+                let a = diagram.node(from).unwrap().rect();
+                let b = diagram.node(to).unwrap().rect();
+                assert!(Port::ALL.iter().any(|port| port.point(a).dist(points[0]) < 0.001));
+                assert!(Port::ALL.iter().any(|port| port.point(b).dist(*points.last().unwrap()) < 0.001));
+            }
+        }
+    }
 
     #[test]
     fn flows_and_validation() {

@@ -7,6 +7,18 @@ use op_core::geom::Pos;
 use op_core::i18n::tr;
 use serde::{Deserialize, Serialize};
 
+/// Shared connection guides for rectangle side midpoints and diamond vertices.
+pub fn connection_ports(painter: &Painter, rect: Rect, pointer: Option<Pos2>, color: Color32) {
+    for point in [rect.center_top(), rect.right_center(), rect.center_bottom(), rect.left_center()] {
+        let near = pointer.is_some_and(|p| p.distance(point) <= 12.0);
+        painter.circle_filled(
+            point,
+            if near { 4.5 } else { 3.0 },
+            color.gamma_multiply(if near { 1.0 } else { 0.6 }),
+        );
+    }
+}
+
 /// Pan & zoom of an infinite canvas.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct View {

@@ -661,3 +661,43 @@ this is not a fresh online database check. Windows/macOS, abrupt power-loss
 durability, simultaneous-writer transactional merging, the remote CI matrix and
 production deployment were not validated locally. Browser quota/clearing and
 unconfirmed changes during abrupt termination remain practical storage limits.
+
+## Attached connectors and preferred ports — 14 November 2026
+
+Free-drawing lines/arrows now have typed start/end attachments to shape IDs and
+preferred ports. Moving/resizing shapes updates resolved paths; endpoint handles
+retarget or detach ends. Group movement preserves attachments, duplication
+remaps copied shape IDs, and deletion freezes detached ends at their last
+positions. Canvas rendering, hit/selection bounds, fit and SVG share indexed
+geometry. Unused identities remain allocatable when drawing counters approach
+their limit.
+
+Whiteboard writes model v2 and reads v1 with original independent path geometry.
+The new `whiteboard-v1.opx` compatibility fixture complements unchanged historical
+fixtures. Invalid/dangling/path-target attachments and future model versions are
+rejected. Other model/envelope schemas are unchanged. Shared `geom::Port` supplies
+rectangle side midpoints and diamond vertices to graphical editors; Petri
+reciprocal paths retain distinct routes with centered transition endpoints.
+
+The complete workspace suite passes: **84 application tests, 91 core tests,
+seven document integration tests and two generated-case tests (184 total)**.
+The new mouse regression creates a bound arrow, moves/resizes its source,
+undoes/redoes, retargets/detaches its endpoint and saves/reopens the drawing.
+Domain regressions cover resolved hits/SVG/bounds, duplication/deletion/group
+movement, identity exhaustion, legacy/future codecs and preferred BPMN ports.
+Petri checks cover reciprocal straight/orthogonal/curved arcs after movement.
+The generated attached-drawing screenshot was visually inspected.
+
+Strict Clippy, formatting, native/Wasm compilation checks, Linux native and
+Trunk/Wasm release builds, nine Bun output tests, local documentation links and
+`git diff --check` pass. Firefox exercises the shipped `/app/` artifacts under
+the app CSP: a v2 drawing retains both arrow attachments through deletion,
+undo, a simulated quota failure, retry and reload. All four background-job
+smoke checks also pass. The translation inventory check initially caught an
+out-of-line test declaration hiding production text from its scanner; placing
+the declaration after production code restored full coverage.
+
+Windows/macOS, mobile/touch interaction, the remote CI matrix and deployment
+were not run locally. Legacy v1 paths remain independent until their endpoint
+handles are used to attach them. Diagram routing is not a general obstacle-
+avoidance or automatic diagram-layout guarantee.

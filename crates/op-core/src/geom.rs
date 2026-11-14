@@ -76,6 +76,40 @@ impl Rect {
     }
 }
 
+/// Preferred connector ports: side midpoints on rectangles, vertices on diamonds.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Port {
+    Top,
+    Right,
+    Bottom,
+    Left,
+}
+
+impl Port {
+    pub const ALL: [Self; 4] = [Self::Top, Self::Right, Self::Bottom, Self::Left];
+
+    pub fn point(self, bounds: Rect) -> Pos {
+        let center = bounds.center();
+        match self {
+            Self::Top => Pos::new(center.x, bounds.y),
+            Self::Right => Pos::new(bounds.right(), center.y),
+            Self::Bottom => Pos::new(center.x, bounds.bottom()),
+            Self::Left => Pos::new(bounds.x, center.y),
+        }
+    }
+
+    pub fn toward(bounds: Rect, target: Pos) -> Self {
+        let delta = target - bounds.center();
+        if delta.x.abs() / bounds.w.max(0.001) >= delta.y.abs() / bounds.h.max(0.001) {
+            if delta.x < 0.0 { Self::Left } else { Self::Right }
+        } else if delta.y < 0.0 {
+            Self::Top
+        } else {
+            Self::Bottom
+        }
+    }
+}
+
 /// Distance from point `p` to segment `[a, b]`.
 pub fn dist_to_segment(p: Pos, a: Pos, b: Pos) -> f32 {
     let (dx, dy) = (b.x - a.x, b.y - a.y);

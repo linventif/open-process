@@ -1471,6 +1471,97 @@ fn whiteboard<'a>(h: &'a Harness<'static, OpenProcessApp>) -> &'a crate::whitebo
 }
 
 #[test]
+fn whiteboard_connections_snap_follow_resize_retarget_and_restore() {
+    use op_core::{
+        document::DocumentCodec,
+        geom::{Port, Pos},
+        whiteboard::{Board, Element, Kind, Paint},
+    };
+    let mut board = Board::new("Attached drawing");
+    let source = board.add(Element::new(
+        Kind::Rectangle,
+        Pos::new(60.0, 80.0),
+        Pos::new(220.0, 180.0),
+        Paint::default(),
+    ));
+    let target = board.add(Element::new(
+        Kind::Diamond,
+        Pos::new(420.0, 80.0),
+        Pos::new(520.0, 180.0),
+        Paint::default(),
+    ));
+    let third = board.add(Element::new(
+        Kind::Rectangle,
+        Pos::new(350.0, 350.0),
+        Pos::new(510.0, 450.0),
+        Paint::default(),
+    ));
+    let mut h = harness(false);
+    h.state_mut().open_document(Board::CODEC.encode(&board), None, false);
+    h.run_steps(5);
+    h.get_by_label(tr(Kind::Arrow.label())).click();
+    h.run_steps(3);
+    let start = whiteboard(&h).screen_point(Pos::new(220.0, 130.0));
+    let end = whiteboard(&h).screen_point(Pos::new(420.0, 130.0));
+    drag(&mut h, start, end);
+    h.run_steps(4);
+    let arrow = whiteboard(&h).board.elements.last().unwrap().id;
+    assert_eq!(
+        whiteboard(&h).board.element(arrow).unwrap().start_attachment.unwrap().element,
+        source
+    );
+    assert_eq!(whiteboard(&h).board.element(arrow).unwrap().end_attachment.unwrap().element, target);
+    let start = whiteboard(&h).screen_point(Pos::new(140.0, 130.0));
+    let end = whiteboard(&h).screen_point(Pos::new(190.0, 200.0));
+    drag(&mut h, start, end);
+    h.run_steps(4);
+    let board = &whiteboard(&h).board;
+    assert_eq!(
+        board.geometry().points(board.element(arrow).unwrap())[0],
+        Port::Right.point(board.element(source).unwrap().bounds)
+    );
+    let bounds = board.element(source).unwrap().bounds;
+    let from = whiteboard(&h).screen_point(Pos::new(bounds.right(), bounds.bottom()));
+    let to = whiteboard(&h).screen_point(Pos::new(bounds.right() + 60.0, bounds.bottom() + 30.0));
+    drag(&mut h, from, to);
+    h.run_steps(4);
+    let resized = whiteboard(&h).board.clone();
+    let points = resized.geometry().points(resized.element(arrow).unwrap());
+    assert_eq!(points[0], Port::Right.point(resized.element(source).unwrap().bounds));
+    h.state_mut().undo();
+    h.run_steps(3);
+    assert_ne!(
+        whiteboard(&h).board.element(source).unwrap().bounds,
+        resized.element(source).unwrap().bounds
+    );
+    h.state_mut().redo();
+    h.run_steps(3);
+    let center = whiteboard(&h).screen_point(points[0].lerp(points[1], 0.5));
+    click(&mut h, center);
+    h.run_steps(3);
+    let from = whiteboard(&h).screen_point(points[1]);
+    let to = whiteboard(&h).screen_point(Pos::new(430.0, 350.0));
+    drag(&mut h, from, to);
+    h.run_steps(4);
+    let attachment = whiteboard(&h).board.element(arrow).unwrap().end_attachment.unwrap();
+    assert_eq!((attachment.element, attachment.port), (third, Port::Top));
+    let from = whiteboard(&h).screen_point(Pos::new(430.0, 350.0));
+    let to = whiteboard(&h).screen_point(Pos::new(630.0, 470.0));
+    drag(&mut h, from, to);
+    h.run_steps(4);
+    assert!(whiteboard(&h).board.element(arrow).unwrap().end_attachment.is_none());
+    h.state_mut().undo();
+    h.run_steps(3);
+    assert_eq!(whiteboard(&h).board.element(arrow).unwrap().end_attachment.unwrap(), attachment);
+    let snapshot = h.state().docs[h.state().active].snapshot();
+    h.state_mut().load_bytes("attached.opx".into(), &snapshot.bytes());
+    h.run_steps(4);
+    assert_eq!(h.state().docs[h.state().active].snapshot(), snapshot);
+    assert_eq!(h.state().docs[h.state().active].editor.kind(), "whiteboard");
+    shot(&mut h, "whiteboard_attached_connectors");
+}
+
+#[test]
 fn whiteboard_creation_tools_text_and_vector_export_roundtrip() {
     use op_core::geom::Pos;
     use op_core::whiteboard::Kind;

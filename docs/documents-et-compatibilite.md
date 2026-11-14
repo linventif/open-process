@@ -51,6 +51,13 @@ Subsequent modules register `dmn.table`, `epc`, `uml.activity`, `database.schema
 invalid drafts; rendered previews are not saved. Each type's codec owns its model
 version. IDs written to files become compatibility contracts.
 
+Whiteboard model v2 adds optional endpoint attachments with a target element ID
+and typed port. Its module-owned codec reads both v1 and v2; legacy independent
+paths retain their geometry. New writes use v2 so older v1-only editors enter
+recovery rather than dropping attachments. References must target existing
+non-path shapes; invalid, cyclic or missing references are rejected. See
+[drawing connections](dessin-libre.md#attached-lines-and-arrows).
+
 Codecs encode/decode concrete models. The shell handles the envelope/session
 without extracting domain fields. Generic JSON is limited to this boundary,
 not passed into domain algorithms.
@@ -102,7 +109,7 @@ geometry and valid arc directions/weights. Incomplete business drafts, such as
 unnamed nodes or invalid UML multiplicities, remain editable. Near-exhausted
 legacy ID counters allocate unused identities without overflowing.
 
-The envelope and model versions are unchanged, as are historical fixtures.
+The envelope and BPMN/Petri/UML model versions are unchanged, as are their historical fixtures.
 Previously accepted unsafe `.opx` models can now open in recovery mode, retaining
 their original bytes. BPMN/Petri/UML storage is limited to 20,000 elements and
 geometry magnitudes of 1,000,000 world units.

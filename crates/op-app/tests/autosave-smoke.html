@@ -34,8 +34,15 @@ try{
         report.id=crypto.randomUUID();
         const record={
             entry:{id:report.id,revision:crypto.randomUUID(),name:'Browser automatic copy',kind:'whiteboard',manual_path:null},
-            state:{Editable:{kind:'whiteboard',model_version:1,model:{name:'Browser automatic copy',next_id:2,elements:[{
+            state:{Editable:{kind:'whiteboard',model_version:2,model:{name:'Browser automatic copy',next_id:4,elements:[{
                 id:1,kind:'Rectangle',bounds:{x:0,y:0,w:160,h:100},points:[],text:'',
+                paint:{stroke:[67,76,94],fill:null,width:2,font_size:20,sketch:true}
+            },{
+                id:2,kind:'Diamond',bounds:{x:300,y:0,w:80,h:100},points:[],text:'',
+                paint:{stroke:[67,76,94],fill:null,width:2,font_size:20,sketch:true}
+            },{
+                id:3,kind:'Arrow',bounds:{x:160,y:50,w:140,h:1},points:[{x:0,y:0},{x:1,y:0}],text:'',
+                start_attachment:{element:1,port:'Right'},end_attachment:{element:2,port:'Left'},
                 paint:{stroke:[67,76,94],fill:null,width:2,font_size:20,sketch:true}
             }]}}}
         };
@@ -55,7 +62,10 @@ try{
     await until(()=>JSON.parse(localStorage.getItem(workspace)||'{}').archived?.length===1);
     const stored=()=>JSON.parse(localStorage.getItem(prefix+report.id));
     if(stage){
-        if(stored().state.Editable.model.elements.length!==1)throw new Error('The latest source was not restored');
+        if(stored().state.Editable.model.elements.length!==3)throw new Error('The latest source was not restored');
+        const arrow=stored().state.Editable.model.elements.find(element=>element.kind==='Arrow');
+        if(arrow.start_attachment.element!==1||arrow.end_attachment.element!==2)throw new Error('Connection attachments were lost');
+        report.attachments_restored=true;
         report.reopened=true;
         report.ok=true;
     }else{
@@ -80,7 +90,7 @@ try{
         report.quota_failure_safe=true;
         Storage.prototype.setItem=original;
         window.dispatchEvent(new Event('pagehide'));
-        await until(()=>stored().state.Editable.model.elements.length===1);
+        await until(()=>stored().state.Editable.model.elements.length===3);
         report.retry_saved=true;
         sessionStorage.setItem('autosave-smoke-report',JSON.stringify(report));
         sessionStorage.setItem('autosave-smoke-stage','reload');

@@ -160,7 +160,23 @@ impl BpmnEditor {
         if let (Some(from), Some(p)) = (from, pointer)
             && let Some(n) = self.diagram.node(from)
         {
-            canvas::dashed(painter, &[v.to_screen(canvas, n.pos), p], Stroke::new(1.5, pal.select), 6.0, 4.0);
+            let world = v.to_world(canvas, p);
+            let target = self.hit_node(world).and_then(|id| self.diagram.node(id));
+            let toward = target.map(|n| n.pos).unwrap_or(world);
+            let end = target.map(|target| v.to_screen(canvas, boundary_point(target, n.pos))).unwrap_or(p);
+            canvas::dashed(
+                painter,
+                &[v.to_screen(canvas, boundary_point(n, toward)), end],
+                Stroke::new(1.5, pal.select),
+                6.0,
+                4.0,
+            );
+            canvas::connection_ports(painter, v.rect_to_screen(canvas, n.rect()), pointer, pal.select);
+        }
+        if (self.tool == Tool::Connect || from.is_some())
+            && let Some(target) = wp.and_then(|w| self.hit_node(w)).and_then(|id| self.diagram.node(id))
+        {
+            canvas::connection_ports(painter, v.rect_to_screen(canvas, target.rect()), pointer, pal.select);
         }
 
         // Resize handle

@@ -56,14 +56,13 @@ impl<K: FlowKind> Node<K> {
         let c = r.center();
         let d = toward - c;
         if d.x.abs() + d.y.abs() < 0.001 {
-            return c;
+            return crate::geom::Port::Right.point(r);
         }
         let x = d.x / (r.w / 2.0);
         let y = d.y / (r.h / 2.0);
         let scale = match self.kind.shape() {
             Shape::Initial | Shape::Final | Shape::FlowFinal | Shape::Connector(_) => 1.0 / x.hypot(y),
-            Shape::Diamond => 1.0 / (x.abs() + y.abs()),
-            _ => 1.0 / x.abs().max(y.abs()),
+            _ => return crate::geom::Port::toward(r, toward).point(r),
         };
         Pos::new(c.x + d.x * scale, c.y + d.y * scale)
     }

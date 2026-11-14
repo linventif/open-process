@@ -20,7 +20,7 @@ The pencil remains active after a stroke; other drawing tools return to selectio
 - Click to select; Shift+click adds/removes elements.
 - Drag empty space for rubber-band selection; Shift preserves prior selection.
 - Drag a selection to move it. A bottom-right handle resizes a single element,
-  including strokes and arrows.
+  including freehand strokes. Lines and arrows have handles at both endpoints.
 - The inspector edits multiline text, dimensions, stroke/fill colors, thickness,
   font size and sketch mode. Double-click opens it and focuses text editing.
 - Style changes affect selected elements and future creations. Without selection,
@@ -40,11 +40,39 @@ The shared configuration bar contains **Show grid**, **Snap to grid**, zoom and
 inspector controls. Snapping is off by default; pencil points remain free even
 when it is enabled. Options move into the compact menu in narrow views.
 
+## Attached lines and arrows
+
+Draw a line or arrow from a shape, or release either endpoint over a shape, to
+attach it. Connection guides show the four preferred ports: side midpoints for
+rectangles/text/notes, vertices for diamonds, and cardinal points for ellipses.
+Port snapping works with grid snapping on or off; shape ports take priority.
+
+Moving or resizing a shape keeps both connected endpoints attached. Select a
+connector and drag an endpoint handle to attach it elsewhere or release it on
+empty canvas. Dragging the connector body alone releases its attachments so it
+can move freely. Moving a selection containing a connector and one of its shapes
+keeps the other end attached as well. Editing connector width/height releases
+its attachments and resizes its resolved geometry.
+
+Duplicating shapes and their connector remaps attachments to the new shapes.
+Duplicated endpoints whose shapes were not copied remain free. Deleting a shape
+leaves surviving connectors at their last endpoint positions. Undo/redo includes
+attachment changes. Canvas rendering, selection, fit and SVG export use the same
+resolved geometry, so exported arrows follow the moved shapes too.
+
 ## Documents and exports
 
-Drawings save as `.opx` v2 with type `whiteboard`, model version 1. The model
-contains elements, IDs, geometry, text, colors and styles without changing other
-notations' schemas.
+Drawings save as `.opx` v2 with type `whiteboard`, **model version 2**. The model
+contains elements, IDs, geometry, text, colors, styles and optional
+`start_attachment`/`end_attachment` values. Each attachment names a shape ID and
+a typed port (`Top`, `Right`, `Bottom` or `Left`). Targets must be non-path
+elements; missing references and connector-to-connector cycles are rejected.
+
+Model v1 drawings still open with their original independent paths and geometry.
+Use endpoint handles to attach those paths. New saves use model v2; older
+applications that only support model v1 preserve the document in recovery mode.
+Other notations keep their model schemas. An explicit
+[v1 fixture](../crates/op-core/tests/fixtures/whiteboard-v1.opx) checks migration.
 
 Sessions separately store camera, snapping, grid, inspector and next-element style.
 Multiple panels share one document/history with independent cameras/selections.
@@ -63,6 +91,7 @@ semantic revision.
 | Responsibility | Implementation |
 | --- | --- |
 | Model, geometry, selection, validation | [whiteboard.rs](../crates/op-core/src/whiteboard.rs) |
+| Attachments, indexed geometry and versioned codec | [connections.rs](../crates/op-core/src/whiteboard/connections.rs) |
 | SVG export | [whiteboard/svg.rs](../crates/op-core/src/whiteboard/svg.rs) |
 | Tools and inspector | [whiteboard_editor.rs](../crates/op-app/src/whiteboard_editor.rs) |
 | Gestures and keyboard | [interaction.rs](../crates/op-app/src/whiteboard_editor/interaction.rs) |
@@ -73,9 +102,9 @@ semantic revision.
 The module registers in `composition.rs` without additional dependencies, a web
 layer or changes to the shell's catalogue.
 
-This initial version has no network collaboration, images, symbol libraries,
-persistent groups, rotation, cross-document element clipboard, shape-attached
-arrows or `.excalidraw` exchange. Arrows are independent strokes. Text content is
+The module has no network collaboration, images, symbol libraries,
+persistent groups, rotation, cross-document element clipboard or `.excalidraw`
+exchange. Text content is
 retained but may be hidden by an undersized box.
 
 Limits are 20,000 elements and 200,000 points per document, with at most 20,000

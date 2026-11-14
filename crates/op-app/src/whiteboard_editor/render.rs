@@ -23,19 +23,38 @@ impl WhiteboardEditor {
         } else {
             p.rect_filled(rect, 0.0, pal.bg);
         }
+        let geometry = self.board.geometry();
         for e in &self.board.elements {
-            self.draw(&p, e, pal.dark);
+            self.draw(&p, e, &geometry, pal.dark);
         }
         if !exporting {
             if let Some(e) = self.preview() {
-                self.draw(&p, &e, pal.dark);
+                self.draw(&p, &e, &geometry, pal.dark);
             }
             for e in self.board.elements.iter().filter(|e| self.state.selection.contains(&e.id)) {
-                let r = self.state.camera.rect_to_screen(rect, e.bounds);
+                let r = self.state.camera.rect_to_screen(rect, geometry.element_bounds(e));
                 p.rect_stroke(r.expand(4.0), 3.0, Stroke::new(1.0, pal.select), StrokeKind::Outside);
                 if self.state.selection.len() == 1 {
-                    p.rect_filled(Rect::from_center_size(r.right_bottom(), vec2(8.0, 8.0)), 2.0, pal.select);
+                    if e.kind.is_connector() {
+                        for point in geometry.points(e) {
+                            p.circle_filled(self.state.camera.to_screen(rect, point), 4.0, pal.select);
+                        }
+                    } else {
+                        p.rect_filled(Rect::from_center_size(r.right_bottom(), vec2(8.0, 8.0)), 2.0, pal.select);
+                    }
                 }
+            }
+            if (matches!(self.state.tool, Tool::Draw(Kind::Line | Kind::Arrow)) || matches!(self.state.drag, Some(Drag::Endpoint { .. })))
+                && let Some(point) = world
+                && let Some(attachment) = geometry.attachment_at(point, point, 12.0 / self.state.camera.zoom)
+                && let Some(target) = self.board.element(attachment.element)
+            {
+                canvas::connection_ports(
+                    &p,
+                    self.state.camera.rect_to_screen(rect, target.bounds),
+                    ui.input(|i| i.pointer.hover_pos()),
+                    pal.select,
+                );
             }
             if let Some(Drag::Rubber { start, current, .. }) = self.state.drag {
                 let r = Rect::from_two_pos(self.state.camera.to_screen(rect, start), self.state.camera.to_screen(rect, current));
@@ -72,8 +91,8 @@ impl WhiteboardEditor {
             crate::io::request_png_export(ui.ctx(), rect, self.board.name.clone());
         }
     }
-    fn draw(&self, p: &egui::Painter, e: &Element, dark: bool) {
-        let r = self.state.camera.rect_to_screen(self.state.canvas, e.bounds);
+    fn draw(&self, p: &egui::Painter, e: &Element, geometry: &op_core::whiteboard::Geometry<'_>, dark: bool) {
+        let r = self.state.camera.rect_to_screen(self.state.canvas, geometry.element_bounds(e));
         let z = self.state.camera.zoom;
         // Saved colors stay theme-independent. Lift dark ink only for the dark canvas.
         let [red, green, blue] = e.paint.stroke;
@@ -115,8 +134,8 @@ impl WhiteboardEditor {
                 }
             }
             Kind::Line | Kind::Arrow | Kind::Freehand => {
-                let points: Vec<_> = e
-                    .world_points()
+                let points: Vec<_> = geometry
+                    .points(e)
                     .into_iter()
                     .map(|q| self.state.camera.to_screen(self.state.canvas, q))
                     .collect();

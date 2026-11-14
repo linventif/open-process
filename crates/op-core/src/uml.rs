@@ -116,7 +116,7 @@ impl Node {
         let scale = if self.kind == NodeKind::UseCase {
             1.0 / ((d.x / (r.w / 2.0)).powi(2) + (d.y / (r.h / 2.0)).powi(2)).sqrt()
         } else {
-            ((r.w / 2.0) / d.x.abs()).min((r.h / 2.0) / d.y.abs())
+            return crate::geom::Port::toward(r, toward).point(r);
         };
         Pos::new(c.x + d.x * scale, c.y + d.y * scale)
     }

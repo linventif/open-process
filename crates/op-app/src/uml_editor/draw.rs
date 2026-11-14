@@ -329,12 +329,20 @@ impl UmlEditor {
             && let Some(n) = self.diagram.node(id)
             && let Some(end) = ui.input(|i| i.pointer.hover_pos()).filter(|p| rect.contains(*p))
         {
-            p.line_segment(
-                [self.view.to_screen(rect, n.anchor(self.view.to_world(rect, end))), end],
-                Stroke::new(1.5, pal.select),
-            );
             let hover = self.hit_node(self.view.to_world(rect, end));
+            let target = hover.and_then(|id| self.diagram.node(id));
+            let toward = target.map(|target| target.rect().center()).unwrap_or(self.view.to_world(rect, end));
+            let tip = target
+                .map(|target| self.view.to_screen(rect, target.anchor(n.rect().center())))
+                .unwrap_or(end);
+            p.line_segment([self.view.to_screen(rect, n.anchor(toward)), tip], Stroke::new(1.5, pal.select));
+            if n.kind != NodeKind::Actor {
+                canvas::connection_ports(p, self.view.rect_to_screen(rect, n.rect()), Some(end), pal.select);
+            }
             if let Some(target) = hover.and_then(|id| self.diagram.node(id)) {
+                if target.kind != NodeKind::Actor {
+                    canvas::connection_ports(p, self.view.rect_to_screen(rect, target.rect()), Some(end), pal.select);
+                }
                 let valid = self.diagram.can_connect(id, target.id, self.relation_kind);
                 p.rect_stroke(
                     self.view.rect_to_screen(rect, target.rect()).expand(4.0),

@@ -294,18 +294,8 @@ impl PetriEditor {
             NodeRef::Place(_) => Pos::new(center.x + dir.0 * PLACE_R, center.y + dir.1 * PLACE_R),
             NodeRef::Transition(id) => {
                 let (tw, th) = self.trans_size_of(id);
-                let tx = if dir.0.abs() > 1e-6 {
-                    tw / 2.0 / dir.0.abs()
-                } else {
-                    f32::INFINITY
-                };
-                let ty = if dir.1.abs() > 1e-6 {
-                    th / 2.0 / dir.1.abs()
-                } else {
-                    f32::INFINITY
-                };
-                let t = tx.min(ty);
-                Pos::new(center.x + dir.0 * t, center.y + dir.1 * t)
+                let rect = op_core::geom::Rect::from_center(center, tw, th);
+                op_core::geom::Port::toward(rect, center + Pos::new(dir.0, dir.1)).point(rect)
             }
         }
     }
@@ -338,23 +328,45 @@ impl PetriEditor {
                 let (ha, hb) = (half(from), half(to));
                 if dx.abs() >= dy.abs() {
                     let sx = dx.signum();
-                    let (ay, by) = (a.y - off * sx, b.y - off * sx);
+                    let (ay, by) = (a.y, b.y);
                     let s = Pos::new(a.x + sx * ha.0, ay);
                     let e = Pos::new(b.x - sx * hb.0, by);
                     if (ay - by).abs() < 2.0 {
+                        if reverse {
+                            let lane = ay - off * sx;
+                            return Some(vec![
+                                s,
+                                Pos::new(s.x + 12.0 * sx, ay),
+                                Pos::new(s.x + 12.0 * sx, lane),
+                                Pos::new(e.x - 12.0 * sx, lane),
+                                Pos::new(e.x - 12.0 * sx, by),
+                                e,
+                            ]);
+                        }
                         return Some(vec![s, e]);
                     }
-                    let mx = (s.x + e.x) / 2.0;
+                    let mx = (s.x + e.x) / 2.0 + off * sx;
                     Some(vec![s, Pos::new(mx, ay), Pos::new(mx, by), e])
                 } else {
                     let sy = dy.signum();
-                    let (ax, bx) = (a.x + off * sy, b.x + off * sy);
+                    let (ax, bx) = (a.x, b.x);
                     let s = Pos::new(ax, a.y + sy * ha.1);
                     let e = Pos::new(bx, b.y - sy * hb.1);
                     if (ax - bx).abs() < 2.0 {
+                        if reverse {
+                            let lane = ax + off * sy;
+                            return Some(vec![
+                                s,
+                                Pos::new(ax, s.y + 12.0 * sy),
+                                Pos::new(lane, s.y + 12.0 * sy),
+                                Pos::new(lane, e.y - 12.0 * sy),
+                                Pos::new(bx, e.y - 12.0 * sy),
+                                e,
+                            ]);
+                        }
                         return Some(vec![s, e]);
                     }
-                    let my = (s.y + e.y) / 2.0;
+                    let my = (s.y + e.y) / 2.0 + off * sy;
                     Some(vec![s, Pos::new(ax, my), Pos::new(bx, my), e])
                 }
             }
@@ -1072,3 +1084,6 @@ fn pill(ui: &mut Ui, text: &str, text_color: Color32, tint: Color32) {
             ui.label(RichText::new(text).color(text_color));
         });
 }
+
+#[cfg(test)]
+mod tests;

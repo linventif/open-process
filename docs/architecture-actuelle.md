@@ -131,9 +131,19 @@ does not regenerate it. See [the database guide](base-de-donnees-ddl.md).
 
 [Free drawing](dessin-libre.md) uses `whiteboard`, with a model/history independent
 of business notations. Stroke points are normalized within element bounds to
-preserve direction when moving/resizing. It reuses `DiagramLayout` and
+preserve direction when moving/resizing. Whiteboard v2 adds typed endpoint
+attachments and a module-owned codec that also reads v1. An indexed geometry
+resolver computes attached paths for rendering, hit testing, selection, fit and
+SVG. Deletion/duplication/movement maintain attachment identities and free
+fallback endpoints. It reuses `DiagramLayout` and
 `canvas::floating`, registers its example and SVG export in composition, and
 keeps cameras/preferences per view. Geometry is semantic content for a drawing.
+
+`geom::Port` supplies preferred rectangle side midpoints and diamond vertices.
+BPMN, UML, EPC/activity, Petri transitions and free drawing reuse this geometry;
+round event/use-case shapes retain boundary-aware routing. Shared canvas port
+guides preview attachment positions without adding another editor catalogue.
+Database foreign keys retain their column-row attachments when tables move.
 
 [Mermaid](mermaid.md) registers a source document with asynchronous preview. It
 reuses the common inspector and configuration; grid snapping is optional and

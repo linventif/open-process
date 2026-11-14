@@ -25,7 +25,7 @@ French and Spanish are also available.
 | **UML activities and EPC** | Typed graphical editors, connection rules, structural diagnostics, SVG and Graphviz DOT exports. | Initial implementations; see [supported features and limits](docs/notations-ajoutees.md). |
 | **DMN decision tables** | Typed inputs/outputs, rules, UNIQUE/FIRST/ANY/COLLECT policies, evaluation, DMN XML and CSV exports, single-table XML import. | A limited FEEL test subset; no full FEEL interpreter or decision requirements graph. [Details](docs/notations-ajoutees.md). |
 | **Relational databases** | Tables, columns, primary/foreign keys, indexes, validation, shared SQL preview and DDL export for PostgreSQL, MySQL/MariaDB and SQLite. | Physical schema design; Merise conceptual/logical transformations and SQL reverse engineering remain planned. [Details](docs/base-de-donnees-ddl.md). |
-| **Free drawing** | Shapes, arrows, sticky notes, text, freehand strokes, colors, sketch mode, SVG export. | A native/web whiteboard; no Excalidraw format exchange or network collaboration. [Details](docs/dessin-libre.md). |
+| **Free drawing** | Shapes, attached lines/arrows, endpoint snapping, sticky notes, text, freehand strokes, colors, sketch mode, SVG export. | A native/web whiteboard; no Excalidraw format exchange or network collaboration. [Details](docs/dessin-libre.md). |
 | **Mermaid** | Source editor, live preview, flow/sequence/class/state/ER templates, source import/export and SVG export. | Uses a Rust renderer with its own syntax coverage, rather than the official JavaScript engine. [Details](docs/mermaid.md). |
 
 Graphical editors share navigation, grid and zoom controls, an inspector and

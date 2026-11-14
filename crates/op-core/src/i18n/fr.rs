@@ -36,6 +36,7 @@ pub const TABLE: &[(&str, &str)] = &[
     ),
     ("app.close_tab", "Fermer l'onglet"),
     ("autosave.library", "Diagrammes enregistrés"),
+    ("drawing.invalid_attachment", "Attache de connexion du dessin invalide"),
     ("autosave.saving", "Enregistrement automatique…"),
     ("autosave.saved", "Enregistré automatiquement"),
     ("autosave.browser_location", "Stockage local de ce navigateur"),

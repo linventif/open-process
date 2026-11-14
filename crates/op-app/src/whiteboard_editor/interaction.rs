@@ -2,7 +2,7 @@ use super::*;
 use egui::{Key, PointerButton, Response};
 
 impl WhiteboardEditor {
-    fn snap(&self, p: Pos) -> Pos {
+    pub(super) fn snap_point(&self, p: Pos) -> Pos {
         if self.state.snap { p.snapped(20.0) } else { p }
     }
     pub(super) fn shortcuts(&mut self, ui: &Ui, response: &Response) {
@@ -49,6 +49,7 @@ impl WhiteboardEditor {
         );
         if delta != Pos::default() {
             self.history.sync(&self.board, false);
+            self.board.prepare_move(&self.state.selection);
             for e in &mut self.board.elements {
                 if self.state.selection.contains(&e.id) {
                     e.bounds.x += delta.x;
@@ -68,7 +69,6 @@ impl WhiteboardEditor {
             if self.state.tool == Tool::Hand || ui.input(|i| i.key_down(Key::Space)) {
                 self.state.drag = Some(Drag::Pan);
             } else if let Tool::Draw(kind) = self.state.tool {
-                let start = if kind == Kind::Freehand { start } else { self.snap(start) };
                 self.state.drag = Some(Drag::Draw {
                     kind,
                     start,
@@ -76,12 +76,29 @@ impl WhiteboardEditor {
                     points: vec![start],
                 });
             } else {
+                let endpoint = self
+                    .state
+                    .selection
+                    .first()
+                    .filter(|_| self.state.selection.len() == 1)
+                    .and_then(|id| self.board.element(*id))
+                    .filter(|e| e.kind.is_connector())
+                    .and_then(|e| {
+                        self.board
+                            .geometry()
+                            .points(e)
+                            .iter()
+                            .enumerate()
+                            .find(|(_, point)| self.state.camera.to_screen(self.state.canvas, **point).distance(screen) < 12.0)
+                            .map(|(index, _)| (e.id, index == 0))
+                    });
                 let handle = self
                     .state
                     .selection
                     .first()
                     .filter(|_| self.state.selection.len() == 1)
                     .and_then(|id| self.board.element(*id))
+                    .filter(|e| !e.kind.is_connector())
                     .filter(|e| {
                         self.state
                             .camera
@@ -90,7 +107,9 @@ impl WhiteboardEditor {
                             .distance(screen)
                             < 12.0
                     });
-                if let Some(e) = handle {
+                if let Some((id, start)) = endpoint {
+                    self.state.drag = Some(Drag::Endpoint { id, start });
+                } else if let Some(e) = handle {
                     self.state.drag = Some(Drag::Resize {
                         id: e.id,
                         original: e.bounds,
@@ -102,6 +121,7 @@ impl WhiteboardEditor {
                         }
                         self.state.selection.insert(id);
                     }
+                    self.board.prepare_move(&self.state.selection);
                     let origins = self
                         .board
                         .elements
@@ -127,11 +147,21 @@ impl WhiteboardEditor {
         if response.dragged_by(PointerButton::Primary)
             && let Some(p) = world
         {
-            let snapped = self.snap(p);
+            let snapped = self.snap_point(p);
+            let endpoint = if let Some(Drag::Endpoint { id, start }) = self.state.drag {
+                self.board.element(id).map(|e| {
+                    let geometry = self.board.geometry();
+                    let points = geometry.points(e);
+                    let attachment = geometry.attachment_at(p, points[usize::from(start)], 12.0 / self.state.camera.zoom);
+                    (id, start, attachment)
+                })
+            } else {
+                None
+            };
             match &mut self.state.drag {
                 Some(Drag::Pan) => self.state.camera.offset += response.drag_delta(),
                 Some(Drag::Draw { kind, current, points, .. }) => {
-                    *current = if *kind == Kind::Freehand { p } else { snapped };
+                    *current = p;
                     if *kind == Kind::Freehand
                         && points.len() < 20_000
                         && points.last().is_none_or(|last| last.dist(p) * self.state.camera.zoom >= 2.0)
@@ -144,8 +174,8 @@ impl WhiteboardEditor {
                     if self.state.snap {
                         delta = delta.snapped(20.0);
                     }
-                    for (id, origin) in origins {
-                        if let Some(e) = self.board.elements.iter_mut().find(|e| e.id == *id) {
+                    for e in &mut self.board.elements {
+                        if let Some(origin) = origins.get(&e.id) {
                             e.bounds.x = origin.x + delta.x;
                             e.bounds.y = origin.y + delta.y;
                         }
@@ -157,16 +187,23 @@ impl WhiteboardEditor {
                         e.bounds.h = (snapped.y - original.y).clamp(1.0, 10_000.0);
                     }
                 }
+                Some(Drag::Endpoint { .. }) => {
+                    if let Some((id, start, attachment)) = endpoint {
+                        self.board.set_endpoint(id, start, snapped, attachment);
+                    }
+                }
                 Some(Drag::Rubber { start, current, initial }) => {
                     *current = p;
                     let b = Element::new(Kind::Rectangle, *start, p, Paint::default()).bounds;
                     self.state.selection = initial.clone();
+                    let geometry = self.board.geometry();
                     self.state.selection.extend(
                         self.board
                             .elements
                             .iter()
                             .filter(|e| {
-                                b.contains(Pos::new(e.bounds.x, e.bounds.y)) && b.contains(Pos::new(e.bounds.right(), e.bounds.bottom()))
+                                let bounds = geometry.element_bounds(e);
+                                b.contains(Pos::new(bounds.x, bounds.y)) && b.contains(Pos::new(bounds.right(), bounds.bottom()))
                             })
                             .map(|e| e.id),
                     );
@@ -196,7 +233,7 @@ impl WhiteboardEditor {
                         self.add(e);
                     }
                 } else {
-                    let mut e = Element::new(kind, start, current, self.state.paint.clone());
+                    let mut e = self.drawing_element(kind, start, current);
                     if kind == Kind::Text {
                         e.text = tr("drawing.text_placeholder").into();
                     }
@@ -219,14 +256,13 @@ impl WhiteboardEditor {
                     self.history.sync(&self.board, false);
                     return;
                 }
-                let p = self.snap(p);
                 let (w, h) = match kind {
                     Kind::Text => (220.0, 80.0),
                     Kind::Note => (220.0, 160.0),
                     Kind::Line | Kind::Arrow => (140.0, 1.0),
                     _ => (160.0, 100.0),
                 };
-                let mut e = Element::new(kind, p, p + Pos::new(w, h), self.state.paint.clone());
+                let mut e = self.drawing_element(kind, p, p + Pos::new(w, h));
                 if kind == Kind::Text {
                     e.text = tr("drawing.text_placeholder").into();
                 }
@@ -262,7 +298,7 @@ impl WhiteboardEditor {
             if *kind == Kind::Freehand {
                 Element::freehand(points, self.state.paint.clone())
             } else {
-                Some(Element::new(*kind, *start, *current, self.state.paint.clone()))
+                Some(self.drawing_element(*kind, *start, *current))
             }
         } else {
             None

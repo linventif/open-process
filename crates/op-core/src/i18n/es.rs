@@ -33,6 +33,7 @@ pub const TABLE: &[(&str, &str)] = &[
     ("app.choose_diagram_type_get_started", "Elige un tipo de diagrama para empezar."),
     ("app.close_tab", "Cerrar pestaña"),
     ("autosave.library", "Diagramas guardados"),
+    ("drawing.invalid_attachment", "Anclaje de conexión del dibujo no válido"),
     ("autosave.saving", "Guardando automáticamente…"),
     ("autosave.saved", "Guardado automáticamente"),
     ("autosave.browser_location", "Almacenamiento local de este navegador"),

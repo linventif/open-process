@@ -9,6 +9,11 @@ does not distinguish the automatic `main-*` releases.
 
 ### Editing
 
+- Attach free-drawing lines/arrows to shapes, keep endpoints following movement
+  and resizing, and retarget them with endpoint handles. Whiteboard model v2
+  reads v1 drawings and saves typed attachments with undo/redo and SVG support.
+- Prefer rectangle side midpoints and diamond vertices across graphical editors;
+  show shared connection guides and snapped previews when linking elements.
 - Automatically save desktop documents in Documents/Open Process and browser
   documents in local storage; reopen closed diagrams from the home library.
 - Keep manual Save/Save as copies independent, report automatic-save failures,

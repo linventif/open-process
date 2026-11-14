@@ -1,0 +1,26 @@
+{
+  "format": "open-process",
+  "version": 2,
+  "document": {
+    "kind": "whiteboard",
+    "model_version": 1,
+    "model": {
+      "name": "Legacy drawing",
+      "next_id": 3,
+      "elements": [
+        {
+          "id": 1, "kind": "Rectangle",
+          "bounds": {"x": 0, "y": 0, "w": 100, "h": 80},
+          "points": [], "text": "Legacy shape",
+          "paint": {"stroke": [67, 76, 94], "fill": null, "width": 2, "font_size": 20, "sketch": true}
+        },
+        {
+          "id": 2, "kind": "Arrow",
+          "bounds": {"x": 120, "y": 40, "w": 100, "h": 1},
+          "points": [{"x": 0, "y": 0}, {"x": 1, "y": 0}], "text": "",
+          "paint": {"stroke": [67, 76, 94], "fill": null, "width": 2, "font_size": 20, "sketch": true}
+        }
+      ]
+    }
+  }
+}

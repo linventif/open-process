@@ -393,13 +393,20 @@ impl<K: Notation> FlowEditor<K> {
             if let Some(from) = self.state.pending.and_then(|id| self.diagram.node(id))
                 && let Some(to) = pointer.filter(|p| rect.contains(*p))
             {
+                let world = self.state.camera.to_world(rect, to);
+                let target = self.diagram.nodes.iter().rev().find(|node| node.contains(world));
+                let toward = target.map(|target| target.bounds.center()).unwrap_or(world);
+                let tip = target
+                    .map(|target| self.state.camera.to_screen(rect, target.anchor(from.bounds.center())))
+                    .unwrap_or(to);
                 p.line_segment(
-                    [
-                        self.state.camera.to_screen(rect, from.anchor(self.state.camera.to_world(rect, to))),
-                        to,
-                    ],
+                    [self.state.camera.to_screen(rect, from.anchor(toward)), tip],
                     Stroke::new(1.5, pal.select),
                 );
+                canvas::connection_ports(&p, self.state.camera.rect_to_screen(rect, from.bounds), Some(to), pal.select);
+                if let Some(target) = target {
+                    canvas::connection_ports(&p, self.state.camera.rect_to_screen(rect, target.bounds), Some(to), pal.select);
+                }
             }
             if let Some(Drag::Rubber { start, .. }) = &self.state.drag
                 && let Some(end) = pointer

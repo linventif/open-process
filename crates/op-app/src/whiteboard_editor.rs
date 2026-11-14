@@ -30,11 +30,15 @@ enum Drag {
     },
     Move {
         start: Pos,
-        origins: Vec<(Id, Pos)>,
+        origins: std::collections::HashMap<Id, Pos>,
     },
     Resize {
         id: Id,
         original: Bounds,
+    },
+    Endpoint {
+        id: Id,
+        start: bool,
     },
     Rubber {
         start: Pos,
@@ -92,6 +96,11 @@ impl WhiteboardEditor {
             board,
             state: Default::default(),
         }
+    }
+    fn drawing_element(&self, kind: Kind, start: Pos, end: Pos) -> Element {
+        let mut element = Element::new(kind, self.snap_point(start), self.snap_point(end), self.state.paint.clone());
+        self.board.attach_connector(&mut element, start, end, 12.0 / self.state.camera.zoom);
+        element
     }
     fn delete(&mut self) {
         self.history.sync(&self.board, false);
@@ -168,6 +177,10 @@ impl WhiteboardEditor {
             ui.label(trf("common.selection_count", &[&self.state.selection.len()]));
             if self.state.selection.len() == 1 {
                 let id = *self.state.selection.first().unwrap();
+                let effective = self.board.element(id).map(|e| {
+                    let geometry = self.board.geometry();
+                    (geometry.element_bounds(e), e.kind.is_connector().then(|| geometry.points(e)))
+                });
                 if let Some(e) = self.board.elements.iter_mut().find(|e| e.id == id) {
                     ui.label(tr(e.kind.label()));
                     let label = ui.label(tr("drawing.element_text"));
@@ -182,12 +195,23 @@ impl WhiteboardEditor {
                     if std::mem::take(&mut self.state.focus_text) {
                         r.request_focus();
                     }
+                    let (bounds, points) = effective.unwrap();
+                    let (mut width, mut height) = (bounds.w, bounds.h);
                     ui.horizontal_wrapped(|ui| {
                         ui.label(tr("common.width"));
-                        ui.add(egui::DragValue::new(&mut e.bounds.w).range(1.0..=10_000.0));
+                        ui.add(egui::DragValue::new(&mut width).range(1.0..=10_000.0));
                         ui.label(tr("common.height"));
-                        ui.add(egui::DragValue::new(&mut e.bounds.h).range(1.0..=10_000.0));
+                        ui.add(egui::DragValue::new(&mut height).range(1.0..=10_000.0));
                     });
+                    if width != bounds.w || height != bounds.h {
+                        if let Some(points) = points {
+                            e.set_endpoints(points[0], points[1]);
+                            e.start_attachment = None;
+                            e.end_attachment = None;
+                        }
+                        e.bounds.w = width;
+                        e.bounds.h = height;
+                    }
                 }
             }
             let mut paint = self

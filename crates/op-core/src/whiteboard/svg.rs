@@ -8,6 +8,7 @@ fn color(c: [u8; 3]) -> String {
 }
 pub fn export(board: &Board) -> Result<String, String> {
     board.validate()?;
+    let geometry = board.geometry();
     let b = board.bounds().unwrap_or(Rect::new(0.0, 0.0, 640.0, 480.0));
     let mut svg = format!(
         "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"{} {} {} {}\"><title>{}</title>\n",
@@ -18,7 +19,7 @@ pub fn export(board: &Board) -> Result<String, String> {
         escape(&board.name)
     );
     for e in &board.elements {
-        let r = e.bounds;
+        let r = geometry.element_bounds(e);
         let stroke = color(e.paint.stroke);
         let fill = e.paint.fill.map(color).unwrap_or_else(|| "none".into());
         let attrs = format!(
@@ -61,7 +62,7 @@ pub fn export(board: &Board) -> Result<String, String> {
                 .unwrap();
             }
             Kind::Line | Kind::Arrow | Kind::Freehand => {
-                let points = e.world_points();
+                let points = geometry.points(e);
                 let coords = points.iter().map(|p| format!("{},{}", p.x, p.y)).collect::<Vec<_>>().join(" ");
                 writeln!(svg,"<polyline points=\"{coords}\" fill=\"none\" stroke=\"{stroke}\" stroke-width=\"{}\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",e.paint.width).unwrap();
                 if e.kind == Kind::Arrow {

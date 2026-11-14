@@ -1,5 +1,5 @@
 use super::*;
-use op_core::document::{Document, DocumentCodec, JsonCodec, ReadError};
+use op_core::document::{Document, DocumentCodec};
 use op_core::i18n::key;
 use serde_json::Value;
 
@@ -92,7 +92,7 @@ impl EditorBackend for WhiteboardEditor {
         self.board.validate()
     }
     fn document(&self) -> Document {
-        JsonCodec::new("whiteboard").encode(&self.board)
+        Board::CODEC.encode(&self.board)
     }
     // Geometry is content in a free drawing; moving a shape changes the drawing's meaning.
     fn presentation_key(&self) -> Value {
@@ -160,10 +160,9 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
         description: key("drawing.draw_shapes_arrows_notes_freehand_strokes_shared"),
         badge: "DRAW",
         color: egui::Color32::from_rgb(192, 75, 48),
-        create: |n| JsonCodec::new("whiteboard").encode(&Board::new(trf("drawing.drawing", &[&n]))),
+        create: |n| Board::CODEC.encode(&Board::new(trf("drawing.drawing", &[&n]))),
         open: |d| {
-            let board: Board = JsonCodec::new("whiteboard").decode(d)?;
-            board.validate().map_err(ReadError::Invalid)?;
+            let board: Board = Board::CODEC.decode(d)?;
             Ok(Session::boxed(WhiteboardEditor::new(board)))
         },
     });
@@ -171,6 +170,6 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
         id: "whiteboard.ideas",
         kind: "whiteboard",
         label: key("drawing.free_drawing_shared_idea"),
-        create: || JsonCodec::new("whiteboard").encode(&op_core::whiteboard::example()),
+        create: || Board::CODEC.encode(&op_core::whiteboard::example()),
     });
 }
