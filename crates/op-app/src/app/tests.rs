@@ -272,9 +272,9 @@ fn home_responsive_grid() {
             .with_size([width, 1800.0])
             .build_eframe(|cc| OpenProcessApp::new(cc, Vec::new(), crate::composition::registry()));
         h.run_steps(4);
-        let a = h.get_by_label("Model a process").rect();
-        let b = h.get_by_label("Simulate and analyze").rect();
-        let c = h.get_by_label("Discover a process").rect();
+        let a = h.get_by_label("Sketch freely").rect();
+        let b = h.get_by_label("Design a database").rect();
+        let c = h.get_by_label("Design a class diagram").rect();
         assert!(a.left() >= 0.0 && a.right() <= width);
         assert!(b.right() <= width && c.right() <= width);
         if columns == 1 {
@@ -926,6 +926,18 @@ fn dark_token_game_animation() {
 }
 
 /// Process discovery tab: course example 2, then open the net and the BPMN.
+fn wait_for_discovery(h: &mut Harness<'static, OpenProcessApp>) {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        h.run_steps(2);
+        if h.state().docs[h.state().active].editor.export().is_ok() {
+            break;
+        }
+        assert!(std::time::Instant::now() < deadline, "discovery timed out");
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+}
+
 #[test]
 fn process_discovery() {
     let mut h = harness(false);
@@ -939,6 +951,7 @@ fn process_discovery() {
         false,
     );
     h.run_steps(4);
+    wait_for_discovery(&mut h);
     shot(&mut h, "mining_top");
     let n = h.state().docs.len();
     h.get_by_label("Open Petri net").click();
@@ -1061,6 +1074,7 @@ fn manual_alpha_mode() {
         false,
     );
     h.run_steps(4);
+    wait_for_discovery(&mut h);
     h.get_by_label("Check everything").click();
     h.run_steps(4);
     shot(&mut h, "mining_manual");
@@ -1252,6 +1266,77 @@ fn failed_or_cancelled_saves_keep_the_unsaved_document() {
     );
 }
 
+#[test]
+fn browser_download_keeps_unsaved_content_and_previous_destination() {
+    use crate::{
+        editor::{Doc, StoredDocument},
+        io::SaveOutcome,
+    };
+    let document = Model::Bpmn(examples::order_process()).document();
+    let mut doc = Doc::new(
+        StoredDocument::Editable(document),
+        Some("original.opx".into()),
+        true,
+        crate::composition::registry(),
+    );
+    doc.editor.rename("Edited".into());
+    let snapshot = doc.snapshot();
+    doc.complete_save(snapshot.clone(), Ok(Some(SaveOutcome::DownloadStarted("download.opx".into()))))
+        .unwrap();
+    assert!(doc.dirty());
+    assert_eq!(doc.path.as_deref(), Some("original.opx"));
+    doc.complete_save(snapshot, Ok(Some(SaveOutcome::Written("confirmed.opx".into()))))
+        .unwrap();
+    assert!(!doc.dirty());
+    assert_eq!(doc.path.as_deref(), Some("confirmed.opx"));
+}
+
+#[test]
+fn invalid_known_documents_remain_recoverable_without_opening_an_editor() {
+    let mut h = harness(false);
+    let mut document = Model::Bpmn(examples::order_process()).document();
+    document.model["flows"][0]["to"] = u32::MAX.into();
+    let original = document.to_json().into_bytes();
+    h.state_mut().load_bytes("invalid.opx".into(), &original);
+    let doc = h.state().docs.last().unwrap();
+    assert_eq!(doc.editor.kind(), "unavailable");
+    assert_eq!(doc.snapshot().bytes(), original);
+}
+
+#[test]
+fn oversized_files_are_rejected_before_sniffing_or_creating_a_document() {
+    let mut h = harness(false);
+    let count = h.state().docs.len();
+    let bytes = vec![b' '; op_core::document::MAX_DOCUMENT_BYTES + 1];
+    h.state_mut().load_bytes("oversized.data".into(), &bytes);
+    assert_eq!(h.state().docs.len(), count);
+    assert!(h.state().message.as_ref().unwrap().1);
+}
+
+#[test]
+fn invalid_storage_cannot_overwrite_a_previously_saved_document() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("original.opx");
+    let mut h = harness(false);
+    let index = h.state().active;
+    let snapshot = h.state().docs[index].snapshot();
+    let original = snapshot.bytes();
+    std::fs::write(&path, &original).unwrap();
+    h.state_mut().docs[index].mark_saved(snapshot);
+    h.state_mut().docs[index].path = Some(path.display().to_string());
+    h.state_mut().docs[index]
+        .editor
+        .as_any_mut()
+        .downcast_mut::<BpmnEditor>()
+        .unwrap()
+        .diagram
+        .flows[0]
+        .to = u32::MAX;
+    assert!(!h.state_mut().save(false));
+    assert!(h.state().docs[index].dirty());
+    assert_eq!(std::fs::read(&path).unwrap(), original);
+}
+
 fn active_view_settings(h: &Harness<'static, OpenProcessApp>) -> serde_json::Value {
     let doc = &h.state().docs[h.state().active];
     let pane = dock::panes_of(&h.state().tree, doc.uid)[0];
@@ -1430,9 +1515,11 @@ fn new_document_picker_is_a_responsive_registry_grid() {
         h.run_steps(5);
         assert!(h.state().new_picker.is_some());
         assert_eq!(h.state().docs.len(), 1);
-        let a = h.get_by_label("New BPMN diagram").rect();
+        let a = h
+            .get_by_label(tr(crate::composition::registry().find("whiteboard").unwrap().new_label))
+            .rect();
         let b = h
-            .get_by_label(tr(crate::composition::registry().find("petri").unwrap().new_label))
+            .get_by_label(tr(crate::composition::registry().find("database.schema").unwrap().new_label))
             .rect();
         assert!(a.left() >= 0.0 && a.right() <= width, "picker cards fit at {width}px: {a:?}");
         if width > 1000.0 {
@@ -1442,8 +1529,11 @@ fn new_document_picker_is_a_responsive_registry_grid() {
             assert!(b.top() > a.bottom());
         }
         shot(&mut h, &format!("new_document_grid_{width}"));
+        h.get_by_label("New BPMN diagram").scroll_to_me();
+        h.run_steps(12);
+        let bpmn = h.get_by_label("New BPMN diagram").rect();
         let examples = h.get_by_label("Examples for New BPMN diagram").rect();
-        assert!(a.contains_rect(examples), "the examples button belongs to its card");
+        assert!(bpmn.contains_rect(examples), "the examples button belongs to its card");
         let examples = examples.center();
         click(&mut h, examples);
         h.run_steps(4);

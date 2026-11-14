@@ -82,6 +82,12 @@ impl EditorBackend for WhiteboardEditor {
         self.board.name = name;
         self.history.sync(&self.board, false);
     }
+    fn content_generation(&self) -> Option<u64> {
+        Some(self.history.generation())
+    }
+    fn validate_storage(&self) -> Result<(), String> {
+        self.board.validate()
+    }
     fn document(&self) -> Document {
         JsonCodec::new("whiteboard").encode(&self.board)
     }
@@ -144,7 +150,7 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
     registry.diagrams.push(DiagramDescriptor {
         id: "whiteboard",
         aliases: &["free-drawing"],
-        home_order: 10,
+        home_order: 0,
         icon: crate::icons::freehand,
         new_label: key("drawing.new_free_drawing"),
         title: key("drawing.sketch_freely"),

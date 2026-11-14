@@ -1,5 +1,6 @@
 //! BPMN 2.0 editor.
 
+pub(crate) mod evaluation_job;
 mod render;
 
 mod inspector;
@@ -97,6 +98,7 @@ pub struct BpmnEditor {
     tab: SideTab,
     show_issues: bool,
     pub action: Option<BpmnAction>,
+    evaluation_cache: evaluation_job::EvaluationState,
 }
 
 const PALETTE: &[(Tool, &str)] = &[
@@ -183,6 +185,7 @@ impl BpmnEditor {
             tab: SideTab::Properties,
             show_issues: false,
             action: None,
+            evaluation_cache: Default::default(),
         }
     }
 

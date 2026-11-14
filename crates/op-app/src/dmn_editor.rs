@@ -282,6 +282,12 @@ impl EditorBackend for DmnEditor {
         self.table.name = name;
         self.history.sync(&self.table, false);
     }
+    fn content_generation(&self) -> Option<u64> {
+        Some(self.history.generation())
+    }
+    fn validate_storage(&self) -> Result<(), String> {
+        self.table.check_storage()
+    }
     fn document(&self) -> Document {
         JsonCodec::new("dmn.table").encode(&self.table)
     }
@@ -391,7 +397,7 @@ pub fn register(registry: &mut DiagramRegistry) {
     registry.diagrams.push(DiagramDescriptor {
         id: "dmn.table",
         aliases: &["dmn"],
-        home_order: 6,
+        home_order: 8,
         icon: crate::icons::decision_table,
         new_label: key("dmn.new_decision_table"),
         title: key("dmn.define_decision_table"),

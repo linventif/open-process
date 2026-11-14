@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::i18n::{tr, trf};
 use crate::petri::{ArcKind, NodeRef, OMEGA, PetriNet};
-use std::collections::{HashMap, VecDeque};
+use std::collections::{BTreeSet, HashMap, VecDeque};
 
 /// Reachability graph, or coverability graph when the net is unbounded
 /// (markings may then contain [`OMEGA`]).
@@ -20,7 +20,7 @@ pub struct StateSpace {
     pub depth: Vec<usize>,
     /// `expanded[i]` is false when exploration stopped before state `i` was explored.
     pub expanded: Vec<bool>,
-    /// True if the exploration hit the state limit.
+    /// True if cancelled or stopped at a state, marking-cell or edge budget.
     pub truncated: bool,
 }
 
@@ -32,6 +32,8 @@ impl StateSpace {
     }
 
     pub fn explore_cancellable(net: &PetriNet, limit: usize, cancelled: &impl Fn() -> bool) -> StateSpace {
+        // Bound both stored markings (also indexed in a HashMap) and graph edges.
+        let limit = limit.clamp(1, 100_000).min((4_000_000 / net.places.len().max(1)).max(1));
         let c = net.compile();
         let m0: Vec<u64> = net.initial_marking().into_iter().map(u64::from).collect();
         let mut ss = StateSpace::default();
@@ -51,13 +53,16 @@ impl StateSpace {
                 ss.truncated = true;
                 break;
             }
-            ss.expanded[i] = true;
             for t in 0..c.transition_count() {
                 if cancelled() {
                     ss.truncated = true;
                     return ss;
                 }
                 let Some(mut m2) = c.fire_omega(t, &ss.states[i]) else { continue };
+                if ss.edges.len() >= 500_000 {
+                    ss.truncated = true;
+                    return ss;
+                }
                 // Karp–Miller acceleration: if m2 strictly covers an ancestor,
                 // every strictly increased place becomes ω.
                 let mut a = if monotonic { Some(i) } else { None };
@@ -91,6 +96,7 @@ impl StateSpace {
                 };
                 ss.edges.push((i, t, j));
             }
+            ss.expanded[i] = true;
         }
         ss
     }
@@ -262,14 +268,16 @@ impl BehaviouralReport {
             None => None,
         };
 
-        let mut out_deg = vec![0usize; ss.states.len()];
+        let compiled = net.compile();
         let mut quasi_live = vec![false; nt];
-        for &(a, t, _) in &ss.edges {
-            out_deg[a] += 1;
-            quasi_live[t] = true;
+        // An enabled transition remains evidence even if its successor was omitted.
+        for marking in &ss.states {
+            for (t, live) in quasi_live.iter_mut().enumerate() {
+                *live |= compiled.is_enabled_omega(t, marking);
+            }
         }
         let deadlocks: Vec<usize> = (0..ss.states.len())
-            .filter(|&i| ss.expanded[i] && out_deg[i] == 0 && !ss.states[i].contains(&OMEGA))
+            .filter(|&i| ss.expanded[i] && !ss.states[i].contains(&OMEGA) && !(0..nt).any(|t| compiled.is_enabled_omega(t, &ss.states[i])))
             .collect();
         let deadlock_free = if !deadlocks.is_empty() {
             Some(false)
@@ -284,17 +292,24 @@ impl BehaviouralReport {
             let (comp, ncomp) = ss.scc();
             // A component is terminal if no edge leaves it.
             let mut terminal = vec![true; ncomp];
-            let mut comp_trans = vec![vec![false; nt]; ncomp];
+            let mut comp_trans = vec![std::collections::HashSet::new(); ncomp];
             for &(a, t, b) in &ss.edges {
                 if comp[a] != comp[b] {
                     terminal[comp[a]] = false;
                 } else {
-                    comp_trans[comp[a]][t] = true;
+                    comp_trans[comp[a]].insert(t);
                 }
             }
-            let lt: Vec<bool> = (0..nt)
-                .map(|t| (0..ncomp).filter(|&c| terminal[c]).all(|c| comp_trans[c][t]))
-                .collect();
+            let terminal_count = terminal.iter().filter(|&&v| v).count();
+            let mut appearances = vec![0; nt];
+            for (component, transitions) in comp_trans.iter().enumerate() {
+                if terminal[component] {
+                    for &t in transitions {
+                        appearances[t] += 1;
+                    }
+                }
+            }
+            let lt: Vec<bool> = appearances.into_iter().map(|count| count == terminal_count).collect();
             live = Some(lt.iter().all(|&x| x));
             live_transitions = Some(lt);
             reversible = Some(ncomp == 1 || comp.iter().all(|&c| c == comp[0]));
@@ -320,31 +335,34 @@ impl BehaviouralReport {
 // -------------------------------------------------------------------------
 // Invariants
 
-fn gcd(a: i64, b: i64) -> i64 {
-    let (mut a, mut b) = (a.abs(), b.abs());
+fn gcd(mut a: u128, mut b: u128) -> u128 {
     while b != 0 {
         (a, b) = (b, a % b);
     }
     a
 }
 
-fn normalize(v: &mut [i64]) {
-    let g = v.iter().fold(0, |g, &x| gcd(g, x));
-    if g > 1 {
-        v.iter_mut().for_each(|x| *x /= g);
-    }
+const MAX_INVARIANT_CELLS: usize = 1_000_000;
+const MAX_INVARIANT_WORK: usize = 20_000_000;
+
+/// Minimal semi-positive solutions `y ≥ 0, y ≠ 0` of `yᵀ·A = 0`.
+/// `None` means cancelled, malformed, arithmetic overflow or a resource limit.
+pub fn farkas(a: &[Vec<i64>], max_rows: usize) -> Option<Vec<Vec<i64>>> {
+    farkas_cancellable(a, max_rows, &|| false)
 }
 
-/// Minimal semi-positive solutions `y ≥ 0, y ≠ 0` of `yᵀ·A = 0`
-/// (Farkas / Martínez–Silva algorithm). `a` is `rows × cols`.
-/// Returns `None` if the computation blows up past `max_rows`.
-pub fn farkas(a: &[Vec<i64>], max_rows: usize) -> Option<Vec<Vec<i64>>> {
+pub fn farkas_cancellable(a: &[Vec<i64>], max_rows: usize, cancelled: &impl Fn() -> bool) -> Option<Vec<Vec<i64>>> {
     let n = a.len();
     if n == 0 {
         return Some(Vec::new());
     }
     let m = a[0].len();
-    // Each row: (A-part, identity-part)
+    let width = n.checked_add(m)?;
+    let row_limit = max_rows.min(MAX_INVARIANT_CELLS / width.max(1));
+    if n > row_limit || a.iter().any(|row| row.len() != m) || cancelled() {
+        return None;
+    }
+    let mut work = MAX_INVARIANT_WORK;
     let mut rows: Vec<(Vec<i64>, Vec<i64>)> = (0..n)
         .map(|i| {
             let mut id = vec![0; n];
@@ -352,47 +370,69 @@ pub fn farkas(a: &[Vec<i64>], max_rows: usize) -> Option<Vec<Vec<i64>>> {
             (a[i].clone(), id)
         })
         .collect();
-
     for j in 0..m {
-        let mut next: Vec<(Vec<i64>, Vec<i64>)> = rows.iter().filter(|r| r.0[j] == 0).cloned().collect();
-        let pos: Vec<&(Vec<i64>, Vec<i64>)> = rows.iter().filter(|r| r.0[j] > 0).collect();
-        let neg: Vec<&(Vec<i64>, Vec<i64>)> = rows.iter().filter(|r| r.0[j] < 0).collect();
-        for r1 in &pos {
-            for r2 in &neg {
-                let (k1, k2) = (-r2.0[j], r1.0[j]);
-                let mut av: Vec<i64> = r1.0.iter().zip(&r2.0).map(|(x, y)| k1 * x + k2 * y).collect();
-                let mut iv: Vec<i64> = r1.1.iter().zip(&r2.1).map(|(x, y)| k1 * x + k2 * y).collect();
-                let g = av.iter().chain(iv.iter()).fold(0, |g, &x| gcd(g, x));
-                if g > 1 {
-                    av.iter_mut().for_each(|x| *x /= g);
-                    iv.iter_mut().for_each(|x| *x /= g);
-                }
-                next.push((av, iv));
-            }
-        }
-        rows = remove_non_minimal(next);
-        if rows.len() > max_rows {
+        if cancelled() {
             return None;
         }
+        let mut next: Vec<_> = rows.iter().filter(|r| r.0[j] == 0).cloned().collect();
+        let pos: Vec<_> = rows.iter().filter(|r| r.0[j] > 0).collect();
+        let neg: Vec<_> = rows.iter().filter(|r| r.0[j] < 0).collect();
+        for r1 in &pos {
+            for r2 in &neg {
+                if next.len() >= row_limit || cancelled() {
+                    return None;
+                }
+                work = work.checked_sub(width)?;
+                // Wider intermediates avoid overflow before cancelling equal products.
+                let (k1, k2) = (-(r2.0[j] as i128), r1.0[j] as i128);
+                let combine = |a: &[i64], b: &[i64]| -> Option<Vec<i128>> {
+                    a.iter()
+                        .zip(b)
+                        .map(|(&x, &y)| k1.checked_mul(x as i128)?.checked_add(k2.checked_mul(y as i128)?))
+                        .collect()
+                };
+                let mut av = combine(&r1.0, &r2.0)?;
+                let mut iv = combine(&r1.1, &r2.1)?;
+                let g = av.iter().chain(&iv).fold(0, |g, &x| gcd(g, x.unsigned_abs()));
+                if g > 1 {
+                    let g = i128::try_from(g).ok()?;
+                    av.iter_mut().chain(&mut iv).for_each(|v| *v /= g);
+                }
+                let narrow = |v: Vec<i128>| v.into_iter().map(i64::try_from).collect::<Result<Vec<_>, _>>().ok();
+                next.push((narrow(av)?, narrow(iv)?));
+            }
+        }
+        rows = remove_non_minimal(next, &mut work, cancelled)?;
     }
     let mut res: Vec<Vec<i64>> = rows.into_iter().map(|r| r.1).collect();
     for v in &mut res {
-        normalize(v);
+        let g = v.iter().fold(0, |g, &x| gcd(g, x.unsigned_abs() as u128));
+        if g > 1 {
+            let g = i64::try_from(g).ok()?;
+            v.iter_mut().for_each(|x| *x /= g);
+        }
     }
     res.sort();
     res.dedup();
     Some(res)
 }
 
-fn remove_non_minimal(rows: Vec<(Vec<i64>, Vec<i64>)>) -> Vec<(Vec<i64>, Vec<i64>)> {
+fn remove_non_minimal(
+    rows: Vec<(Vec<i64>, Vec<i64>)>,
+    work: &mut usize,
+    cancelled: &impl Fn() -> bool,
+) -> Option<Vec<(Vec<i64>, Vec<i64>)>> {
     let supp: Vec<Vec<bool>> = rows.iter().map(|r| r.1.iter().map(|&x| x != 0).collect()).collect();
     let mut keep = vec![true; rows.len()];
     for i in 0..rows.len() {
+        if cancelled() {
+            return None;
+        }
         for k in 0..rows.len() {
             if i == k || !keep[k] {
                 continue;
             }
-            // supp(k) ⊆ supp(i) → i is not minimal (keep the first of equal supports)
+            *work = work.checked_sub(supp[i].len().checked_mul(2)?)?;
             let subset = supp[k].iter().zip(&supp[i]).all(|(&a, &b)| !a || b);
             let equal = supp[k] == supp[i];
             if subset && (!equal || k < i) {
@@ -401,7 +441,7 @@ fn remove_non_minimal(rows: Vec<(Vec<i64>, Vec<i64>)>) -> Vec<(Vec<i64>, Vec<i64
             }
         }
     }
-    rows.into_iter().zip(keep).filter(|(_, k)| *k).map(|(r, _)| r).collect()
+    Some(rows.into_iter().zip(keep).filter(|(_, k)| *k).map(|(r, _)| r).collect())
 }
 
 fn transpose(a: &[Vec<i64>], rows: usize, cols: usize) -> Vec<Vec<i64>> {
@@ -410,14 +450,30 @@ fn transpose(a: &[Vec<i64>], rows: usize, cols: usize) -> Vec<Vec<i64>> {
 
 /// Minimal semi-positive P-invariants (vectors indexed by place).
 pub fn p_invariants(net: &PetriNet) -> Option<Vec<Vec<i64>>> {
-    farkas(&net.incidence_matrix(), 2000)
+    p_invariants_cancellable(net, &|| false)
+}
+
+pub fn p_invariants_cancellable(net: &PetriNet, cancelled: &impl Fn() -> bool) -> Option<Vec<Vec<i64>>> {
+    let n = net.places.len();
+    if n.checked_mul(n.checked_add(net.transitions.len())?)? > MAX_INVARIANT_CELLS || cancelled() {
+        return None;
+    }
+    farkas_cancellable(&net.incidence_matrix(), 2000, cancelled)
 }
 
 /// Minimal semi-positive T-invariants (vectors indexed by transition).
 pub fn t_invariants(net: &PetriNet) -> Option<Vec<Vec<i64>>> {
+    t_invariants_cancellable(net, &|| false)
+}
+
+pub fn t_invariants_cancellable(net: &PetriNet, cancelled: &impl Fn() -> bool) -> Option<Vec<Vec<i64>>> {
+    let n = net.transitions.len();
+    if n.checked_mul(n.checked_add(net.places.len())?)? > MAX_INVARIANT_CELLS || cancelled() {
+        return None;
+    }
     let c = net.incidence_matrix();
     let ct = transpose(&c, net.places.len(), net.transitions.len());
-    farkas(&ct, 2000)
+    farkas_cancellable(&ct, 2000, cancelled)
 }
 
 /// True if every index is in the support of at least one invariant.
@@ -453,56 +509,56 @@ impl StructuralReport {
     pub fn compute(net: &PetriNet) -> Self {
         let np = net.places.len();
         let nt = net.transitions.len();
-        let pre = net.pre_matrix();
-        let post = net.post_matrix();
+        let compiled = net.compile();
+        let mut pre = vec![BTreeSet::new(); np];
+        let mut post = vec![BTreeSet::new(); np];
+        let mut inputs = vec![BTreeSet::new(); nt];
+        let mut outputs = vec![BTreeSet::new(); nt];
+        for t in 0..nt {
+            for &(p, weight) in &compiled.inputs[t] {
+                if weight > 0 {
+                    pre[p].insert(t);
+                    inputs[t].insert(p);
+                }
+            }
+            for &(p, weight) in &compiled.outputs[t] {
+                if weight > 0 {
+                    post[p].insert(t);
+                    outputs[t].insert(p);
+                }
+            }
+        }
         let mut r = StructuralReport {
             ordinary: net.arcs.iter().all(|a| a.weight == 1),
             has_inhibitor_arcs: net.arcs.iter().any(|a| a.kind == ArcKind::Inhibitor),
             ..Default::default()
         };
-        r.pure = (0..np).all(|p| (0..nt).all(|t| pre[p][t] == 0 || post[p][t] == 0));
-        let t_in = |t: usize| (0..np).filter(|&p| pre[p][t] > 0).count();
-        let t_out = |t: usize| (0..np).filter(|&p| post[p][t] > 0).count();
-        let p_in = |p: usize| (0..nt).filter(|&t| post[p][t] > 0).count();
-        let p_out = |p: usize| (0..nt).filter(|&t| pre[p][t] > 0).count();
-        r.state_machine = nt > 0 && (0..nt).all(|t| t_in(t) == 1 && t_out(t) == 1);
-        r.marked_graph = np > 0 && (0..np).all(|p| p_in(p) == 1 && p_out(p) == 1);
-
-        // Free choice: if p has several output transitions, each of them has p as only input.
-        r.free_choice = (0..np).all(|p| {
-            let outs: Vec<usize> = (0..nt).filter(|&t| pre[p][t] > 0).collect();
-            outs.len() <= 1 || outs.iter().all(|&t| t_in(t) == 1)
-        });
-        // Extended free choice: places sharing an output transition share all of them.
-        let postset = |p: usize| -> Vec<bool> { (0..nt).map(|t| pre[p][t] > 0).collect() };
-        r.extended_free_choice = (0..np).all(|p1| {
-            (0..np).all(|p2| {
-                let (a, b) = (postset(p1), postset(p2));
-                let share = a.iter().zip(&b).any(|(&x, &y)| x && y);
-                !share || a == b
-            })
-        });
-
-        r.source_places = (0..np).filter(|&p| p_in(p) == 0).collect();
-        r.sink_places = (0..np).filter(|&p| p_out(p) == 0).collect();
-        r.source_transitions = (0..nt).filter(|&t| t_in(t) == 0).collect();
-        r.sink_transitions = (0..nt).filter(|&t| t_out(t) == 0).collect();
+        r.pure = pre.iter().zip(&post).all(|(a, b)| a.is_disjoint(b));
+        r.state_machine = nt > 0 && inputs.iter().zip(&outputs).all(|(a, b)| a.len() == 1 && b.len() == 1);
+        r.marked_graph = np > 0 && pre.iter().zip(&post).all(|(a, b)| a.len() == 1 && b.len() == 1);
+        r.free_choice = pre.iter().all(|outs| outs.len() <= 1 || outs.iter().all(|&t| inputs[t].len() == 1));
+        // Only places sharing an input transition need comparison; avoid a dense P²×T scan.
+        r.extended_free_choice = inputs
+            .iter()
+            .all(|places| places.first().is_none_or(|&first| places.iter().all(|&p| pre[p] == pre[first])));
+        r.source_places = (0..np).filter(|&p| post[p].is_empty()).collect();
+        r.sink_places = (0..np).filter(|&p| pre[p].is_empty()).collect();
+        r.source_transitions = (0..nt).filter(|&t| inputs[t].is_empty()).collect();
+        r.sink_transitions = (0..nt).filter(|&t| outputs[t].is_empty()).collect();
 
         r.workflow_net = r.source_places.len() == 1 && r.sink_places.len() == 1 && {
             // every node reachable from i and co-reachable to o
             let n = np + nt;
             let mut adj = vec![Vec::new(); n];
             let mut radj = vec![Vec::new(); n];
-            for p in 0..np {
-                for t in 0..nt {
-                    if pre[p][t] > 0 {
-                        adj[p].push(np + t);
-                        radj[np + t].push(p);
-                    }
-                    if post[p][t] > 0 {
-                        adj[np + t].push(p);
-                        radj[p].push(np + t);
-                    }
+            for t in 0..nt {
+                for &p in &inputs[t] {
+                    adj[p].push(np + t);
+                    radj[np + t].push(p);
+                }
+                for &p in &outputs[t] {
+                    adj[np + t].push(p);
+                    radj[p].push(np + t);
                 }
             }
             let reach = |start: usize, g: &Vec<Vec<usize>>| {
@@ -590,6 +646,41 @@ pub fn soundness_cancellable(net: &PetriNet, limit: usize, cancelled: &impl Fn()
 mod tests {
     use super::*;
     use crate::geom::Pos;
+
+    #[test]
+    fn truncated_successors_do_not_create_deadlocks_or_hide_enabled_transitions() {
+        let n = crate::examples::mutual_exclusion();
+        let ss = StateSpace::explore(&n, 1);
+        let report = BehaviouralReport::compute(&n, &ss);
+        assert!(ss.truncated);
+        assert!(report.deadlocks.is_empty());
+        assert_eq!(report.deadlock_free, None);
+        let enabled = n.enabled_transitions(&n.initial_marking());
+        for t in enabled {
+            assert!(report.quasi_live[t]);
+        }
+
+        let mut dead = PetriNet::new("dead");
+        let p = dead.add_place(Pos::default(), 0);
+        let t = dead.add_transition(Pos::default());
+        dead.add_arc(NodeRef::Place(p), NodeRef::Transition(t)).unwrap();
+        let report = BehaviouralReport::compute(&dead, &StateSpace::explore(&dead, 1));
+        assert_eq!(report.deadlocks, [0]);
+        assert_eq!(report.deadlock_free, Some(false));
+    }
+
+    #[test]
+    fn invariant_arithmetic_and_work_limits_are_controlled() {
+        assert_eq!(
+            farkas(&[vec![4_294_967_295], vec![-4_294_967_294]], 2000),
+            Some(vec![vec![4_294_967_294, 4_294_967_295]])
+        );
+        assert_eq!(farkas(&[vec![i64::MAX, 1], vec![i64::MIN, i64::MIN]], 2000), None);
+        assert_eq!(farkas(&[vec![1], vec![]], 2000), None);
+        assert_eq!(farkas(&[vec![1], vec![-1]], 1), None);
+        assert_eq!(farkas_cancellable(&[vec![1], vec![-1]], 2000, &|| true), None);
+        assert_eq!(farkas(&vec![vec![0; 1000]; 1001], 2000), None);
+    }
 
     fn producer_consumer(unbounded: bool) -> PetriNet {
         // p1 <-> t1 (loop) producing into p2 ; t2 consumes p2

@@ -6,14 +6,50 @@
 use op_core::i18n::{key, tr, trf};
 use std::sync::{Arc, Mutex};
 
+#[cfg(not(target_arch = "wasm32"))]
+mod atomic;
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum SaveOutcome {
+    Written(String),
+    #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+    DownloadStarted(String),
+}
+
+impl SaveOutcome {
+    pub fn message(&self, written_key: &'static str) -> String {
+        match self {
+            Self::Written(path) => trf(written_key, &[&file_name(path)]),
+            Self::DownloadStarted(name) => trf("file.download_started", &[&file_name(name)]),
+        }
+    }
+}
+
 /// A file picked by the user: (file name, content).
 pub type Loaded = (String, Vec<u8>);
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn read_file(path: impl AsRef<std::path::Path>) -> Result<Vec<u8>, String> {
+    use std::io::Read;
+    let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
+    let limit = op_core::document::MAX_DOCUMENT_BYTES;
+    if file.metadata().map_err(|e| e.to_string())?.len() > limit as u64 {
+        return Err(tr("file.input_limit").into());
+    }
+    let mut bytes = Vec::new();
+    file.take(limit as u64 + 1).read_to_end(&mut bytes).map_err(|e| e.to_string())?;
+    if bytes.len() > limit {
+        return Err(tr("file.input_limit").into());
+    }
+    Ok(bytes)
+}
 
 const FILTER_NAME: &str = key("file.supported_files");
 
 #[derive(Default, Clone)]
 pub struct FileIo {
     inbox: Arc<Mutex<Vec<Loaded>>>,
+    errors: Arc<Mutex<Vec<String>>>,
 }
 
 impl FileIo {
@@ -26,6 +62,10 @@ impl FileIo {
         self.inbox.lock().unwrap().push(f);
     }
 
+    pub fn poll_errors(&self) -> Vec<String> {
+        std::mem::take(&mut *self.errors.lock().unwrap())
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
     pub fn open_dialog(&self, _ctx: &egui::Context, extensions: Vec<&'static str>) {
         if let Some(path) = rfd::FileDialog::new()
@@ -33,9 +73,9 @@ impl FileIo {
             .add_filter(tr("file.all_files"), &["*"])
             .pick_file()
         {
-            match std::fs::read(&path) {
+            match read_file(&path) {
                 Ok(bytes) => self.push((path.display().to_string(), bytes)),
-                Err(e) => log::error!("Cannot read {}: {e}", path.display()),
+                Err(e) => self.errors.lock().unwrap().push(trf("file.open_failed", &[&path.display(), &e])),
             }
         }
     }
@@ -43,6 +83,7 @@ impl FileIo {
     #[cfg(target_arch = "wasm32")]
     pub fn open_dialog(&self, ctx: &egui::Context, extensions: Vec<&'static str>) {
         let inbox = self.inbox.clone();
+        let errors = self.errors.clone();
         let ctx = ctx.clone();
         wasm_bindgen_futures::spawn_local(async move {
             if let Some(file) = rfd::AsyncFileDialog::new()
@@ -50,6 +91,14 @@ impl FileIo {
                 .pick_file()
                 .await
             {
+                if file.inner().size() > op_core::document::MAX_DOCUMENT_BYTES as f64 {
+                    errors
+                        .lock()
+                        .unwrap()
+                        .push(trf("file.open_failed", &[&file.file_name(), &tr("file.input_limit")]));
+                    ctx.request_repaint();
+                    return;
+                }
                 let data = file.read().await;
                 inbox.lock().unwrap().push((file.file_name(), data));
                 ctx.request_repaint();
@@ -61,7 +110,7 @@ impl FileIo {
 /// Asks where to save (native) or triggers a download (web).
 /// Returns the chosen path / name, or `None` if cancelled.
 #[cfg(not(target_arch = "wasm32"))]
-pub fn save_file(suggested_name: &str, data: &[u8]) -> Result<Option<String>, String> {
+pub fn save_file(suggested_name: &str, data: &[u8]) -> Result<Option<SaveOutcome>, String> {
     let ext = suggested_name.rsplit('.').next().unwrap_or("");
     let Some(path) = rfd::FileDialog::new()
         .set_file_name(suggested_name)
@@ -70,18 +119,18 @@ pub fn save_file(suggested_name: &str, data: &[u8]) -> Result<Option<String>, St
     else {
         return Ok(None);
     };
-    std::fs::write(&path, data).map_err(|e| e.to_string())?;
-    Ok(Some(path.display().to_string()))
+    atomic::write(&path, data).map_err(|e| e.to_string())?;
+    Ok(Some(SaveOutcome::Written(path.display().to_string())))
 }
 
 /// Writes directly to a known path (native "Save" after a first "Save as").
 #[cfg(not(target_arch = "wasm32"))]
 pub fn write_path(path: &str, data: &[u8]) -> Result<(), String> {
-    std::fs::write(path, data).map_err(|e| e.to_string())
+    atomic::write(std::path::Path::new(path), data).map_err(|e| e.to_string())
 }
 
 #[cfg(target_arch = "wasm32")]
-pub fn save_file(suggested_name: &str, data: &[u8]) -> Result<Option<String>, String> {
+pub fn save_file(suggested_name: &str, data: &[u8]) -> Result<Option<SaveOutcome>, String> {
     use eframe::wasm_bindgen::JsCast;
     let err = |e: eframe::wasm_bindgen::JsValue| format!("{e:?}");
     let array = js_sys::Uint8Array::from(data);
@@ -97,7 +146,7 @@ pub fn save_file(suggested_name: &str, data: &[u8]) -> Result<Option<String>, St
     a.set_download(suggested_name);
     a.click();
     let _ = web_sys::Url::revoke_object_url(&url);
-    Ok(Some(suggested_name.to_string()))
+    Ok(Some(SaveOutcome::DownloadStarted(suggested_name.to_string())))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -147,7 +196,7 @@ pub fn poll_png_export(ctx: &egui::Context) -> Option<Result<String, String>> {
         Err(e) => return Some(Err(e)),
     };
     Some(match save_file(&name, &bytes) {
-        Ok(Some(p)) => Ok(trf("app.exported", &[&(file_name(&p))])),
+        Ok(Some(outcome)) => Ok(outcome.message(op_core::i18n::key("app.exported"))),
         Ok(None) => Ok(String::new()),
         Err(e) => Err(e),
     })

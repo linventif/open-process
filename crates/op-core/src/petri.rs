@@ -44,7 +44,7 @@ impl NodeRef {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ArcKind {
     #[default]
     Normal,
@@ -75,6 +75,48 @@ pub struct PetriNet {
 }
 
 impl PetriNet {
+    pub const CODEC: crate::document::JsonCodec<Self> = crate::document::JsonCodec::checked("petri", Self::check_storage);
+
+    pub fn check_storage(&self) -> Result<(), String> {
+        if self.places.len() + self.transitions.len() + self.arcs.len() > 20_000 {
+            return Err(crate::i18n::tr("validation.storage_limit").into());
+        }
+        let mut ids = std::collections::HashSet::new();
+        for (id, pos) in self
+            .places
+            .iter()
+            .map(|p| (p.id, p.pos))
+            .chain(self.transitions.iter().map(|t| (t.id, t.pos)))
+        {
+            if id == 0 || id == Id::MAX || !ids.insert(id) || ![pos.x, pos.y].iter().all(|x| x.is_finite() && x.abs() <= 1_000_000.0) {
+                return Err(crate::i18n::tr("validation.storage_element").into());
+            }
+        }
+        let mut pairs = std::collections::HashSet::new();
+        let places: std::collections::HashSet<_> = self.places.iter().map(|p| p.id).collect();
+        let transitions: std::collections::HashSet<_> = self.transitions.iter().map(|t| t.id).collect();
+        let contains = |node| match node {
+            NodeRef::Place(id) => places.contains(&id),
+            NodeRef::Transition(id) => transitions.contains(&id),
+        };
+        for a in &self.arcs {
+            let direction = matches!((a.from, a.to), (NodeRef::Place(_), NodeRef::Transition(_)))
+                || (a.kind == ArcKind::Normal && matches!((a.from, a.to), (NodeRef::Transition(_), NodeRef::Place(_))));
+            if a.id == 0
+                || a.id == Id::MAX
+                || !ids.insert(a.id)
+                || a.weight == 0
+                || !direction
+                || !contains(a.from)
+                || !contains(a.to)
+                || !pairs.insert((a.from, a.to, a.kind))
+            {
+                return Err(crate::i18n::tr("validation.storage_connection").into());
+            }
+        }
+        Ok(())
+    }
+
     /// Analysis input excludes layout and drawing style while preserving all firing rules.
     pub fn analysis_model(&self) -> Self {
         let mut net = self.clone();
@@ -106,7 +148,21 @@ impl PetriNet {
             .chain(self.arcs.iter().map(|a| a.id))
             .max()
             .unwrap_or(0);
-        self.next_id = self.next_id.max(max + 1);
+        let next = self.next_id;
+        self.next_id = self.next_id.max(max.saturating_add(1));
+        if self.next_id == Id::MAX {
+            let used: std::collections::HashSet<_> = self
+                .places
+                .iter()
+                .map(|p| p.id)
+                .chain(self.transitions.iter().map(|t| t.id))
+                .chain(self.arcs.iter().map(|a| a.id))
+                .collect();
+            self.next_id = (next.max(1)..Id::MAX)
+                .chain(1..next.max(1))
+                .find(|id| !used.contains(id))
+                .expect("Petri identity space exhausted");
+        }
         let id = self.next_id;
         self.next_id += 1;
         id
@@ -148,7 +204,7 @@ impl PetriNet {
             return Err(tr("petri.unknown_node"));
         }
         if let Some(a) = self.arcs.iter_mut().find(|a| a.from == from && a.to == to) {
-            a.weight += 1;
+            a.weight = a.weight.checked_add(1).ok_or(crate::i18n::tr("validation.weight_limit"))?;
             return Ok(a.id);
         }
         let id = self.fresh_id();
@@ -300,6 +356,8 @@ impl PetriNet {
 
     /// Compiled form of the net, convenient for (fast) state-space exploration.
     pub fn compile(&self) -> CompiledNet {
+        let places: std::collections::HashMap<_, _> = self.places.iter().enumerate().map(|(i, p)| (p.id, i)).collect();
+        let transitions: std::collections::HashMap<_, _> = self.transitions.iter().enumerate().map(|(i, t)| (t.id, i)).collect();
         let nt = self.transitions.len();
         let mut inputs = vec![Vec::new(); nt];
         let mut outputs = vec![Vec::new(); nt];
@@ -307,7 +365,7 @@ impl PetriNet {
         for a in &self.arcs {
             match (a.from, a.to) {
                 (NodeRef::Place(p), NodeRef::Transition(t)) => {
-                    let (Some(pi), Some(ti)) = (self.place_index(p), self.transition_index(t)) else {
+                    let (Some(&pi), Some(&ti)) = (places.get(&p), transitions.get(&t)) else {
                         continue;
                     };
                     match a.kind {
@@ -316,7 +374,7 @@ impl PetriNet {
                     }
                 }
                 (NodeRef::Transition(t), NodeRef::Place(p)) => {
-                    let (Some(pi), Some(ti)) = (self.place_index(p), self.transition_index(t)) else {
+                    let (Some(&pi), Some(&ti)) = (places.get(&p), transitions.get(&t)) else {
                         continue;
                     };
                     outputs[ti].push((pi, a.weight));

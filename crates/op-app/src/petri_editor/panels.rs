@@ -350,6 +350,10 @@ impl PetriEditor {
     }
 
     pub(super) fn matrices(&mut self, ui: &mut Ui) {
+        if self.net.places.len().saturating_mul(self.net.transitions.len()) > 100_000 {
+            ui.label(tr("petri.matrix_size_limit"));
+            return;
+        }
         let places: Vec<String> = self.net.places.iter().map(|p| p.name.clone()).collect();
         let trans: Vec<String> = self.net.transitions.iter().map(|t| t.name.clone()).collect();
         if places.is_empty() || trans.is_empty() {
@@ -546,7 +550,7 @@ impl PetriEditor {
 
     pub(super) fn save_text(&mut self, name: &str, text: &str) {
         match crate::io::save_file(name, text.as_bytes()) {
-            Ok(Some(p)) => self.status = trf("app.exported", &[&(crate::io::file_name(&p))]),
+            Ok(Some(outcome)) => self.status = outcome.message(op_core::i18n::key("app.exported")),
             Ok(None) => {}
             Err(e) => self.status = trf("file.export_failed", &[&e]),
         }

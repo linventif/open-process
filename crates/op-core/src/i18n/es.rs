@@ -66,6 +66,10 @@ pub const TABLE: &[(&str, &str)] = &[
     ("app.rename", "Renombrar"),
     ("app.right_middle_drag", "Arrastrar con botón derecho o central"),
     ("app.saved", "Guardado {}"),
+    (
+        "file.download_started",
+        "Descarga iniciada: {}. Comprueba que el archivo se haya guardado antes de cerrar este documento.",
+    ),
     ("app.scroll_zoom", "Desplazar / ampliar"),
     ("app.search_diagram_types", "Buscar tipos de diagrama"),
     (
@@ -1434,4 +1438,55 @@ pub const TABLE: &[(&str, &str)] = &[
     ("workspace.unsaved", "Sin guardar"),
     ("workspace.what_would_you_like_do", "¿Qué te gustaría hacer?"),
     ("workspace.workspace", "TU ESPACIO DE TRABAJO"),
+    ("mining.invalid_csv_record", "Registro CSV {} inválido o incompleto."),
+    ("mining.invalid_csv_quoting", "Comillas CSV inválidas."),
+    (
+        "petri.matrix_size_limit",
+        "Esta matriz supera el límite de visualización de 100 000 celdas.",
+    ),
+    (
+        "analysis.jobs_busy",
+        "Los cálculos en segundo plano están ocupados. Inténtalo de nuevo en un momento.",
+    ),
+    ("mining.analysis_pending", "Calculando los resultados de descubrimiento…"),
+    ("file.input_limit", "Este archivo supera el tamaño permitido."),
+    (
+        "mining.analysis_limit",
+        "El descubrimiento supera el presupuesto de cálculo. Usa un registro más pequeño.",
+    ),
+    ("validation.storage_limit", "El documento supera el límite de elementos permitido."),
+    (
+        "validation.storage_element",
+        "Un elemento tiene un identificador, tipo, geometría o valor numérico inválido.",
+    ),
+    (
+        "validation.storage_connection",
+        "Una conexión tiene identificadores, extremos, dirección, peso o duplicados inválidos.",
+    ),
+    ("validation.storage_kind", "El tipo de documento no coincide con su contenido."),
+    ("validation.weight_limit", "Un peso de arco supera el rango numérico permitido."),
+    ("validation.duplicate_identifier", "Identificador duplicado: {}."),
+    (
+        "xml.resource_limit",
+        "El XML supera los límites de tamaño, anidamiento, elementos o atributos.",
+    ),
+    (
+        "xml.invalid_structure",
+        "XML inválido: se requiere una única raíz equilibrada sin contenido exterior.",
+    ),
+    (
+        "xml.unsupported_entity",
+        "Los tipos de documento y las entidades XML personalizadas no están permitidos.",
+    ),
+    ("xml.invalid_reference", "Referencia de carácter XML inválida."),
+    (
+        "file.not_writable",
+        "El destino de guardado no es un archivo con permiso de escritura.",
+    ),
+    ("analysis.failed", "El cálculo en segundo plano ha fallado."),
+    ("app.build", "Compilación {}"),
+    (
+        "analysis.result_limit",
+        "El resultado supera el tamaño de transferencia permitido. Reduce el límite de análisis.",
+    ),
 ];

@@ -70,6 +70,9 @@ pub trait EditorSession {
     fn name(&self) -> &str;
     fn rename(&mut self, name: String);
     fn snapshot(&self) -> StoredDocument;
+    fn validate_storage(&self) -> Result<(), String> {
+        Ok(())
+    }
     fn revisions(&self) -> Revisions;
     fn render(&mut self, ui: &mut Ui, instance: u64, view: &str) -> Vec<HostEvent>;
     fn thumbnail_rect(&self) -> Option<egui::Rect> {
@@ -118,6 +121,13 @@ pub trait EditorBackend: 'static {
     fn name(&self) -> &str;
     fn rename(&mut self, name: String);
     fn document(&self) -> Document;
+    fn validate_storage(&self) -> Result<(), String> {
+        Ok(())
+    }
+    /// Optional mutation token supplied by the notation's typed history.
+    fn content_generation(&self) -> Option<u64> {
+        None
+    }
     fn semantic_document(&self) -> Document {
         self.document()
     }
@@ -161,10 +171,16 @@ pub struct Session<E: EditorBackend> {
     previous: Document,
     semantic: Document,
     presentation: serde_json::Value,
+    observed_generation: Option<u64>,
 }
 
 impl<E: EditorBackend> Session<E> {
-    fn observe(&mut self) {
+    fn observe(&mut self, force: bool) {
+        let generation = self.editor.content_generation();
+        if !force && generation.is_some() && generation == self.observed_generation {
+            return;
+        }
+        self.observed_generation = generation;
         let current = self.editor.document();
         if current != self.previous {
             let semantic = self.editor.semantic_document();
@@ -186,6 +202,7 @@ impl<E: EditorBackend> Session<E> {
             previous: editor.document(),
             semantic: editor.semantic_document(),
             presentation: editor.presentation_key(),
+            observed_generation: editor.content_generation(),
             editor,
             views: HashMap::new(),
             active: None,
@@ -203,10 +220,13 @@ impl<E: EditorBackend> EditorSession for Session<E> {
     }
     fn rename(&mut self, name: String) {
         self.editor.rename(name);
-        self.observe();
+        self.observe(true);
     }
     fn snapshot(&self) -> StoredDocument {
         StoredDocument::Editable(self.editor.document())
+    }
+    fn validate_storage(&self) -> Result<(), String> {
+        self.editor.validate_storage()
     }
     fn revisions(&self) -> Revisions {
         self.revisions
@@ -222,7 +242,7 @@ impl<E: EditorBackend> EditorSession for Session<E> {
         }
         let events = ui.push_id(instance, |ui| self.editor.ui(ui, view)).inner;
         self.views.insert(instance, self.editor.capture_view());
-        self.observe();
+        self.observe(false);
         events
     }
     fn retain_views(&mut self, instances: &[u64]) {
@@ -267,11 +287,11 @@ impl<E: EditorBackend> EditorSession for Session<E> {
             }
             let events = self.editor.execute(command, time);
             self.views.insert(id, self.editor.capture_view());
-            self.observe();
+            self.observe(true);
             events
         } else {
             let events = self.editor.execute(command, time);
-            self.observe();
+            self.observe(true);
             events
         }
     }
@@ -296,6 +316,7 @@ impl<E: EditorBackend> EditorSession for Session<E> {
     }
     #[cfg(test)]
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self.observed_generation = None;
         self.views.clear();
         self.revisions.semantic += 1;
         self.revisions.presentation += 1;

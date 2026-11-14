@@ -34,6 +34,7 @@ impl BpmnEditor {
         ui.label(tr("bpmn.equiprobable_choices_no_waiting_between_activities_use"));
         ui.label(tr("bpmn.values_default_zero_sub_processes_treated_single"));
         let activities: Vec<_> = evaluation::activities(&self.diagram).collect();
+        let mut metrics_changed = false;
         crate::theme::section_title(ui, tr("bpmn.activity_values"));
         egui::Grid::new("activity_metrics").num_columns(3).striped(true).show(ui, |ui| {
             ui.strong(tr("bpmn.activity"));
@@ -43,8 +44,10 @@ impl BpmnEditor {
             for (id, symbol) in &activities {
                 let n = self.diagram.node_mut(*id).unwrap();
                 ui.label(symbol).on_hover_text(&n.name);
-                ui.add(egui::DragValue::new(&mut n.cost).range(0.0..=f64::MAX).speed(0.1));
-                ui.add(egui::DragValue::new(&mut n.duration).range(0.0..=f64::MAX).speed(0.1));
+                metrics_changed |= ui.add(egui::DragValue::new(&mut n.cost).range(0.0..=f64::MAX).speed(0.1)).changed();
+                metrics_changed |= ui
+                    .add(egui::DragValue::new(&mut n.duration).range(0.0..=f64::MAX).speed(0.1))
+                    .changed();
                 ui.end_row();
             }
         });
@@ -65,10 +68,24 @@ impl BpmnEditor {
         ui.label(tr("bpmn.parallel_t_max_t1_tk"));
         ui.label(tr("bpmn.choice_xor_e_t_t1_tk_k"));
         ui.small(tr("bpmn.choices_inside_parallel_branches_compute_each_scenario"));
-        let report = match evaluation::evaluate(&self.diagram) {
+        if metrics_changed {
+            self.evaluation_cache.invalidate();
+            ui.ctx().request_repaint();
+            return;
+        }
+        self.evaluation_cache.update(&self.diagram, self.history.generation(), ui.ctx());
+        let Some(result) = self.evaluation_cache.result.as_ref() else {
+            ui.spinner();
+            ui.label(tr("petri.computing_analysis"));
+            return;
+        };
+        let report = match result {
             Ok(r) => r,
             Err(message) => {
                 ui.colored_label(Palette::for_ui(ui).bad, message);
+                if ui.button(tr("petri.recompute")).clicked() {
+                    self.evaluation_cache.invalidate();
+                }
                 return;
             }
         };

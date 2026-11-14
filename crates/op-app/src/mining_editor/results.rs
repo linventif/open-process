@@ -9,6 +9,8 @@ impl MiningEditor {
             result, soundness: sound, ..
         }) = &self.computed
         else {
+            ui.spinner();
+            ui.label(tr("mining.analysis_pending"));
             return;
         };
         let (log, r) = match result {
@@ -22,6 +24,9 @@ impl MiningEditor {
                     ui.add_space(10.0);
                     ui.label(RichText::new(tr(FORMATS)).color(ui.visuals().weak_text_color()));
                 });
+                if ui.button(tr("petri.recompute")).clicked() {
+                    self.computed = None;
+                }
                 return;
             }
         };
@@ -310,7 +315,7 @@ impl MiningEditor {
         match export {
             Some("png") => crate::io::request_png_export(ui.ctx(), matrix_rect.expand(6.0), format!("{stem}-relation-matrix.png")),
             Some(_) => match crate::io::save_file(&format!("{stem}-relation-matrix.csv"), f.to_csv().as_bytes()) {
-                Ok(Some(p)) => self.status = trf("app.exported", &[&(crate::io::file_name(&p))]),
+                Ok(Some(outcome)) => self.status = outcome.message(op_core::i18n::key("app.exported")),
                 Ok(None) => {}
                 Err(e) => self.status = trf("file.export_failed", &[&e]),
             },

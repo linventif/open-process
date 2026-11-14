@@ -343,6 +343,42 @@ fn check_blocks(source: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn arrange(diagram: &mut UmlDiagram, direction: FlowDirection) {
+    let mut widths = [240.0f32; 3];
+    for (index, node) in diagram.nodes.iter_mut().enumerate() {
+        let longest = std::iter::once(node.name.as_str())
+            .chain(node.attributes.lines())
+            .chain(node.operations.lines())
+            .map(|line| line.chars().count())
+            .max()
+            .unwrap_or(0);
+        node.bounds.w = (longest as f32 * 8.0 + 40.0).clamp(240.0, 520.0);
+        widths[index % 3] = widths[index % 3].max(node.bounds.w);
+    }
+    let mut y = 40.0;
+    for row in diagram.nodes.chunks_mut(3) {
+        let mut x = 40.0;
+        let height = row.iter().map(|n| n.rect().h).fold(0.0, f32::max);
+        for (column, node) in row.iter_mut().enumerate() {
+            node.bounds.x = x;
+            node.bounds.y = y;
+            x += widths[column] + 100.0;
+        }
+        y += height + 100.0;
+    }
+    if matches!(direction, FlowDirection::RightLeft | FlowDirection::BottomTop) {
+        let right = diagram.nodes.iter().map(|n| n.rect().right()).fold(0.0, f32::max);
+        let bottom = diagram.nodes.iter().map(|n| n.rect().bottom()).fold(0.0, f32::max);
+        for node in &mut diagram.nodes {
+            if direction == FlowDirection::RightLeft {
+                node.bounds.x = right - node.bounds.x - node.rect().w + 40.0;
+            } else {
+                node.bounds.y = bottom - node.bounds.y - node.rect().h + 40.0;
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -527,41 +563,5 @@ mod tests {
         }
         let empty = UmlDiagram::new("Empty", DiagramKind::Class);
         assert_semantics(&empty, &to_uml(&from_uml(&empty).unwrap().diagram).unwrap().diagram);
-    }
-}
-
-fn arrange(diagram: &mut UmlDiagram, direction: FlowDirection) {
-    let mut widths = [240.0f32; 3];
-    for (index, node) in diagram.nodes.iter_mut().enumerate() {
-        let longest = std::iter::once(node.name.as_str())
-            .chain(node.attributes.lines())
-            .chain(node.operations.lines())
-            .map(|line| line.chars().count())
-            .max()
-            .unwrap_or(0);
-        node.bounds.w = (longest as f32 * 8.0 + 40.0).clamp(240.0, 520.0);
-        widths[index % 3] = widths[index % 3].max(node.bounds.w);
-    }
-    let mut y = 40.0;
-    for row in diagram.nodes.chunks_mut(3) {
-        let mut x = 40.0;
-        let height = row.iter().map(|n| n.rect().h).fold(0.0, f32::max);
-        for (column, node) in row.iter_mut().enumerate() {
-            node.bounds.x = x;
-            node.bounds.y = y;
-            x += widths[column] + 100.0;
-        }
-        y += height + 100.0;
-    }
-    if matches!(direction, FlowDirection::RightLeft | FlowDirection::BottomTop) {
-        let right = diagram.nodes.iter().map(|n| n.rect().right()).fold(0.0, f32::max);
-        let bottom = diagram.nodes.iter().map(|n| n.rect().bottom()).fold(0.0, f32::max);
-        for node in &mut diagram.nodes {
-            if direction == FlowDirection::RightLeft {
-                node.bounds.x = right - node.bounds.x - node.rect().w + 40.0;
-            } else {
-                node.bounds.y = bottom - node.bounds.y - node.rect().h + 40.0;
-            }
-        }
     }
 }

@@ -109,9 +109,20 @@ icon is embedded during compilation.
 
 GitHub Actions checks the combined Pages build and Bun tests before native
 release publication. Pushes to `main` publish `main-<run number>-<short SHA>` after
-tests and four target builds succeed; `v*` tags are supported too. These automatic
-releases currently use `prerelease: false`. Cloudflare Pages builds/deploys using
-its Git integration, replacing the former GitHub Pages deployment.
+tests and four target builds succeed; `v*` tags are supported too. `main-*` builds
+and prerelease tags remain prereleases; only `vMAJOR.MINOR.PATCH` becomes latest
+stable. Release assets include `SHA256SUMS`. Dependency audits and executable
+SQLite checks are part of CI; action versions are pinned to commits.
+Cloudflare Pages is the deployment target and builds/deploys through its Git
+integration. The GitHub Actions website job only validates the build and uploads
+an artifact; it does not publish a site.
+
+When retiring the former GitHub Pages site, disable its publishing source in
+[the repository's Pages settings](https://github.com/linventif/open-process/settings/pages):
+select **Deploy from a branch**, set **Branch** to **None**, then **Save**.
+This repository setting is separate from workflow files, so removing an old
+workflow alone does not disable branch-based Pages publishing. See
+[GitHub's deletion guide](https://docs.github.com/en/pages/getting-started-with-github-pages/deleting-a-github-pages-site).
 
 Bun tests check release links, three-language metadata, sitemaps and application
 presence in the final output; output-dependent tests must follow the build.
@@ -119,3 +130,17 @@ Historical visual checks covered tabs, EN/FR navigation, screenshot dialog,
 downloads and mobile layout. Spanish and EN/FR/ES links were checked by builds/HTML
 tests, without an additional interactive browser validation for that addition.
 See [the verification record](../docs/verification.md) for historical check scope.
+
+After a complete build, an installed Firefox can run all four Wasm job types,
+cancellation and error handling against the shipped app CSP:
+
+```sh
+python3 ../scripts/check-web-worker.py
+```
+
+The check uses a temporary browser profile and a server bound to `127.0.0.1`.
+For Snap-packaged Firefox it uses the direct executable to avoid launcher/profile
+namespace restrictions; `--firefox PATH` selects another executable. This is an
+explicit local check, not a step currently run by CI.
+A standalone Trunk build at `/` can use `--dist PATH --app-prefix /` to check the
+same transport and CSP with root asset URLs.

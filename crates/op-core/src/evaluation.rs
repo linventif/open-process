@@ -20,7 +20,7 @@ enum Expr {
     Choice(Vec<Expr>),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Scenario {
     /// Probability = 1 / denominator; every encountered XOR contributes its arity.
     pub denominator: usize,
@@ -32,7 +32,7 @@ pub struct Scenario {
     pub traces_truncated: bool,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Evaluation {
     pub scenarios: Vec<Scenario>,
     pub mean_duration: f64,

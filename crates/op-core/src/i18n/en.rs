@@ -63,6 +63,10 @@ pub const TABLE: &[(&str, &str)] = &[
     ("app.rename", "Rename"),
     ("app.right_middle_drag", "Right or middle drag"),
     ("app.saved", "Saved {}"),
+    (
+        "file.download_started",
+        "Download started: {}. Check that the file was saved before closing this document.",
+    ),
     ("app.scroll_zoom", "Scroll / zoom"),
     ("app.search_diagram_types", "Search diagram types"),
     (
@@ -1368,4 +1372,46 @@ pub const TABLE: &[(&str, &str)] = &[
     ("workspace.unsaved", "Unsaved"),
     ("workspace.what_would_you_like_do", "What would you like to do?"),
     ("workspace.workspace", "YOUR WORKSPACE"),
+    ("mining.invalid_csv_record", "Invalid or incomplete CSV record {}."),
+    ("mining.invalid_csv_quoting", "Invalid CSV quoting."),
+    ("petri.matrix_size_limit", "This matrix exceeds the display limit of 100,000 cells."),
+    ("analysis.jobs_busy", "Background calculations are busy. Try again shortly."),
+    ("mining.analysis_pending", "Computing the discovery results…"),
+    ("file.input_limit", "This file exceeds the supported input size."),
+    (
+        "mining.analysis_limit",
+        "Discovery exceeds the computation budget. Use a smaller event log.",
+    ),
+    ("validation.storage_limit", "The document exceeds the supported element limit."),
+    (
+        "validation.storage_element",
+        "An element has an invalid identifier, type, geometry or numeric value.",
+    ),
+    (
+        "validation.storage_connection",
+        "A connection has invalid identifiers, endpoints, direction, weight or duplicates.",
+    ),
+    ("validation.storage_kind", "The document type does not match its contents."),
+    ("validation.weight_limit", "An arc weight exceeds the supported numeric range."),
+    ("validation.duplicate_identifier", "Duplicate identifier: {}."),
+    (
+        "xml.resource_limit",
+        "XML exceeds the supported size, nesting, element or attribute limits.",
+    ),
+    (
+        "xml.invalid_structure",
+        "Invalid XML: expected one balanced root element and no outside content.",
+    ),
+    (
+        "xml.unsupported_entity",
+        "XML document types and custom entities are not supported.",
+    ),
+    ("xml.invalid_reference", "Invalid XML character reference."),
+    ("file.not_writable", "The save destination is not a writable file."),
+    ("analysis.failed", "The background calculation failed."),
+    ("app.build", "Build {}"),
+    (
+        "analysis.result_limit",
+        "The calculation result exceeds the supported transfer size. Reduce the analysis limit.",
+    ),
 ];

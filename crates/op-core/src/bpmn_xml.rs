@@ -538,6 +538,7 @@ pub fn import(src: &str) -> Result<BpmnDiagram, String> {
             }
         }
     }
+    d.check_storage()?;
     Ok(d)
 }
 

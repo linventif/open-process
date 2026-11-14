@@ -484,3 +484,113 @@ integration tests**. Native/WebAssembly checks, the Trunk release build, formatt
 patch checks and local documentation links pass. This change did not run a new
 interactive browser test, a website-content build, Bun tests, Windows/macOS or the
 complete CI matrix. See [conversion behavior and limits](mermaid.md#converting-uml-class-diagrams).
+
+
+## Reliability and security hardening — 14 November 2026
+
+The local patch based on `96c86bb` strengthens existing imports, analysis and
+saving without changing the `.opx` v2 envelope, model versions or v1 fixtures.
+BPMN/Petri/UML checked codecs validate storage before editor creation. Saving
+rechecks storage and encoded size; unsupported originals remain recoverable.
+Native saving uses the native-only `tempfile` dependency (already present in the
+lockfile transitively) for portable staging/replacement, with sync and failure
+regressions rather than a handwritten Windows replacement implementation.
+
+Targeted regressions cover deep/multiple-root XML, unsafe identities/geometry/
+endpoints, near-exhausted counters, combined PNML arcs, truncated Petri deadlocks,
+large invariant coefficients, cancellation, interrupted saves, unconfirmed
+browser downloads and preserved original bytes. Generated tests exercise 600 CSV
+round trips with quoting/Unicode/control characters and 1,000 bounded mutated
+inputs through XML, document and log parsers. These complement the unit suite;
+they are not an exhaustive fuzzing campaign or a standards-conformance audit.
+
+Final local Rust results: **73 application tests, 87 core tests, seven document
+integration tests and two generated-case tests passed (169 total)**. Historical
+fixtures are unchanged. Formatting, strict Clippy, native and Wasm compilation,
+and Linux/native and Trunk/Wasm release builds pass.
+
+Commands executed for these checks:
+
+```sh
+cargo test --locked --workspace -- --test-threads=1
+cargo fmt --all -- --check
+cargo clippy --locked --workspace --all-targets -- -D warnings
+cargo check --locked -p op-app --target wasm32-unknown-unknown
+cargo build --locked --release -p op-app
+cd website
+bun run build
+bun run build:app
+bun test
+cd ..
+python3 -m unittest discover -s scripts -p 'test_*.py'
+cargo run --locked -p op-core --example database-ddl -- /tmp/open-process-hardening-ddl
+python3 scripts/check-database-ddl.py /tmp/open-process-hardening-ddl
+python3 scripts/check-web-worker.py
+```
+
+The site builds and **nine Bun tests** pass. The **two Python packaging tests**
+pass, and three generated SQLite scripts execute with metadata/constraint checks
+(`shop`, `literal-defaults`, `composite-cycle`). PostgreSQL/MySQL server execution
+was not performed. Native screenshots for discovery and BPMN evaluation were
+inspected after the asynchronous changes.
+
+Headless Firefox exercises all four job types (Petri, Mermaid, mining and BPMN
+evaluation), invalid inputs/tasks and cancellation under the shipped application
+CSP. A standalone root Trunk build also exercises the same checks:
+
+```sh
+cd crates/op-app
+trunk build --release --locked --public-url / --dist /tmp/open-process-hardening-root
+cd ../..
+python3 scripts/check-web-worker.py --dist /tmp/open-process-hardening-root --app-prefix /
+```
+
+Both `/app/` and `/` checks pass. The local Snap launcher required using its
+direct Firefox executable and a temporary profile under ignored `target/`;
+the helper now detects that launcher. Earlier failed browser attempts are not
+counted as successful runs. The final runs observed 17–19 main-thread timer
+ticks during the small Petri request (174–194 ms); these are observations, not
+latency budgets or mobile/browser-matrix guarantees.
+
+Online `cargo audit --no-yanked` used the RustSec database at commit `4ef2df8e`
+(13 November 2026): **zero reported vulnerabilities and five unmaintained-package
+warnings** (`rustybuzz`, `ttf-parser`, `zbus_names`, `zvariant`, `zvariant_derive`).
+Online `bun audit --json` returned no advisories. Neither result certifies that
+application code is vulnerability-free or resolves the maintenance warnings.
+
+Workflow YAML and immutable action references were checked. The release-tag
+script was exercised for `main`, a stable tag and a prerelease tag, and generated
+`SHA256SUMS` was verified with `sha256sum --check`. CI now runs dependency audits,
+format/lint checks and generated SQLite execution; dependency audits also run
+weekly. The new workflows were not executed on GitHub or used to publish a
+release during this change. Local Markdown targets and `git diff --check` pass.
+Windows/macOS builds, the complete CI matrix and production hosting settings
+were not verified locally.
+
+## Cloudflare-only deployment clarification — 14 November 2026
+
+The repository has no GitHub Pages deployment workflow, Pages write permission
+or Pages deployment action. The website CI job retains combined-build checks and
+an ordinary artifact upload; its display name now states that purpose. The old
+GitHub Pages instruction in `Trunk.toml` was replaced with the Cloudflare assembly
+entry point, and the website guide documents disabling the former publishing
+source in repository settings.
+
+Workflow YAML, Trunk TOML, local documentation links and patch whitespace were
+checked. No runtime behavior changed, so builds and application tests were not
+repeated. The connected GitHub tool does not expose Pages administration; the
+remote publishing setting was not changed or verified during this clarification.
+
+## Creation-card order — 14 November 2026
+
+Module-owned `home_order` values now place free drawing, relational database
+design, UML classes, BPMN and UML use cases first on the home screen and in the
+new-document picker. Remaining cards preserve their relative order. Existing
+responsive UI checks were adjusted to the new first cards and scroll to BPMN
+before testing its example menu on narrow screens.
+
+All 169 workspace tests passed with `--test-threads=1`. Native and WebAssembly
+`cargo check --locked -p op-app` checks, formatting, local documentation links
+and `git diff --check` passed. The generated home-screen screenshot was inspected.
+No new release build, deployment or Windows/macOS run was performed for this
+presentation change.

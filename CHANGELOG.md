@@ -7,6 +7,20 @@ does not distinguish the automatic `main-*` releases.
 
 ## Unreleased
 
+### Reliability and security
+
+- Bound XML imports and reject unsafe BPMN/Petri/UML payloads while preserving
+  `.opx` recovery and historical fixtures.
+- Combine repeated PNML arcs, preserve quoted CSV data, and report malformed rows.
+- Correct Petri deadlocks at exploration limits and protect invariant arithmetic.
+- Stage native saves before replacement; distinguish browser downloads from
+  confirmed writes and retain their unsaved indicator.
+- Run discovery and BPMN evaluation outside the UI; bound worker concurrency,
+  transfers, exploration and history, and avoid idle-frame JSON reconstruction.
+- Add generated import regressions, SQLite execution and dependency audits;
+  pin CI actions and publish development builds as prereleases with checksums.
+- Show build identity in About and retain calculation-specific language settings.
+
 ### Documentation and community
 
 - Rewrote the README around registered editors, current formats and known limits.

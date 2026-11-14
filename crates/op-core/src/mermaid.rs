@@ -68,7 +68,7 @@ fn header_token(source: &str) -> Option<&str> {
         }
     }
     let mut directive = false;
-    let Some(header) = lines.find(|line| {
+    let header = lines.find(|line| {
         if directive {
             directive = !line.contains("}%%");
             return false;
@@ -78,9 +78,7 @@ fn header_token(source: &str) -> Option<&str> {
             return false;
         }
         !line.starts_with("%%")
-    }) else {
-        return None;
-    };
+    })?;
     header.split(|c: char| c.is_whitespace() || c == ';').next()
 }
 

@@ -166,10 +166,15 @@ Pushes to `main` run the shared CI workflow: tests and native release builds on
 Linux, Windows and macOS, plus the website/WebAssembly build and Bun tests.
 After validation, the release workflow builds four native targets and publishes
 one GitHub Release tagged `main-<run number>-<short commit SHA>`. `v*` tags are
-also supported. These automatic builds are currently published as non-prereleases;
-a `main-*` tag identifies a build, not a separate long-term support line.
+also supported. `main-*` builds and prerelease tags are published as prereleases.
+Only a `vMAJOR.MINOR.PATCH` tag becomes the latest stable release. Each release
+includes `SHA256SUMS`; the application's About dialog displays a build identifier
+from CI/Cloudflare, or `local` for an unidentified local build.
 
-Website download links use the latest GitHub release metadata. Cloudflare Pages
+CI also audits Rust/Bun dependencies and executes generated SQLite schemas.
+Dependency audits run weekly, and action revisions are pinned to commit hashes.
+
+Website download links use the latest stable GitHub release metadata. Cloudflare Pages
 builds and deploys the combined site through its own Git integration.
 See [the release workflow](.github/workflows/release.yml),
 [website deployment](website/README.md) and [CHANGELOG.md](CHANGELOG.md).

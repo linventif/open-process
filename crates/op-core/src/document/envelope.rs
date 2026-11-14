@@ -46,6 +46,9 @@ impl Document {
 
     /// Reads the envelope before handing the payload to a notation's typed codec.
     pub fn read(bytes: &[u8]) -> Result<Self, ReadError> {
+        if bytes.len() > super::MAX_DOCUMENT_BYTES {
+            return Err(ReadError::Invalid(crate::i18n::tr("file.input_limit").into()));
+        }
         let text = std::str::from_utf8(bytes).map_err(|e| ReadError::Invalid(e.to_string()))?;
         let text = text.trim_start_matches('\u{feff}').trim_start();
         let value: Value = serde_json::from_str(text).map_err(|e| ReadError::Invalid(e.to_string()))?;
@@ -92,14 +95,30 @@ pub trait DocumentCodec<M> {
     fn decode(&self, document: &Document) -> Result<M, ReadError>;
 }
 
+type StorageValidator<M> = fn(&M) -> Result<(), String>;
+
 pub struct JsonCodec<M> {
     kind: &'static str,
+    validate: Option<StorageValidator<M>>,
     _model: PhantomData<fn() -> M>,
 }
 
 impl<M> JsonCodec<M> {
     pub const fn new(kind: &'static str) -> Self {
-        Self { kind, _model: PhantomData }
+        Self {
+            kind,
+            validate: None,
+            _model: PhantomData,
+        }
+    }
+
+    /// A notation owns the storage checks applied to every supported payload version.
+    pub const fn checked(kind: &'static str, validate: fn(&M) -> Result<(), String>) -> Self {
+        Self {
+            kind,
+            validate: Some(validate),
+            _model: PhantomData,
+        }
     }
 }
 
@@ -122,6 +141,10 @@ impl<M: Serialize + DeserializeOwned> DocumentCodec<M> for JsonCodec<M> {
                 self.kind, document.model_version
             )));
         }
-        serde_json::from_value(document.model.clone()).map_err(|e| ReadError::Invalid(e.to_string()))
+        let model = serde_json::from_value(document.model.clone()).map_err(|e| ReadError::Invalid(e.to_string()))?;
+        if let Some(validate) = self.validate {
+            validate(&model).map_err(ReadError::Invalid)?;
+        }
+        Ok(model)
     }
 }

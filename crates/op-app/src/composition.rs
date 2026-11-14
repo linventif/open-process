@@ -21,9 +21,17 @@ pub fn registry() -> &'static DiagramRegistry {
 
 #[cfg(target_arch = "wasm32")]
 pub fn run_background_job(input: &str) -> Result<String, String> {
-    let task: serde_json::Value = serde_json::from_str(input).map_err(|e| e.to_string())?;
-    if task["task"].as_str() == Some("mermaid.preview") {
-        return crate::mermaid_editor::preview::compute_json(input.into(), std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)));
+    if input.len() > 8 * 1024 * 1024 {
+        return Err(op_core::i18n::tr("file.input_limit").into());
     }
-    crate::petri_editor::analysis_job::compute_json(input.into(), std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)))
+    let task: serde_json::Value = serde_json::from_str(input).map_err(|e| e.to_string())?;
+    let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let result = match task["task"].as_str() {
+        Some("bpmn.evaluation") => crate::bpmn_editor::evaluation_job::compute_json(input.into(), stop),
+        Some("mining.discovery") => crate::mining_editor::analysis_job::compute_json(input.into(), stop),
+        Some("mermaid.preview") => crate::mermaid_editor::preview::compute_json(input.into(), stop),
+        None | Some("petri.analysis") => crate::petri_editor::analysis_job::compute_json(input.into(), stop),
+        Some(_) => return Err("Unknown background task".into()),
+    };
+    result.and_then(crate::platform::jobs::bounded_result)
 }

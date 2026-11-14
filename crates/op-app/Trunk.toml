@@ -1,4 +1,4 @@
 [build]
 target = "index.html"
 dist = "../../dist"
-# For GitHub Pages under /<repo>/, build with: trunk build --release --public-url /<repo>/
+# Cloudflare serves the app at /app/; website/scripts/build-app.ts assembles the site.

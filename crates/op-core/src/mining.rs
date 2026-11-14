@@ -7,15 +7,77 @@ use crate::geom::Pos;
 use crate::i18n::{tr, trf};
 use crate::petri::{NodeRef, PetriNet};
 use crate::xml;
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 
 // -------------------------------------------------------------------------
 // Event log
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct EventLog {
     /// One trace (case) = ordered list of activity names.
     pub traces: Vec<Vec<String>>,
+}
+
+/// CSV records with quoted separators, doubled quotes and embedded line breaks.
+/// Invalid quoting is rejected rather than changing activity names silently.
+fn csv_records(source: &str, delimiter: char) -> Result<Vec<Vec<String>>, String> {
+    let mut chars = source.chars().peekable();
+    let (mut records, mut row, mut field) = (Vec::new(), Vec::new(), String::new());
+    let (mut quoted, mut was_quoted, mut closed) = (false, false, false);
+    while let Some(c) = chars.next() {
+        if quoted {
+            if c == '"' {
+                if chars.peek() == Some(&'"') {
+                    field.push('"');
+                    chars.next();
+                } else {
+                    quoted = false;
+                    closed = true;
+                }
+            } else {
+                field.push(c);
+            }
+            continue;
+        }
+        if c == delimiter || c == '\n' || c == '\r' {
+            let value = std::mem::take(&mut field);
+            row.push(if was_quoted { value } else { value.trim().to_string() });
+            was_quoted = false;
+            closed = false;
+            if c != delimiter {
+                if c == '\r' && chars.peek() == Some(&'\n') {
+                    chars.next();
+                }
+                if row.len() > 1 || !row[0].is_empty() {
+                    records.push(std::mem::take(&mut row));
+                } else {
+                    row.clear();
+                }
+            }
+        } else if closed {
+            if c != ' ' && c != '\t' {
+                return Err(tr("mining.invalid_csv_quoting").into());
+            }
+        } else if c == '"' {
+            if !field.trim().is_empty() {
+                return Err(tr("mining.invalid_csv_quoting").into());
+            }
+            field.clear();
+            quoted = true;
+            was_quoted = true;
+        } else {
+            field.push(c);
+        }
+    }
+    if quoted {
+        return Err(tr("mining.invalid_csv_quoting").into());
+    }
+    if !field.is_empty() || !row.is_empty() || closed {
+        row.push(if was_quoted { field } else { field.trim().to_string() });
+        records.push(row);
+    }
+    Ok(records)
 }
 
 fn is_word(tok: &str) -> bool {
@@ -45,6 +107,10 @@ impl EventLog {
             return Err(tr("mining.log_empty").into());
         }
 
+        if let Some(log) = Self::parse_csv(trimmed)? {
+            return Ok(log);
+        }
+
         // "Case 1, Task A" format (possibly several entries per line, as in multi-column tables)
         let case_entries = parse_case_lines(&lines);
         if !case_entries.is_empty() {
@@ -60,11 +126,6 @@ impl EventLog {
             return Ok(EventLog {
                 traces: order.into_iter().map(|c| map.remove(&c).unwrap()).collect(),
             });
-        }
-
-        // CSV with header
-        if let Some(log) = Self::parse_csv(&lines) {
-            return Ok(log);
         }
 
         let split = |l: &str| -> Vec<String> {
@@ -95,30 +156,58 @@ impl EventLog {
         Ok(EventLog { traces })
     }
 
-    fn parse_csv(lines: &[&str]) -> Option<EventLog> {
-        let sep = if lines[0].contains(';') { ';' } else { ',' };
-        let header: Vec<String> = lines[0].split(sep).map(|s| s.trim().trim_matches('"').to_lowercase()).collect();
-        let case_col = header
-            .iter()
-            .position(|h| h.contains("case") || h == "id" || h.contains("instance"))?;
-        let act_col = header
-            .iter()
-            .position(|h| h.contains("activit") || h.contains("task") || h.contains("event") || h.contains("concept:name"))?;
-        let mut order = Vec::new();
-        let mut map: HashMap<String, Vec<String>> = HashMap::new();
-        for l in &lines[1..] {
-            let cols: Vec<&str> = l.split(sep).map(|s| s.trim().trim_matches('"')).collect();
-            let (Some(c), Some(a)) = (cols.get(case_col), cols.get(act_col)) else {
+    fn parse_csv(mut source: &str) -> Result<Option<EventLog>, String> {
+        while let Some(line) = source.lines().next() {
+            let line = line.trim();
+            if !line.is_empty() && !line.starts_with('#') && !line.starts_with("//") {
+                break;
+            }
+            source = source.split_once('\n').map(|(_, rest)| rest).unwrap_or("");
+        }
+        let header_line = source.lines().next().unwrap_or("");
+        for delimiter in [',', ';', '\t'] {
+            let Ok(header) = csv_records(header_line, delimiter) else {
                 continue;
             };
-            if !map.contains_key(*c) {
-                order.push(c.to_string());
+            let Some(header) = header.first() else { continue };
+            let header: Vec<_> = header.iter().map(|s| s.trim().to_lowercase()).collect();
+            let normalized: Vec<_> = header.iter().map(|h| h.replace([' ', '_', '-'], "")).collect();
+            let case_col = normalized.iter().position(|h| {
+                matches!(
+                    h.as_str(),
+                    "case" | "caseid" | "id" | "instance" | "instanceid" | "case:concept:name"
+                )
+            });
+            let activity_col = normalized.iter().position(|h| {
+                matches!(
+                    h.as_str(),
+                    "activity" | "activityname" | "task" | "taskname" | "event" | "eventname" | "concept:name"
+                )
+            });
+            let (Some(case_col), Some(activity_col)) = (case_col, activity_col) else {
+                continue;
+            };
+            if case_col == activity_col {
+                continue;
             }
-            map.entry(c.to_string()).or_default().push(a.to_string());
+            let records = csv_records(source, delimiter)?;
+            let mut order = Vec::new();
+            let mut map: HashMap<String, Vec<String>> = HashMap::new();
+            for (index, record) in records.into_iter().enumerate().skip(1) {
+                if record.len() != header.len() || record[case_col].trim().is_empty() || record[activity_col].trim().is_empty() {
+                    return Err(trf("mining.invalid_csv_record", &[&(index + 1)]));
+                }
+                let case = record[case_col].trim().to_string();
+                if !map.contains_key(&case) {
+                    order.push(case.clone());
+                }
+                map.entry(case).or_default().push(record[activity_col].clone());
+            }
+            return Ok(Some(EventLog {
+                traces: order.into_iter().map(|case| map.remove(&case).unwrap()).collect(),
+            }));
         }
-        Some(EventLog {
-            traces: order.into_iter().map(|c| map.remove(&c).unwrap()).collect(),
-        })
+        Ok(None)
     }
 
     /// IEEE XES (as produced by ProM): `<log><trace><event><string key="concept:name" value="A"/>`.
@@ -247,7 +336,7 @@ pub fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
 // -------------------------------------------------------------------------
 // Footprint
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Relation {
     /// a → b
     Causal,
@@ -280,7 +369,7 @@ impl Relation {
 }
 
 /// Relation matrix of a log ("footprint").
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Footprint {
     pub activities: Vec<String>,
     /// `succ[a][b]`: a > b (a directly followed by b in some trace).
@@ -423,7 +512,7 @@ impl Footprint {
 
 pub type Pair = (Vec<usize>, Vec<usize>);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AlphaResult {
     pub footprint: Footprint,
     /// Step 1: all activities.
@@ -570,6 +659,23 @@ impl AlphaResult {
 }
 
 pub fn alpha(log: &EventLog) -> AlphaResult {
+    alpha_bounded(log, MAX_X, &|| false)
+}
+
+/// Application discovery rejects incomplete results and bounds costly pair construction.
+pub fn discover_cancellable(log: &EventLog, cancelled: &impl Fn() -> bool) -> Result<AlphaResult, String> {
+    if log.traces.iter().map(Vec::len).sum::<usize>() > 100_000 || log.activities().len() > 128 || cancelled() {
+        return Err(tr("mining.analysis_limit").into());
+    }
+    let result = alpha_bounded(log, 2000, cancelled);
+    if result.x_truncated || cancelled() {
+        return Err(tr("mining.analysis_limit").into());
+    }
+    result.net.check_storage()?;
+    Ok(result)
+}
+
+fn alpha_bounded(log: &EventLog, pair_limit: usize, cancelled: &impl Fn() -> bool) -> AlphaResult {
     let fp = Footprint::from_log(log);
     let n = fp.len();
     let index: HashMap<&str, usize> = fp.activities.iter().enumerate().map(|(i, a)| (a.as_str(), i)).collect();
@@ -601,7 +707,7 @@ pub fn alpha(log: &EventLog) -> AlphaResult {
     }
     let mut x_truncated = false;
     while let Some((a, b)) = queue.pop_front() {
-        if seen.len() >= MAX_X {
+        if seen.len() >= pair_limit || cancelled() {
             x_truncated = true;
             break;
         }
@@ -629,13 +735,43 @@ pub fn alpha(log: &EventLog) -> AlphaResult {
     let mut x_w: Vec<Pair> = seen.into_iter().collect();
     x_w.sort_by(|p, q| (p.0.len() + p.1.len(), &p.0, &p.1).cmp(&(q.0.len() + q.1.len(), &q.0, &q.1)));
 
-    // Step 5: maximal pairs.
-    let subset = |s: &[usize], t: &[usize]| s.iter().all(|x| t.contains(x));
-    let y_w: Vec<Pair> = x_w
-        .iter()
-        .filter(|p| !x_w.iter().any(|q| q != *p && subset(&p.0, &q.0) && subset(&p.1, &q.1)))
-        .cloned()
-        .collect();
+    // Charge a conservative upper bound for subset comparisons before doing them.
+    let mut work = 20_000_000usize;
+    let mut y_w = Vec::new();
+    'maximal: for p in &x_w {
+        if x_truncated {
+            break;
+        }
+        if cancelled() {
+            x_truncated = true;
+            break;
+        }
+        let mut maximal = true;
+        for q in &x_w {
+            if p == q {
+                continue;
+            }
+            let cost =
+                p.0.len()
+                    .saturating_mul(q.0.len())
+                    .saturating_add(p.1.len().saturating_mul(q.1.len()));
+            let Some(remaining) = work.checked_sub(cost.max(1)) else {
+                x_truncated = true;
+                break 'maximal;
+            };
+            work = remaining;
+            if p.0.iter().all(|x| q.0.contains(x)) && p.1.iter().all(|x| q.1.contains(x)) {
+                maximal = false;
+                break;
+            }
+        }
+        if maximal {
+            y_w.push(p.clone());
+        }
+    }
+    if y_w.iter().map(|(a, b)| a.len() + b.len()).sum::<usize>() > 10_000 {
+        x_truncated = true;
+    }
 
     let mut res = AlphaResult {
         footprint: fp,
@@ -648,7 +784,9 @@ pub fn alpha(log: &EventLog) -> AlphaResult {
         net: PetriNet::new("Alpha"),
         place_ids: Vec::new(),
     };
-    build_net(&mut res);
+    if !res.x_truncated && !cancelled() {
+        build_net(&mut res);
+    }
     res
 }
 
@@ -806,6 +944,50 @@ pub fn replay(net: &PetriNet, trace: &[String]) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn discovery_refuses_cancelled_or_incomplete_results() {
+        let log = EventLog::parse("ABCD\nACBD\nAED").unwrap();
+        let result = discover_cancellable(&log, &|| false).unwrap();
+        assert!(!result.x_truncated);
+        assert_eq!(result.y_w, alpha(&log).y_w);
+        assert!(discover_cancellable(&log, &|| true).is_err());
+        let large = EventLog {
+            traces: (0..129).map(|i| vec![format!("Activity {i}")]).collect(),
+        };
+        assert!(discover_cancellable(&large, &|| false).is_err());
+        let many_pairs = EventLog {
+            traces: (0..64)
+                .flat_map(|a| (0..64).map(move |b| vec![format!("A{a}"), format!("B{b}")]))
+                .collect(),
+        };
+        assert!(discover_cancellable(&many_pairs, &|| false).is_err());
+    }
+
+    #[test]
+    fn csv_preserves_separators_quotes_newlines_and_case_order() {
+        let log =
+            EventLog::parse("\u{feff}case,activity\r\n1,\"Review, approve\"\r\n2,\"Say \"\"yes\"\"\"\r\n1,\"Next\nstep\"\r\n").unwrap();
+        assert_eq!(log.traces, vec![vec!["Review, approve", "Next\nstep"], vec!["Say \"yes\""]]);
+        let log = EventLog::parse("# comment\ncase;activity\n1;\"Review; approve\"\n").unwrap();
+        assert_eq!(log.traces, vec![vec!["Review; approve"]]);
+        let log = EventLog::parse("case\tactivity\n1\tReview\n").unwrap();
+        assert_eq!(log.traces, vec![vec!["Review"]]);
+    }
+
+    #[test]
+    fn csv_rejects_incomplete_records_and_invalid_quoting() {
+        for source in [
+            "case,activity\n1,Review\n2\n",
+            "case,activity\n1,Review,extra\n",
+            "case,activity\n1,\n",
+            "case,activity\n,Review\n",
+            "case,activity\n1,\"unfinished",
+            "case,activity\n1,\"Review\"trailing",
+        ] {
+            assert!(EventLog::parse(source).is_err(), "{source}");
+        }
+    }
 
     fn names(r: &AlphaResult, v: &[Pair]) -> Vec<String> {
         v.iter().map(|p| r.pair(p)).collect()

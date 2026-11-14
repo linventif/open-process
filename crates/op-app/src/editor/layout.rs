@@ -142,10 +142,10 @@ impl DiagramLayout {
                     } else {
                         view_options(ui, &mut controls, extra_options);
                     }
-                    if let Some((label, color)) = &status.indicator {
-                        if ui.available_width() > 140.0 {
-                            ui.label(RichText::new(label).color(*color));
-                        }
+                    if let Some((label, color)) = &status.indicator
+                        && ui.available_width() > 140.0
+                    {
+                        ui.label(RichText::new(label).color(*color));
                     }
                     if ui.available_width() > 48.0 {
                         let text = if status.detail.is_empty() {

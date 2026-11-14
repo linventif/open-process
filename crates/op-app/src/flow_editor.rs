@@ -608,6 +608,12 @@ impl<K: Notation> EditorBackend for FlowEditor<K> {
         self.diagram.name = name;
         self.history.sync(&self.diagram, false);
     }
+    fn content_generation(&self) -> Option<u64> {
+        Some(self.history.generation())
+    }
+    fn validate_storage(&self) -> Result<(), String> {
+        self.diagram.check_storage()
+    }
     fn document(&self) -> Document {
         JsonCodec::new(K::ID).encode(&self.diagram)
     }
@@ -742,6 +748,6 @@ fn register_one<K: Notation>(registry: &mut DiagramRegistry, order: usize) {
     });
 }
 pub fn register(registry: &mut DiagramRegistry) {
-    register_one::<EpcKind>(registry, 7);
-    register_one::<ActivityKind>(registry, 8);
+    register_one::<EpcKind>(registry, 9);
+    register_one::<ActivityKind>(registry, 10);
 }

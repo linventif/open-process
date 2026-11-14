@@ -91,6 +91,9 @@ impl DiagramRegistry {
         self.examples.iter().find(|e| e.id == id).map(|e| (e.create)())
     }
     pub fn load(&self, bytes: &[u8]) -> Result<Document, ReadError> {
+        if bytes.len() > op_core::document::MAX_DOCUMENT_BYTES {
+            return Err(ReadError::Invalid(op_core::i18n::tr("file.input_limit").into()));
+        }
         let text = std::str::from_utf8(bytes).map_err(|e| ReadError::Invalid(e.to_string()))?;
         let text = text.trim_start_matches('\u{feff}').trim_start();
         if text.starts_with('{') {

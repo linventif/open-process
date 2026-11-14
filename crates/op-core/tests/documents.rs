@@ -81,3 +81,80 @@ fn cancelled_exploration_never_claims_complete_properties() {
     assert!(!ss.is_complete());
     assert!(ss.expanded.iter().all(|expanded| !expanded));
 }
+
+#[test]
+fn built_in_codecs_reject_unsafe_storage_but_keep_editable_drafts() {
+    for (kind, fixture) in FIXTURES {
+        if *kind == "event-log" {
+            continue;
+        }
+        let original = Document::read(fixture.as_bytes()).unwrap();
+        let (nodes, links, endpoint) = match *kind {
+            "bpmn" => ("nodes", "flows", "to"),
+            "petri" => ("places", "arcs", "to"),
+            _ => ("nodes", "relations", "to"),
+        };
+        let mut broken = original.clone();
+        broken.model[nodes][0]["id"] = 0.into();
+        assert!(matches!(Model::from_document(&broken), Err(ReadError::Invalid(_))), "{kind}");
+        broken = original.clone();
+        broken.model[nodes][0]["id"] = if *kind == "bpmn" || *kind == "petri" {
+            u32::MAX as u64
+        } else {
+            u64::MAX
+        }
+        .into();
+        assert!(Model::from_document(&broken).is_err(), "{kind}");
+        broken = original.clone();
+        if *kind == "petri" {
+            broken.model[nodes][0]["pos"]["x"] = 1e30.into();
+        } else if *kind == "bpmn" {
+            broken.model[nodes][0]["w"] = 0.into();
+        } else {
+            broken.model[nodes][0]["bounds"]["w"] = 0.into();
+        }
+        assert!(Model::from_document(&broken).is_err(), "{kind}");
+        broken = original.clone();
+        if *kind == "petri" {
+            broken.model[links][0][endpoint] = serde_json::json!({"Place": 4_000_000_000u32});
+        } else {
+            broken.model[links][0][endpoint] = 4_000_000_000u32.into();
+        }
+        assert!(Model::from_document(&broken).is_err(), "{kind}");
+
+        let mut draft = original;
+        draft.model[nodes][0]["name"] = "".into();
+        assert!(Model::from_document(&draft).is_ok(), "unfinished names remain editable: {kind}");
+    }
+}
+
+#[test]
+fn imported_counters_near_exhaustion_allocate_unused_identities() {
+    use op_core::{
+        bpmn::{BpmnDiagram, NodeKind, TaskType},
+        geom::Pos,
+        petri::PetriNet,
+    };
+    let mut net = PetriNet::new("counter");
+    net.add_place(Pos::default(), 0);
+    let mut doc = PetriNet::CODEC.encode(&net);
+    doc.model["places"][0]["id"] = (u32::MAX - 1).into();
+    doc.model["next_id"] = u32::MAX.into();
+    let mut net = PetriNet::CODEC.decode(&doc).unwrap();
+    let a = net.add_place(Pos::default(), 0);
+    let b = net.add_transition(Pos::default());
+    assert_ne!(a, b);
+    assert!(net.check_storage().is_ok());
+
+    let mut diagram = BpmnDiagram::new("counter");
+    diagram.add_node(NodeKind::Task(TaskType::Abstract), Pos::default());
+    let mut doc = BpmnDiagram::CODEC.encode(&diagram);
+    doc.model["nodes"][0]["id"] = (u32::MAX - 1).into();
+    doc.model["next_id"] = u32::MAX.into();
+    let mut diagram = BpmnDiagram::CODEC.decode(&doc).unwrap();
+    diagram.add_pool(Pos::default());
+    assert!(
+        diagram.check_storage().is_ok(),
+        "a pool and its lane need distinct reserved identities"
+    );
+}

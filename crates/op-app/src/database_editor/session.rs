@@ -79,6 +79,12 @@ impl EditorBackend for DatabaseEditor {
         self.schema.name = name;
         self.history.sync(&self.schema, false);
     }
+    fn content_generation(&self) -> Option<u64> {
+        Some(self.history.generation())
+    }
+    fn validate_storage(&self) -> Result<(), String> {
+        self.schema.check_storage()
+    }
     fn document(&self) -> Document {
         JsonCodec::new("database.schema").encode(&self.schema)
     }
@@ -155,7 +161,7 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
     registry.diagrams.push(DiagramDescriptor {
         id: "database.schema",
         aliases: &["database", "erd", "mpd"],
-        home_order: 9,
+        home_order: 1,
         icon: crate::icons::database,
         new_label: key("database.new_database_schema"),
         title: key("database.design_database"),

@@ -4,6 +4,11 @@ use quick_xml::XmlVersion;
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 
+pub const MAX_XML_BYTES: usize = 16 * 1024 * 1024;
+const MAX_DEPTH: usize = 128;
+const MAX_ELEMENTS: usize = 100_000;
+const MAX_ATTRIBUTES: usize = 128;
+
 #[derive(Clone, Debug, Default)]
 pub struct Element {
     /// Local name (namespace prefix removed).
@@ -65,6 +70,9 @@ fn local(name: &str) -> String {
 
 /// Detects an XML format from its root without building a DOM or assuming a prefix.
 pub fn root_name(src: &str) -> Option<String> {
+    if src.len() > MAX_XML_BYTES {
+        return None;
+    }
     let mut reader = Reader::from_str(src);
     loop {
         match reader.read_event() {
@@ -80,7 +88,10 @@ fn start_element(e: &quick_xml::events::BytesStart<'_>) -> Result<Element, Strin
         name: local(e.name().as_ref()),
         ..Default::default()
     };
-    for a in e.attributes() {
+    for (index, a) in e.attributes().enumerate() {
+        if index >= MAX_ATTRIBUTES {
+            return Err(crate::i18n::tr("xml.resource_limit").into());
+        }
         let a = a.map_err(|e| e.to_string())?;
         let key = local(a.key.as_ref());
         let val = a.normalized_value(XmlVersion::Implicit1_0).map_err(|e| e.to_string())?;
@@ -91,28 +102,66 @@ fn start_element(e: &quick_xml::events::BytesStart<'_>) -> Result<Element, Strin
 
 /// Parses an XML document and returns its root element.
 pub fn parse(s: &str) -> Result<Element, String> {
+    if s.len() > MAX_XML_BYTES {
+        return Err(crate::i18n::tr("xml.resource_limit").into());
+    }
     let mut reader = Reader::from_str(s);
     reader.config_mut().trim_text(false);
     let mut stack: Vec<Element> = vec![Element::default()];
+    let mut elements = 0;
     loop {
         match reader
             .read_event()
             .map_err(|e| format!("XML error at {}: {e}", reader.buffer_position()))?
         {
-            Event::Start(e) => stack.push(start_element(&e)?),
-            Event::Empty(e) => {
+            event @ (Event::Start(_) | Event::Empty(_)) => {
+                elements += 1;
+                if elements > MAX_ELEMENTS || stack.len() > MAX_DEPTH {
+                    return Err(crate::i18n::tr("xml.resource_limit").into());
+                }
+                if stack.len() == 1 && !stack[0].children.is_empty() {
+                    return Err(crate::i18n::tr("xml.invalid_structure").into());
+                }
+                let empty = matches!(event, Event::Empty(_));
+                let (Event::Start(e) | Event::Empty(e)) = event else {
+                    unreachable!()
+                };
                 let el = start_element(&e)?;
-                stack.last_mut().unwrap().children.push(el);
+                if empty {
+                    stack.last_mut().unwrap().children.push(el);
+                } else {
+                    stack.push(el);
+                }
             }
             Event::End(_) => {
-                let el = stack.pop().ok_or("Unbalanced XML")?;
-                stack.last_mut().ok_or("Unbalanced XML")?.children.push(el);
+                if stack.len() <= 1 {
+                    return Err(crate::i18n::tr("xml.invalid_structure").into());
+                }
+                let el = stack.pop().ok_or(crate::i18n::tr("xml.invalid_structure"))?;
+                stack.last_mut().ok_or(crate::i18n::tr("xml.invalid_structure"))?.children.push(el);
             }
-            Event::Text(t) => stack.last_mut().unwrap().text.push_str(&t.xml10_content()),
-            Event::CData(t) => stack.last_mut().unwrap().text.push_str(&t.xml10_content()),
+            Event::Text(t) => {
+                let text = t.xml10_content();
+                if stack.len() == 1 && !text.trim().is_empty() {
+                    return Err(crate::i18n::tr("xml.invalid_structure").into());
+                }
+                stack.last_mut().unwrap().text.push_str(&text);
+            }
+            Event::CData(t) => {
+                if stack.len() == 1 {
+                    return Err(crate::i18n::tr("xml.invalid_structure").into());
+                }
+                stack.last_mut().unwrap().text.push_str(&t.xml10_content());
+            }
             Event::GeneralRef(r) => {
+                if stack.len() == 1 {
+                    return Err(crate::i18n::tr("xml.invalid_structure").into());
+                }
                 let txt = if r.is_char_ref() {
-                    r.resolve_char_ref().ok().flatten().map(String::from).unwrap_or_default()
+                    r.resolve_char_ref()
+                        .map_err(|e| e.to_string())?
+                        .map(String::from)
+                        .ok_or(crate::i18n::tr("xml.invalid_reference"))?
                 } else {
                     match &*r {
                         "amp" => "&",
@@ -120,21 +169,24 @@ pub fn parse(s: &str) -> Result<Element, String> {
                         "gt" => ">",
                         "quot" => "\"",
                         "apos" => "'",
-                        _ => "",
+                        _ => return Err(crate::i18n::tr("xml.unsupported_entity").into()),
                     }
                     .to_string()
                 };
                 stack.last_mut().unwrap().text.push_str(&txt);
             }
+            Event::DocType(_) => return Err(crate::i18n::tr("xml.unsupported_entity").into()),
             Event::Eof => break,
             _ => {}
         }
     }
-    let mut root = stack.pop().ok_or("Empty document")?;
+    let mut root = stack.pop().ok_or(crate::i18n::tr("xml.invalid_structure"))?;
     if !stack.is_empty() {
-        return Err("Unbalanced XML".into());
+        return Err(crate::i18n::tr("xml.invalid_structure").into());
     }
-    root.children.pop().ok_or_else(|| "Empty document".to_string())
+    root.children
+        .pop()
+        .ok_or_else(|| crate::i18n::tr("xml.invalid_structure").to_string())
 }
 
 pub fn escape(s: &str) -> String {
@@ -219,5 +271,34 @@ mod tests {
         assert_eq!(r.attr("a"), Some("x & \"y\""));
         assert_eq!(r.text_at(&["name"]), Some("a < b"));
         assert_eq!(r.child("leaf").unwrap().attr("id"), Some("1"));
+    }
+
+    #[test]
+    fn rejects_deep_or_oversized_xml_before_building_an_unsafe_tree() {
+        let deep = format!("<pnml><net>{}{}</net></pnml>", "<x>".repeat(50_000), "</x>".repeat(50_000));
+        assert!(crate::pnml::import(&deep).is_err());
+        assert!(parse(&format!("<root>{}</root>", "<x/>".repeat(MAX_ELEMENTS))).is_err());
+        assert!(parse(&" ".repeat(MAX_XML_BYTES + 1)).is_err());
+        let allowed = format!("{}{}", "<x>".repeat(MAX_DEPTH), "</x>".repeat(MAX_DEPTH));
+        assert!(parse(&allowed).is_ok());
+        let attributes = (0..=MAX_ATTRIBUTES).map(|n| format!(" a{n}=\"x\"")).collect::<String>();
+        assert!(parse(&format!("<root{attributes}/>")).is_err());
+    }
+
+    #[test]
+    fn rejects_multiple_roots_external_text_and_custom_entities() {
+        for source in [
+            "<first/><second/>",
+            "before<root/>",
+            "<root/>after",
+            "<root/>&amp;",
+            "<root>&unknown;</root>",
+            "<!DOCTYPE root><root/>",
+            "<root>",
+            "</root>",
+        ] {
+            assert!(parse(source).is_err(), "{source}");
+        }
+        assert_eq!(parse(" <!-- comment --> <root>&#65;&amp;</root> \n").unwrap().text, "A&");
     }
 }

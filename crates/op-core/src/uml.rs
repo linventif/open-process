@@ -197,6 +197,55 @@ pub struct DiagramFragment {
 }
 
 impl UmlDiagram {
+    pub fn codec(kind: DiagramKind) -> crate::document::JsonCodec<Self> {
+        match kind {
+            DiagramKind::Class => crate::document::JsonCodec::checked("uml.class", |m: &Self| m.check_storage_kind(DiagramKind::Class)),
+            DiagramKind::UseCase => {
+                crate::document::JsonCodec::checked("uml.use-case", |m: &Self| m.check_storage_kind(DiagramKind::UseCase))
+            }
+        }
+    }
+
+    fn check_storage_kind(&self, kind: DiagramKind) -> Result<(), String> {
+        if self.kind != kind {
+            return Err(crate::i18n::tr("validation.storage_kind").into());
+        }
+        self.check_storage()
+    }
+
+    pub fn check_storage(&self) -> Result<(), String> {
+        if self.nodes.len() + self.relations.len() > 20_000 {
+            return Err(crate::i18n::tr("validation.storage_limit").into());
+        }
+        let mut ids = std::collections::HashSet::new();
+        for n in &self.nodes {
+            let r = n.bounds;
+            if n.id == 0
+                || n.id == Id::MAX
+                || !ids.insert(n.id)
+                || !self.kind.node_kinds().contains(&n.kind)
+                || ![r.x, r.y, r.w, r.h].iter().all(|x| x.is_finite() && x.abs() <= 1_000_000.0)
+                || r.w <= 0.0
+                || r.h <= 0.0
+            {
+                return Err(crate::i18n::tr("validation.storage_element").into());
+            }
+        }
+        let nodes = ids.clone();
+        for r in &self.relations {
+            if r.id == 0
+                || r.id == Id::MAX
+                || !ids.insert(r.id)
+                || !nodes.contains(&r.from)
+                || !nodes.contains(&r.to)
+                || !self.kind.relation_kinds().contains(&r.kind)
+            {
+                return Err(crate::i18n::tr("validation.storage_connection").into());
+            }
+        }
+        Ok(())
+    }
+
     pub fn new(name: impl Into<String>, kind: DiagramKind) -> Self {
         Self {
             name: name.into(),
@@ -207,13 +256,19 @@ impl UmlDiagram {
     }
 
     fn next_id(&self) -> Id {
-        self.nodes
+        let max = self
+            .nodes
             .iter()
             .map(|n| n.id)
             .chain(self.relations.iter().map(|r| r.id))
             .max()
-            .unwrap_or(0)
-            + 1
+            .unwrap_or(0);
+        if max < Id::MAX - 1 {
+            max + 1
+        } else {
+            let used: std::collections::HashSet<_> = self.nodes.iter().map(|n| n.id).chain(self.relations.iter().map(|r| r.id)).collect();
+            (1..Id::MAX).find(|id| !used.contains(id)).expect("UML identity space exhausted")
+        }
     }
 
     pub fn node(&self, id: Id) -> Option<&Node> {

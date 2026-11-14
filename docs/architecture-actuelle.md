@@ -166,16 +166,41 @@ Snapshot history groups gestures and can cancel them without adding a step. It
 also covers text and Mining answers. Semantic and graphical revisions are
 separate; undoing to the saved content removes the modified indicator.
 
+Histories retain at most 200 undo/redo snapshots with a 64 MiB estimated content
+budget per document. Size estimates stream serialization at commit time with a
+container-overhead allowance. Current models, saved references, gestures and
+caches are outside this estimate. Mutation generations let built-in sessions skip
+JSON reconstruction on unchanged frames. Commands still force observation;
+backends without a generation retain the comparison fallback.
+
 The app writes `.opx` v2, reads v1 and migrates legacy RON sessions into JSON v3.
 Unknown file bytes remain recoverable. See [compatibility](documents-et-compatibilite.md).
 
-Petri analysis runs on a private snapshot in a native thread or Web Worker using
-the same Wasm binary. Results are accepted only for matching semantic content,
-limits and language. Geometry-only changes retain the cache; document closure
-abandons the job. Native cancellation is checked during exploration and between
-phases; an invariant phase already running may finish in the background. The web
-worker is terminated directly.
+Petri analysis runs on private snapshots through a native worker pool or a Web
+Worker using the same Wasm binary. Results match semantic content, limits and
+language; geometry-only changes retain that cache. Cancellation is checked during
+exploration and inside invariant construction. Uncomputed invariants represent
+arithmetic/resource exhaustion rather than wrapped coefficients. Deadlock checks
+use actual enabling rules even when successor states were omitted. Structural
+classification uses sparse adjacency sets instead of dense matrices.
 
-Mining and process evaluation keep their existing execution paths; the initial
-background-job pilot covered Petri. Mermaid now reuses that transport for SVG
-generation and preview rasterization, explicitly dispatched in composition.
+Mining discovery/soundness, BPMN cost/time evaluation and Mermaid rendering use
+the same transport, dispatched in composition. Changed input/language abandons
+outdated results. Calculation-scoped translations do not change another thread's
+UI language. BPMN evaluation follows history generations, so presentation edits
+can also restart its cache.
+
+Native execution uses two reusable threads and eight queued requests, skipping
+cancelled requests. Browsers allow four active jobs and terminate a worker on
+cancellation or after 30 seconds. Job inputs and transferred results are capped
+at 8 MiB. Native calls already inside a rendering library cannot be forcibly
+interrupted: the pool bounds concurrency, not every library allocation.
+
+Exploration stores at most 100,000 states, 4,000,000 marking cells and 500,000
+edges; smaller user limits still apply. Farkas construction limits live candidate
+rows/cells and comparison work before allocation. Mining computes at most 128
+activities, 100,000 events and 2 MiB of source, with bounded pair construction;
+incomplete discovery is an error. Matrix display is limited to 100,000 cells.
+Mermaid preview accepts at most 256 KiB of source; larger drafts can still be
+saved/exported as source. These are implementation budgets, not measured latency
+or whole-process memory guarantees.

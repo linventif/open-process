@@ -3,6 +3,15 @@
 use std::{env, fs, path::PathBuf, process::Command};
 
 fn main() {
+    for name in ["OP_BUILD_ID", "GITHUB_SHA", "CF_PAGES_COMMIT_SHA"] {
+        println!("cargo:rerun-if-env-changed={name}");
+    }
+    let build = ["OP_BUILD_ID", "GITHUB_SHA", "CF_PAGES_COMMIT_SHA"]
+        .into_iter()
+        .filter_map(|name| env::var(name).ok())
+        .find(|value| !value.is_empty() && value.len() <= 128 && value.bytes().all(|c| c.is_ascii_alphanumeric() || b"-._".contains(&c)))
+        .unwrap_or_else(|| "local".into());
+    println!("cargo:rustc-env=OP_BUILD_ID={build}");
     println!("cargo:rerun-if-changed=assets/icons/open-process.ico");
     println!("cargo:rerun-if-changed=assets/windows.rc");
     println!("cargo:rerun-if-env-changed=RC");

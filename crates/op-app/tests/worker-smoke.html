@@ -39,6 +39,25 @@ try {
     const analysis=JSON.parse(response.ok);
     if(analysis.ss.states.length!==2 || analysis.sound!=='Sound') throw new Error('Unexpected analysis result');
     report.analysis={states:analysis.ss.states.length,ui_ticks:ticks,ms:Math.round(performance.now()-started)};
+    const mermaid=await run(JSON.stringify({task:'mermaid.preview',source:'flowchart TD\n A[Start] --> B[End]\n'}));
+    if(mermaid.error) throw new Error(mermaid.error);
+    const preview=JSON.parse(mermaid.ok);
+    if(!preview.svg.includes('<svg') || preview.png[0]!==137 || preview.png[1]!==80) throw new Error('Invalid Mermaid preview');
+    report.mermaid=true;
+    const mining=await run(JSON.stringify({task:'mining.discovery',text:'ABCD\nACBD\nAED',lang:'En'}));
+    if(mining.error) throw new Error(mining.error);
+    const discovery=JSON.parse(mining.ok);
+    if(!discovery.result.Ok || discovery.result.Ok[1].footprint.activities.length!==5) throw new Error('Invalid discovery result');
+    report.mining=true;
+    const diagram={name:'Worker evaluation',next_id:6,pools:[],nodes:[
+        {id:1,kind:{StartEvent:'None'},name:'',pos:{x:0,y:0},w:36,h:36},
+        {id:2,kind:{Task:'Abstract'},name:'Work',pos:{x:100,y:0},w:100,h:60,cost:2,duration:3},
+        {id:3,kind:{EndEvent:'None'},name:'',pos:{x:200,y:0},w:36,h:36}
+    ],flows:[{id:4,kind:'Sequence',from:1,to:2,name:''},{id:5,kind:'Sequence',from:2,to:3,name:''}]};
+    const bpmn=await run(JSON.stringify({task:'bpmn.evaluation',diagram,lang:'En'}));
+    if(bpmn.error) throw new Error(bpmn.error);
+    if(JSON.parse(bpmn.ok).mean_duration!==3) throw new Error('Invalid BPMN evaluation');
+    report.bpmn=true;
     let cancelledCalled=false;
     const worker=start_analysis_job(input,()=>cancelledCalled=true);
     cancel_analysis_job(worker);
@@ -46,6 +65,7 @@ try {
     if(cancelledCalled) throw new Error('Cancelled job called back');
     report.cancel=true;
     if(!(await run('invalid JSON')).error) throw new Error('Invalid input did not produce an error');
+    if(!(await run(JSON.stringify({task:'unknown'}))).error) throw new Error('Unknown task did not produce an error');
     report.invalid=true;
     report.ok=true;
 } catch(error) {
@@ -56,6 +76,7 @@ document.querySelector('#result').textContent=JSON.stringify(report,null,2);
 document.documentElement.dataset.result=report.ok?'pass':'fail';
 // Optional same-origin collection for a local headless test server.
 if(new URLSearchParams(location.search).has('report')) {
-    await fetch('/result',{method:'POST',body:JSON.stringify(report)});
+    const token=new URLSearchParams(location.search).get('report') || '';
+    await fetch(`/result?token=${encodeURIComponent(token)}`,{method:'POST',body:JSON.stringify(report)});
 }
 </script>

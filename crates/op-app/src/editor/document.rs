@@ -52,9 +52,13 @@ impl Doc {
         self.saved = Some(snapshot);
         self.dirty_cache.set(None);
     }
-    /// Only a completed write/download changes the saved reference.
-    pub fn complete_save(&mut self, snapshot: StoredDocument, result: Result<Option<String>, String>) -> Result<Option<String>, String> {
-        if let Ok(Some(path)) = &result {
+    /// Browser downloads cannot confirm that the user retained a file.
+    pub fn complete_save(
+        &mut self,
+        snapshot: StoredDocument,
+        result: Result<Option<crate::io::SaveOutcome>, String>,
+    ) -> Result<Option<crate::io::SaveOutcome>, String> {
+        if let Ok(Some(crate::io::SaveOutcome::Written(path))) = &result {
             self.path = Some(path.clone());
             self.mark_saved(snapshot);
         }
@@ -62,10 +66,10 @@ impl Doc {
     }
     pub fn dirty(&self) -> bool {
         let revision = self.editor.revisions();
-        if let Some((previous, dirty)) = self.dirty_cache.get() {
-            if previous == revision {
-                return dirty;
-            }
+        if let Some((previous, dirty)) = self.dirty_cache.get()
+            && previous == revision
+        {
+            return dirty;
         }
         let dirty = self.saved.as_ref() != Some(&self.snapshot());
         self.dirty_cache.set(Some((revision, dirty)));

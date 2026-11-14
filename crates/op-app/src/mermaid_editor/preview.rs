@@ -9,6 +9,8 @@ use std::sync::{
 pub(super) struct Input {
     pub task: String,
     pub source: String,
+    #[serde(default)]
+    pub lang: op_core::i18n::Lang,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -21,12 +23,17 @@ pub(super) struct Preview {
 
 pub(crate) fn compute_json(input: String, stop: Arc<AtomicBool>) -> Result<String, String> {
     let input: Input = serde_json::from_str(&input).map_err(|e| e.to_string())?;
-    let svg = op_core::mermaid::render_svg(&input.source)?;
-    if stop.load(Ordering::Relaxed) {
-        return Err("Cancelled".into());
-    }
-    let preview = rasterize(svg)?;
-    serde_json::to_string(&preview).map_err(|e| e.to_string())
+    op_core::i18n::with_lang(input.lang, || {
+        if input.source.len() > 256 * 1024 {
+            return Err(op_core::i18n::tr("file.input_limit").into());
+        }
+        let svg = op_core::mermaid::render_svg(&input.source)?;
+        if stop.load(Ordering::Relaxed) {
+            return Err("Cancelled".into());
+        }
+        let preview = rasterize(svg)?;
+        serde_json::to_string(&preview).map_err(|e| e.to_string())
+    })
 }
 
 fn rasterize(svg: String) -> Result<Preview, String> {
@@ -62,6 +69,7 @@ mod tests {
         let input = Input {
             task: "mermaid.preview".into(),
             source: op_core::mermaid::TEMPLATES[0].source.into(),
+            lang: op_core::i18n::Lang::En,
         };
         let raw = compute_json(serde_json::to_string(&input).unwrap(), Arc::new(AtomicBool::new(false))).unwrap();
         let preview: Preview = serde_json::from_str(&raw).unwrap();

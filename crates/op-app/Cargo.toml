@@ -17,13 +17,15 @@ serde_json.workspace = true
 egui = { version = "0.37", features = ["monochrome_emoji_fonts"] }
 eframe = { version = "0.37", features = ["persistence"] }
 log = "0.4"
-rfd = "0.18"
+rfd = { version = "0.18", features = ["file-handle-inner"] }
 egui_tiles = "0.18"
 image = { version = "0.25", default-features = false, features = ["png"] }
 resvg = { version = "0.47", default-features = false, features = ["text"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 env_logger = "0.11"
+# Stages and atomically replaces native saves, including Windows overwrites.
+tempfile = "3.27"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen-futures = "0.4"

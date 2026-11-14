@@ -80,11 +80,13 @@ impl EditorBackend for BpmnEditor {
                 _ => SideTab::Properties,
             };
         }
-        if let Ok(camera) = serde_json::from_value::<View>(value["camera"].clone()) {
-            if camera.zoom.is_finite() && camera.zoom > 0.0 && camera.offset.is_finite() {
-                state.view = camera;
-                state.fit_request = false;
-            }
+        if let Ok(camera) = serde_json::from_value::<View>(value["camera"].clone())
+            && camera.zoom.is_finite()
+            && camera.zoom > 0.0
+            && camera.offset.is_finite()
+        {
+            state.view = camera;
+            state.fit_request = false;
         }
     }
     fn kind(&self) -> &'static str {
@@ -97,6 +99,12 @@ impl EditorBackend for BpmnEditor {
         self.history.sync(&self.diagram, false);
         self.diagram.name = name;
         self.history.sync(&self.diagram, false);
+    }
+    fn content_generation(&self) -> Option<u64> {
+        Some(self.history.generation())
+    }
+    fn validate_storage(&self) -> Result<(), String> {
+        self.diagram.check_storage()
     }
     fn document(&self) -> Document {
         JsonCodec::new(EditorBackend::kind(self)).encode(&self.diagram)
@@ -198,7 +206,7 @@ use op_core::examples;
 pub(crate) fn register(registry: &mut DiagramRegistry) {
     registry.diagrams.extend([DiagramDescriptor {
         id: "bpmn",
-        home_order: 0,
+        home_order: 3,
         icon: crate::icons::bpmn,
         aliases: &[],
         new_label: key("bpmn.new_bpmn_diagram"),
@@ -207,7 +215,7 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
         badge: "BPMN 2.0",
         color: theme::KIND_BPMN,
         create: |n| JsonCodec::new("bpmn").encode(&BpmnDiagram::new(trf("bpmn.document_name", &[&n]))),
-        open: |d| Ok(Session::boxed(BpmnEditor::new(JsonCodec::new("bpmn").decode(d)?))),
+        open: |d| Ok(Session::boxed(BpmnEditor::new(BpmnDiagram::CODEC.decode(d)?))),
     }]);
     registry.examples.extend([
         ExampleDescriptor {
@@ -233,7 +241,7 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
         decode: |s| op_core::bpmn_xml::import(s).map(|d| JsonCodec::new("bpmn").encode(&d)),
     }]);
     registry.workflows.push(WorkflowDescriptor {
-        home_order: 3,
+        home_order: 7,
         icon: crate::icons::evaluation,
         title: key("bpmn.evaluate_costs_durations"),
         description: key("bpmn.explore_process_p_calculate_traces_activity_costs"),

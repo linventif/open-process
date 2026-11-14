@@ -64,11 +64,13 @@ impl EditorBackend for UmlEditor {
             state.snap = snap;
         }
         state.show_inspector = value["inspector"].as_bool();
-        if let Ok(camera) = serde_json::from_value::<View>(value["camera"].clone()) {
-            if camera.zoom.is_finite() && camera.zoom > 0.0 && camera.offset.is_finite() {
-                state.view = camera;
-                state.fit = false;
-            }
+        if let Ok(camera) = serde_json::from_value::<View>(value["camera"].clone())
+            && camera.zoom.is_finite()
+            && camera.zoom > 0.0
+            && camera.offset.is_finite()
+        {
+            state.view = camera;
+            state.fit = false;
         }
     }
     fn kind(&self) -> &'static str {
@@ -85,6 +87,12 @@ impl EditorBackend for UmlEditor {
         self.history.sync(&self.diagram, false);
         self.diagram.name = name;
         self.history.sync(&self.diagram, false);
+    }
+    fn content_generation(&self) -> Option<u64> {
+        Some(self.history.generation())
+    }
+    fn validate_storage(&self) -> Result<(), String> {
+        self.diagram.check_storage()
     }
     fn document(&self) -> Document {
         JsonCodec::new(EditorBackend::kind(self)).encode(&self.diagram)
@@ -113,9 +121,7 @@ impl EditorBackend for UmlEditor {
         if std::mem::take(&mut self.convert_mermaid) {
             return self.execute("uml.convert-to-mermaid", 0.0);
         }
-        let events = Vec::new();
-
-        events
+        Vec::new()
     }
     fn commands(&self) -> &'static [CommandDescriptor] {
         COMMANDS
@@ -182,7 +188,7 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
     registry.diagrams.extend([
         DiagramDescriptor {
             id: "uml.class",
-            home_order: 4,
+            home_order: 2,
             icon: crate::icons::class,
             aliases: &["class"],
             new_label: key("uml.new_class_diagram"),
@@ -195,7 +201,7 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
         },
         DiagramDescriptor {
             id: "uml.use-case",
-            home_order: 5,
+            home_order: 4,
             icon: crate::icons::use_case,
             aliases: &["usecase"],
             new_label: key("uml.new_use_case_diagram"),
@@ -223,7 +229,7 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
     ]);
 }
 fn open_uml(d: &Document, kind: DiagramKind) -> Result<Box<dyn EditorSession>, ReadError> {
-    let codec = JsonCodec::new(if kind == DiagramKind::Class { "uml.class" } else { "uml.use-case" });
+    let codec = UmlDiagram::codec(kind);
     let model: UmlDiagram = codec.decode(d)?;
     if model.kind != kind {
         return Err(ReadError::Invalid("UML kind does not match envelope".into()));

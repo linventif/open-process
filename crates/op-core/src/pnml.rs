@@ -98,7 +98,7 @@ pub fn import(src: &str) -> Result<PetriNet, String> {
     let net_el = if root.name == "net" {
         &root
     } else {
-        root.find("net").ok_or("No <net> element found")?
+        root.find("net").ok_or(crate::i18n::tr("validation.storage_kind"))?
     };
     let mut net = PetriNet::new(
         net_el
@@ -135,7 +135,9 @@ pub fn import(src: &str) -> Result<PetriNet, String> {
             capacity,
             pos: position(e).unwrap_or_else(&mut fallback),
         });
-        ids.insert(xid.to_string(), NodeRef::Place(id));
+        if ids.insert(xid.to_string(), NodeRef::Place(id)).is_some() {
+            return Err(crate::i18n::trf("validation.duplicate_identifier", &[&xid]));
+        }
     }
     for e in all.iter().filter(|e| e.name == "transition") {
         let Some(xid) = e.attr("id") else { continue };
@@ -152,37 +154,78 @@ pub fn import(src: &str) -> Result<PetriNet, String> {
             pos: position(e).unwrap_or_else(&mut fallback),
             silent,
         });
-        ids.insert(xid.to_string(), NodeRef::Transition(id));
+        if ids.insert(xid.to_string(), NodeRef::Transition(id)).is_some() {
+            return Err(crate::i18n::trf("validation.duplicate_identifier", &[&xid]));
+        }
     }
+    let mut pairs = HashMap::new();
     for e in all.iter().filter(|e| e.name == "arc") {
         let (Some(s), Some(t)) = (e.attr("source"), e.attr("target")) else {
-            continue;
+            return Err(crate::i18n::tr("validation.storage_connection").into());
         };
         let (Some(&from), Some(&to)) = (ids.get(s), ids.get(t)) else {
-            continue;
+            return Err(crate::i18n::tr("validation.storage_connection").into());
         };
         if matches!(
             (from, to),
             (NodeRef::Place(_), NodeRef::Place(_)) | (NodeRef::Transition(_), NodeRef::Transition(_))
         ) {
-            continue;
+            return Err(crate::i18n::tr("validation.storage_connection").into());
         }
         let inhibitor = e.child("type").and_then(|t| t.attr("value")) == Some("inhibitor");
+        let kind = if inhibitor { ArcKind::Inhibitor } else { ArcKind::Normal };
+        let weight = match e.child("inscription") {
+            Some(_) => int_label(e, "inscription")
+                .filter(|&w| w > 0)
+                .ok_or(crate::i18n::tr("validation.storage_connection"))?,
+            None => 1,
+        };
+        if let Some(&index) = pairs.get(&(from, to, kind)) {
+            let existing: &mut Arc = &mut net.arcs[index];
+            existing.weight = if inhibitor {
+                existing.weight.min(weight)
+            } else {
+                existing
+                    .weight
+                    .checked_add(weight)
+                    .ok_or(crate::i18n::tr("validation.weight_limit"))?
+            };
+            continue;
+        }
+        pairs.insert((from, to, kind), net.arcs.len());
         net.arcs.push(Arc {
             id: next,
             from,
             to,
-            weight: int_label(e, "inscription").unwrap_or(1).max(1),
-            kind: if inhibitor { ArcKind::Inhibitor } else { ArcKind::Normal },
+            weight,
+            kind,
         });
         next += 1;
     }
+    net.check_storage()?;
     Ok(net)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn repeated_normal_arcs_are_combined_before_enabling_and_firing() {
+        let source = r#"<pnml><net id="n"><place id="p"><initialMarking><text>1</text></initialMarking></place><transition id="t"/><arc id="a1" source="p" target="t"/><arc id="a2" source="p" target="t"/></net></pnml>"#;
+        let mut net = import(source).unwrap();
+        assert_eq!(net.arcs.len(), 1);
+        assert_eq!(net.arcs[0].weight, 2);
+        assert!(!net.is_enabled(0, &net.initial_marking()));
+        assert_eq!(net.fire(0, &net.initial_marking()), None);
+        net.places[0].tokens = 2;
+        assert_eq!(net.fire(0, &net.initial_marking()), Some(vec![0]));
+        let overflow = source.replace(
+            "<arc id=\"a1\" source=\"p\" target=\"t\"/>",
+            "<arc id=\"a1\" source=\"p\" target=\"t\"><inscription><text>4294967295</text></inscription></arc>",
+        );
+        assert!(import(&overflow).is_err());
+    }
 
     #[test]
     fn roundtrip() {

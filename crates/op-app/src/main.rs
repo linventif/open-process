@@ -75,7 +75,7 @@ fn main() {
         if let Some(loading) = document.get_element_by_id("loading") {
             match result {
                 Ok(_) => loading.remove(),
-                Err(e) => loading.set_inner_html(&format!("<p>Open Process failed to start: {e:?}</p>")),
+                Err(e) => loading.set_text_content(Some(&format!("Open Process failed to start: {e:?}"))),
             }
         }
     });

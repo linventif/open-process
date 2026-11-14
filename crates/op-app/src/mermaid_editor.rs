@@ -47,6 +47,7 @@ pub struct MermaidEditor {
     history: History<Diagram>,
     state: MermaidView,
     requested_source: Option<String>,
+    requested_lang: Option<op_core::i18n::Lang>,
     changed_at: f64,
     pending: Option<Job>,
     result: Option<Result<Rendered, String>>,
@@ -60,6 +61,7 @@ impl MermaidEditor {
             diagram,
             state: MermaidView::default(),
             requested_source: None,
+            requested_lang: None,
             changed_at: 0.0,
             pending: None,
             result: None,
@@ -69,17 +71,20 @@ impl MermaidEditor {
 
     fn update_preview(&mut self, ui: &Ui) {
         let now = ui.input(|i| i.time);
-        if self.requested_source.as_ref() != Some(&self.diagram.source) {
+        let language = op_core::i18n::lang();
+        if self.requested_source.as_ref() != Some(&self.diagram.source) || self.requested_lang != Some(language) {
             // Dropping a stale job terminates its web worker. Its result cannot replace this source.
             self.pending = None;
             self.result = None;
             self.requested_source = Some(self.diagram.source.clone());
+            self.requested_lang = Some(language);
             self.changed_at = now;
         }
         if self.pending.is_none() && self.result.is_none() && now - self.changed_at >= 0.3 {
             let input = serde_json::to_string(&preview::Input {
                 task: "mermaid.preview".into(),
                 source: self.diagram.source.clone(),
+                lang: language,
             })
             .unwrap();
             match Job::spawn(input, preview::compute_json, ui.ctx()) {
@@ -256,6 +261,9 @@ impl EditorBackend for MermaidEditor {
         self.history.sync(&self.diagram, false);
         self.diagram.name = name;
         self.history.sync(&self.diagram, false);
+    }
+    fn content_generation(&self) -> Option<u64> {
+        Some(self.history.generation())
     }
     fn document(&self) -> Document {
         JsonCodec::new("mermaid").encode(&self.diagram)

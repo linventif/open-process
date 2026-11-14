@@ -14,6 +14,10 @@ Desktop packaging and installation are described in the
 
 ## Create a first diagram
 
+The home screen and **New document** picker start with free drawing, relational
+database design, UML class diagrams, BPMN and UML use cases, in that order. Other
+notations follow; the home screen also offers guided workflows.
+
 1. On the home screen, choose a diagram type, such as BPMN or a Petri net.
    The **Examples** button on a type card opens sample models for that type.
 2. In a document, use **File → New…**, the tab bar's **+**, or **Ctrl/Cmd+N**
@@ -35,6 +39,8 @@ Use **File → Save** or **Ctrl/Cmd+S** to save an editable `.opx` document.
 The desktop app writes to a chosen file; the browser downloads a file, which
 must finish downloading to be available outside the browser. Subsequent browser
 saves create downloads rather than updating the original file in place.
+The browser retains the modified marker and close confirmation after starting a
+download. Verify the downloaded file before choosing **Close without saving**.
 
 Use **File → Open** or **Ctrl/Cmd+O** to reopen a saved file or import one of the
 supported formats. Files can also be dragged onto the application.

@@ -318,6 +318,52 @@ pub struct BpmnDiagram {
 }
 
 impl BpmnDiagram {
+    pub const CODEC: crate::document::JsonCodec<Self> = crate::document::JsonCodec::checked("bpmn", Self::check_storage);
+
+    /// Storage safety is separate from diagnostics for an incomplete process.
+    pub fn check_storage(&self) -> Result<(), String> {
+        let mut ids = std::collections::HashSet::new();
+        let mut insert = |id| id != 0 && id != Id::MAX && ids.insert(id);
+        let count = self.nodes.len() + self.flows.len() + self.pools.len() + self.pools.iter().map(|p| p.lanes.len()).sum::<usize>();
+        if count > 20_000 {
+            return Err(crate::i18n::tr("validation.storage_limit").into());
+        }
+        for n in &self.nodes {
+            if !insert(n.id)
+                || ![n.pos.x, n.pos.y, n.w, n.h].iter().all(|x| x.is_finite() && x.abs() <= 1_000_000.0)
+                || n.w <= 0.0
+                || n.h <= 0.0
+                || !n.cost.is_finite()
+                || !n.duration.is_finite()
+            {
+                return Err(crate::i18n::tr("validation.storage_element").into());
+            }
+        }
+        for p in &self.pools {
+            if !insert(p.id)
+                || p.lanes.is_empty()
+                || ![p.pos.x, p.pos.y, p.width, p.height()]
+                    .iter()
+                    .all(|x| x.is_finite() && x.abs() <= 1_000_000.0)
+                || p.width <= POOL_HEADER
+            {
+                return Err(crate::i18n::tr("validation.storage_element").into());
+            }
+            for l in &p.lanes {
+                if !insert(l.id) || !l.height.is_finite() || l.height <= 0.0 {
+                    return Err(crate::i18n::tr("validation.storage_element").into());
+                }
+            }
+        }
+        let nodes: std::collections::HashSet<_> = self.nodes.iter().map(|n| n.id).collect();
+        for f in &self.flows {
+            if !insert(f.id) || !nodes.contains(&f.from) || !nodes.contains(&f.to) {
+                return Err(crate::i18n::tr("validation.storage_connection").into());
+            }
+        }
+        Ok(())
+    }
+
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
@@ -336,7 +382,23 @@ impl BpmnDiagram {
             .chain(self.pools.iter().flat_map(|p| p.lanes.iter().map(|l| l.id)))
             .max()
             .unwrap_or(0);
-        self.next_id = self.next_id.max(max + 1);
+        let next = self.next_id;
+        self.next_id = self.next_id.max(max.saturating_add(1));
+        if self.next_id == Id::MAX {
+            // Imported counters near exhaustion must not overflow or reuse an identity.
+            let used: std::collections::HashSet<_> = self
+                .nodes
+                .iter()
+                .map(|n| n.id)
+                .chain(self.flows.iter().map(|f| f.id))
+                .chain(self.pools.iter().map(|p| p.id))
+                .chain(self.pools.iter().flat_map(|p| p.lanes.iter().map(|l| l.id)))
+                .collect();
+            self.next_id = (next.max(1)..Id::MAX)
+                .chain(1..next.max(1))
+                .find(|id| !used.contains(id))
+                .expect("BPMN identity space exhausted");
+        }
         let id = self.next_id;
         self.next_id += 1;
         id

@@ -3,6 +3,15 @@ use crate::editor::*;
 use op_core::document::{Document, DocumentCodec, JsonCodec, LogDocument};
 
 impl EditorBackend for MiningEditor {
+    fn thumbnail_rect(&self) -> Option<egui::Rect> {
+        // A canvas-free document uses the pane once discovery is ready. Do not
+        // persist a loading spinner as its only preview for an unchanged model.
+        if self.computed.as_ref().is_some_and(|c| c.result.is_ok()) {
+            None
+        } else {
+            Some(egui::Rect::NOTHING)
+        }
+    }
     type ViewState = ();
     fn capture_view(&self) {}
     fn restore_view(&mut self, _: &()) {}
@@ -17,6 +26,9 @@ impl EditorBackend for MiningEditor {
         self.history.sync(&self.log_document(), false);
         self.name = name;
         self.history.sync(&self.log_document(), false);
+    }
+    fn content_generation(&self) -> Option<u64> {
+        Some(self.history.generation())
     }
     fn document(&self) -> Document {
         JsonCodec::new("event-log").encode(&LogDocument {
@@ -72,10 +84,15 @@ impl EditorBackend for MiningEditor {
         vec![]
     }
     fn export(&self) -> Result<ExportData, String> {
-        let log = EventLog::parse(&self.text)?;
+        let computed = self
+            .computed
+            .as_ref()
+            .filter(|c| c.text == self.text && c.lang == op_core::i18n::lang())
+            .ok_or_else(|| tr("mining.analysis_pending").to_string())?;
+        let (log, result) = computed.result.as_ref().map_err(Clone::clone)?;
         Ok(ExportData {
             suffix: "txt",
-            bytes: alpha(&log).report(&log).into_bytes(),
+            bytes: result.report(log).into_bytes(),
         })
     }
     fn export_label(&self) -> &'static str {
@@ -88,7 +105,7 @@ use crate::theme;
 pub(crate) fn register(registry: &mut DiagramRegistry) {
     registry.diagrams.extend([DiagramDescriptor {
         id: "event-log",
-        home_order: 2,
+        home_order: 6,
         icon: crate::icons::mining,
         aliases: &["log"],
         new_label: key("mining.new_event_log_process_discovery"),

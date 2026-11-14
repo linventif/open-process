@@ -11,6 +11,12 @@ file reads it locally; saving on desktop writes a chosen file, and saving in the
 browser creates a download. The current document open/save paths do not upload
 your model to an application server.
 
+Desktop saves stage and sync a temporary file before replacing the destination.
+Browser saves report that a download was started and retain the modified marker:
+the application cannot confirm that the downloaded file reached your storage.
+Verify the file before closing the document. See the
+[save outcomes and import limits](documents-et-compatibilite.md#import-safety-and-save-outcomes).
+
 Session restoration stores the content of open documents, their view state and
 layout locally through eframe's persistence layer. Desktop sessions use local
 application storage; browser sessions use the browser's local storage for the

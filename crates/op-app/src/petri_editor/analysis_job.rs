@@ -23,42 +23,43 @@ pub(super) struct PendingAnalysis {
 
 pub(crate) fn compute_json(input: String, stop: Arc<AtomicBool>) -> Result<String, String> {
     let input: Input = serde_json::from_str(&input).map_err(|e| e.to_string())?;
-    #[cfg(target_arch = "wasm32")]
-    op_core::i18n::set_lang(input.lang);
-    let cancelled = || stop.load(Ordering::Relaxed);
-    let ss = StateSpace::explore_cancellable(&input.net, input.limit, &cancelled);
-    if cancelled() {
-        return Err("Cancelled".into());
-    }
-    let beh = BehaviouralReport::compute(&input.net, &ss);
-    let st = StructuralReport::compute(&input.net);
-    if cancelled() {
-        return Err("Cancelled".into());
-    }
-    let pinv = analysis::p_invariants(&input.net);
-    if cancelled() {
-        return Err("Cancelled".into());
-    }
-    let tinv = analysis::t_invariants(&input.net);
-    if cancelled() {
-        return Err("Cancelled".into());
-    }
-    let sound = analysis::soundness_cancellable(&input.net, input.limit, &cancelled);
-    if cancelled() {
-        return Err("Cancelled".into());
-    }
-    serde_json::to_string(&AnalysisCache {
-        net: input.net,
-        limit: input.limit,
-        lang: input.lang,
-        ss,
-        beh,
-        st,
-        pinv,
-        tinv,
-        sound,
+    op_core::i18n::with_lang(input.lang, || {
+        input.net.check_storage()?;
+        let cancelled = || stop.load(Ordering::Relaxed);
+        let ss = StateSpace::explore_cancellable(&input.net, input.limit, &cancelled);
+        if cancelled() {
+            return Err("Cancelled".into());
+        }
+        let beh = BehaviouralReport::compute(&input.net, &ss);
+        let st = StructuralReport::compute(&input.net);
+        if cancelled() {
+            return Err("Cancelled".into());
+        }
+        let pinv = analysis::p_invariants_cancellable(&input.net, &cancelled);
+        if cancelled() {
+            return Err("Cancelled".into());
+        }
+        let tinv = analysis::t_invariants_cancellable(&input.net, &cancelled);
+        if cancelled() {
+            return Err("Cancelled".into());
+        }
+        let sound = analysis::soundness_cancellable(&input.net, input.limit, &cancelled);
+        if cancelled() {
+            return Err("Cancelled".into());
+        }
+        serde_json::to_string(&AnalysisCache {
+            net: input.net,
+            limit: input.limit,
+            lang: input.lang,
+            ss,
+            beh,
+            st,
+            pinv,
+            tinv,
+            sound,
+        })
+        .map_err(|e| e.to_string())
     })
-    .map_err(|e| e.to_string())
 }
 
 impl PetriEditor {

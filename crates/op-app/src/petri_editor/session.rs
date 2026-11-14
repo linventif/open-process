@@ -104,11 +104,13 @@ impl EditorBackend for PetriEditor {
         if let Some(open) = value["graph_open"].as_bool() {
             state.graph_open = open;
         }
-        if let Ok(camera) = serde_json::from_value::<View>(value["graph_camera"].clone()) {
-            if camera.zoom.is_finite() && camera.zoom > 0.0 && camera.offset.is_finite() {
-                state.graph_view = camera;
-                state.graph_fit = false;
-            }
+        if let Ok(camera) = serde_json::from_value::<View>(value["graph_camera"].clone())
+            && camera.zoom.is_finite()
+            && camera.zoom > 0.0
+            && camera.offset.is_finite()
+        {
+            state.graph_view = camera;
+            state.graph_fit = false;
         }
         state.show_inspector = value["inspector"].as_bool();
         if let Some(tab) = value["tab"].as_u64() {
@@ -120,11 +122,13 @@ impl EditorBackend for PetriEditor {
                 _ => SideTab::Properties,
             };
         }
-        if let Ok(camera) = serde_json::from_value::<View>(value["camera"].clone()) {
-            if camera.zoom.is_finite() && camera.zoom > 0.0 && camera.offset.is_finite() {
-                state.view = camera;
-                state.fit_request = false;
-            }
+        if let Ok(camera) = serde_json::from_value::<View>(value["camera"].clone())
+            && camera.zoom.is_finite()
+            && camera.zoom > 0.0
+            && camera.offset.is_finite()
+        {
+            state.view = camera;
+            state.fit_request = false;
         }
     }
     fn kind(&self) -> &'static str {
@@ -137,6 +141,12 @@ impl EditorBackend for PetriEditor {
         self.history.sync(&self.net, false);
         self.net.name = name;
         self.history.sync(&self.net, false);
+    }
+    fn content_generation(&self) -> Option<u64> {
+        Some(self.history.generation())
+    }
+    fn validate_storage(&self) -> Result<(), String> {
+        self.net.check_storage()
     }
     fn document(&self) -> Document {
         JsonCodec::new(EditorBackend::kind(self)).encode(&self.net)
@@ -222,7 +232,7 @@ use op_core::examples;
 pub(crate) fn register(registry: &mut DiagramRegistry) {
     registry.diagrams.extend([DiagramDescriptor {
         id: "petri",
-        home_order: 1,
+        home_order: 5,
         icon: crate::icons::petri,
         aliases: &[],
         new_label: key("petri.new_petri_net"),
@@ -231,7 +241,7 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
         badge: "PETRI",
         color: theme::KIND_PETRI,
         create: |n| JsonCodec::new("petri").encode(&PetriNet::new(trf("petri.net", &[&n]))),
-        open: |d| Ok(Session::boxed(PetriEditor::new(JsonCodec::new("petri").decode(d)?))),
+        open: |d| Ok(Session::boxed(PetriEditor::new(PetriNet::CODEC.decode(d)?))),
     }]);
     registry.examples.extend([
         ExampleDescriptor {

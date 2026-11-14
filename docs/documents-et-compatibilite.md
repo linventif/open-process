@@ -93,6 +93,51 @@ Registered formats supply dialog filters. Exporters describe losses/limitations;
 PlantUML export does not imply import. Modules produce export bytes; platform
 services write files or trigger downloads.
 
+## Import safety and save outcomes
+
+Module-owned checked codecs now enforce BPMN, Petri and UML storage invariants
+before editor construction: unique/nonreserved IDs, existing endpoints, safe
+geometry and valid arc directions/weights. Incomplete business drafts, such as
+unnamed nodes or invalid UML multiplicities, remain editable. Near-exhausted
+legacy ID counters allocate unused identities without overflowing.
+
+The envelope and model versions are unchanged, as are historical fixtures.
+Previously accepted unsafe `.opx` models can now open in recovery mode, retaining
+their original bytes. BPMN/Petri/UML storage is limited to 20,000 elements and
+geometry magnitudes of 1,000,000 world units.
+
+Input files are capped at 32 MiB. Native reads and the browser file picker check
+this before reading the complete file; dropped browser data is checked at the
+import boundary. XML additionally permits at most 16 MiB, 128 nesting levels,
+100,000 elements and 128 attributes per element. Multiple roots, outside text,
+document types and unknown entities are errors.
+
+PNML normal arcs sharing endpoints are combined with checked weights; repeated
+inhibitor constraints use the smallest threshold. Invalid endpoints and weight
+overflow are errors. CSV imports support comma, semicolon and tab delimiters,
+quoted separators, doubled quotes, CRLF and quoted line breaks. Incomplete rows
+and invalid quoting are errors instead of silently altered or omitted events.
+Blank records and comments before the header are ignored.
+
+Native saves stage a temporary file beside the destination, write and sync its
+contents, then replace the destination. Basic permissions are retained and
+symbolic links continue to refer to their target. A staging failure preserves
+the previous file. Unix also syncs the containing directory: a final sync error
+is reported even if replacement already occurred. Filesystem/platform durability
+still applies; filesystem-specific metadata is outside this guarantee. Retain
+independent backups.
+
+Browser saving reports **download started**, retaining the modified marker and
+close confirmation because the app cannot confirm that the file was retained.
+Check the downloaded file before choosing **Close without saving**. Only a
+confirmed native write updates the saved reference; cancellation/failure leaves
+it unchanged.
+
+Saving rechecks typed storage invariants and the encoded size before writing an
+editable document, so it cannot overwrite a valid file with content the reader
+would reject. Recovery can still export the original bytes of an unsupported
+document. Business diagnostics that do not violate storage safety remain drafts.
+
 ## Workspace persistence
 
 Legacy RON keys `open-process-v1` and `open-process-v2` evolve separately from

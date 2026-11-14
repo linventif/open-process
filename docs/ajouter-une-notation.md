@@ -10,6 +10,11 @@ stable identifier, such as `state-machine`, and a model version. `DocumentCodec<
 defines encoding/decoding; `JsonCodec<M>` provides an initial JSON representation
 and rejects unknown model versions.
 
+Use a module-owned `JsonCodec::checked` (or a custom codec) to enforce storage
+invariants on load. Keep these distinct from business diagnostics so unfinished
+drafts remain editable. Wire the same checks to `EditorBackend::validate_storage`
+before saving; original recovery bytes remain recoverable independently.
+
 For schema changes, implement notation-owned migrations before incrementing the
 version and retain historical fixtures. Algorithms consume typed models; the JSON
 envelope is an integration/storage boundary.
@@ -26,6 +31,9 @@ Implement `EditorBackend` beside the editor. Existing adapters include
 - Produce semantic/graphical keys; geometry-derived relationships such as UML
   system containment must remain in the semantic key.
 - Group mutations in history and allow transaction cancellation.
+- Expose `content_generation` from the typed history when all persistent UI
+  mutations are observed there. Unchanged frames then skip JSON reconstruction;
+  the default `None` retains comparison behavior for other backends.
 
 `Session::boxed(editor)` supplies the application interface, view handling and
 revision tracking. Do not put the model or history into view state. A text editor

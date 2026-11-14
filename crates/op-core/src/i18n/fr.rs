@@ -69,6 +69,10 @@ pub const TABLE: &[(&str, &str)] = &[
     ("app.rename", "Renommer"),
     ("app.right_middle_drag", "Glisser (clic droit ou milieu)"),
     ("app.saved", "{} enregistré"),
+    (
+        "file.download_started",
+        "Téléchargement lancé : {}. Vérifiez que le fichier est enregistré avant de fermer ce document.",
+    ),
     ("app.scroll_zoom", "Défiler / zoomer"),
     ("app.search_diagram_types", "Rechercher un type de diagramme"),
     (
@@ -1437,4 +1441,61 @@ pub const TABLE: &[(&str, &str)] = &[
     ("workspace.unsaved", "Non enregistré"),
     ("workspace.what_would_you_like_do", "Que souhaitez-vous faire ?"),
     ("workspace.workspace", "VOTRE ESPACE DE TRAVAIL"),
+    ("mining.invalid_csv_record", "Enregistrement CSV {} invalide ou incomplet."),
+    ("mining.invalid_csv_quoting", "Guillemets CSV invalides."),
+    (
+        "petri.matrix_size_limit",
+        "Cette matrice dépasse la limite d’affichage de 100 000 cellules.",
+    ),
+    (
+        "analysis.jobs_busy",
+        "Les calculs en arrière-plan sont occupés. Réessayez dans un instant.",
+    ),
+    ("mining.analysis_pending", "Calcul des résultats de découverte…"),
+    ("file.input_limit", "Ce fichier dépasse la taille prise en charge."),
+    (
+        "mining.analysis_limit",
+        "La découverte dépasse le budget de calcul. Utilisez un journal plus petit.",
+    ),
+    (
+        "validation.storage_limit",
+        "Le document dépasse la limite d’éléments prise en charge.",
+    ),
+    (
+        "validation.storage_element",
+        "Un élément possède un identifiant, un type, une géométrie ou une valeur numérique invalide.",
+    ),
+    (
+        "validation.storage_connection",
+        "Une connexion possède des identifiants, des extrémités, une direction, un poids ou des doublons invalides.",
+    ),
+    ("validation.storage_kind", "Le type du document ne correspond pas à son contenu."),
+    (
+        "validation.weight_limit",
+        "Un poids d’arc dépasse la plage numérique prise en charge.",
+    ),
+    ("validation.duplicate_identifier", "Identifiant en double : {}."),
+    (
+        "xml.resource_limit",
+        "Le XML dépasse les limites de taille, d’imbrication, d’éléments ou d’attributs.",
+    ),
+    (
+        "xml.invalid_structure",
+        "XML invalide : une seule racine équilibrée, sans contenu extérieur, est requise.",
+    ),
+    (
+        "xml.unsupported_entity",
+        "Les types de document et les entités XML personnalisées ne sont pas pris en charge.",
+    ),
+    ("xml.invalid_reference", "Référence de caractère XML invalide."),
+    (
+        "file.not_writable",
+        "La destination d’enregistrement n’est pas un fichier accessible en écriture.",
+    ),
+    ("analysis.failed", "Le calcul en arrière-plan a échoué."),
+    ("app.build", "Build {}"),
+    (
+        "analysis.result_limit",
+        "Le résultat dépasse la taille de transfert prise en charge. Réduisez la limite d’analyse.",
+    ),
 ];

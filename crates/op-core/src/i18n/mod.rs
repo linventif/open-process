@@ -64,8 +64,27 @@ impl Lang {
 
 static LANG: AtomicU8 = AtomicU8::new(0);
 
+thread_local! {
+    static SCOPED_LANG: std::cell::Cell<Option<Lang>> = const { std::cell::Cell::new(None) };
+}
+
+/// A calculation uses its captured language without changing another thread's UI.
+pub fn with_lang<T>(language: Lang, calculate: impl FnOnce() -> T) -> T {
+    struct Restore(Option<Lang>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            SCOPED_LANG.with(|lang| lang.set(self.0));
+        }
+    }
+    let _restore = Restore(SCOPED_LANG.with(|lang| lang.replace(Some(language))));
+    calculate()
+}
+
 /// Current user-interface language.
 pub fn lang() -> Lang {
+    if let Some(language) = SCOPED_LANG.with(|lang| lang.get()) {
+        return language;
+    }
     match LANG.load(Ordering::Relaxed) {
         1 => Lang::Fr,
         2 => Lang::Es,
@@ -182,6 +201,19 @@ pub fn placeholders(template: &str) -> Vec<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn calculation_language_is_scoped_and_restored_after_nested_calls_or_panics() {
+        let previous = lang();
+        with_lang(Lang::Fr, || {
+            assert_eq!(lang(), Lang::Fr);
+            assert_eq!(with_lang(Lang::Es, lang), Lang::Es);
+            assert_eq!(lang(), Lang::Fr);
+            assert!(std::panic::catch_unwind(|| with_lang(Lang::En, || panic!("test"))).is_err());
+            assert_eq!(lang(), Lang::Fr);
+        });
+        assert_eq!(lang(), previous);
+    }
 
     #[test]
     fn fill_placeholders() {

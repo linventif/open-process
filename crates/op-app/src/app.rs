@@ -130,7 +130,7 @@ impl OpenProcessApp {
         }
         for f in files {
             #[cfg(not(target_arch = "wasm32"))]
-            match std::fs::read(&f) {
+            match io::read_file(&f) {
                 Ok(bytes) => app.io.push((f, bytes)),
                 Err(e) => app.message = Some((trf("file.open_failed", &[&f, &e]), true)),
             }
@@ -209,6 +209,10 @@ impl OpenProcessApp {
     }
 
     fn load_bytes(&mut self, name: String, bytes: &[u8]) {
+        if bytes.len() > op_core::document::MAX_DOCUMENT_BYTES {
+            self.message = Some((trf("file.open_failed", &[&io::file_name(&name), &tr("file.input_limit")]), true));
+            return;
+        }
         let native = name.to_lowercase().ends_with(".opx")
             || name.to_lowercase().ends_with(".json")
             || serde_json::from_slice::<serde_json::Value>(bytes).is_ok_and(|v| v["format"] == "open-process");
@@ -242,16 +246,24 @@ impl OpenProcessApp {
 
     fn save(&mut self, save_as: bool) -> bool {
         let Some(doc) = self.docs.get_mut(self.active) else { return false };
+        if let Err(error) = doc.editor.validate_storage() {
+            self.message = Some((trf("file.save_failed", &[&error]), true));
+            return false;
+        }
         let state = doc.snapshot();
         let data = state.bytes();
+        if matches!(&state, StoredDocument::Editable(_)) && data.len() > op_core::document::MAX_DOCUMENT_BYTES {
+            self.message = Some((trf("file.save_failed", &[&tr("file.input_limit")]), true));
+            return false;
+        }
         let result = match (&doc.path, save_as, cfg!(target_arch = "wasm32")) {
-            (Some(path), false, false) => io::write_path(path, &data).map(|_| Some(path.clone())),
+            (Some(path), false, false) => io::write_path(path, &data).map(|_| Some(io::SaveOutcome::Written(path.clone()))),
             _ => io::save_file(&format!("{}.opx", doc.file_stem()), &data),
         };
         match doc.complete_save(state, result) {
-            Ok(Some(path)) => {
-                self.message = Some((trf("app.saved", &[&io::file_name(&path)]), false));
-                true
+            Ok(Some(outcome)) => {
+                self.message = Some((outcome.message(op_core::i18n::key("app.saved")), false));
+                matches!(outcome, io::SaveOutcome::Written(_))
             }
             Ok(None) => false,
             Err(e) => {
@@ -272,7 +284,7 @@ impl OpenProcessApp {
         };
         let name = format!("{}.{}", doc.file_stem(), data.suffix);
         match io::save_file(&name, &data.bytes) {
-            Ok(Some(p)) => self.message = Some((trf("app.exported", &[&io::file_name(&p)]), false)),
+            Ok(Some(outcome)) => self.message = Some((outcome.message(op_core::i18n::key("app.exported")), false)),
             Ok(None) => {}
             Err(e) => self.message = Some((trf("file.export_failed", &[&e]), true)),
         }
@@ -453,7 +465,7 @@ impl OpenProcessApp {
         for f in dropped {
             let name = f.path().display().to_string();
             #[cfg(not(target_arch = "wasm32"))]
-            match f.bytes() {
+            match io::read_file(f.path()) {
                 Ok(b) => self.io.push((name, b)),
                 Err(e) => self.message = Some((trf("file.read_failed", &[&name, &e]), true)),
             }
@@ -595,22 +607,22 @@ impl OpenProcessApp {
                 }
                 ui.separator();
                 let active = self.docs.get(self.active).map(|d| (d.uid, d.editor.views()));
-                if let Some((uid, views)) = active {
-                    if !views.is_empty() {
-                        ui.menu_button(tr("app.open_beside"), |ui| {
-                            for view in views {
-                                if ui.button(tr(view.label)).clicked() {
-                                    self.open_beside(
-                                        Pane {
-                                            doc: uid,
-                                            view: View::from(view.id),
-                                        },
-                                        false,
-                                    );
-                                }
+                if let Some((uid, views)) = active
+                    && !views.is_empty()
+                {
+                    ui.menu_button(tr("app.open_beside"), |ui| {
+                        for view in views {
+                            if ui.button(tr(view.label)).clicked() {
+                                self.open_beside(
+                                    Pane {
+                                        doc: uid,
+                                        view: View::from(view.id),
+                                    },
+                                    false,
+                                );
                             }
-                        });
-                    }
+                        }
+                    });
                 }
                 ui.menu_button(tr("app.show_document_beside"), |ui| {
                     let others: Vec<(u64, String)> = self
@@ -682,6 +694,7 @@ impl OpenProcessApp {
                         ui.heading("Open Process");
                     });
                     ui.label(trf("app.version", &[&(env!("CARGO_PKG_VERSION"))]));
+                    ui.label(trf("app.build", &[&env!("OP_BUILD_ID")]));
                     ui.label(tr("app.free_open_source_process_modelling_analysis_bpmn"));
                     ui.label(tr("app.written_rust_egui_runs_natively_windows_macos"));
                     ui.label(tr("app.license_mit_apache_2_0"));
@@ -1021,6 +1034,9 @@ impl eframe::App for OpenProcessApp {
         let preview_was_blocked = self.thumbnail_capture_blocked(ui.ctx());
         for (name, bytes) in self.io.poll() {
             self.load_bytes(name, &bytes);
+        }
+        for error in self.io.poll_errors() {
+            self.message = Some((error, true));
         }
         match io::poll_png_export(ui.ctx()) {
             Some(Ok(msg)) if !msg.is_empty() => self.message = Some((msg, false)),

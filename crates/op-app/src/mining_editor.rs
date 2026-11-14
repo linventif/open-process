@@ -1,5 +1,6 @@
 //! Process discovery: event log → relation matrix → Alpha algorithm → Petri net → BPMN.
 
+pub(crate) mod analysis_job;
 mod results;
 mod session;
 pub(crate) use session::register;
@@ -8,12 +9,12 @@ use crate::canvas::Palette;
 use crate::petri_editor::PetriEditor;
 use crate::theme;
 use egui::{Color32, RichText, Ui};
-use op_core::analysis::{Soundness, soundness};
+use op_core::analysis::Soundness;
 use op_core::answers::{self as ans, RelationList, Step, Verdict};
 use op_core::bpmn::BpmnDiagram;
 use op_core::convert;
 use op_core::i18n::{key, tr, trf};
-use op_core::mining::{AlphaResult, EventLog, Relation, alpha, replay};
+use op_core::mining::{AlphaResult, EventLog, Relation, replay};
 use op_core::petri::PetriNet;
 use std::collections::BTreeMap;
 
@@ -22,8 +23,10 @@ pub enum MiningAction {
     OpenBpmn(BpmnDiagram),
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
 struct Computed {
     text: String,
+    lang: op_core::i18n::Lang,
     result: Result<(EventLog, AlphaResult), String>,
     soundness: Option<Soundness>,
 }
@@ -46,6 +49,7 @@ pub struct MiningEditor {
     pub answers: BTreeMap<String, String>,
     manual_ui: ManualUi,
     computed: Option<Computed>,
+    pending: Option<(String, op_core::i18n::Lang, crate::platform::jobs::Job)>,
     preview: Option<PetriEditor>,
     pub action: Option<MiningAction>,
     matrix_rect: egui::Rect,
@@ -71,6 +75,7 @@ impl MiningEditor {
             answers: doc.answers,
             manual_ui: ManualUi::default(),
             computed: None,
+            pending: None,
             preview: None,
             action: None,
             matrix_rect: egui::Rect::NOTHING,
@@ -78,28 +83,62 @@ impl MiningEditor {
         }
     }
 
-    fn recompute(&mut self) {
-        if self.computed.as_ref().is_some_and(|c| c.text == self.text) {
+    fn recompute(&mut self, ui: &Ui) {
+        let language = op_core::i18n::lang();
+        if self.computed.as_ref().is_some_and(|c| c.text == self.text && c.lang == language) {
             return;
         }
-        let result = EventLog::parse(&self.text).and_then(|log| {
-            if log.traces.is_empty() {
-                return Err(tr("mining.no_trace_found").to_string());
+        if self
+            .pending
+            .as_ref()
+            .is_none_or(|(text, lang, _)| *text != self.text || *lang != language)
+        {
+            self.pending = None;
+            self.computed = None;
+            self.preview = None;
+            let input = serde_json::to_string(&analysis_job::Input {
+                task: "mining.discovery".into(),
+                text: self.text.clone(),
+                lang: language,
+            })
+            .unwrap();
+            match crate::platform::jobs::Job::spawn(input, analysis_job::compute_json, ui.ctx()) {
+                Ok(job) => self.pending = Some((self.text.clone(), language, job)),
+                Err(error) => {
+                    self.computed = Some(Computed {
+                        text: self.text.clone(),
+                        lang: language,
+                        result: Err(error),
+                        soundness: None,
+                    })
+                }
             }
-            let r = alpha(&log);
-            Ok((log, r))
-        });
-        self.preview = result.as_ref().ok().map(|(_, r)| PetriEditor::new(r.net.clone()));
-        let sound = result.as_ref().ok().map(|(_, r)| soundness(&r.net, 20_000));
-        self.computed = Some(Computed {
-            text: self.text.clone(),
-            result,
-            soundness: sound,
-        });
+        }
+        if let Some(result) = self.pending.as_mut().and_then(|(_, _, job)| job.poll()) {
+            self.pending = None;
+            self.computed = Some(
+                result
+                    .and_then(|raw| serde_json::from_str::<Computed>(&raw).map_err(|e| e.to_string()))
+                    .unwrap_or_else(|error| Computed {
+                        text: self.text.clone(),
+                        lang: language,
+                        result: Err(error),
+                        soundness: None,
+                    }),
+            );
+            self.preview = self
+                .computed
+                .as_ref()
+                .and_then(|c| c.result.as_ref().ok())
+                .map(|(_, r)| PetriEditor::new(r.net.clone()));
+        }
+        if self.pending.is_some() {
+            ui.ctx().request_repaint_after(std::time::Duration::from_millis(50));
+        }
     }
 
     pub fn ui(&mut self, ui: &mut Ui) {
-        self.recompute();
+        self.recompute(ui);
         let panel = ui.visuals().panel_fill;
         egui::Panel::left("log_input")
             .resizable(true)
@@ -154,6 +193,7 @@ impl MiningEditor {
         self.manual = doc.manual;
         self.answers = doc.answers;
         self.computed = None;
+        self.pending = None;
         self.preview = None;
         self.manual_ui = ManualUi::default();
     }

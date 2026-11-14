@@ -8,6 +8,7 @@ mod envelope;
 pub use envelope::{Document, DocumentCodec, JsonCodec, ReadError};
 
 pub const EXTENSION: &str = "opx";
+pub const MAX_DOCUMENT_BYTES: usize = 32 * 1024 * 1024;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "model")]
@@ -48,12 +49,16 @@ impl Model {
 
     pub fn from_document(d: &Document) -> Result<Self, ReadError> {
         match d.kind.as_str() {
-            "bpmn" => JsonCodec::new("bpmn").decode(d).map(Self::Bpmn),
-            "petri" => JsonCodec::new("petri").decode(d).map(Self::Petri),
+            "bpmn" => BpmnDiagram::CODEC.decode(d).map(Self::Bpmn),
+            "petri" => PetriNet::CODEC.decode(d).map(Self::Petri),
             "event-log" => JsonCodec::new("event-log").decode(d).map(Self::Log),
-            "uml.class" | "uml.use-case" => JsonCodec::new(if d.kind == "uml.class" { "uml.class" } else { "uml.use-case" })
-                .decode(d)
-                .map(Self::Uml),
+            "uml.class" | "uml.use-case" => crate::uml::UmlDiagram::codec(if d.kind == "uml.class" {
+                crate::uml::DiagramKind::Class
+            } else {
+                crate::uml::DiagramKind::UseCase
+            })
+            .decode(d)
+            .map(Self::Uml),
             kind => Err(ReadError::Unsupported(format!("Unknown document kind: {kind}"))),
         }
     }
@@ -87,6 +92,9 @@ pub fn to_json(model: &Model) -> String {
 /// Loads any supported file by sniffing its content:
 /// Open Process JSON, BPMN 2.0 XML, PNML, XES event logs, or plain-text / CSV event logs.
 pub fn load_any(bytes: &[u8]) -> Result<Model, String> {
+    if bytes.len() > MAX_DOCUMENT_BYTES {
+        return Err(crate::i18n::tr("file.input_limit").into());
+    }
     let text = String::from_utf8_lossy(bytes);
     let trimmed = text.trim_start_matches('\u{feff}').trim_start();
     if trimmed.starts_with('{') {

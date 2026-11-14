@@ -44,8 +44,10 @@ requests keep behavior easier to follow than an untyped global event bus.
 
 Existing history provides a simple foundation. The first improvement is defining
 action boundaries and tracking mutations rather than inverse commands per
-operation. Snapshots use memory for large documents; optimize from representative
-measurements.
+operation. Snapshots retain a 200-step and estimated 64 MiB undo/redo budget per
+document.
+Mutation generations skip JSON reconstruction on unchanged frames. Whole-process
+memory and history deltas still require representative measurements.
 
 ## D7 — Separate the document envelope from domain content
 
@@ -57,16 +59,17 @@ Compatibility tests must precede changing the writer. See
 ## D8 — Decouple heavy computation from the UI after the pilot
 
 Domain functions stay synchronous and testable; platform-specific services manage
-execution. This avoids spreading async code throughout models. The Petri pilot
-uses a native thread and a Web Worker loading the app's Wasm, without an additional
-job library.
+execution. This avoids spreading async code throughout models. Petri, mining,
+BPMN evaluation and Mermaid now share a
+bounded native pool or Web Worker loading the app's Wasm. Cancellation, numeric
+limits and transfer limits apply without an additional job library.
 
 ## Follow-up considerations
 
 - Contracts are exercised by UML, BPMN, Petri and Mining.
 - Refine text and matrix-cell transaction granularity as needed.
 - View states are typed and separately persisted; command IDs are explicit.
-- Extend browser background jobs to other analyses when justified.
+- Measure the expanded worker transport on representative native/web workloads.
 - Measure history memory budgets on representative documents.
 
 Further optimizations, including history deltas, remain measurement-driven.
