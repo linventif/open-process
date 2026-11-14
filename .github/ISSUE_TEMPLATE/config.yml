@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Help and usage questions
+    url: https://github.com/linventif/open-process/blob/main/SUPPORT.md
+    about: Read the support guide; usage questions can be opened as blank issues.
+  - name: Report a security vulnerability privately
+    url: https://github.com/linventif/open-process/blob/main/SECURITY.md
+    about: Use the private contact in the security policy rather than a public issue.

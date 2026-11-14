@@ -1,0 +1,34 @@
+name: Feature request
+description: Describe a use case and the improvement you would like.
+title: "[Feature] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        English and French are welcome. Check existing issues and the
+        [roadmap](https://github.com/linventif/open-process#roadmap) first.
+        Suggestions are discussed before being scheduled; there is no delivery commitment.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: Who needs this, what are they trying to do, and what is difficult today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe a concrete example and how you would know the improvement works.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and workarounds
+      description: Optional. Mention existing ways to solve the problem.
+  - type: textarea
+    id: context
+    attributes:
+      label: Examples and scope
+      description: Optional. Include notation, native/browser needs, relevant standards or synthetic models. Attachments are public.
