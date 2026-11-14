@@ -1,6 +1,7 @@
 ---
-import { messages, languages, languageNames, languagePaths, type Language } from "../lib/messages";
-import LanguageFlag from "./LanguageFlag.astro";
+import { messages, type Language } from "../lib/messages";
+import LanguageMenu from "./LanguageMenu.astro";
+import SiteFooter from "./SiteFooter.astro";
 import { cloudApp, repository } from "../lib/site";
 interface Props { lang: Language }
 const { lang } = Astro.props;
@@ -46,12 +47,7 @@ const catalogue = [
         <a href="https://github.com/linventif/open-process" class="nav-github">GitHub <span aria-hidden="true">↗</span></a>
       </nav>
       <div class="header-actions">
-        <details class="language-dropdown" id="language-dropdown">
-          <summary class="language-toggle" aria-label={t.language}><LanguageFlag lang={lang} /><span>{lang.toUpperCase()}</span><span class="language-chevron" aria-hidden="true">▾</span></summary>
-          <ul class="language-options">
-            {languages.map(language => <li><a href={languagePaths[language]} hreflang={language} lang={language} aria-current={language === lang ? "page" : undefined}><span class="language-option-name"><LanguageFlag lang={language} /><span>{languageNames[language]}</span></span>{language === lang && <span aria-hidden="true">✓</span>}</a></li>)}
-          </ul>
-        </details>
+        <LanguageMenu lang={lang} />
         <a class="button button-small button-dark" href={appPath}><span>{t.getApp}</span><span aria-hidden="true">↗</span></a>
       </div>
     </div>
@@ -148,7 +144,7 @@ git clone https://github.com/linventif/open-process.git
 cd open-process
 <span class="code-accent">cargo run --release</span></code></pre><a href="https://github.com/linventif/open-process#build-and-run">{t.buildInstructions}</a></div></section>
   </main>
-  <footer class="container site-footer"><a class="brand" href="#"><img src="/assets/logo.svg" width="35" height="35" alt=""><span>Open Process<span class="brand-dot">.</span></span></a><p>{t.footerText}</p><a href="https://github.com/linventif/open-process" class="mono">GITHUB ↗</a><span class="mono">MIT / APACHE 2.0</span></footer>
+  <SiteFooter lang={lang} />
 
   <dialog id="preview-dialog" aria-labelledby="dialog-caption"><div class="dialog-toolbar"><p id="dialog-caption">{firstPreview.caption}</p><button id="close-preview" type="button" aria-label={t.closeLabel}>×</button></div><img id="dialog-image" src={`/assets/${firstPreview.id}.webp`} width="1400" height="860" alt={firstPreview.alt} loading="lazy"></dialog>
 <script>import "../scripts/site";</script>

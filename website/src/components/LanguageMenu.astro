@@ -1,0 +1,27 @@
+---
+import { messages, languages, languageNames, localizedPath, type Language, type LegalPage } from "../lib/messages";
+import LanguageFlag from "./LanguageFlag.astro";
+
+interface Props { lang: Language; page?: LegalPage }
+const { lang, page } = Astro.props;
+---
+<details class="language-dropdown" id="language-dropdown">
+  <summary class="language-toggle" aria-label={messages[lang].language}><LanguageFlag lang={lang} /><span>{lang.toUpperCase()}</span><span class="language-chevron" aria-hidden="true">▾</span></summary>
+  <ul class="language-options">
+    {languages.map(language => <li><a href={localizedPath(language, page)} hreflang={language} lang={language} aria-current={language === lang ? "page" : undefined}><span class="language-option-name"><LanguageFlag lang={language} /><span>{languageNames[language]}</span></span>{language === lang && <span aria-hidden="true">✓</span>}</a></li>)}
+  </ul>
+</details>
+<script>
+  const dropdown = document.querySelector<HTMLDetailsElement>("#language-dropdown");
+  if (dropdown) {
+    document.addEventListener("click", (event) => {
+      if (event.target instanceof Node && !dropdown.contains(event.target)) dropdown.open = false;
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && dropdown.open) {
+        dropdown.open = false;
+        dropdown.querySelector("summary")?.focus();
+      }
+    });
+  }
+</script>

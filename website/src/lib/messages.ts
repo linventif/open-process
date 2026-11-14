@@ -456,3 +456,9 @@ export const languages = ["en", "fr", "es"] as const satisfies readonly Language
 export const languageNames: Record<Language, string> = { en: "English", fr: "Français", es: "Español" };
 export const languagePaths: Record<Language, string> = { en: "/", fr: "/fr/", es: "/es/" };
 export const languageLocales: Record<Language, string> = { en: "en_GB", fr: "fr_FR", es: "es_ES" };
+
+export type LegalPage = "terms" | "privacy";
+
+export function localizedPath(language: Language, page?: LegalPage): string {
+  return `${languagePaths[language]}${page ? `${page}/` : ""}`;
+}

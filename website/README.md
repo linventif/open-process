@@ -91,6 +91,41 @@ in `src/scripts/site.ts`. `public/assets/` contains the logo, screenshots and fo
 licenses. `_headers` separates presentation-site policy from the app's WebAssembly
 and generated scripts.
 
+### Terms and privacy
+
+The shared footer links to `/terms/` and `/privacy/`, with French and Spanish
+versions under `/fr/` and `/es/`. Each page has its own canonical URL, translated
+alternates, `WebPage` metadata and sitemap entry. The shared language menu keeps
+the current legal page when changing languages, and works without JavaScript.
+Legal pages use the presentation CSP and do not load the home page's release
+lookup or screenshot scripts.
+
+Publisher details are centralized in `src/lib/site.ts`: **Linventif**,
+<contact@open-process.linv.dev> and the public GitHub profile. No personal name,
+company registration or postal address has been supplied or inferred.
+`src/lib/legal.ts` contains the typed English/French/Spanish content and its
+explicit revision date. Update all three translations when practices change.
+
+The terms preserve the MIT/Apache software licenses. Privacy content follows the
+[implemented storage and network behavior](../docs/data-and-storage.md), covers
+local deletion, Cloudflare hosting, GitHub release requests, correspondence and
+data protection rights, and links to provider policies. Hosting logs, optional
+hosting analytics, retention settings and transfer configuration have not been
+audited; the page does not claim they are absent or invent a retention period.
+The [CNIL information guidance](https://www.cnil.fr/fr/conformite-rgpd-information-des-personnes-et-transparence)
+was consulted for the notice structure. These pages do not establish an audit or
+certification of the production service's legal compliance.
+
+Commit-time validation: `bun run build` passed, including Astro checks with no
+diagnostics and the Trunk release build of the WebAssembly app. All nine Bun
+tests passed against the combined output. Generated HTML checks covered the six
+legal routes, canonical/alternate URLs, metadata, sitemap entries, CSP routes,
+scripts and 198 local links, assets and section anchors, plus localized home-page
+footer links. Earlier interactive Firefox verification could not start because
+automatic permission review for the temporary local server/browser run timed
+out. No new browser session was run, and no visual or interactive browser result
+is claimed.
+
 The presentation covers the eleven registered document types and the BPMN
 cost/duration workflow, in home-screen order. Cards link to the corresponding
 repository guides. Keep feature descriptions within the implemented scope in

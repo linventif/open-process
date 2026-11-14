@@ -1,16 +1,24 @@
 ---
-import { messages, languages, languagePaths, languageLocales, type Language } from "../lib/messages";
+import { messages, languages, localizedPath, languageLocales, type Language, type LegalPage } from "../lib/messages";
 import { cloudApp, repository } from "../lib/site";
 import { isPreview } from "../lib/deployment";
 import "../styles/global.css";
 
-interface Props { lang: Language; title?: string; description?: string; noindex?: boolean }
-const { lang, title = messages[lang].title, description = messages[lang].description, noindex = false } = Astro.props;
+interface Props { lang: Language; page?: LegalPage; title?: string; description?: string; noindex?: boolean }
+const { lang, page, title = messages[lang].title, description = messages[lang].description, noindex = false } = Astro.props;
 const site = Astro.site!;
-const canonical = new URL(languagePaths[lang], site);
+const canonical = new URL(localizedPath(lang, page), site);
 const image = new URL("/assets/bpmn.webp", site);
 const robots = noindex || isPreview ? "noindex, nofollow" : "index, follow, max-image-preview:large";
-const structuredData = {
+const structuredData = page ? {
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  name: title,
+  url: canonical.href,
+  description,
+  inLanguage: lang,
+  isPartOf: { "@type": "WebSite", name: "Open Process", url: site.href },
+} : {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   name: "Open Process",
@@ -45,8 +53,8 @@ const structuredData = {
     <meta name="robots" content={robots} />
     {!noindex && <>
       <link rel="canonical" href={canonical} />
-      {languages.map(language => <link rel="alternate" hreflang={language} href={new URL(languagePaths[language], site)} />)}
-      <link rel="alternate" hreflang="x-default" href={new URL("/", site)} />
+      {languages.map(language => <link rel="alternate" hreflang={language} href={new URL(localizedPath(language, page), site)} />)}
+      <link rel="alternate" hreflang="x-default" href={new URL(localizedPath("en", page), site)} />
     </>}
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Open Process" />

@@ -1,0 +1,19 @@
+---
+import { messages, localizedPath, type Language, type LegalPage } from "../lib/messages";
+import { legalMessages } from "../lib/legal";
+import { repository } from "../lib/site";
+
+interface Props { lang: Language; page?: LegalPage }
+const { lang, page } = Astro.props;
+const t = legalMessages[lang];
+---
+<footer class="container site-footer">
+  <a class="brand" href={localizedPath(lang)}><img src="/assets/logo.svg" width="35" height="35" alt=""><span>Open Process<span class="brand-dot">.</span></span></a>
+  <p>{messages[lang].footerText}</p>
+  <nav class="footer-links" aria-label={t.navigation}>
+    <a href={localizedPath(lang, "terms")} aria-current={page === "terms" ? "page" : undefined}>{t.termsLabel}</a>
+    <a href={localizedPath(lang, "privacy")} aria-current={page === "privacy" ? "page" : undefined}>{t.privacyLabel}</a>
+    <a href={repository}>GitHub <span aria-hidden="true">↗</span></a>
+  </nav>
+  <span class="mono">MIT / APACHE 2.0</span>
+</footer>
