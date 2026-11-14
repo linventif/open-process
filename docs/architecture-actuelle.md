@@ -1,212 +1,181 @@
-# Architecture actuelle
+# Current architecture
 
-**Statut : architecture modulaire implémentée après validation du plan.**
+**Status: modular architecture implemented following approval of the design.**
 
-La [cible](architecture-cible.md) décrit les principes ; cette page donne les
-chemins réellement utilisés. Les changements locaux UML, accueil et identité
-visuelle déjà présents ont été conservés pendant la migration.
+The [target architecture](architecture-cible.md) records the principles; this page
+identifies actual code paths. Existing local UML, home-screen and branding work
+was preserved during the migration.
 
-## Organisation
+## Organization
 
-Le workspace conserve deux crates : `op-core` pour le métier indépendant d'egui,
-`op-app` pour l'application native/WebAssembly. `website/` assemble la vitrine
-Astro et l'application web sous `/app/`.
+The workspace keeps two crates: `op-core` for UI-independent domain code and
+`op-app` for the native/WebAssembly application. `website/` assembles the
+presentation site and web app under `/app/`.
 
 ```mermaid
 flowchart TD
-    Composition["composition.rs"] --> Modules["Modules BPMN, Petri, UML, Mining"]
-    Composition --> Shell["app.rs : cycle de vie, menus, docking"]
-    Shell --> Contracts["editor/ : registre, sessions, commandes, vues"]
+    Composition["composition.rs"] --> Modules["Notation modules"]
+    Composition --> Shell["app.rs: lifecycle, menus, docking"]
+    Shell --> Contracts["editor/: registry, sessions, commands, views"]
     Modules --> Contracts
-    Modules --> Layout["editor/layout.rs : layout graphique commun"]
-    Layout --> Canvas["canvas.rs et history.rs"]
+    Modules --> Layout["editor/layout.rs: shared graphical layout"]
+    Layout --> Canvas["canvas.rs and history.rs"]
     Modules --> Canvas
-    Modules --> Core["op-core : modèles typés, codecs, règles"]
-    Shell --> Platform["Fichiers et persistance"]
-    Modules --> Jobs["platform/jobs.rs : thread ou Web Worker"]
+    Modules --> Core["op-core: typed models, codecs, rules"]
+    Shell --> Platform["Files and persistence"]
+    Modules --> Jobs["platform/jobs.rs: thread or Web Worker"]
 ```
 
-## Points d'entrée
+## Entry points
 
-| Responsabilité | Implémentation |
+| Responsibility | Implementation |
 | --- | --- |
-| Enregistrement statique | [composition.rs](../crates/op-app/src/composition.rs) appelle les fonctions `register` des modules. |
-| Descripteurs, fabriques et imports | [editor/registry.rs](../crates/op-app/src/editor/registry.rs). Le registre est injecté dans l'application. |
-| Layout graphique commun | [editor/layout.rs](../crates/op-app/src/editor/layout.rs) : configuration, inspecteur, onglets, actions spécifiques et canvas. |
-| Session commune et états de vues typés | [editor/session.rs](../crates/op-app/src/editor/session.rs). |
-| Nom, destination, état sauvegardé et récupération | [editor/document.rs](../crates/op-app/src/editor/document.rs). |
-| Menus, événements et disposition | [app.rs](../crates/op-app/src/app.rs), [home.rs](../crates/op-app/src/home.rs), [dock.rs](../crates/op-app/src/dock.rs). |
-| Adaptateurs métier/UI | [BPMN](../crates/op-app/src/bpmn_editor/session.rs), [Petri](../crates/op-app/src/petri_editor/session.rs), [UML](../crates/op-app/src/uml_editor/session.rs), [Mining](../crates/op-app/src/mining_editor/session.rs). |
-| Nouvelles notations | [DMN](../crates/op-app/src/dmn_editor.rs) et [graphes EPC/activité](../crates/op-app/src/flow_editor.rs). |
-| Schéma relationnel et DDL | [database.rs](../crates/op-core/src/database.rs), [générateurs SQL](../crates/op-core/src/database/ddl.rs), [éditeur](../crates/op-app/src/database_editor.rs). |
-| Dessin libre | [modèle typé](../crates/op-core/src/whiteboard.rs), [éditeur](../crates/op-app/src/whiteboard_editor.rs), [session](../crates/op-app/src/whiteboard_editor/session.rs). |
+| Static registration | [composition.rs](../crates/op-app/src/composition.rs) calls each module's `register` function. |
+| Descriptors, factories and imports | [editor/registry.rs](../crates/op-app/src/editor/registry.rs); the registry is injected into the app. |
+| Shared graphical layout | [editor/layout.rs](../crates/op-app/src/editor/layout.rs): configuration, inspector, tabs, notation actions and canvas. |
+| Common session and typed view states | [editor/session.rs](../crates/op-app/src/editor/session.rs). |
+| Name, destination, saved state and recovery | [editor/document.rs](../crates/op-app/src/editor/document.rs). |
+| Menus, events and docking | [app.rs](../crates/op-app/src/app.rs), [home.rs](../crates/op-app/src/home.rs), [dock.rs](../crates/op-app/src/dock.rs). |
+| Domain/UI adapters | [BPMN](../crates/op-app/src/bpmn_editor/session.rs), [Petri](../crates/op-app/src/petri_editor/session.rs), [UML](../crates/op-app/src/uml_editor/session.rs), [Mining](../crates/op-app/src/mining_editor/session.rs). |
+| Decision tables and flow editors | [DMN](../crates/op-app/src/dmn_editor.rs), [EPC/activities](../crates/op-app/src/flow_editor.rs). |
+| Relational schemas and DDL | [Model](../crates/op-core/src/database.rs), [SQL generation](../crates/op-core/src/database/ddl.rs), [editor](../crates/op-app/src/database_editor.rs). |
+| Free drawing | [Model](../crates/op-core/src/whiteboard.rs), [editor](../crates/op-app/src/whiteboard_editor.rs), [session](../crates/op-app/src/whiteboard_editor/session.rs). |
 | Mermaid | [Model/SVG](../crates/op-core/src/mermaid.rs), [editor](../crates/op-app/src/mermaid_editor.rs), [preview job](../crates/op-app/src/mermaid_editor/preview.rs). |
 | UML class ↔ Mermaid conversion | [Typed conversion](../crates/op-core/src/mermaid/conversion.rs), commands owned by the UML and Mermaid editor adapters; [features and limits](mermaid.md#converting-uml-class-diagrams). |
-| Enveloppe et codecs typés | [document/envelope.rs](../crates/op-core/src/document/envelope.rs). |
-| Reprise des sessions | [platform/persistence.rs](../crates/op-app/src/platform/persistence.rs). |
-| Exécution des tâches | [platform/jobs.rs](../crates/op-app/src/platform/jobs.rs), [tâche Petri](../crates/op-app/src/petri_editor/analysis_job.rs), [worker](../crates/op-app/analysis-worker.js). |
+| Envelope and typed codecs | [document/envelope.rs](../crates/op-core/src/document/envelope.rs). |
+| Session restoration | [platform/persistence.rs](../crates/op-app/src/platform/persistence.rs). |
+| Background execution | [Jobs](../crates/op-app/src/platform/jobs.rs), [Petri task](../crates/op-app/src/petri_editor/analysis_job.rs), [worker](../crates/op-app/analysis-worker.js). |
 
-## Documents et vues
+## Documents and views
 
-Le shell possède des `Doc` contenant un `Box<dyn EditorSession>`. L'ancienne enum
-`Editor` n'est plus utilisée. Chaque adaptateur fournit le nom, les commandes,
-les exports et les vues de sa notation, et conserve son modèle Rust concret.
+The shell owns `Doc` values containing a `Box<dyn EditorSession>`. The former
+`Editor` enum is no longer used. Each adapter supplies its name, commands,
+exports and views while retaining a concrete Rust model.
 
-Le sélecteur de création commun se trouve dans
-[`app/new_document.rs`](../crates/op-app/src/app/new_document.rs). Il consomme
-les descripteurs du registre et réutilise la grille de cartes de `home.rs`.
-File, le bouton d’onglets et le raccourci clavier partagent ce sélecteur ; le
-shell ne possède pas une deuxième liste de notations. Les exports déclarés par
-chaque session sont présentés dans un sous-menu File → Export.
-Chaque carte de type de diagramme porte un bouton **Exemples**, dans l’accueil
-comme dans le sélecteur. Son menu utilise le champ `ExampleDescriptor::kind`
-pour proposer uniquement les exemples de ce type ; le registre valide ce lien
-vers un identifiant canonique de diagramme. Les fabriques d’exemples ne sont
-appelées qu’au choix d’un exemple. Celui-ci ferme le sélecteur et s’ouvre dans le
-groupe d’onglets à l’origine de l’action, comme un document vierge.
+The common creation picker in
+[app/new_document.rs](../crates/op-app/src/app/new_document.rs) consumes registry
+descriptors and reuses the home-screen card grid. **File → New…**, the tab bar's
+**+** and the keyboard shortcut open that picker. The shell has no second
+notation list. Session declarations populate **File → Export**.
 
-Les descripteurs de diagrammes et de workflows portent une fonction `icon`.
-Les modules choisissent un pictogramme dans `icons.rs`, puis l’accueil et le
-sélecteur l’affichent sans déduire la notation de sa position. Ce module UI
-contient également le curseur de sélection commun aux éditeurs graphiques.
+Each document card has an **Examples** button. `ExampleDescriptor::kind` filters
+its menu by canonical document type, and registry validation checks those
+references. Factories run only when an example is selected. Selection closes the
+picker and opens the example in the originating tab group, like a blank document.
 
-L’accueil place **Reprendre votre travail** avant les cartes de création. Les
-documents ouverts sont présentés dans une grille de cartes avec leur nom, type,
-état de sauvegarde et aperçu PNG. Le composant commun de `home.rs` reprend le
-document existant par son UID, sans créer de copie.
+Diagram and workflow descriptors provide an `icon` function. Modules choose
+symbols from `icons.rs`; cards do not infer a notation from its order. The same
+module provides the shared graphical selection cursor.
 
-[`app/thumbnails.rs`](../crates/op-app/src/app/thumbnails.rs) capture le rendu réel
-de la vue et produit des PNG de 320 × 180 pixels, en conservant les proportions.
-Les éditeurs graphiques exposent leur canvas via `EditorBackend::thumbnail_rect` ;
-le repli pour les vues tabulaires ou textuelles est le panneau affiché. La capture
-ne modifie ni le modèle ni les caméras. Une seule capture est en attente à la fois ;
-une navigation, un dialogue ou un changement de géométrie invalide son résultat
-différé. Les révisions du document évitent de recalculer les aperçus à chaque image.
-Le cache se restaure séparément de la session ; un document jamais capturé utilise
-son pictogramme jusqu’à l’affichage de sa vue.
+The home screen places **Resume your work** before creation cards. Open-document
+cards show the name, type, saved state and a PNG preview. They resume the existing
+UID rather than making a copy. [app/thumbnails.rs](../crates/op-app/src/app/thumbnails.rs)
+captures actual rendered content at 320 × 180 pixels, preserving aspect ratio.
+`EditorBackend::thumbnail_rect` identifies the canvas; text/table views fall back
+to the displayed panel. Capture changes neither model nor camera. Only one
+capture is pending at a time; navigation, dialogs or geometry changes invalidate
+a delayed result. Revisions avoid capturing every frame. The preview cache
+restores separately; documents without a capture show a type icon.
 
-`Session<E>` conserve un éditeur et son historique uniques, avec un état typé par
-instance de panneau. Les caméras (y compris celle du graphe Petri) et inspecteurs se sauvegardent séparément du
-modèle. Les identifiants de vues sont des chaînes extensibles ; les anciennes
-valeurs Petri restent lisibles. Fermer une vue parmi plusieurs conserve le document.
-La fermeture de sa dernière vue prend en compte les modifications non sauvegardées.
+`Session<E>` owns one editor/history with typed state per panel instance. Cameras,
+including the Petri graph camera, and inspectors persist separately from the
+model. View identifiers are extensible strings; historical Petri values remain
+readable. Closing one of several views preserves the document. Closing its last
+view applies the unsaved-change policy.
 
-Les anciennes API publiques `document::Model`, `load_any` et `to_json(&Model)`
-restent disponibles comme façade de compatibilité. Les chemins communs de
-l'application utilisent l'enveloppe ouverte `Document`. Les accès aux éditeurs
-concrets par `Any` sont limités aux sondes des tests d'interface, sous `cfg(test)`.
+Legacy `document::Model`, `load_any` and `to_json(&Model)` remain compatibility
+facades. Common application paths use the open `Document` envelope. Concrete
+editor access through `Any` is restricted to UI probes under `cfg(test)`.
 
-## Découpage des éditeurs
+## Editor organization
 
-Les dossiers `bpmn_editor/` et `petri_editor/` séparent interactions, rendu,
-inspecteur/panneaux et adaptation de session. `uml_editor/` sépare interactions,
-rendu, inspecteur et session. `mining_editor/results.rs` contient ses résultats,
-et `mining_editor/session.rs` son intégration applicative.
+`bpmn_editor/` and `petri_editor/` separate interaction, rendering, inspector/panels
+and session adaptation. `uml_editor/` separates interaction, rendering, inspector
+and session. Mining results live in `mining_editor/results.rs`, with integration
+in `mining_editor/session.rs`. Historical module names remain; the target's
+logical directory tree did not require renaming public paths.
 
-Les noms de modules historiques restent en place : l'arborescence logique de la
-cible n'impose pas de déplacer tous les fichiers ni de changer les chemins publics.
+## Shared graphical layout
 
-## Layout graphique partagé
+The [annotated layout and vocabulary](interface.md) name navigation, document
+tabs, canvas, inspector and view configuration. Graphical editors use
+`DiagramLayout` for shared bar height, spacing, zoom, snapping, issue visibility
+where supported and notation-specific slots. UML relation/alignment actions use
+the business tools slot rather than a second configuration bar.
 
-Le [layout SVG et son vocabulaire](interface.md) identifient les zones de
-l’interface : navigation, onglets, canvas, inspecteur et configuration de vue.
+The inspector sits on the right in wide views. Below 760 px it is hidden by
+default; opening it explicitly places a bounded panel above the canvas. Options
+move into a menu below 720 px; the inspector button also moves there below 360 px.
+BPMN and Petri share the inspector-tab component.
 
-Les éditeurs BPMN, Petri et UML utilisent `DiagramLayout`. La barre de configuration
-partage sa hauteur, son alignement et ses widgets : inspecteur, zoom, aimantation,
-affichage des problèmes quand il est disponible et options spécifiques au module.
-Les réglages UML ne possèdent plus une deuxième barre de configuration en haut.
-Ses actions de relation et d'alignement restent dans l'emplacement d'outils métier.
+Snapping, inspector visibility and issue visibility are view preferences, not
+`.opx` model content. Persisted drawing styles belong to models and are supplied
+through a configuration slot. `theme::toolbar_style` shares button appearance
+across toolbars and inspector tabs, independently of domain content and layout.
 
-Le même inspecteur s'affiche à droite dans une vue large. Il est masqué par défaut
-sous 760 pixels ; une ouverture explicite dans une vue étroite affiche un panneau
-borné au-dessus du canvas. Les onglets BPMN et Petri utilisent le même composant.
-La barre regroupe les options dans un menu sous 720 pixels disponibles et y déplace
-également le bouton d'inspecteur sous 360 pixels.
+EPC and UML activity reuse the graphical layout. Their distinct
+`Diagram<EpcKind>` and `Diagram<ActivityKind>` types share identity/geometry
+mechanisms from `op-core/src/flow.rs` and interaction code in `flow_editor.rs`,
+while retaining notation-specific node rules.
 
-L'aimantation, la visibilité de l'inspecteur et l'affichage des problèmes sont des
-réglages de vue, enregistrés dans la session. Ils ne modifient pas le modèle `.opx`.
-Les styles de dessin persistants restent la propriété des modèles et sont fournis
-à la barre par un emplacement d'options spécifique à la notation.
+DMN has a separate model, evaluator and scrollable table editor. It uses common
+shell, history, inspector and action mechanisms without artificial canvas zoom.
+See [initial notation limits](notations-ajoutees.md); Looping/Bizagi remain
+[product goals](parite-looping-bizagi.md).
 
-Le style des boutons des barres et des onglets de l’inspecteur est également
-partagé via `theme::toolbar_style`. Le thème et les états de survol/sélection
-restent indépendants du contenu métier et de la disposition des panneaux.
+Database design has a typed relational model, ERD editor and `database.ddl` view.
+Views share tables, keys and history, with local cameras/selections. SQL is
+generated in `op-core` for PostgreSQL, MySQL/MariaDB and SQLite. Geometry alone
+does not regenerate it. See [the database guide](base-de-donnees-ddl.md).
 
-Les nouveaux éditeurs EPC et UML activité utilisent le même layout graphique.
-Leurs modèles typés `Diagram<EpcKind>` et `Diagram<ActivityKind>` partagent les
-mécanismes d’identité et de géométrie de `op-core/src/flow.rs` ; chaque type de
-nœud conserve ses règles. `flow_editor.rs` réutilise les interactions pour ces
-deux usages concrets sans ajouter de cas au shell.
+[Free drawing](dessin-libre.md) uses `whiteboard`, with a model/history independent
+of business notations. Stroke points are normalized within element bounds to
+preserve direction when moving/resizing. It reuses `DiagramLayout` and
+`canvas::floating`, registers its example and SVG export in composition, and
+keeps cameras/preferences per view. Geometry is semantic content for a drawing.
 
-Les tables DMN disposent d’un modèle, d’un évaluateur et d’un éditeur tabulaire
-distincts. Elles utilisent le shell, l’historique, l’inspecteur et les actions
-communs, avec un défilement de table adapté. Leurs fonctions et limites sont
-précisées dans [les notations ajoutées](notations-ajoutees.md). Les chantiers
-Looping et Bizagi restent décrits comme cibles dans [la matrice de couverture](parite-looping-bizagi.md).
+[Mermaid](mermaid.md) registers a source document with asynchronous preview. It
+reuses the common inspector and configuration; grid snapping is optional and
+absent for this preview because its nodes cannot be dragged.
 
-Le module de base de données ajoute un modèle relationnel typé, un éditeur
-ERD/MPD et une vue `database.ddl`. Les deux vues partagent tables, clés et
-historique ; les caméras et sélections restent locales. Le SQL est généré dans
-`op-core` pour PostgreSQL, MySQL/MariaDB et SQLite. La géométrie ne déclenche pas
-une nouvelle génération. Voir [les fonctions et limites](base-de-donnees-ddl.md).
+## Interface languages
 
-Le [dessin libre](dessin-libre.md) utilise le type `whiteboard`, un modèle et un
-historique typés indépendants des notations métier. Les points des tracés sont
-normalisés dans les bornes de l’élément pour conserver leur direction lors
-d’un déplacement ou redimensionnement. Le module réutilise `DiagramLayout`
-pour son inspecteur, sa configuration et son canvas. Sa palette verticale
-réutilise `canvas::floating`, comme BPMN et Petri. Il s’enregistre
-dans la composition, avec son exemple et son export SVG. Caméra et préférences
-restent dans chaque vue ; la géométrie du dessin est son contenu sémantique.
+English (`en`) is the first-run and fallback language. French (`fr`) and Spanish
+(`es`) are available; an explicitly saved choice is restored. The
+[core i18n module](../crates/op-core/src/i18n/mod.rs) owns `Lang` and stable message
+keys. English lives in `en.rs`; translations live in `fr.rs` and `es.rs`. Missing
+translations use English, while unknown keys are displayed unchanged. Tests
+check usage, catalogue parity, placeholders and line breaks. See
+[translations](traductions.md).
 
-## Langues de l’interface
+The [UI dropdown](../crates/op-app/src/i18n.rs) displays the current flag/code and
+English, Français and Español by native name. Vector flags share egui drawing
+code. The preference uses `open-process-lang`, preserving historical serialized
+values without changing `.opx` files. The website serves English at `/`, French
+at `/fr/` and Spanish at `/es/`, with a language dropdown usable without JavaScript.
 
-L’application propose l’anglais (`en`), le français (`fr`) et l’espagnol (`es`).
-Les tables de traduction et le type `Lang` vivent dans
-[`op-core/src/i18n/`](../crates/op-core/src/i18n/mod.rs). Les appels utilisent des
-clés stables comme `file.save` ou `drawing.choose_tool`. Les textes anglais vivent
-dans `en.rs`, les traductions dans `fr.rs` et `es.rs`. Modifier un texte anglais
-ne demande plus de changer sa clé ni les autres catalogues. Une traduction
-absente utilise le catalogue anglais ; une clé inconnue est affichée telle quelle.
-Les tests vérifient les clés utilisées et la parité des catalogues, les paramètres
-et les sauts de ligne. Voir [le guide des traductions](traductions.md).
+## History, saving and analyses
 
-Le menu déroulant de [`op-app/src/i18n.rs`](../crates/op-app/src/i18n.rs) affiche
-le drapeau et le code de la langue active. Il permet de choisir directement
-English, Français ou Español, chaque nom précédé de son drapeau, et indique la
-langue sélectionnée. Les drapeaux des options et du bouton réutilisent le même
-dessin vectoriel via les atomes d’egui. Le choix est
-restauré avec la clé existante `open-process-lang`, sans modifier les documents
-`.opx` ni les anciennes valeurs de préférence. La vitrine possède les routes
-`/`, `/fr/` et `/es/`, accessibles depuis un menu déroulant HTML utilisable sans
-JavaScript ; voir [son README](../website/README.md).
+BPMN automatic layout lives in
+[bpmn/layout.rs](../crates/op-core/src/bpmn/layout.rs), independent of the UI.
+The module exposes `bpmn.auto-arrange` through a `DiagramLayout` option. It is one
+undoable history step, updating geometry while preserving pool/lane membership
+and domain properties/connections.
 
-## Historique, sauvegarde et analyses
+Snapshot history groups gestures and can cancel them without adding a step. It
+also covers text and Mining answers. Semantic and graphical revisions are
+separate; undoing to the saved content removes the modified indicator.
 
-La disposition automatique BPMN est calculée dans
-[`bpmn/layout.rs`](../crates/op-core/src/bpmn/layout.rs), sans dépendance UI.
-Le module BPMN expose la commande `bpmn.auto-arrange` et son bouton via
-l’emplacement d’options de `DiagramLayout`. L’opération forme une étape
-d’historique ; elle change la géométrie et conserve les appartenances aux
-pools/couloirs ainsi que les propriétés et connexions métier.
+The app writes `.opx` v2, reads v1 and migrates legacy RON sessions into JSON v3.
+Unknown file bytes remain recoverable. See [compatibility](documents-et-compatibilite.md).
 
-L'historique par instantanés regroupe les gestes et sait les annuler sans ajouter
-une étape. Il couvre aussi le texte et les réponses Mining. Les révisions
-sémantiques et graphiques sont distinctes ; revenir à l'état sauvegardé retire
-l'indicateur de modification.
+Petri analysis runs on a private snapshot in a native thread or Web Worker using
+the same Wasm binary. Results are accepted only for matching semantic content,
+limits and language. Geometry-only changes retain the cache; document closure
+abandons the job. Native cancellation is checked during exploration and between
+phases; an invariant phase already running may finish in the background. The web
+worker is terminated directly.
 
-L'application écrit les `.opx` v2, lit les v1 et restaure les anciennes sessions
-RON dans une nouvelle session JSON v3. Les données d'un fichier inconnu sont
-conservées pour récupération. Voir [la compatibilité](documents-et-compatibilite.md).
-
-L'analyse Petri s'exécute sur un instantané privé, en thread natif ou dans un
-Web Worker utilisant le même binaire Wasm. Les résultats sont acceptés seulement
-pour le même contenu sémantique, la même limite et la même langue. Un déplacement
-seul conserve le cache. La fermeture du document abandonne la tâche.
-
-Native cancellation is checked during exploration and between phases; an
-invariant phase already running may finish in the background. The web worker
-is terminated directly. Mining and process evaluation keep their existing
-execution paths. The initial background-job pilot covered Petri; [Mermaid](mermaid.md)
-now reuses that transport for SVG generation and preview rasterization,
-explicitly dispatched in composition.
+Mining and process evaluation keep their existing execution paths; the initial
+background-job pilot covered Petri. Mermaid now reuses that transport for SVG
+generation and preview rasterization, explicitly dispatched in composition.

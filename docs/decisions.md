@@ -1,76 +1,73 @@
-# Décisions d'architecture
+# Architecture decisions
 
-**Statut : décisions retenues après validation du plan par l'utilisateur.**
+**Status: decisions accepted after approval of the architecture plan.**
 
-La recommandation est détaillée dans [l'architecture cible](architecture-cible.md).
-Leur mise en œuvre est décrite dans [l'architecture actuelle](architecture-actuelle.md).
+See the [target design](architecture-cible.md) for the rationale and
+[current architecture](architecture-actuelle.md) for implementation paths.
 
-## D1 — Conserver une application unique et deux crates au départ
+## D1 — Keep one application and two crates initially
 
-La séparation métier/UI existe et permet une migration incrémentale. Des modules
-internes apportent les premières frontières sans multiplier les dépendances et
-les déplacements. Une crate par notation sera envisageable pour une réutilisation
-autonome ou un besoin d'isolation démontré. Le coût du choix initial est que les
-frontières internes reposent sur la visibilité Rust, les revues et les tests.
+The existing domain/UI split supports incremental migration. Internal modules
+provide initial boundaries without multiplying dependencies or file moves.
+Notation-specific crates can follow an independent reuse or isolation need.
+The tradeoff is relying on Rust visibility, reviews and tests for internal boundaries.
 
-## D2 — Enregistrer les modules statiquement
+## D2 — Register modules statically
 
-Un point de composition connaît tous les modules livrés. Le registre expose leur
-catalogue au reste du produit. L'ajout d'une notation nécessite une recompilation,
-acceptable pour les extensions développées dans ce dépôt. Des bibliothèques
-dynamiques demanderaient une ABI, une gestion des versions et une stratégie web
-supplémentaires ; ce besoin n'est pas établi aujourd'hui.
+One composition point knows all shipped modules; the registry exposes their
+catalogue. Adding a notation requires recompilation, acceptable for in-repository
+extensions. Dynamic libraries would require an ABI, versioning and an additional
+web strategy; that need has not been established.
 
-## D3 — Conserver des modèles typés par notation
+## D3 — Keep notation-specific typed models
 
-Un modèle universel nœuds/liens déplacerait les invariants dans des propriétés
-informelles et représenterait mal les logs ou les tables. Les modèles concrets
-restent typés ; la géométrie et les mécanismes d'édition peuvent être partagés.
-Le coût assumé est de conserver des validations, codecs et adaptations spécifiques.
+A universal node/edge model would move invariants into informal properties and
+poorly represent logs or tables. Concrete models stay typed while geometry and
+editing mechanisms can be shared. Specific validation, codecs and adapters are
+an accepted maintenance cost.
 
-## D4 — Utiliser une interface commune à la frontière de l'éditeur
+## D4 — Use a common editor boundary
 
-L'enum central des éditeurs a été remplacé par un registre et des sessions
-derrière des objets traits. Le shell ne connaît plus chaque variante. Les modèles
-restent concrets dans les modules ; les objets traits ne sont pas sérialisés. Les enums locaux, comme les outils
-BPMN ou les relations UML, restent adaptés à leur domaine.
+The central editor enum was replaced by a registry and trait-object sessions.
+The shell no longer knows every variant. Models remain concrete and trait objects
+are not serialized. Local enums, such as BPMN tools or UML relations, remain
+appropriate for their domains.
 
-## D5 — Déclarer les commandes et vues, évaluer leur disponibilité
+## D5 — Declare commands/views and evaluate availability
 
-Une liste de capacités statiques ne suffit pas : « annuler » dépend de l'historique
-et une simulation peut interdire certaines mutations. Les descripteurs annoncent
-les actions et vues ; la session en calcule l'état courant. Le shell reste
-responsable de la présentation. Un bus d'événements global non typé rendrait le
-cheminement plus difficile à suivre ; les demandes hôtes restent explicites.
+A static capability list is insufficient: undo depends on history and simulation
+can prohibit mutations. Descriptors announce commands/views; sessions compute
+current availability, while the shell controls presentation. Explicit host
+requests keep behavior easier to follow than an untyped global event bus.
 
-## D6 — Garder les instantanés et introduire des transactions
+## D6 — Keep snapshots and introduce transactions
 
-L'historique existant offre une base simple. Le premier changement porte sur la
-délimitation des actions et sur le suivi des mutations, plutôt que sur des commandes
-inverses pour chaque opération. Les instantanés consomment de la mémoire sur les
-gros documents ; une optimisation sera décidée sur des mesures représentatives.
+Existing history provides a simple foundation. The first improvement is defining
+action boundaries and tracking mutations rather than inverse commands per
+operation. Snapshots use memory for large documents; optimize from representative
+measurements.
 
-## D7 — Séparer l'enveloppe documentaire des contenus métier
+## D7 — Separate the document envelope from domain content
 
-Chaque type de document porte une identité stable et sa version de modèle. Le
-codec de sa notation possède ses migrations. Le coût est un adaptateur de lecture
-des anciens `.opx` et des sessions. Les tests de compatibilité doivent précéder
-le changement d'écriture. Voir [le format documentaire](documents-et-compatibilite.md).
+Each document type has stable identity and a model version. Its codec owns its
+migrations. The cost is compatibility adapters for older `.opx` files and sessions.
+Compatibility tests must precede changing the writer. See
+[document formats](documents-et-compatibilite.md).
 
-## D8 — Découpler les calculs lourds de l'UI après le pilote
+## D8 — Decouple heavy computation from the UI after the pilot
 
-Les fonctions métier restent synchrones et testables ; un service adapté à chaque
-plateforme gère leur exécution. Cela évite de placer l'asynchronisme dans tous les
-modèles. Le pilote Petri utilise un thread natif et un Web Worker qui charge le
-même Wasm que l’application. Il ne requiert pas de bibliothèque de tâches supplémentaire.
+Domain functions stay synchronous and testable; platform-specific services manage
+execution. This avoids spreading async code throughout models. The Petri pilot
+uses a native thread and a Web Worker loading the app's Wasm, without an additional
+job library.
 
-## Points d'évolution après le pilote
+## Follow-up considerations
 
-- Les contrats sont maintenant éprouvés sur UML, BPMN, Petri et Mining.
-- La granularité des transactions pour le texte et les cellules de matrices.
-- Les états de vues sont typés et sauvegardés séparément ; les identifiants des commandes sont explicites.
-- Le pilote navigateur utilise un Web Worker ; étendre les tâches aux autres analyses selon les besoins.
-- Le budget mémoire de l'historique sur des documents représentatifs.
+- Contracts are exercised by UML, BPMN, Petri and Mining.
+- Refine text and matrix-cell transaction granularity as needed.
+- View states are typed and separately persisted; command IDs are explicit.
+- Extend browser background jobs to other analyses when justified.
+- Measure history memory budgets on representative documents.
 
-Les optimisations supplémentaires, notamment le budget mémoire et les deltas
-d'historique, restent guidées par des mesures. Aucun découpage supplémentaire en crates n'est requis.
+Further optimizations, including history deltas, remain measurement-driven.
+No additional crate split is required by these decisions.

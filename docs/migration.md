@@ -1,58 +1,56 @@
-# Migration vers l'architecture modulaire
+# Modular architecture migration
 
-**Statut : plan autorisé par l'utilisateur et exécuté.**
+**Status: approved plan completed. This is a historical migration record.**
 
-La [cible](architecture-cible.md) reste la référence de conception. Les chemins et
-interfaces réellement utilisés sont dans [l'architecture actuelle](architecture-actuelle.md).
+The [target](architecture-cible.md) is the design reference; actual paths and
+interfaces are in the [current architecture](architecture-actuelle.md).
 
-## Suivi des étapes
+## Completed steps
 
-| Étape | Résultat livré |
+| Step | Delivered result |
 | --- | --- |
-| 0 — Valider la direction | Direction retenue après la relecture documentaire et la demande de lancer le plan. |
-| 1 — Référence et séparation | Tests initiaux relevés ; cinq fixtures `.opx` v1 conservées ; rendu, interactions et panneaux extraits des éditeurs. |
-| 2 — Pilote UML | Session typée commune, modèle/historique uniques et caméras indépendantes de plusieurs vues. |
-| 3 — Catalogue | Registre statique injecté, déclarations dans chaque module, accueil/menus/imports/exports/vues pilotés par les déclarations. BPMN, Petri, UML et Mining utilisent le contrat. |
-| 4 — Stockage | Enveloppe ouverte v2, lecture v1, reprise des sessions RON v1/v2 vers JSON v3, conservation des fichiers non pris en charge et tests de compatibilité. |
-| 5 — Transactions | Instantanés conservés, annulation de geste, historique Mining, état sauvegardé par contenu et révisions sémantiques/graphiques séparées. Layout graphique partagé pour configuration et inspecteur. |
-| 6 — Tâches | Analyse Petri en thread natif ou Web Worker ; abandon des entrées périmées, annulation et réutilisation du cache après un déplacement. |
+| 0 — Approve direction | Direction accepted after documentation review and authorization to execute the plan. |
+| 1 — Baseline and separation | Initial tests recorded; five `.opx` v1 fixtures preserved; rendering, interaction and panels extracted. |
+| 2 — UML pilot | Common typed session, one model/history and independent cameras for multiple views. |
+| 3 — Catalogue | Injected static registry; module declarations drive home, menus, imports, exports and views. BPMN, Petri, UML and Mining use the contract. |
+| 4 — Storage | Open v2 envelope, v1 reading, RON v1/v2 → JSON v3 session migration, unknown-file preservation and compatibility tests. |
+| 5 — Transactions | Snapshot history, gesture cancellation, Mining history, content-based saved state, separate semantic/graphical revisions, shared layout. |
+| 6 — Jobs | Native-thread/Web Worker Petri analysis, stale-input rejection, cancellation and cache reuse after geometry changes. |
 
-La migration conserve les deux crates et les chemins publics d'`op-core`. Les
-noms de dossiers de la cible étaient des repères ; les extractions ont gardé les
-modules historiques afin de limiter les déplacements et de préserver les travaux locaux.
+The migration kept two crates and public `op-core` paths. Target directory names
+were design guides; extraction preserved historical modules and existing local work.
 
-## Vérification de l'extensibilité
+## Extensibility proof
 
-Un module de table de décision, limité aux tests, s'enregistre avec son codec et
-sa session sans canvas et sans modifier le shell. Il exerce la création, les
-fabriques, le document commun et la sauvegarde. Les identifiants dupliqués et les
-imports ambigus sont aussi vérifiés.
+A test-only decision-table module registers its codec and canvas-free session
+without shell changes. It exercises creation, factories, common documents and
+saving. Duplicate IDs and ambiguous imports are also checked.
 
-Cette preuve n'ajoute pas une fonctionnalité DMN ou une nouvelle notation visible.
-Le choix du prochain éditeur métier reste une décision produit séparée.
+That proof itself did not add a visible notation. Subsequent product integrations,
+including actual DMN tables, are documented in [the notation guide](notations-ajoutees.md).
 
-## Scénarios vérifiés
+## Verified scenarios
 
-- Interactions BPMN, Petri et UML, accueil, modes manuels et traductions existants.
-- Plusieurs vues d'un document avec caméras distinctes, historique commun et fermeture d'une seule vue.
-- Annulation par Échap d'un déplacement sans étape d'historique supplémentaire.
-- Retour par annulation à l'état sauvegardé ; fichiers inconnus récupérables octet pour octet.
-- Cinq familles de fichiers v1 migrées et réencodées sans perte du contenu métier.
-- Sessions RON v1/v2, vues Petri historiques, nouvelle session JSON et refus d'une session malformée.
-- Résultat d'analyse remplacé après changement du modèle ; déplacement graphique qui conserve le cache.
-- Test Firefox du worker compilé : calcul, annulation, retour d'erreur et activité du fil principal pendant le traitement.
+- BPMN, Petri and UML interactions, home, manual exercises and existing translations.
+- Multiple views, independent cameras, common history and single-view closure.
+- Escape cancellation of a drag without an extra history step.
+- Undo to saved state and byte-for-byte recovery of unknown files.
+- Migration and re-encoding of five v1 document families without domain data loss.
+- RON v1/v2 sessions, historical Petri views, JSON sessions and malformed-session rejection.
+- Analysis replacement after semantic changes and cache reuse after moves.
+- Firefox test of the compiled worker: computation, cancellation, errors and
+  main-thread activity during processing.
 
-## Contrôles et limites
+## Checks and limits
 
-Les commandes et résultats finaux de cette migration sont consignés dans
-[verification.md](verification.md). Les contrôles locaux ne remplacent pas la
-matrice Linux/Windows/macOS de la CI.
+Commands and outcomes for that migration are in [the verification record](verification.md).
+Local checks do not replace the Linux/Windows/macOS CI matrix.
 
-Les calculs Mining et l'évaluation n'ont pas été déplacés dans le service de
-tâches : leur migration dépendra de mesures et d'un besoin identifié. Le format
-v2 n'est pas annoncé comme lisible par les anciennes versions de l'application.
-L'API de compatibilité `to_json(&Model)` conserve intentionnellement l'écriture v1.
+Mining and process evaluation were not moved to background jobs; future migration
+requires measurements and an identified need. `.opx` v2 is not promised to be
+readable by older applications. The compatibility API `to_json(&Model)` intentionally
+keeps v1 output.
 
-Les extensions futures doivent suivre [le guide d'ajout](ajouter-une-notation.md).
-Les évolutions du format et les suppressions de façades de compatibilité demandent
-toujours des fixtures historiques et une vérification de leurs consommateurs.
+Future extensions follow [the extension guide](ajouter-une-notation.md). Format
+changes and removal of compatibility facades still require historical fixtures
+and checks of their consumers.

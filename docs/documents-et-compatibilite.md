@@ -1,29 +1,28 @@
-# Documents, sauvegarde et compatibilité
+# Documents, saving and compatibility
 
-**Statut : implémenté. L'application écrit les `.opx` v2 et lit les v1.**
+**Status: implemented. The app writes `.opx` v2 and reads v1.**
 
-La façade historique `document::to_json(&Model)` conserve son écriture v1 pour ses
-consommateurs existants. Le nouveau chemin utilise `Document::to_json()`.
+The legacy `document::to_json(&Model)` facade still writes v1 for existing
+consumers. The new path uses `Document::to_json()`. This page details storage for
+the [target architecture](architecture-cible.md); changing the format was a
+separate [migration step](migration.md).
 
-Cette page précise le stockage de [l'architecture cible](architecture-cible.md).
-La modification du format est une étape distincte du [plan de migration](migration.md).
+## Three kinds of state
 
-## Séparer trois états
-
-| État | Exemples | Persistance envisagée |
+| State | Examples | Persistence |
 | --- | --- | --- |
-| Contenu du document | Nœuds, liens, texte, réponses d'exercice, nom, positions, tailles, style. | Fichier `.opx` et reprise de session. |
-| Espace de travail | Documents ouverts, panneau actif, disposition, caméras et onglets d'inspecteur. | Persistance de session séparée. |
-| État transitoire ou dérivé | Glissement en cours, caches d'analyse, animation, progression d'une tâche. | Reconstruit ou réinitialisé. |
+| Document content | Nodes, links, text, exercise answers, name, positions, sizes, styles. | `.opx` files and session restoration. |
+| Workspace | Open documents, active panel, layout, cameras, inspector tabs. | Separate session persistence. |
+| Transient/derived state | Active drag, analysis cache, animation, job progress. | Rebuilt or reset. |
 
-Les états de simulation ne remplacent pas le marquage initial sauvegardé. Une
-action explicite peut modifier celui-ci, comme toute édition métier. Les résultats
-exportés d'une analyse sont des sorties calculées, pas une deuxième source de vérité.
+Simulation state does not replace the saved initial marking. An explicit action
+may change it like any other domain edit. Exported analysis results are computed
+outputs, not another source of truth.
 
-## Enveloppe `.opx` v2
+## The `.opx` v2 envelope
 
-L'enveloppe actuelle contient `format`, `version` et `model`, dont le type est
-une variante de l'enum `Model`. L'enveloppe v2 porte :
+The historical v1 envelope contains `format`, `version` and `model`, with the
+model represented by a `Model` enum variant. The open v2 envelope is:
 
 ```json
 {
@@ -37,105 +36,94 @@ une variante de l'enum `Model`. L'enveloppe v2 porte :
 }
 ```
 
-Le contenu de `model` est raccourci ici : cet exemple illustre l'enveloppe et
-n'est pas un diagramme complet ouvrable. Les champs sont implémentés dans `document/envelope.rs` et les fixtures v1 sont
-conservées dans `op-core/tests/fixtures/v1/`.
+The abbreviated `model` illustrates the envelope; it is not a complete diagram.
+Implementation is in [document/envelope.rs](../crates/op-core/src/document/envelope.rs).
+Historical fixtures remain in `op-core/tests/fixtures/v1/`.
 
-- `version` décrit le schéma de l'enveloppe.
-- `kind` est l'identifiant stable d'un type enregistré, indépendant de l'UI.
-- `model_version` décrit le contenu de cette notation.
-- `model` contient son modèle typé sérialisé, y compris sa présentation persistante.
+- `version` identifies the envelope schema.
+- `kind` is a stable registered type ID, independent of UI labels.
+- `model_version` identifies the notation's schema.
+- `model` contains its serialized typed model, including persistent presentation.
 
-Les identifiants enregistrés sont `bpmn`, `petri`, `uml.class`, `uml.use-case`,
-`event-log` et `mermaid`. Le module UML peut partager son implémentation pour les deux types.
-Une fois écrits dans des fichiers, ces identifiants deviennent un contrat de compatibilité.
+Initial IDs include `bpmn`, `petri`, `uml.class`, `uml.use-case` and `event-log`.
+Subsequent modules register `dmn.table`, `epc`, `uml.activity`, `database.schema`,
+`whiteboard` and `mermaid`. Mermaid model v1 stores its name/source and allows
+invalid drafts; rendered previews are not saved. Each type's codec owns its model
+version. IDs written to files become compatibility contracts.
 
-The `mermaid` document type uses model version 1 with `name` and `source`.
-It preserves incomplete or invalid drafts without saving derived previews.
-Its addition changes neither the envelope nor historical models; see
-[the Mermaid editor](mermaid.md).
+Codecs encode/decode concrete models. The shell handles the envelope/session
+without extracting domain fields. Generic JSON is limited to this boundary,
+not passed into domain algorithms.
 
-Le codec encode et décode le modèle concret. Le shell manipule l'enveloppe et la
-session ; il n'extrait pas lui-même les champs métier. Une représentation JSON
-générique est limitée à cette frontière, pas propagée aux algorithmes métier.
-
-## Chargement et migrations
+## Loading and migration
 
 ```mermaid
 flowchart TD
-    Bytes["Octets d'origine conservés"] --> Envelope["Vérifier format et version"]
-    Envelope --> Legacy["Ancien .opx : adaptateur v1"]
-    Envelope --> Kind["Résoudre kind dans le registre"]
+    Bytes["Preserve original bytes"] --> Envelope["Check format and version"]
+    Envelope --> Legacy["Legacy .opx: v1 adapter"]
+    Envelope --> Kind["Resolve kind in registry"]
     Legacy --> Kind
-    Kind --> Codec["Codec : migrer, décoder, valider"]
-    Codec --> Session["Session avec modèle typé"]
-    Envelope -->|"Version inconnue"| Unsupported["État non pris en charge, original conservé"]
-    Kind -->|"Type absent"| Unsupported
-    Codec -->|"Version métier future"| Unsupported
+    Kind --> Codec["Codec: migrate, decode, validate"]
+    Codec --> Session["Typed-model session"]
+    Envelope -->|"Unknown version"| Unsupported["Unsupported state; preserve original"]
+    Kind -->|"Missing type"| Unsupported
+    Codec -->|"Future model version"| Unsupported
 ```
 
-Le lecteur prend en charge les anciens fichiers ; l'application utilise l'écriture v2.
-L'adaptateur transforme `Bpmn`, `Petri` et `Log` vers leurs identifiants. Pour
-`Uml`, il distingue `Class` et `UseCase` à partir du contenu existant. Chaque
-migration est déterministe et produit un modèle validé ou une erreur explicite.
+The reader supports historical files; the app writes v2. The adapter maps `Bpmn`,
+`Petri` and `Log` to stable IDs, and distinguishes UML class/use-case content.
+Migrations deterministically produce validated models or explicit errors.
 
-Ouvrir un ancien fichier ne le réécrit pas. La migration en mémoire devient
-persistante lors d'une sauvegarde demandée par l'utilisateur. Le nouveau fichier
-doit pouvoir être rouvert ; sa lecture par les anciennes versions de l'application
-n'est pas garantie et cette limite doit être annoncée lors de l'adoption du format.
+Opening an old file does not rewrite it. In-memory migration becomes persistent
+only on an explicit save. New files must reopen, but older application versions
+are not guaranteed to read them.
 
-Un type absent ou une version future ne doit pas produire un document vide, ni
-écraser l'entrée. L'application conserve les octets originaux et explique la limite,
-avec possibilité de récupérer l'original. Les erreurs de décodage d'un document
-pris en charge sont distinguées des formats non pris en charge.
+Missing types and future versions must not become empty documents or overwrite
+inputs. The app preserves original bytes, explains the limitation and allows
+recovery. Decode errors for supported formats are distinguished from unsupported formats.
 
-## Imports et exports
+## Imports and exports
 
-Les codecs natifs sont identifiés par `kind`. Les importeurs de formats externes
-déclarent extensions, indices de contenu et résultat possible. La détection est
-déterministe : une extension seule ne force pas un parseur ; deux candidats
-crédibles produisent une ambiguïté explicite. Le moteur de détection ne suppose
-pas que tout XML inconnu est du BPMN ni que tout texte est un log valide.
+Native codecs are identified by `kind`. External importers declare extensions,
+content probes and possible results. Detection is deterministic: extensions alone
+do not force parsers; two credible candidates produce explicit ambiguity.
+Unknown XML is not assumed to be BPMN, nor arbitrary text a valid log.
 
-Les filtres de dialogue sont construits depuis les formats enregistrés. Les
-exporteurs annoncent leurs limites et leurs pertes éventuelles. La prise en charge
-d'un export PlantUML n'implique pas celle de son import. Les modules produisent
-des données à exporter ; les services de plateforme effectuent l'écriture ou le téléchargement.
+Registered formats supply dialog filters. Exporters describe losses/limitations;
+PlantUML export does not imply import. Modules produce export bytes; platform
+services write files or trigger downloads.
 
-## Persistance de l'espace de travail
+## Workspace persistence
 
-Les anciennes clés RON `open-process-v1` et `open-process-v2` ont leur propre évolution,
-distincte de la version du fichier `.opx`. Le schéma JSON sous `open-process-v3` stocke les
-enveloppes de documents, leurs identifiants, les références de panneaux et les
-états de vues, chacun avec une validation adaptée.
+Legacy RON keys `open-process-v1` and `open-process-v2` evolve separately from
+`.opx`. JSON under `open-process-v3` stores document envelopes/IDs, panel
+references and view states with appropriate validation.
 
-La restauration lit les anciennes clés sans les détruire. La nouvelle représentation
-n'est écrite qu'après une migration réussie. Une panne ou un module indisponible
-laisse les données récupérables ; une vue disparue utilise une vue de secours du
-module sans perdre le document. La destination d'un fichier n'est pas une preuve
-qu'il a été sauvegardé : les documents restaurés restent signalés à sauvegarder
-si leur état réellement sauvegardé n'est pas connu.
+Restoration reads old keys without deleting them. New data is written only after
+successful migration. Failure or missing modules must leave recoverable data;
+a missing view uses a fallback without losing the document. A file destination
+alone does not prove a document was saved: restored documents remain marked
+unsaved when the actual saved state is unknown.
 
-## Cache des aperçus de l’accueil
+## Home preview cache
 
-La clé facultative `open-process-thumbnails-v1` contient les aperçus PNG des
-documents ouverts. Elle est distincte de `open-process-v3` et des fichiers `.opx`.
-Le cache est limité à 64 entrées et 512 Kio de PNG à la sauvegarde. Les identifiants
-sont remappés lors de la restauration de session ; une empreinte du contenu évite
-de réutiliser l’aperçu d’une autre version du document.
+The optional `open-process-thumbnails-v1` key stores PNG previews of open documents,
+separately from sessions and `.opx`. Saving caps the cache at 64 entries and
+512 KiB of PNG data. Restoration remaps IDs; content fingerprints prevent previews
+being reused for a different document revision.
 
-Un cache absent, mal formé, périmé ou contenant un PNG invalide est ignoré. Les
-dimensions des images sont vérifiées avant leur décodage. L’accueil affiche alors
-le pictogramme du type ; l’aperçu est généré lors du prochain affichage de la vue.
-Ces images sont des données dérivées : leur absence ne bloque ni la restauration
-des documents ni leur sauvegarde. Le schéma de session et le format `.opx` restent
-ceux décrits plus haut.
+Missing, malformed, stale or invalid PNG entries are ignored. Image dimensions
+are checked before decoding. Cards show type icons until recaptured. These are
+derived data: missing previews block neither restoration nor saving, and change
+neither the session schema nor `.opx` format.
 
-## Garanties vérifiées par la migration
+## Guarantees checked during migration
 
-- Fixtures `.opx` v1 pour BPMN, Petri, logs et les deux types UML, avec données significatives.
-- Lecture, migration et aller-retour vers le nouveau format sans perte des champs pris en charge.
-- Refus contrôlé des mauvaises enveloppes, des types absents et des versions futures.
-- Préservation de l'original et absence d'écriture automatique à l'ouverture.
-- Reprise des sessions v1/v2 et de plusieurs panneaux du même document.
-- Sauvegarde annulée ou échouée qui conserve l'état modifié, sur natif et web.
+- v1 fixtures for BPMN, Petri, logs and both UML types with meaningful content.
+- Reading, migration and round trips preserving supported fields.
+- Controlled rejection of invalid envelopes, missing types and future versions.
+- Original preservation and no automatic rewrite on opening.
+- v1/v2 session restoration and multiple panels for one document.
+- Cancelled/failed saves preserving modified state on native and web paths.
+
+See [verification records](verification.md) for the scope of those checks.

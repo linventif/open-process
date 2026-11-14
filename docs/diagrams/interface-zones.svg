@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1280" viewBox="0 0 1600 1280" role="img" aria-labelledby="title description">
-  <title id="title">Open Process — les zones de l’interface</title>
-  <desc id="description">Schéma annoté d’une vue de diagramme sur grand écran et de sa barre compacte. Douze repères nomment la navigation, les onglets, la vue, les actions métier, la palette, le canvas, l’inspecteur, ses onglets, l’état, la configuration, le zoom et le menu Options.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1280" viewBox="0 0 1600 1280" xml:lang="en" role="img" aria-labelledby="title description">
+  <title id="title">Open Process — interface zones</title>
+  <desc id="description">Annotated wide diagram view and compact toolbar. Twelve zones identify navigation, tabs, document view, business actions, palette, canvas, inspector, inspector tabs, status, configuration, zoom and Options.</desc>
   <defs>
     <style>
       text { font-family: Inter, 'DejaVu Sans', sans-serif; fill: #202a3c; }
@@ -26,18 +26,18 @@
   </defs>
 
   <rect width="1600" height="1280" fill="#f1f4f9"/>
-  <text x="40" y="62" class="title">Open Process — les zones de l’interface</text>
-  <text x="40" y="94" class="subtitle">Un vocabulaire commun pour parler du layout, des composants et de leur style.</text>
+  <text x="40" y="62" class="title">Open Process — interface zones</text>
+  <text x="40" y="94" class="subtitle">Shared vocabulary for layout, components and styling.</text>
   <rect x="40" y="114" width="550" height="28" rx="14" fill="#e4ebfa"/>
-  <text x="55" y="133" class="small" style="fill:#37589a">Schéma de structure · emplacements facultatifs réunis pour les nommer</text>
+  <text x="55" y="133" class="small" style="fill:#37589a">Structure diagram · optional slots shown together for reference</text>
 
-  <!-- Shell commun : navigation puis barre d’onglets. -->
+  <!-- Shared shell: navigation followed by document tabs. -->
   <rect x="40" y="160" width="1100" height="680" rx="14" fill="#fff" stroke="#cbd4e2" stroke-width="2"/>
   <g id="z01-navigation">
     <path d="M 54 161 H 1126 Q 1139 161 1139 175 V 228 H 41 V 175 Q 41 161 54 161" fill="#eaf0fd"/>
     <rect x="56" y="181" width="43" height="24" rx="6" fill="#4269bb"/>
     <text x="63" y="197" class="badge">Z01</text>
-    <text x="111" y="197" class="label">Navigation principale</text>
+    <text x="111" y="197" class="label">Main navigation</text>
     <text x="342" y="197" class="ui" font-weight="700">Open Process</text>
     <rect x="444" y="178" width="52" height="29" rx="6" fill="#dbe5fa"/>
     <text x="453" y="197" class="ui">Home</text>
@@ -54,51 +54,51 @@
     <rect x="41" y="228" width="1098" height="49" fill="#f5f7fb"/>
     <rect x="56" y="240" width="43" height="24" rx="6" fill="#4269bb"/>
     <text x="63" y="256" class="badge">Z02</text>
-    <text x="111" y="256" class="label">Barre d’onglets / docking</text>
+    <text x="111" y="256" class="label">Document tabs / docking</text>
     <path d="M380 277 V239 H600 V277" fill="#fff" stroke="#cbd4e2"/>
     <path d="M380 238 H600" stroke="#5275cf" stroke-width="3"/>
-    <text x="394" y="259" class="ui">Commande · diagramme</text>
+    <text x="394" y="259" class="ui">Order · diagram</text>
     <text x="580" y="259" class="ui">×</text>
-    <text x="626" y="259" class="ui">Commande · autre vue</text>
+    <text x="626" y="259" class="ui">Order · another view</text>
     <text x="805" y="259" class="label">+</text>
   </g>
 
-  <!-- Une vue ancrable contient les zones métier et les contrôles de vue. -->
+  <!-- A dockable view contains business content and view controls. -->
   <g id="z03-vue-document">
     <rect x="41" y="278" width="1098" height="561" fill="#fff"/>
     <g id="z04-actions-metier">
       <rect x="42" y="279" width="832" height="60" fill="#fff4e3"/>
       <rect x="56" y="295" width="43" height="24" rx="6" fill="#a36b17"/>
       <text x="63" y="311" class="badge">Z04</text>
-      <text x="111" y="311" class="label">Actions métier</text>
-      <text x="245" y="311" class="small">facultatives</text>
+      <text x="111" y="311" class="label">Business actions</text>
+      <text x="270" y="311" class="small">optional</text>
       <rect x="385" y="292" width="104" height="29" rx="6" fill="#fffbf4" stroke="#e3d3b5"/>
-      <text x="398" y="311" class="ui">Type de relation</text>
+      <text x="398" y="311" class="ui">Relation type</text>
       <rect x="501" y="292" width="74" height="29" rx="6" fill="#fffbf4" stroke="#e3d3b5"/>
       <text x="514" y="311" class="ui">Arrange</text>
       <rect x="587" y="292" width="80" height="29" rx="6" fill="#fffbf4" stroke="#e3d3b5"/>
       <text x="598" y="311" class="ui">Duplicate</text>
       <rect x="803" y="288" width="54" height="37" rx="6" fill="#263850"/>
       <text x="815" y="304" class="badge">Z03</text>
-      <text x="811" y="318" font-size="10" fill="#fff" style="fill:#fff">VUE</text>
+      <text x="811" y="318" font-size="10" fill="#fff" style="fill:#fff">VIEW</text>
     </g>
 
     <g id="z06-canvas">
       <rect x="42" y="339" width="832" height="411" fill="url(#grid)"/>
       <rect x="325" y="365" width="43" height="24" rx="6" fill="#527363"/>
       <text x="332" y="381" class="badge">Z06</text>
-      <text x="380" y="382" class="label">Canvas / zone de dessin</text>
-      <text x="326" y="409" class="small">Modèle, connexions, sélection et grille de fond</text>
+      <text x="380" y="382" class="label">Canvas / drawing area</text>
+      <text x="326" y="409" class="small">Model, connections, selection and background grid</text>
       <circle cx="238" cy="538" r="19" fill="#fff" stroke="#65758e" stroke-width="2"/>
       <path d="M257 538 H310 M444 538 H491 M550 538 H598 M732 538 H774" fill="none" stroke="#65758e" stroke-width="2" marker-end="url(#arrow)"/>
       <rect x="313" y="506" width="130" height="64" rx="10" fill="#edf2ff" stroke="#7b96cf" stroke-width="1.5"/>
-      <text x="344" y="543" class="body">Demande</text>
+      <text x="344" y="543" class="body">Request</text>
       <path d="M520 509 L549 538 L520 567 L491 538 Z" fill="#fff8e8" stroke="#b09862" stroke-width="1.5"/>
       <path d="M513 531 L527 545 M527 531 L513 545" stroke="#b09862" stroke-width="1.5"/>
       <rect x="600" y="506" width="130" height="64" rx="10" fill="#edf2ff" stroke="#7b96cf" stroke-width="1.5"/>
-      <text x="641" y="543" class="body">Valider</text>
+      <text x="641" y="543" class="body">Validate</text>
       <circle cx="797" cy="538" r="20" fill="#fff" stroke="#65758e" stroke-width="4"/>
-      <text x="306" y="640" class="small">La palette flotte sur le canvas ; elle n’est pas l’inspecteur.</text>
+      <text x="306" y="640" class="small">The palette floats on the canvas; it is separate from the inspector.</text>
     </g>
 
     <g id="z05-palette-outils">
@@ -115,7 +115,7 @@
       <path d="M83 633 V650" stroke="#65758e" stroke-width="1.5"/>
       <rect x="139" y="435" width="43" height="24" rx="6" fill="#a36b17"/>
       <text x="146" y="451" class="badge">Z05</text>
-      <text x="139" y="480" class="label">Palette d’outils</text>
+      <text x="139" y="480" class="label">Tool palette</text>
       <path d="M139 463 H126 V432 H120" class="leader"/>
     </g>
 
@@ -124,41 +124,41 @@
       <path d="M875 279 V839" stroke="#c7c4db" stroke-width="1.5"/>
       <rect x="892" y="295" width="43" height="24" rx="6" fill="#7861ad"/>
       <text x="899" y="311" class="badge">Z07</text>
-      <text x="947" y="312" class="label">Inspecteur</text>
+      <text x="947" y="312" class="label">Inspector</text>
       <g id="z08-onglets-inspecteur">
         <rect x="889" y="336" width="236" height="74" rx="8" fill="#e7e1f5"/>
         <rect x="901" y="345" width="43" height="24" rx="6" fill="#7861ad"/>
         <text x="908" y="361" class="badge">Z08</text>
-        <text x="955" y="361" class="small" style="fill:#59477e">Onglets internes</text>
+        <text x="955" y="361" class="small" style="fill:#59477e">Inspector tabs</text>
         <rect x="899" y="377" width="80" height="25" rx="5" fill="#fff"/>
         <text x="907" y="394" class="ui">Properties</text>
         <text x="992" y="394" class="ui">Validation</text>
       </g>
-      <text x="895" y="447" class="small">ÉLÉMENT SÉLECTIONNÉ</text>
-      <text x="895" y="478" class="ui">Nom</text>
+      <text x="895" y="447" class="small">SELECTED ELEMENT</text>
+      <text x="895" y="478" class="ui">Name</text>
       <rect x="892" y="490" width="230" height="33" rx="6" fill="#fff" stroke="#d6cfea"/>
-      <text x="904" y="512" class="body">Valider</text>
-      <text x="895" y="553" class="ui">Propriétés métier</text>
+      <text x="904" y="512" class="body">Validate</text>
+      <text x="895" y="553" class="ui">Domain properties</text>
       <rect x="892" y="566" width="230" height="70" rx="6" fill="#fff" stroke="#d6cfea"/>
       <path d="M905 588 H1107 M905 610 H1058" stroke="#e3dfec" stroke-width="5" stroke-linecap="round"/>
-      <text x="895" y="694" class="small">Contenu fourni par la notation.</text>
-      <text x="895" y="715" class="small">Panneau redimensionnable.</text>
+      <text x="895" y="694" class="small">Content supplied by the notation.</text>
+      <text x="895" y="715" class="small">Resizable panel.</text>
       <text x="895" y="803" class="code">DiagramLayout::inspector</text>
     </g>
 
-    <!-- État et configuration sont deux groupes de la même barre inférieure. -->
+    <!-- Status and configuration share the same bottom bar. -->
     <path d="M42 750 H874 V839 H54 Q42 839 42 827 Z" fill="#eef5f4"/>
     <g id="z09-etat">
       <rect x="56" y="763" width="43" height="24" rx="6" fill="#3a807d"/>
       <text x="63" y="779" class="badge">Z09</text>
-      <text x="111" y="780" class="label">État / résumé</text>
-      <text x="56" y="818" class="ui">5 éléments · 4 connexions</text>
+      <text x="111" y="780" class="label">Status / summary</text>
+      <text x="56" y="818" class="ui">5 elements · 4 connections</text>
     </g>
     <path d="M262 765 V825" stroke="#c4d9d6"/>
     <g id="z10-configuration-vue">
       <rect x="276" y="763" width="43" height="24" rx="6" fill="#3a807d"/>
       <text x="283" y="779" class="badge">Z10</text>
-      <text x="331" y="780" class="label">Configuration de la vue</text>
+      <text x="331" y="780" class="label">View configuration</text>
       <text x="277" y="818" class="ui">Style ▾</text>
       <rect x="342" y="806" width="12" height="12" rx="3" fill="#d5e2e0"/>
       <path d="M344 812 L347 815 L352 808" fill="none" stroke="#3a807d" stroke-width="1.5"/>
@@ -181,71 +181,71 @@
     </g>
   </g>
 
-  <!-- Légende : les identifiants restent utilisables dans nos échanges. -->
+  <!-- Legend: stable identifiers for review comments. -->
   <g id="legende">
     <rect x="1170" y="160" width="390" height="680" rx="14" fill="#fff" stroke="#dce2ee"/>
-    <text x="1192" y="196" class="heading">Les noms à utiliser</text>
-    <text x="1192" y="222" class="small">Z03 contient les zones Z04 à Z11.</text>
+    <text x="1192" y="196" class="heading">Zone names</text>
+    <text x="1192" y="222" class="small">Z03 contains zones Z04 to Z11.</text>
     <g transform="translate(1192 246)">
       <rect width="43" height="24" rx="6" fill="#4269bb"/><text x="7" y="16" class="badge">Z01</text>
-      <text x="55" y="11" class="label">Navigation principale</text><text x="55" y="30" class="small">Home, File, Edit, View, thème, langue</text>
+      <text x="55" y="11" class="label">Main navigation</text><text x="55" y="30" class="small">Home, File, Edit, View, theme, language</text>
     </g>
     <g transform="translate(1192 294)">
       <rect width="43" height="24" rx="6" fill="#4269bb"/><text x="7" y="16" class="badge">Z02</text>
-      <text x="55" y="11" class="label">Barre d’onglets</text><text x="55" y="30" class="small">Documents, vues et découpage des panneaux</text>
+      <text x="55" y="11" class="label">Document tabs</text><text x="55" y="30" class="small">Documents, views and split panels</text>
     </g>
     <g transform="translate(1192 342)">
       <rect width="43" height="24" rx="6" fill="#263850"/><text x="7" y="16" class="badge">Z03</text>
-      <text x="55" y="11" class="label">Vue de document</text><text x="55" y="30" class="small">Conteneur ancrable ; duplicable à côté</text>
+      <text x="55" y="11" class="label">Document view</text><text x="55" y="30" class="small">Dockable container; multiple views</text>
     </g>
     <g transform="translate(1192 390)">
       <rect width="43" height="24" rx="6" fill="#a36b17"/><text x="7" y="16" class="badge">Z04</text>
-      <text x="55" y="11" class="label">Barre d’actions métier</text><text x="55" y="30" class="small">Ex. relations, alignement et duplication UML</text>
+      <text x="55" y="11" class="label">Business action bar</text><text x="55" y="30" class="small">E.g. UML relations, alignment, duplication</text>
     </g>
     <g transform="translate(1192 438)">
       <rect width="43" height="24" rx="6" fill="#a36b17"/><text x="7" y="16" class="badge">Z05</text>
-      <text x="55" y="11" class="label">Palette d’outils</text><text x="55" y="30" class="small">Sélection, connexion, création des formes</text>
+      <text x="55" y="11" class="label">Tool palette</text><text x="55" y="30" class="small">Select, connect and create shapes</text>
     </g>
     <g transform="translate(1192 486)">
       <rect width="43" height="24" rx="6" fill="#527363"/><text x="7" y="16" class="badge">Z06</text>
-      <text x="55" y="11" class="label">Canvas / zone de dessin</text><text x="55" y="30" class="small">Affichage et manipulation du diagramme</text>
+      <text x="55" y="11" class="label">Canvas / drawing area</text><text x="55" y="30" class="small">Display and manipulate the diagram</text>
     </g>
     <g transform="translate(1192 534)">
       <rect width="43" height="24" rx="6" fill="#7861ad"/><text x="7" y="16" class="badge">Z07</text>
-      <text x="55" y="11" class="label">Inspecteur</text><text x="55" y="30" class="small">Propriétés et analyses de la notation</text>
+      <text x="55" y="11" class="label">Inspector</text><text x="55" y="30" class="small">Notation properties and analysis</text>
     </g>
     <g transform="translate(1192 582)">
       <rect width="43" height="24" rx="6" fill="#7861ad"/><text x="7" y="16" class="badge">Z08</text>
-      <text x="55" y="11" class="label">Onglets de l’inspecteur</text><text x="55" y="30" class="small">Properties, Validation, Evaluation…</text>
+      <text x="55" y="11" class="label">Inspector tabs</text><text x="55" y="30" class="small">Properties, Validation, Evaluation…</text>
     </g>
     <g transform="translate(1192 630)">
       <rect width="43" height="24" rx="6" fill="#3a807d"/><text x="7" y="16" class="badge">Z09</text>
-      <text x="55" y="11" class="label">État / résumé</text><text x="55" y="30" class="small">Compteurs, diagnostic, état de simulation</text>
+      <text x="55" y="11" class="label">Status / summary</text><text x="55" y="30" class="small">Counts, diagnostics, simulation status</text>
     </g>
     <g transform="translate(1192 678)">
       <rect width="43" height="24" rx="6" fill="#3a807d"/><text x="7" y="16" class="badge">Z10</text>
-      <text x="55" y="11" class="label">Configuration de la vue</text><text x="55" y="30" class="small">Style, problèmes, grille, zoom, inspecteur</text>
+      <text x="55" y="11" class="label">View configuration</text><text x="55" y="30" class="small">Style, issues, grid, zoom, inspector</text>
     </g>
     <g transform="translate(1192 726)">
       <rect width="43" height="24" rx="6" fill="#3a807d"/><text x="7" y="16" class="badge">Z11</text>
-      <text x="55" y="11" class="label">Contrôles de zoom</text><text x="55" y="30" class="small">Sous-groupe de Z10 : −, %, +, Fit</text>
+      <text x="55" y="11" class="label">Zoom controls</text><text x="55" y="30" class="small">Part of Z10: −, %, +, Fit</text>
     </g>
     <g transform="translate(1192 774)">
       <rect width="43" height="24" rx="6" fill="#3a807d"/><text x="7" y="16" class="badge">Z12</text>
-      <text x="55" y="11" class="label">Menu Options</text><text x="55" y="30" class="small">Regroupe Z10 quand la vue est étroite</text>
+      <text x="55" y="11" class="label">Options menu</text><text x="55" y="30" class="small">Groups Z10 options in narrow views</text>
     </g>
   </g>
 
   <g id="vue-compacte">
     <rect x="40" y="880" width="735" height="315" rx="14" fill="#fff" stroke="#dce2ee"/>
-    <text x="62" y="916" class="heading">La même configuration en vue étroite</text>
+    <text x="62" y="916" class="heading">The same configuration in a narrow view</text>
     <rect x="62" y="941" width="344" height="189" rx="8" fill="url(#grid)" stroke="#cbd4e2"/>
     <path d="M63 942 H405 V971 H63 Z" fill="#f1f3f8"/>
-    <text x="76" y="961" class="ui">Commande · diagramme</text>
+    <text x="76" y="961" class="ui">Order · diagram</text>
     <rect x="177" y="1003" width="103" height="39" rx="7" fill="#edf2ff" stroke="#7b96cf"/>
-    <text x="204" y="1027" class="ui">Valider</text>
+    <text x="204" y="1027" class="ui">Validate</text>
     <path d="M63 1091 H405 V1129 H63 Z" fill="#eef5f4"/>
-    <text x="74" y="1115" class="small">État</text>
+    <text x="74" y="1115" class="small">Status</text>
     <rect x="116" y="1096" width="68" height="28" rx="6" fill="#d5e8e5"/>
     <text x="126" y="1115" class="ui">Options</text>
     <text x="200" y="1115" class="ui">−  100 %  +</text>
@@ -255,7 +255,7 @@
       <rect x="430" y="942" width="323" height="188" rx="9" fill="#f7faf9" stroke="#c4d9d6"/>
       <rect x="444" y="956" width="43" height="24" rx="6" fill="#3a807d"/>
       <text x="451" y="972" class="badge">Z12</text>
-      <text x="499" y="973" class="label">Menu Options</text>
+      <text x="499" y="973" class="label">Options menu</text>
       <text x="448" y="1006" class="body">Zoom to fit</text>
       <path d="M446 1019 H736" stroke="#d8e4e1"/>
       <rect x="448" y="1030" width="13" height="13" rx="3" fill="#d5e2e0"/>
@@ -265,22 +265,22 @@
       <text x="472" y="1070" class="body">Show issues</text>
       <text x="448" y="1104" class="body">Style…</text>
     </g>
-    <text x="62" y="1157" class="small">Sous 720 px disponibles : options regroupées ; sous 360 px : Inspector rejoint le menu.</text>
-    <text x="62" y="1178" class="small">Inspecteur masqué par défaut sous 760 px ; s’il est ouvert, il passe au-dessus du canvas.</text>
+    <text x="62" y="1157" class="small">Below 720 px: options grouped; below 360 px: Inspector joins the menu.</text>
+    <text x="62" y="1178" class="small">Below 760 px: inspector hidden by default; when opened, it appears above the canvas.</text>
   </g>
 
   <g id="exemples-echanges">
     <rect x="800" y="880" width="760" height="315" rx="14" fill="#fff" stroke="#dce2ee"/>
-    <text x="824" y="916" class="heading">Pour nos prochains échanges</text>
-    <text x="824" y="957" class="body">« Z01 : adoucir le survol de Home et File. »</text>
-    <text x="824" y="990" class="body">« Z10 : harmoniser Style, Show issues et Snap to grid. »</text>
-    <text x="824" y="1023" class="body">« Z07 : élargir l’inspecteur de propriétés. »</text>
+    <text x="824" y="916" class="heading">Example review comments</text>
+    <text x="824" y="957" class="body">“Z01: soften the Home and File hover style.”</text>
+    <text x="824" y="990" class="body">“Z10: align Style, Show issues and Snap to grid styling.”</text>
+    <text x="824" y="1023" class="body">“Z07: widen the properties inspector.”</text>
     <path d="M824 1050 H1536" stroke="#dce2ee"/>
-    <text x="824" y="1078" class="small">Z09 et Z10 partagent une seule barre inférieure.</text>
-    <text x="824" y="1101" class="small">Z02 change de document / vue ; Z08 change le contenu de l’inspecteur.</text>
-    <text x="824" y="1124" class="small">La grille de Z06 est le fond ; Snap to grid règle l’aimantation des déplacements.</text>
-    <text x="824" y="1168" class="code">Shell : app.rs · Layout : editor/layout.rs · Apparence : theme.rs</text>
+    <text x="824" y="1078" class="small">Z09 and Z10 share one bottom bar.</text>
+    <text x="824" y="1101" class="small">Z02 switches documents/views; Z08 switches inspector content.</text>
+    <text x="824" y="1124" class="small">Z06 shows the background grid; Snap to grid controls movement snapping.</text>
+    <text x="824" y="1168" class="code">Shell: app.rs · Layout: editor/layout.rs · Appearance: theme.rs</text>
   </g>
-  <text x="40" y="1232" class="small">Schéma documentaire, non à l’échelle. Les couleurs distinguent les familles de zones ; elles ne proposent pas un nouveau thème.</text>
-  <text x="40" y="1255" class="small">Canvas commun : BPMN, Petri, UML, EPC, base de données et dessin libre. DMN et Mining : tables ; SQL : DDL du modèle relationnel.</text>
+  <text x="40" y="1232" class="small">Documentation diagram, not to scale. Colors distinguish zone families; they do not propose a new theme.</text>
+  <text x="40" y="1255" class="small">Shared canvas: BPMN, Petri, UML, EPC, database and free drawing. DMN/Mining: tables; SQL: relational-model DDL.</text>
 </svg>

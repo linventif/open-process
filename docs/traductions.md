@@ -1,79 +1,80 @@
-# Traductions de l’application
+# Application translations
 
-**Statut : clés stables implémentées pour les trois langues.**
+**Status: stable message keys are implemented for English, French and Spanish.**
 
-Les messages de l’application Rust utilisent un identifiant indépendant du texte
-affiché. Les trois catalogues se trouvent dans `crates/op-core/src/i18n/` :
+English is the default application language and the source and fallback catalogue.
+A saved language preference takes precedence at startup. Project documentation
+and new original interface copy use English; French and Spanish remain supported.
 
-- [en.rs](../crates/op-core/src/i18n/en.rs) contient les textes anglais.
-- [fr.rs](../crates/op-core/src/i18n/fr.rs) contient les traductions françaises.
-- [es.rs](../crates/op-core/src/i18n/es.rs) contient les traductions espagnoles.
+Rust messages use identifiers independent of displayed text. The catalogues are
+in `crates/op-core/src/i18n/`:
 
-## Modifier un texte
+- [en.rs](../crates/op-core/src/i18n/en.rs): original English copy.
+- [fr.rs](../crates/op-core/src/i18n/fr.rs): French translations.
+- [es.rs](../crates/op-core/src/i18n/es.rs): Spanish translations.
 
-Pour corriger l’anglais, modifier uniquement la valeur dans `en.rs` :
+## Edit existing copy
+
+To correct English, change only the value in `en.rs`:
 
 ```rust
 ("drawing.choose_tool", "Choose a drawing tool, then drag on the canvas."),
 ```
 
-La clé `drawing.choose_tool` reste identique dans le code et les autres langues.
-Une correction de formulation ne nécessite pas de la renommer. Le même principe
-s’applique aux valeurs françaises et espagnoles. Si le sens change, vérifier que
-les traductions expriment toujours le même message.
+Keep `drawing.choose_tool` unchanged in source and the other catalogues. A wording
+correction does not require renaming the key. The same rule applies to translated
+values. If the meaning changes, review the other languages for consistency.
 
-## Ajouter un message
+## Add a message
 
-Choisir une clé descriptive avec un espace de noms : `file.save`,
-`drawing.choose_tool`, `bpmn.validation.start_event`. Utiliser des lettres ASCII
-minuscules, des chiffres et des tirets bas, avec des points entre les parties.
-Les clés restent des identifiants explicites ; elles ne sont pas calculées depuis
-les textes anglais. Les catalogues sont triés par clé.
+Choose a descriptive, namespaced key such as `file.save`, `drawing.choose_tool`
+or `bpmn.validation.start_event`. Use lowercase ASCII letters, digits and
+underscores, with periods between components. Keys are explicit identifiers,
+not computed from English text. Keep catalogues sorted by key.
 
-Déclarer la clé dans les trois catalogues, puis l’utiliser avec :
+Declare the same key in all three catalogues and use it through:
 
 ```rust
 tr("drawing.choose_tool");
 trf("file.open_failed", &[&file_name, &error]);
 ```
 
-Le texte anglais de `file.open_failed` est `Cannot open {}: {}`. Conserver les
-mêmes paramètres et sauts de ligne dans les traductions. Les paramètres
-positionnels `{0}`, `{1}`, etc. permettent de changer leur ordre.
+The English value of `file.open_failed` is `Cannot open {}: {}`. Preserve argument
+slots and line breaks in translations. Positional placeholders such as `{0}` and
+`{1}` allow translations to reorder arguments.
 
-Pour les palettes, commandes, vues et descripteurs du registre, conserver la clé
-jusqu’au rendu :
+For palettes, commands, views and registry descriptors, keep the key until rendering:
 
 ```rust
 label: key("file.save"),
-// Lors du rendu :
+// At render time:
 ui.button(tr(command.label));
 ```
 
-`key` marque une clé pour le contrôle des usages ; cette fonction ne traduit pas.
-Ne pas remplacer par une clé les noms et textes saisis par l’utilisateur, les
-identifiants métier ni les valeurs de formats importés/exportés. Les documents
-et sessions existants conservent leurs données et leur schéma.
+`key` marks a key for usage checks; it does not translate. Do not translate
+user-entered names/text, domain identifiers or imported/exported format values.
+Existing documents and session schemas remain unchanged.
 
-## Repli et vérification
+## Fallback and validation
 
-`tr` et `trf` utilisent la langue active. `translate(lang, key)` choisit une langue
-explicitement. Une traduction absente se replie sur la valeur anglaise ; si la clé
-est aussi absente du catalogue anglais, elle est retournée telle quelle pour
-rendre l’erreur visible.
+`tr` and `trf` use the active language. `translate(lang, key)` chooses explicitly.
+A missing translation falls back to English; a key missing from English is
+returned unchanged to make the error visible.
 
-Les tests vérifient l’unicité et la syntaxe des clés, la présence des mêmes clés
-dans chaque catalogue, les paramètres, les sauts de ligne et l’utilisation de
-chaque message. La couverture des polices embarquées inclut les trois langues.
-Le contrôle des usages exclut le module de tests après normalisation des fins
-de ligne LF et CRLF, pour reconnaître la même frontière sur Linux et Windows.
-Un test de régression couvre les deux formats de source.
+Tests check unique and valid keys, catalogue parity, placeholders, line breaks
+and message usage. Embedded font checks cover all three languages. Source usage
+checks normalize LF/CRLF before excluding test modules; a regression test covers
+both source formats.
 
 ```sh
 cargo test --locked -p op-core i18n
 cargo test --locked -p op-app i18n -- --test-threads=1
 ```
 
-La [vitrine Astro](../website/README.md) utilise déjà des clés indépendantes des
-textes dans `website/src/lib/messages.ts` ; ses catalogues restent distincts de
-ceux de l’application Rust.
+The language dropdown and persisted preference use the existing
+`open-process-lang` key. `Lang::default()` is English; loading without a saved
+preference uses that default. Serialized French and Spanish preferences remain valid.
+
+The [Astro website](../website/README.md) has separate typed catalogues in
+`website/src/lib/messages.ts`. Its root route is English, with `/fr/` and `/es/`
+for translations; changing the documentation language does not remove those routes.

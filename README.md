@@ -2,203 +2,217 @@
 
 <img src="crates/op-app/assets/icons/open-process.svg" alt="Open Process" width="96" height="96">
 
-**One free, open-source tool for process modelling and analysis** — UML class and use-case diagrams, BPMN 2.0 diagrams,
-Petri nets, incidence matrices, invariants, reachability graphs and workflow-net soundness —
-instead of juggling Bizagi, Visual Paradigm, WoPeD, PIPE and friends.
+**Model processes, explore their behavior and design diagrams in one free,
+open-source application.** Open Process combines BPMN, Petri nets, process
+mining, UML, decision tables, database design, free drawing and Mermaid.
 
-Written in Rust with [egui](https://github.com/emilk/egui): a single code base that runs
-**natively on Windows, macOS and Linux** and **in any modern browser** (WebAssembly).
+Built with Rust and egui/eframe, it runs on **Windows, macOS and Linux**, and in
+modern browsers through **WebAssembly**. English is the default language;
+French and Spanish are also available.
 
-> 🇫🇷 **En bref** — Open Process remplace la collection d'outils utilisés en cours de
-> *process intelligence* : modélisation BPMN (pools, lanes, passerelles, événements…),
-> réseaux de Petri (jeu de jetons, matrices Pre/Post/C, invariants P/T, graphe
-> d'accessibilité/couverture, bornitude, vivacité, réversibilité, blocages, soundness),
-> conversion BPMN ↔ réseau de Petri, découverte de processus (matrice des relations →, ||, #,
-> algorithme Alpha pas à pas, vérification des mots), import/export BPMN 2.0, PNML et XES.
-> Diagrammes UML de classes et de cas d’utilisation. Natif + navigateur.
+[Open the browser app](https://open-process.linv.dev/app/) ·
+[Download desktop builds](https://github.com/linventif/open-process/releases) ·
+[Getting started](docs/getting-started.md) · [Contribute](CONTRIBUTING.md)
 
-## Features
+## What you can do
 
-### UML class & use-case editors
-- **Class diagrams**: classes, abstract classes, interfaces and enumerations; editable attribute and operation compartments using UML visibility notation
-- Associations (including directed associations), aggregation, composition, generalization, realization and dependencies; labels, roles and multiplicities at both ends
-- **Use-case diagrams**: actors, use cases and resizable system boundaries; actor associations, generalization, `«include»` and `«extend»` relations
-- Click a palette tool and then the canvas to add an element; use **Connect** and click the source then the target to create a relation
-- Edit names, members, sizes and relations in **Properties**; double-click or press **F2** to rename directly, **Enter** to commit, **Escape** to cancel; class boxes grow to fit edited text
-- Drag between elements with **Connect**, or click source then target; orthogonal links avoid element bodies and parallel relations use separate lanes
-- Rubber-band selection, Shift+click and Ctrl+A; move a group, align/distribute it, duplicate (Ctrl+D), copy/paste between UML tabs (Ctrl+C / Ctrl+V), or nudge with arrow keys
-- Drag the bottom-right handle to resize; system boundaries move their contained use cases once, including in group selections; the same containment rules apply to copy/paste and export
-- Model diagnostics report invalid multiplicities, invalid endpoints, missing names and inheritance cycles
-- Pan/zoom, grid snapping, fit to view, undo/redo, split tabs, `.opx` save/open and session restoration, PNG and **PlantUML (`.puml`) export**
-- Choose class or use-case diagrams in the grid opened by **File → New…** or the tab bar's **+** button; each type card has an **Examples** button with samples for that diagram type
+| Workspace | Available features | Scope and details |
+| --- | --- | --- |
+| **BPMN 2.0** | Tasks, events, gateways, pools/lanes, validation, automatic layout, BPMN XML with diagram interchange, conversion to Petri nets, cost/duration evaluation. | Evaluation covers structured, acyclic XOR/AND models. This is a supported subset, not complete BPMN execution or simulation. |
+| **Petri nets** | Weighted and inhibitor arcs, capacities, token game, matrices, invariants, reachability/coverability, structural properties, workflow-net soundness, PNML exchange. | Exploration limits and diagnostics affect which conclusions can be drawn. |
+| **Process discovery** | Text/CSV/XES logs, footprint matrix, step-by-step Alpha algorithm, trace replay, exercises, conversion of discovered nets to BPMN. | Educational and analysis workflows; additional miners and conformance metrics remain planned. |
+| **UML classes and use cases** | Classifiers and relationships, actors and system boundaries, properties, diagnostics, selection, alignment/distribution, copy/paste, PlantUML export. | PlantUML export does not imply PlantUML import. |
+| **UML activities and EPC** | Typed graphical editors, connection rules, structural diagnostics, SVG and Graphviz DOT exports. | Initial implementations; see [supported features and limits](docs/notations-ajoutees.md). |
+| **DMN decision tables** | Typed inputs/outputs, rules, UNIQUE/FIRST/ANY/COLLECT policies, evaluation, DMN XML and CSV exports, single-table XML import. | A limited FEEL test subset; no full FEEL interpreter or decision requirements graph. [Details](docs/notations-ajoutees.md). |
+| **Relational databases** | Tables, columns, primary/foreign keys, indexes, validation, shared SQL preview and DDL export for PostgreSQL, MySQL/MariaDB and SQLite. | Physical schema design; Merise conceptual/logical transformations and SQL reverse engineering remain planned. [Details](docs/base-de-donnees-ddl.md). |
+| **Free drawing** | Shapes, arrows, sticky notes, text, freehand strokes, colors, sketch mode, SVG export. | A native/web whiteboard; no Excalidraw format exchange or network collaboration. [Details](docs/dessin-libre.md). |
+| **Mermaid** | Source editor, live preview, flow/sequence/class/state/ER templates, source import/export and SVG export. | Uses a Rust renderer with its own syntax coverage, rather than the official JavaScript engine. [Details](docs/mermaid.md). |
 
-### BPMN 2.0 editor
-- Start / intermediate (catch & throw) / end events with triggers (message, timer, error, signal, conditional, terminate)
-- Tasks (user, manual, service, script, send, receive, business rule), sub-processes
-- Gateways: exclusive (XOR), parallel (AND), inclusive (OR), event-based, complex
-- Pools & lanes, sequence flows (conditions, default flows), message flows, data objects, data stores, annotations
-- Quick-append pad (Bizagi / bpmn.io style), drop an element on a flow to insert it, orthogonal routing
-- Live model validation (missing start/end, dangling elements, implicit splits/joins, unlabeled XOR branches…)
-- **Import / export BPMN 2.0 XML with diagram interchange** (Bizagi, Camunda, bpmn.io, Signavio, Visual Paradigm…)
-- **Convert to a Petri net** (workflow net) to check soundness
-- **Process evaluation**: enter each activity's cost CAi and duration TAi in the inspector's
-  **Evaluation** tab. See possible traces, their cost equations and values, and the mean
-  execution-time equation for equiprobable XOR choices with no waiting. Sequences add
-  durations; parallel AND branches use their maximum. Choices inside parallel branches
-  are expanded before averaging. Includes the course's **Process P** under Examples.
-  Supports acyclic, structured XOR/AND diagrams (sub-processes are atomic activities).
-  Costs and durations default to zero and are saved in `.opx` and BPMN XML extensions.
-  At most 256 choice scenarios are evaluated; trace display is limited to 512 words,
-  with an explicit notice when shortened, while the calculated values remain exact.
+Graphical editors share navigation, grid and zoom controls, an inspector and
+responsive layout. Documents support undo/redo, editable `.opx` saves, local
+session restoration and multiple docked views where supported. The home screen
+and **File → New…** provide searchable document cards and examples by type.
+**File → Export** lists the active document's formats, including PNG capture
+where available. PNG captures the visible diagram region.
 
-### Petri net editor & analysis
-- Places, transitions, weighted arcs, inhibitor arcs, place capacities, silent (τ) transitions
-- **Token game**: click enabled transitions, random / automatic play, step back, firing sequence σ
-- **Matrices**: Pre (W⁻), Post (W⁺), incidence C, markings — copy as **LaTeX** or CSV
-- **Reachability / coverability graph** (Karp–Miller, ω), interactive graph view, state table
-- Properties: bounded (k-bound per place), safe, live (L4), quasi-live, reversible, deadlock-free (+ shortest firing sequence to each deadlock)
-- **P- and T-invariants** (minimal semi-positive, Farkas algorithm), with conservation equations `M(p1) + M(p2) = k`
-- Structural classes: ordinary, pure, state machine, marked graph, free-choice, extended free-choice, workflow net
-- **Workflow-net soundness** (van der Aalst)
-- **PNML import / export** (WoPeD, PIPE, ProM, TINA…)
+The project is under active development. It does not claim complete standards
+conformance or feature parity with other modelling products. Check each guide's
+limits and any diagnostics or truncated-analysis notices before using results.
 
 ### Process discovery (event logs)
-- Paste or open an event log: `Case 1, Task A` lines, words like `ABCD ACBD EF`, one trace per line, CSV or **XES** (ProM)
-- Direct successions `>`, causality `→`, parallelism `||`, independence `#`
-- **Relation (footprint) matrix**, as drawn in class, copyable as LaTeX
-- **Alpha algorithm step by step**: TW, TI, TO, XW, YW, PW (places `P(A,BE)`, iw, ow), FW, α(W)
-- Discovered Petri net preview, **word check** (replay of every trace), soundness verdict
-- One click to open α(W) as a Petri net or to **deduce the BPMN diagram** (Petri net → BPMN, with AND/XOR gateways)
-- **Step-by-step mode**: write the relations, click the matrix cells and type TW…FW yourself; every step has *Check* (missing / extra items, hints) and *Fill for me*; your net is built from your own answers and replayed
-- Petri matrices **exercise mode**: fill Pre / Post / C by hand and check them
-- Command line: `cargo run -p op-core --example alpha -- log.txt` prints the full write-up
 
-### Everywhere
-- **Free drawing**: a native/web whiteboard with shapes, arrows, sticky notes, text and freehand strokes; colors, sketch mode, selection, resizing, undo/redo, `.opx` save/open and SVG/PNG exports in the shared editor layout.
-- **Home screen**: a responsive grid to start modelling, simulation, process discovery, evaluation or UML diagrams; open a file, explore examples or resume an open document
-- **New document picker**: File → New, the tab bar’s + button and Ctrl/Cmd+N open the same searchable grid of registered document types. Exports are grouped under File → Export.
-- **BPMN auto arrange**: undoable left-to-right layout that preserves pool/lane membership, available in the view configuration bar or its compact Options menu.
-- **Split views**: drag a tab onto the edge of any pane to split it (e.g. BPMN on the left, Petri matrices on the right); matrices, analysis, states and the reachability graph can each get their own pane
-- **Rubber-band selection** (drag on empty space), Shift+click, Ctrl+A, move / align / distribute / delete a group; Space+drag or right/middle drag to pan
-- **Drag & drop** elements from the floating palette onto the canvas (or onto a flow to insert them)
-- **Link styles**: straight, right angles (90°) or curved; **hand-drawn "sketch" mode** (Excalidraw-like)
-- **Export as image (PNG)** of diagrams and matrices; matrices also as **CSV** and LaTeX
-- Tabs, undo/redo, zoom/pan, snap to grid, light & dark themes, drag-and-drop files
-- Native `.opx` (JSON) format; session automatically restored (local storage on the web)
-- Built-in examples: order process, mutual exclusion, producer/consumer, dining philosophers
+Import text, CSV or XES event logs to inspect direct succession, causality,
+parallelism and independence in a footprint matrix. The Alpha walkthrough shows
+each construction step, previews the discovered Petri net and replays traces.
+Manual exercises let you fill relations and construction sets, check answers
+or request a completed step. You can open a discovered net in the Petri editor
+or derive a BPMN diagram. A command-line example prints the walkthrough:
 
-## Running
+```sh
+cargo run --locked -p op-core --example alpha -- log.txt
+```
+
+Petri matrices also have an exercise mode and support CSV/LaTeX copying. BPMN
+process evaluation separately computes trace costs and expected duration for
+supported structured models, using equiprobable XOR choices and no waiting.
+Sequences add durations and parallel branches use their maximum. Evaluation is
+capped at 256 choice scenarios; displayed traces are limited to 512 words, with
+an explicit notice when shortened.
+
+## Get started
+
+Use the [hosted app](https://open-process.linv.dev/app/) or a build from
+[GitHub Releases](https://github.com/linventif/open-process/releases).
+Open an example from a document card, explore its editor, then save your work as
+`.opx`. The [getting started guide](docs/getting-started.md) covers the basic workflow.
+
+Desktop distributions include:
+
+- **Windows x64:** an executable with the application icon.
+- **macOS Apple Silicon and Intel:** archives containing **Open Process.app**;
+  extract and move the app to Applications.
+- **Linux x64:** an archive with the binary, icon, desktop launcher and
+  `install.sh`; run `sh install.sh` from the extracted directory for a user installation.
+
+Standalone Linux/macOS binaries are also published. See the
+[icon and packaging guide](docs/icone.md) for package details.
+
+Files and restored sessions are stored locally. Browser saves download files;
+there is no account-based document sync. Keep `.opx` backups rather than relying
+only on session restoration. See [data and storage](docs/data-and-storage.md).
+
+<a id="running"></a>
+
+## Build and run
 
 ### Desktop
 
+Install a stable Rust toolchain meeting the minimum version in
+[Cargo.toml](Cargo.toml) (currently Rust 1.95), plus your platform's native build
+tools. Linux also needs windowing development libraries; CI installs
+`libxkbcommon-dev` and `libgtk-3-dev` on Ubuntu.
+
 ```sh
-cargo run --release
-# or open files directly
-cargo run --release -- my-process.bpmn my-net.pnml
+git clone https://github.com/linventif/open-process.git
+cd open-process
+cargo run --locked --release -p op-app
 ```
 
-Linux needs the usual windowing libraries (`libxkbcommon`, X11 or Wayland).
+You can pass files on the command line:
 
-### Browser
+```sh
+cargo run --locked --release -p op-app -- my-process.bpmn my-net.pnml
+```
 
-Open the cloud app at [open-process.linv.dev/app](https://open-process.linv.dev/app/).
-Your session is saved locally in your browser.
+### Browser application
 
-To run it locally:
+Install Trunk and the WebAssembly target, then serve the Rust application:
 
 ```sh
 rustup target add wasm32-unknown-unknown
-cargo install --locked trunk
+cargo install --locked trunk --version 0.22.1
 cd crates/op-app
-trunk serve --release      # http://127.0.0.1:8080
+trunk serve --release
 ```
 
-`trunk build --release` produces the standalone WebAssembly app in `dist/`.
-For the shared Cloudflare Pages site, run `bun run build` in `website/`: it builds
-the Astro presentation and puts the app under `website/dist/app/`.
+Open the URL printed by Trunk. `trunk build --release` produces the standalone
+application in `crates/op-app/dist/`.
 
-### Automatic releases
+### Website and combined web build
 
-Every push to `main` runs the CI tests on Linux, Windows and macOS and checks the
-WebAssembly build. Once those checks pass, the release workflow builds binaries
-for Linux x64, Windows x64, macOS Apple Silicon and macOS Intel. It publishes them
-together in a GitHub Release tagged `main-<run number>-<short commit SHA>`.
-The website's download buttons pick up that latest release automatically.
+The Astro/TypeScript website uses Bun 1.4.0 and Node.js 24:
 
-Windows executables include the application icon. macOS releases also provide a
-`.tar.gz` containing **Open Process.app**: extract it and move the app to
-Applications. Linux archives include the executable, icon, desktop launcher and
-`install.sh`; run `sh install.sh` from the extracted package to install it for the
-current user. Standalone binaries remain available for compatibility.
-
-The approved icon and its platform formats are documented in
-[`docs/icone.md`](docs/icone.md).
-
-Pushing a `v*` tag still publishes a release using that tag. The workflow uses
-GitHub's built-in token; no additional release secret is needed.
-
-## Project layout
-
-The product website lives in [`website/`](website/): Astro, TypeScript and Bun,
-with English/French/Spanish HTML pages, SEO metadata, screenshots and release downloads.
-A single Cloudflare Pages build serves English at `/`, French at `/fr/`, Spanish at `/es/`
-and the WebAssembly app at `/app/`. See [`website/README.md`](website/README.md)
-for development and Cloudflare build settings.
-
-```
-crates/
-  op-core/   GUI-independent library (models, algorithms, file formats) — native & wasm
-    petri.rs      Petri net model, firing rule, Pre/Post/C matrices
-    analysis.rs   reachability/coverability graph, properties, invariants, soundness
-    bpmn.rs       BPMN model, validation, flow routing
-    bpmn_xml.rs   BPMN 2.0 XML + DI import/export
-    pnml.rs       PNML import/export
-    convert.rs    BPMN ↔ Petri net translations
-    mining.rs     event logs, relation matrix, Alpha algorithm, trace replay
-    evaluation.rs traces, activity costs and expected process execution time
-    uml.rs        UML class/use-case models, relations and PlantUML export
-  op-app/    egui/eframe application (desktop + web)
+```sh
+cd website
+bun install --frozen-lockfile
+bun run dev
 ```
 
-Run the tests with `cargo test --workspace`.
+`bun run build` builds the website and compiles the application into
+`website/dist/app/`. `bun run preview` serves the combined output.
+English is served at `/`, French at `/fr/`, Spanish at `/es/`, and the app at
+`/app/`. See [website/README.md](website/README.md) for tooling and hosting details.
 
-## Architecture documentation
+## Development and checks
 
-The modular architecture, design decisions, compatibility strategy and
-migration plan are documented in French in [`docs/`](docs/README.md).
-The migration status and extension guide describe the implemented module registry,
-editor sessions and versioned documents.
-See [`AGENTS.md`](AGENTS.md) for repository contribution instructions.
+```sh
+cargo test --locked --workspace -- --test-threads=1
+cargo check --locked -p op-app
+cargo check --locked -p op-app --target wasm32-unknown-unknown
+git diff --check
+```
+
+Run application/UI tests sequentially, as in CI. For focused checks, website
+validation and contribution requirements, use [CONTRIBUTING.md](CONTRIBUTING.md).
+Historical local validation records are in [docs/verification.md](docs/verification.md);
+they are not a claim that every check was rerun against the current checkout.
+
+```text
+crates/op-core/   Typed models, algorithms, geometry, conversions and formats
+crates/op-app/    Native/web egui application, editors and platform services
+website/         Astro presentation site and combined WebAssembly build
+scripts/         Packaging, icons and independent validation helpers
+docs/            User guides, architecture, compatibility and verification records
+```
+
+Notations register their document factories, commands, views and formats through
+[composition.rs](crates/op-app/src/composition.rs). The shell consumes that registry;
+models and histories remain typed. Start with the [documentation index](docs/README.md)
+and [current architecture](docs/architecture-actuelle.md) to explore the implementation.
+
+## Automatic releases
+
+Pushes to `main` run the shared CI workflow: tests and native release builds on
+Linux, Windows and macOS, plus the website/WebAssembly build and Bun tests.
+After validation, the release workflow builds four native targets and publishes
+one GitHub Release tagged `main-<run number>-<short commit SHA>`. `v*` tags are
+also supported. These automatic builds are currently published as non-prereleases;
+a `main-*` tag identifies a build, not a separate long-term support line.
+
+Website download links use the latest GitHub release metadata. Cloudflare Pages
+builds and deploys the combined site through its own Git integration.
+See [the release workflow](.github/workflows/release.yml),
+[website deployment](website/README.md) and [CHANGELOG.md](CHANGELOG.md).
 
 ## Roadmap
 
-The next product targets are Looping and Bizagi Modeler, followed by a broader
-Visual Paradigm scope. See the [feature comparison and delivery stages](docs/parite-looping-bizagi.md)
-and the [proposed diagram catalogue](docs/catalogue-diagrammes.md).
+The product direction prioritizes data modelling inspired by Looping and process
+modelling/documentation/simulation inspired by Bizagi Modeler, followed by broader
+modelling tools. These are development goals, not delivery commitments.
 
-- [ ] SVG / PNG export of diagrams
-- [x] English / French / Spanish UI
-- [ ] Multi-selection, copy/paste, alignment guides
-- [ ] Siphons & traps, home markings, coverability-based liveness hints
-- [ ] Coloured / timed / stochastic Petri nets
-- [ ] More process mining: directly-follows graph with frequencies, Alpha+ (short loops), inductive / heuristic miner, conformance metrics (fitness, precision)
-- [x] Process evaluation: enumerate the traces of an acyclic structured BPMN model, cost and duration formulas
-- [ ] BPMN simulation (token flow, resources, durations) and KPIs
-- [x] Initial DMN decision tables, EPC and UML activity editors — [supported features and limits](docs/notations-ajoutees.md)
-- [ ] Complete DMN/FEEL, extended EPC and UML activity coverage
-- [ ] Merise MCD → MLD → MPD/SQL and SQL reverse engineering
-- [x] Initial relational database editor and PostgreSQL, MySQL/MariaDB, SQLite DDL generation — [features and limits](docs/base-de-donnees-ddl.md)
-- [ ] Bizagi Modeler feature coverage: BPMN, documentation, simulation and collaboration
+Remaining areas include:
 
-Contributions are welcome!
+- Merise conceptual and logical models, transformations to SQL and SQL reverse engineering.
+- Broader BPMN coverage, subprocess navigation, documentation and resource modelling.
+- Process simulation with durations, resources, calendars and scenario comparisons.
+- Extended DMN/FEEL, EPC and UML activity support.
+- More process miners, conformance metrics and advanced Petri-net analysis.
+- Consistent editing/export coverage across notations and, later, shared repositories.
 
-## Credits
+The [coverage matrix](docs/parite-looping-bizagi.md) distinguishes implemented,
+partial and proposed features. The [diagram catalogue](docs/catalogue-diagrammes.md)
+describes possible future document families.
 
-The UI uses the [Inter](https://rsms.me/inter/) typeface by Rasmus Andersson,
-licensed under the SIL Open Font License 1.1 (see `crates/op-app/assets/fonts/Inter-LICENSE.txt`).
-The sketch mode uses [Patrick Hand](https://fonts.google.com/specimen/Patrick+Hand) by Patrick Wagesreiter,
-also under the SIL OFL 1.1 (see `crates/op-app/assets/fonts/PatrickHand-OFL.txt`).
+## Community
 
-## License
+English is the project's default language for documentation and source text.
+Issues and pull requests in French are also welcome. Contributions can include
+translations, examples, documentation, bug reports, accessibility improvements and code.
 
-Dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
+- [Contributing](CONTRIBUTING.md): setup, conventions, checks and pull requests.
+- [Support](SUPPORT.md): questions, bugs and feature suggestions.
+- [Code of Conduct](CODE_OF_CONDUCT.md): community expectations and private contact.
+- [Security](SECURITY.md): private vulnerability reporting and update scope.
+- [Governance](GOVERNANCE.md): decisions, reviews and releases.
+- [Changelog](CHANGELOG.md): curated changes and published build history.
+
+## Credits and license
+
+The UI uses [Inter](https://rsms.me/inter/) by Rasmus Andersson and
+[Patrick Hand](https://fonts.google.com/specimen/Patrick+Hand) by Patrick Wagesreiter,
+under the SIL Open Font License 1.1. See their bundled
+[Inter](crates/op-app/assets/fonts/Inter-LICENSE.txt) and
+[Patrick Hand](crates/op-app/assets/fonts/PatrickHand-OFL.txt) notices.
+
+Open Process is dual-licensed under [MIT](LICENSE-MIT) OR
+[Apache-2.0](LICENSE-APACHE), at your option. Third-party assets retain their own licenses.

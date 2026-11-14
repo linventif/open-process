@@ -1,56 +1,58 @@
-# Architecture d'Open Process
+# Open Process documentation
 
-**Statut : direction validée, architecture modulaire implémentée.**
+**Status: English is the default documentation language. The modular architecture
+is implemented; individual guides distinguish available features from proposals.**
 
-L'objectif est de pouvoir ajouter de nombreuses familles de diagrammes sans
-répartir leur intégration dans toute l'application. Ces pages décrivent la cible, les décisions et les étapes réalisées.
-Commencer par l'architecture actuelle pour retrouver l'implémentation.
+Start with [getting started](getting-started.md) to use the application,
+[CONTRIBUTING.md](../CONTRIBUTING.md) to contribute, or
+[the current architecture](architecture-actuelle.md) to explore the code.
+For questions, bugs and suggestions, see [SUPPORT.md](../SUPPORT.md).
 
-La migration a intégré les éditeurs UML et l'écran d'accueil déjà présents dans
-le dossier de travail, en préservant les autres modifications locales.
+## Reading guide
 
-## Parcours de lecture
-
-| Document | À quoi il sert |
+| Document | Purpose |
 | --- | --- |
-| [Architecture cible](architecture-cible.md) | Comprendre l'organisation souhaitée, les responsabilités et les dépendances. |
-| [Décisions retenues](decisions.md) | Retrouver les compromis et alternatives considérés. |
-| [Documents et compatibilité](documents-et-compatibilite.md) | Examiner le stockage, les migrations et la protection des fichiers existants. |
-| [Plan de migration](migration.md) | Consulter les étapes réalisées et leurs résultats. |
-| [Architecture actuelle](architecture-actuelle.md) | Retrouver l’implémentation dans le code. |
-| [Zones de l’interface](interface.md) | Nommer les zones avec un layout SVG et retrouver les composants communs. |
-| [Traductions](traductions.md) | Modifier les textes et ajouter des messages avec des clés stables. |
-| [Cible Looping et Bizagi Modeler](parite-looping-bizagi.md) | Comparer les fonctions documentées, mesurer les écarts et ordonner les chantiers. |
-| [Catalogue de diagrammes proposé](catalogue-diagrammes.md) | Choisir les prochaines familles de modèles après les priorités produit. |
-| [DMN, EPC et UML activité](notations-ajoutees.md) | Retrouver les fonctions et limites des trois nouvelles intégrations. |
-| [Base de données et DDL](base-de-donnees-ddl.md) | Concevoir des tables et générer le SQL PostgreSQL, MySQL/MariaDB et SQLite. |
-| [Dessin libre](dessin-libre.md) | Dessiner formes, flèches, notes et tracés à main levée, en natif et sur le web. |
+| [Getting started](getting-started.md) | Create, save and export your first document. |
+| [Data and storage](data-and-storage.md) | Local sessions, backups, network requests and deletion. |
+| [Current architecture](architecture-actuelle.md) | Actual implementation, modules and entry points. |
+| [Target architecture](architecture-cible.md) | Approved design principles, responsibilities and dependencies. |
+| [Architecture decisions](decisions.md) | Accepted tradeoffs and alternatives. |
+| [Documents and compatibility](documents-et-compatibilite.md) | File storage, migrations and preservation of existing data. |
+| [Migration record](migration.md) | Completed architecture migration steps. |
+| [Interface zones](interface.md) | Shared UI vocabulary, annotated SVG and common layout components. |
+| [Translations](traductions.md) | Edit interface copy and add stable message keys. |
+| [Looping and Bizagi Modeler goals](parite-looping-bizagi.md) | Feature coverage, gaps and proposed delivery stages. |
+| [Proposed diagram catalogue](catalogue-diagrammes.md) | Possible future model families after the product priorities. |
+| [DMN, EPC and UML activities](notations-ajoutees.md) | Implemented features and limits of the initial integrations. |
+| [Database design and DDL](base-de-donnees-ddl.md) | Tables and SQL generation for PostgreSQL, MySQL/MariaDB and SQLite. |
+| [Free drawing](dessin-libre.md) | Shapes, arrows, notes and freehand strokes on desktop and web. |
 | [Mermaid editor](mermaid.md) | Source editing, preview, templates, source/SVG export and UML class conversions. |
-| [Icône du logiciel](icone.md) | Retrouver les formats et l’intégration de l’identité visuelle. |
-| [Ajout d’une notation](ajouter-une-notation.md) | Implémenter un module et l’enregistrer. |
-| [Vérifications](verification.md) | Retrouver les tests et contrôles exécutés. |
-| [Instructions de contribution](../AGENTS.md) | Savoir comment intervenir dès maintenant dans le dépôt. |
+| [Application icon](icone.md) | Master artwork, generated formats and platform integration. |
+| [Adding a notation](ajouter-une-notation.md) | Implement and register a notation module. |
+| [Verification record](verification.md) | Historical local checks, outcomes and their limits. |
+| [Contributing](../CONTRIBUTING.md) | Set up a development environment, check changes and submit a PR. |
+| [Repository rules](../AGENTS.md) | Architecture constraints, language policy and relevant checks. |
+| [Governance](../GOVERNANCE.md) | Decisions, reviews and releases. |
+| [Changelog](../CHANGELOG.md) | Curated changes and published builds. |
 
-## Architecture en quelques lignes
+## Architecture overview
 
-Conserver Rust, egui/eframe et les deux crates actuelles au début. Organiser le
-produit comme un **monolithe modulaire** : une application unique, des modules
-par notation, et des contrats communs pour leur intégration.
+Open Process is a modular monolith: one native/WebAssembly application, with
+modules for each notation. The workspace keeps two Rust crates, `op-core` for
+typed models and domain operations and `op-app` for the UI and platform services.
 
-Chaque module possède ses modèles typés, ses règles et son interface. Un registre
-statique fournit les types de documents, les commandes, les vues et les formats
-disponibles. Le canvas propose des outils réutilisables aux éditeurs graphiques.
-Les documents textuels et tabulaires peuvent utiliser les mêmes services applicatifs.
+Each module owns its model, rules, editor and format declarations. A statically
+composed registry supplies document types, commands, views and formats to the
+shell. Graphical editors share canvas mechanisms and layout; text and table
+editors use the same document lifecycle without pretending to be canvases.
 
-Les fichiers existants restent lisibles ; l'application écrit désormais les `.opx` v2
-et restaure les anciennes sessions, avec des migrations testées.
+The app writes `.opx` v2, reads older files and restores legacy sessions through
+tested migrations. Historical verification results are records of the checkout
+at each change, rather than a current certification of the entire project.
 
-## Pour poursuivre
+## Language and stable links
 
-1. Consulter [le suivi de migration](migration.md) et [les vérifications](verification.md).
-2. Suivre [le guide d'ajout d'une notation](ajouter-une-notation.md) pour la prochaine famille de documents.
-3. Conserver les tests de compatibilité lors de chaque évolution du stockage.
-
-Les noms de dossiers, d'interfaces et d'identifiants montrés dans la proposition
-sont des repères de conception. Les signatures effectivement utilisées sont documentées par le guide d'ajout.
-Le pilote de calculs utilise directement la dépendance Wasm déjà présente transitivement.
+Project documentation and original interface copy use English. The application
+starts in English without a saved preference; French and Spanish remain
+available. Contributions in French are welcome. Existing documentation filenames
+are retained so links continue to work, even where their names originated in French.

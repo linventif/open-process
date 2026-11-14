@@ -1,138 +1,122 @@
-# Base de données relationnelle et génération DDL
+# Relational database design and DDL generation
 
-**Implémenté : un éditeur ERD/MPD de tables relationnelles, avec aperçu SQL,
-export `.sql`, sauvegarde `.opx`, historique et plusieurs vues du même modèle.**
+**Implemented: a relational table ERD/physical-schema editor with SQL preview,
+`.sql` export, `.opx` saves, history and multiple views of one model.**
 
-Le modèle est défini directement par ses tables et ses clés. Le passage d’un
-MCD Merise à un MLD, les CIF et la rétroconception SQL restent des étapes
-distinctes de la [cible Looping](parite-looping-bizagi.md).
+Models are defined directly as tables and keys. Merise conceptual-to-logical
+transformations, inter-association constraints and SQL reverse engineering remain
+separate parts of the [Looping goal](parite-looping-bizagi.md).
 
-## Utilisation
+## Usage
 
-1. Dans l’accueil, choisir **Concevoir une base de données**, ou utiliser
-   **File → New…**, puis la carte **New database schema**. L’exemple **Database – Shop schema** fournit
-   clients, commandes et lignes de commande.
-2. **Ajouter une table**, puis sélectionner une table pour modifier son nom,
-   ses colonnes et ses index dans l’inspecteur.
-3. **Ajouter une colonne** et définir son type, sa nullabilité, sa participation
-   à la clé primaire, son unicité, sa valeur par défaut et son auto-incrémentation.
-4. Avec l’outil **Connecter**, cliquer sur la table enfant puis sur la table
-   référencée, ou glisser entre elles. Le menu **Ajouter une clé étrangère** permet
-   aussi de choisir la cible. La relation reprend la clé primaire cible et crée
-   les colonnes locales manquantes. Une colonne de même nom et de même type est
-   réutilisée. Les correspondances sont ensuite éditables dans l’inspecteur.
-5. Choisir le **SGBD cible**, puis ouvrir **SQL / DDL**. Une vue SQL apparaît à
-   côté du diagramme et se met à jour après chaque modification du modèle.
-6. Utiliser **Copier le DDL** ou **File → Export → Export SQL DDL (.sql)…**.
-   Enregistrer le modèle en `.opx` permet de reprendre l’édition plus tard.
+1. Choose **Design a database** on the home screen or **File → New… → New database
+   schema**. The **Database – Shop schema** example contains customers, orders and items.
+2. Add a table, then select it to edit its name, columns and indexes in the inspector.
+3. Add columns and set type, nullability, primary-key membership, uniqueness,
+   defaults and auto-increment.
+4. With **Connect**, click the child table and then the referenced table, or drag
+   between them. **Add foreign key** also lets you choose a target. The relation
+   uses the target primary key and creates missing local columns, reusing columns
+   with matching names/types. Edit mappings in the inspector afterward.
+5. Choose the target DBMS and open **SQL / DDL**. A SQL view appears beside the
+   diagram and updates when the relational model changes.
+6. Use **Copy DDL** or **File → Export → Export SQL DDL (.sql)…**. Save `.opx` to
+   continue editing later.
 
-Le SGBD cible est un choix persistant du document, partagé par ses vues. Les
-caméras, sélections et inspecteurs restent propres à chaque panneau. Déplacer
-une table modifie sa présentation ; son SQL ne change pas.
+The target DBMS is persistent document content shared across views. Cameras,
+selections and inspectors belong to each panel. Moving tables changes their
+presentation without changing generated SQL.
 
-Les scripts créent les tables, index et contraintes dans la base choisie lors
-de leur exécution. L’application fournit le script ; son export ne l’exécute
-pas sur un serveur.
+Scripts create tables, indexes and constraints in the database where they are
+executed. The app produces scripts; exporting does not execute them on a server.
 
-## Modèle pris en charge
+## Supported model
 
-- Tables et colonnes avec identifiants stables ; noms indépendants des références.
-- Clés primaires simples ou composées, selon l’ordre des colonnes marquées PK.
-- Unicité par colonne et index simples/composés, uniques ou non uniques.
-- Clés étrangères simples ou composées, vers une clé primaire ou une clé unique.
-- Actions `NO ACTION`, `RESTRICT`, `CASCADE` et `SET NULL`, pour suppression et mise à jour.
-- Valeurs par défaut typées : texte, nombre, booléen, `NULL`, `CURRENT_DATE`
-  et `CURRENT_TIMESTAMP`. Les expressions SQL libres ne sont pas interprétées.
-- Déplacement et redimensionnement des tables, noms et types affichés dans les
-  compartiments, relations rattachées aux lignes de colonnes.
-- Validation accessible dans l’inspecteur ; génération bloquée si le schéma est invalide.
-- Annulation/rétablissement des éditions et des suppressions. Supprimer une colonne
-  retire ses index dépendants et relations ; l’annulation restaure l’ensemble.
-- Capture PNG du canvas avec les mécanismes existants de l’application.
+- Tables/columns with stable IDs; names are independent of references.
+- Single/composite primary keys, following the order of PK-marked columns.
+- Per-column uniqueness and simple/composite, unique/non-unique indexes.
+- Single/composite foreign keys targeting primary or unique keys.
+- `NO ACTION`, `RESTRICT`, `CASCADE` and `SET NULL` on update/delete.
+- Typed defaults: text, number, boolean, `NULL`, `CURRENT_DATE` and
+  `CURRENT_TIMESTAMP`; arbitrary SQL expressions are not interpreted.
+- Move/resize tables, names/types in compartments, links anchored to column rows.
+- Inspector validation; invalid schemas cannot generate DDL.
+- Undo/redo of edits/deletions. Deleting a column removes dependent indexes and
+  relations; undo restores the full change.
+- Canvas PNG capture through the existing app mechanisms.
 
-Les types disponibles sont `INTEGER`, `BIGINT`, `VARCHAR(n)`, `TEXT`,
-`DECIMAL(p,s)`, `BOOLEAN`, `DATE`, `TIMESTAMP` et binaire.
+Types include `INTEGER`, `BIGINT`, `VARCHAR(n)`, `TEXT`, `DECIMAL(p,s)`, `BOOLEAN`,
+`DATE`, `TIMESTAMP` and binary data.
 
-| Cible | Particularités du DDL |
+| Target | DDL behavior |
 | --- | --- |
-| PostgreSQL | Identifiants entre guillemets doubles, `BYTEA`, identité `GENERATED BY DEFAULT AS IDENTITY`, clés étrangères ajoutées après les tables/index. |
-| MySQL / MariaDB | Identifiants entre accents graves, `BLOB`, `DATETIME`, `AUTO_INCREMENT`, tables InnoDB en utf8mb4 et clés étrangères ajoutées après les tables/index. |
-| SQLite | Identifiants entre guillemets doubles, entiers de type `INTEGER`, `BLOB`, clés étrangères dans les `CREATE TABLE`, activation de `foreign_keys`. |
+| PostgreSQL | Double-quoted identifiers, `BYTEA`, `GENERATED BY DEFAULT AS IDENTITY`, foreign keys added after tables/indexes. |
+| MySQL / MariaDB | Backtick identifiers, `BLOB`, `DATETIME`, `AUTO_INCREMENT`, InnoDB/utf8mb4, foreign keys after tables/indexes. |
+| SQLite | Double-quoted identifiers, `INTEGER` integer types, `BLOB`, foreign keys in `CREATE TABLE`, `foreign_keys` enabled. |
 
-Références de syntaxe : [PostgreSQL CREATE TABLE](https://www.postgresql.org/docs/current/sql-createtable.html),
+Syntax references: [PostgreSQL CREATE TABLE](https://www.postgresql.org/docs/current/sql-createtable.html),
 [MySQL CREATE TABLE](https://dev.mysql.com/doc/refman/8.4/en/create-table.html),
 [MariaDB CREATE TABLE](https://mariadb.com/docs/server/server-usage/tables/create-table.md),
-[SQLite clés étrangères](https://www.sqlite.org/foreignkeys.html).
+[SQLite foreign keys](https://www.sqlite.org/foreignkeys.html).
 
-Les relations cycliques sont possibles : les contraintes sont ajoutées après
-les tables pour PostgreSQL/MySQL, tandis que SQLite autorise les références
-dans les définitions de tables. Une colonne auto-incrémentée est limitée à une
-clé primaire entière simple pour conserver une règle portable. Pour SQLite,
-la déclaration utilise `INTEGER PRIMARY KEY AUTOINCREMENT`, dont la politique
-de non-réutilisation des identifiants est décrite dans
-[la documentation SQLite](https://www.sqlite.org/autoinc.html).
+Cyclic relations are supported: PostgreSQL/MySQL constraints follow table creation;
+SQLite allows references in table definitions. Auto-increment is restricted to a
+single integer primary key for portability. SQLite uses
+`INTEGER PRIMARY KEY AUTOINCREMENT`; see its
+[non-reuse policy](https://www.sqlite.org/autoinc.html).
 
-## Validations et limites
+## Validation and limits
 
-Le validateur distingue un brouillon éditable d’un schéma exportable. Les
-identifiants internes doivent être uniques et la géométrie finie dès l’ouverture.
-Les noms incomplets, clés ou valeurs par défaut invalides restent sauvegardables
-pour pouvoir les corriger ; ils produisent des diagnostics et bloquent le DDL.
+Validation distinguishes an editable draft from an exportable schema. Internal
+IDs must be unique and geometry finite on opening. Incomplete names and invalid
+keys/defaults remain saveable for correction, but diagnostics block DDL generation.
 
-Les contrôles portent notamment sur les noms et collisions, les limites de
-types, les colonnes absentes/répétées, les cibles uniques des clés étrangères,
-la compatibilité des types et la nullabilité nécessaire à `SET NULL`.
-Les noms générés de contraintes restent stables lors d’un renommage de table.
-Les identifiants SQL et les littéraux texte sont échappés séparément.
+Checks include names/collisions, type bounds, missing/repeated columns, unique
+foreign-key targets, type compatibility and nullability for `SET NULL`. Generated
+constraint names stay stable across table renames. SQL identifiers and text
+literals use separate escaping.
 
-`DECIMAL` est limité à une précision de 38, et à 30 décimales pour MySQL. Les
-valeurs par défaut décimales doivent être représentables exactement à la
-précision déclarée. Pour MySQL, les clés sur `TEXT`/`BLOB` sans préfixe ne sont
-pas prises en charge ; une borne conservatrice de 3 072 octets est appliquée
-aux colonnes indexées, avec des profils de types bornés.
+`DECIMAL` precision is capped at 38, with at most 30 fractional digits for MySQL.
+Decimal defaults must fit the declared precision exactly. MySQL keys on
+`TEXT`/`BLOB` without prefixes are unsupported; a conservative 3,072-byte bound
+applies to indexed columns with bounded type profiles.
 
-La cible de syntaxe MySQL est la branche 8.4 ; le profil partage sa syntaxe avec
-MariaDB, sans certification de toutes ses versions. Les différences de collations,
-limites de lignes, configuration de serveur et version de SGBD nécessitent des
-essais supplémentaires dans l’environnement de destination. SQLite conserve
-ses règles d’affinité de types ; un `VARCHAR(n)` ne devient pas une validation
-stricte de longueur à lui seul.
+The MySQL syntax target is 8.4. The profile shares syntax with MariaDB without
+certifying every version. Collations, row limits, server settings and DBMS
+versions need destination-specific checks. SQLite retains its type-affinity
+rules: `VARCHAR(n)` alone is not strict length validation.
 
-Les domaines personnalisés, vues, triggers, procédures, migrations différentielles,
-connexions à une base existante, imports SQL et conversions MCD/MLD restent à
-implémenter. La [matrice de couverture](parite-looping-bizagi.md) maintient cette
-distinction avec les fonctions de Looping.
+Custom domains, views, triggers, procedures, differential migrations, connections
+to existing databases, SQL import and Merise conceptual/logical transformations
+are not implemented. The [coverage matrix](parite-looping-bizagi.md) distinguishes
+these from current capabilities.
 
-## Architecture et vérifications
+## Architecture and checks
 
-- [database.rs](../crates/op-core/src/database.rs) : modèle relationnel, mutations et diagnostics.
-- [database/ddl.rs](../crates/op-core/src/database/ddl.rs) : génération déterministe par dialecte.
-- [database_editor.rs](../crates/op-app/src/database_editor.rs) et ses sous-modules :
-  inspecteur, dessin et adaptateur de session.
-- [composition.rs](../crates/op-app/src/composition.rs) : enregistrement `database.schema`,
-  alias `database`, `erd`, `mpd`, exemple et vue secondaire `database.ddl`.
+- [database.rs](../crates/op-core/src/database.rs): relational model, mutations and diagnostics.
+- [database/ddl.rs](../crates/op-core/src/database/ddl.rs): deterministic dialect generation.
+- [database_editor.rs](../crates/op-app/src/database_editor.rs) and submodules:
+  inspector, rendering and session adapter.
+- [composition.rs](../crates/op-app/src/composition.rs): `database.schema`, aliases
+  `database`, `erd`, `mpd`, example and secondary `database.ddl` view.
 
-L’éditeur utilise `DiagramLayout`, le thème commun, le canvas et l’historique
-existants. L’enveloppe `.opx` reste en version 2 et le nouveau modèle commence en
-version 1. Le shell ne connaît aucun nouveau cas concret. Le cache SQL dépend
-du contenu relationnel, du dialecte et de la langue des diagnostics, séparément
-de la géométrie.
+The editor reuses `DiagramLayout`, theme, canvas and history. The `.opx` envelope
+remains v2; the model starts at v1. The shell has no new concrete case. SQL caching
+depends on relational content, dialect and diagnostic language, separately from geometry.
 
-Les tests Rust couvrent les variantes de dialectes, les clés composées, les cycles,
-les littéraux, les diagnostics, les interactions UI, l’historique et la reprise.
-Un contrôle indépendant exécute le SQL réellement généré avec SQLite :
+Rust tests cover dialect variants, composite keys, cycles, literals, diagnostics,
+UI interactions, history and restoration. An independent check executes actual
+generated SQL with SQLite:
 
 ```sh
 cargo run --locked --offline -p op-core --example database-ddl -- /tmp/open-process-ddl
 python3 scripts/check-database-ddl.py /tmp/open-process-ddl
 ```
 
-Le contrôle crée des bases en mémoire, inspecte leur schéma, vérifie les
-contraintes et exécute des insertions/suppressions, dont une cascade et des
-valeurs texte contenant des caractères SQL. Les scripts PostgreSQL/MySQL sont
-testés par les tests Rust ; ils n’ont pas été exécutés sur ces serveurs dans
-cette session. Voir [les résultats](verification.md#base-de-donnees-et-ddl).
+It creates in-memory databases, inspects schemas, checks constraints and performs
+inserts/deletes, including cascades and text containing SQL characters. PostgreSQL
+and MySQL scripts were covered by Rust tests but not executed on those servers
+in the recorded validation. See [results](verification.md#database-and-ddl).
 
-Exemples de scripts produits à partir du modèle de boutique :
-[PostgreSQL](examples/shop.postgresql.sql), [MySQL/MariaDB](examples/shop.mysql.sql),
-[SQLite](examples/shop.sqlite.sql).
+Shop-schema outputs: [PostgreSQL](examples/shop.postgresql.sql),
+[MySQL/MariaDB](examples/shop.mysql.sql), [SQLite](examples/shop.sqlite.sql).

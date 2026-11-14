@@ -1,226 +1,203 @@
-# Architecture cible : une application, des modules par notation
+# Target architecture: one application, notation modules
 
-**Statut : direction validée et implémentée.**
+**Status: approved design direction, implemented.**
 
-Cette page conserve les principes de conception ; [l'architecture actuelle](architecture-actuelle.md)
-et le [guide d'ajout](ajouter-une-notation.md) donnent les interfaces et chemins réels.
+This page records design principles. The [current architecture](architecture-actuelle.md)
+and [extension guide](ajouter-une-notation.md) identify actual interfaces and paths.
 
-## Objectif et périmètre
+## Goal and scope
 
-Ajouter une famille de documents doit demander son modèle, ses règles, son éditeur,
-ses formats et un enregistrement explicite. Les menus, l'accueil et le docking
-doivent exploiter ces déclarations, sans multiplier les conditions BPMN/Petri/UML.
+Adding a document family should require its model, rules, editor, formats and
+explicit registration. Menus, home and docking consume declarations rather than
+accumulating BPMN/Petri/UML conditionals.
 
-La cible conserve une application Rust/egui, native et WebAssembly, utilisable
-localement. Elle couvre les diagrammes graphiques, les journaux d'événements et
-de futures tables de décision. Les plugins chargés à chaud, une API d'extensions
-tierces stable, la collaboration temps réel et un backend obligatoire sont hors
-du périmètre proposé.
+The design keeps a local Rust/egui application for native and WebAssembly use,
+covering graphical diagrams, event logs and decision tables. Hot-loaded plugins,
+a stable third-party extension API, real-time collaboration and a mandatory
+backend are outside this architecture change's scope. Shared-repository product
+goals remain a separate future effort.
 
-## Choix directeur : un monolithe modulaire
+## Guiding choice: a modular monolith
 
-Les notations sont des modules livrés avec le produit, enregistrés explicitement
-au démarrage. `op-core` conserve le métier et `op-app` l'interface. Les frontières
-sont d'abord des modules Rust ; extraire des crates restera possible si une
-réutilisation indépendante ou les dépendances de compilation le justifient.
+Notations ship as modules explicitly registered at startup. `op-core` owns domain
+code and `op-app` owns the UI. Boundaries begin as Rust modules; extracting crates
+remains possible if independent reuse or compilation dependencies justify it.
 
-Un module peut proposer plusieurs types de documents. Le module UML peut ainsi
-enregistrer `uml.class` et `uml.use-case`, tout en partageant ses modèles et son
-rendu. `event-log` représente un document de découverte, même sans canvas principal.
+A module may provide several document types: UML registers `uml.class` and
+`uml.use-case` while sharing model/rendering mechanisms. `event-log` is a discovery
+document even without a primary canvas.
 
-## Responsabilités et dépendances
+## Responsibilities and dependencies
 
-Dans ce schéma, une flèche signifie « dépend de ». Les blocs représentent des
-modules logiques, pas des crates supplémentaires.
+Arrows mean “depends on.” Boxes are logical modules, not additional crates.
 
 ```mermaid
 flowchart TD
-    Composition["Composition : enregistrement des modules"] --> Features["Modules UI : BPMN, Petri, UML, Mining"]
-    Composition --> Shell["Application : accueil, menus, docking, cycle de vie"]
-    Composition --> Platform["Adaptateurs natifs et web"]
-    Shell --> Contracts["Contrats : registre, sessions, commandes, vues, services hôtes"]
+    Composition["Composition: module registration"] --> Features["Notation UI modules"]
+    Composition --> Shell["Application: home, menus, docking, lifecycle"]
+    Composition --> Platform["Native and web adapters"]
+    Shell --> Contracts["Contracts: registry, sessions, commands, views, host services"]
     Features --> Contracts
-    Features --> Canvas["Canvas partagé, facultatif"]
-    Features --> Models["Modèles et services métier typés"]
+    Features --> Canvas["Optional shared canvas"]
+    Features --> Models["Typed models and domain services"]
     Platform --> Contracts
-    Contracts --> Shared["Socle métier : enveloppe, identifiants, diagnostics"]
-    Canvas --> Geometry["Géométrie indépendante de l'UI"]
+    Contracts --> Shared["Domain foundation: envelope, identifiers, diagnostics"]
+    Canvas --> Geometry["UI-independent geometry"]
     Models --> Shared
     Models --> Geometry
-    Transforms["Transformations métier explicites"] --> Models
+    Transforms["Explicit domain transformations"] --> Models
 ```
 
-La composition est l'endroit qui connaît les modules concrets et injecte les
-services. Le shell et les contrats ne les importent pas. Les éditeurs n'accèdent
-pas à la structure interne de l'application ; ils émettent des demandes traitées
-après le rendu, dans l'esprit des événements de docking actuels.
+Composition knows concrete modules and wires services. The shell and contracts
+do not import them. Editors issue requests handled after rendering rather than
+accessing application internals, following the docking event mechanism.
 
-Les dépendances métier utiles restent explicites : Alpha peut produire un réseau
-de Petri ; une transformation BPMN/Petri dépend des deux modèles. Ces dépendances
-ne créent aucun import entre leurs éditeurs. Un module ne dépend pas de la
-totalité du catalogue pour obtenir le nom ou le contenu de son propre document.
+Useful domain dependencies remain explicit: Alpha produces a Petri net and a
+BPMN/Petri transformation depends on both models. This creates no dependency
+between their editors. A module need not depend on the entire catalogue to name
+or inspect its own document.
 
-## Contrats d'intégration
+## Integration contracts
 
-Les noms suivants désignent des responsabilités. Les signatures implémentées sont
-dans `op-app/src/editor/`, avec des interfaces compatibles avec `dyn` à la frontière UI.
+These names describe responsibilities; implemented signatures live in
+`op-app/src/editor/`, using dyn-compatible interfaces at the UI boundary.
 
-| Contrat | Responsabilité |
+| Contract | Responsibility |
 | --- | --- |
-| `DiagramDescriptor` | Identifiant stable du type, libellés traduisibles, catégorie, icône et création d'un document vide. |
-| `DiagramRegistry` | Catalogue déterministe des descripteurs et fabriques d'ouverture ; contrôle des doublons d'identifiants. |
-| `EditorSession` | Une instance vivante de document : modèle typé, historique, commandes, vues et production d'un instantané sauvegardable. |
-| `CommandDescriptor` / `enabled` | Identité et présentation d'une commande, disponibilité selon le document, la sélection et le mode courant. |
-| `ViewDescriptor` | Types de vues proposés par une session : éditeur, matrices, analyse, résultats, etc. |
-| `DocumentCodec<M>` | Contrat métier typé : décoder, valider et migrer le contenu d'une notation ; encoder son état persistant. |
-| `ImportDescriptor` / `ExportDescriptor` | Formats et opérations disponibles ; le transport de fichiers reste un service hôte. |
-| Adaptateurs de plateforme / `HostEvent` | Demandes ciblées : ouvrir un document, exporter un fichier, ouvrir une vue, lancer un calcul, afficher un diagnostic. |
+| `DiagramDescriptor` | Stable type ID, translatable labels, category, icon and empty-document creation. |
+| `DiagramRegistry` | Deterministic descriptors/opening factories and duplicate ID validation. |
+| `EditorSession` | A live document: typed model, history, commands, views and saveable snapshots. |
+| `CommandDescriptor` / `enabled` | Command identity/presentation and availability for the current document, selection and mode. |
+| `ViewDescriptor` | Available views: editor, matrices, analysis, results, etc. |
+| `DocumentCodec<M>` | Typed domain decoding, validation, migration and persistence encoding. |
+| `ImportDescriptor` / `ExportDescriptor` | Available formats/operations; file transport remains a host service. |
+| Platform adapters / `HostEvent` | Targeted requests to open documents/views, export files, run computations or display diagnostics. |
 
-Le shell possède des documents derrière une interface commune, par exemple
-`Box<dyn EditorSession>`. À l'intérieur, chaque module conserve un modèle Rust
-concret et son historique typé. La sérialisation passe par un codec explicite ;
-on ne demande pas à Serde de sérialiser directement un objet trait.
+The shell owns documents through a common interface such as
+`Box<dyn EditorSession>`. Inside each module, models and histories remain concrete
+Rust types. Serialization uses an explicit codec, not direct trait-object Serde.
 
-Le contrat de codec appartient au socle documentaire d'`op-core` et reste
-indépendant d'egui. Chaque notation l'applique à son type `M`. La fabrique UI
-enregistrée appelle ce codec puis construit la session concrète : le shell n'a
-besoin ni d'un enum regroupant tous les modèles ni d'une conversion dynamique
-par `Any`. Un outil en ligne de commande peut utiliser le même codec typé sans
-charger l'application. Les contrats de sessions et de vues restent dans `op-app`.
+The codec belongs to `op-core` and is independent of egui. A registered UI factory
+calls it and constructs a concrete session, so the shell needs neither a central
+model enum nor `Any` conversion. Command-line tools can use the same typed codec
+without loading the app. Sessions and view contracts remain in `op-app`.
 
-Les identifiants techniques, comme `petri.analysis` ou `bpmn.convert-to-petri`,
-ne dépendent ni des traductions ni des positions dans un menu. Le registre
-décrit le contenu ; l'application garde la maîtrise de son ordre et de sa présentation.
+Technical IDs such as `petri.analysis` and `bpmn.convert-to-petri` are independent
+of translations and menu positions. The registry describes content; the app
+controls its order and presentation.
 
-## Cycle de vie : un document, plusieurs vues
+## Lifecycle: one document, multiple views
 
 ```mermaid
 flowchart LR
-    PaneA["Vue éditeur : caméra A"] --> Session["Session du document"]
-    PaneB["Vue éditeur : caméra B"] --> Session
-    PaneC["Vue d'analyse : état du panneau"] --> Session
-    Session --> Model["Modèle typé unique"]
-    Session --> History["Historique unique"]
-    Session --> Results["Résultats dérivés et caches"]
+    PaneA["Editor: camera A"] --> Session["Document session"]
+    PaneB["Editor: camera B"] --> Session
+    PaneC["Analysis: panel state"] --> Session
+    Session --> Model["One typed model"]
+    Session --> History["One history"]
+    Session --> Results["Derived results and caches"]
 ```
 
-L'application possède l'identifiant du document, sa destination de sauvegarde et
-les panneaux ouverts. La session possède le modèle mutable unique. Chaque panneau
-référence le document, un type de vue et un identifiant d'instance de vue.
+The app owns document identity, save destination and open panels. The session
+owns the single mutable model. Panels reference the document, a view type and a
+view-instance ID. Camera, zoom and inspector tab belong to the view instance.
+Typed view state may live in the session under those IDs; the shell need not
+know its internal types. Selection may be shared, but active gestures remain
+local and only one editing transaction applies at a time.
 
-La caméra, le zoom et l'onglet d'inspecteur appartiennent à l'instance de vue.
-Les états propres aux vues peuvent rester stockés dans la session sous ces
-identifiants : le shell n'a pas à connaître leurs types internes. Une sélection
-partagée entre vues d'un même document est possible ; les gestes en cours restent
-locaux et une seule transaction d'édition s'applique au document à la fois.
+Showing a diagram twice duplicates neither model nor history. Closing a panel
+releases view state. The shell handles document closure and unsaved changes.
 
-Afficher le même diagramme dans deux panneaux ne duplique ni son modèle ni son
-historique. Fermer un panneau libère son état de vue. Le shell applique la politique
-de fermeture du document, avec prise en compte des modifications non sauvegardées.
+## Model, history and invalidation
 
-## Modèle, historique et invalidation
+Persistent content includes domain data and edited presentation: positions,
+sizes and styles. A move is saveable and undoable. Camera, selection, dialogs,
+caches and active animation belong to workspace state.
 
-Le contenu persistant comprend le métier et la présentation éditée du diagramme
-(positions, tailles, style). Un déplacement se sauvegarde et peut être annulé.
-La caméra, la sélection, les dialogues, les caches et une animation en cours
-relèvent de la session de travail.
+Mutations use module transactions: begin gesture, mutate, commit or cancel. A
+continuous drag produces one history step; inspectors and commands use the same
+mechanism. Snapshot history remains the first choice; deltas require measurements.
 
-Toute modification passe par une transaction du module : début du geste, mutations,
-validation ou annulation. Un déplacement continu produit une étape d'historique.
-L'inspecteur et les commandes utilisent le même mécanisme. L'historique par
-instantanés reste le premier choix ; des deltas ne se justifieront qu'après mesure.
+Separate revisions track semantic content and presentation. Analyses follow their
+actual dependencies, so a move alone does not invalidate structural analysis.
+Undo/redo invalidates affected results like other mutations. File schema versions
+are independent of these revisions.
 
-Des révisions distinctes suivent le contenu sémantique et la présentation. Les
-analyses suivent les révisions dont elles dépendent ; les déplacements seuls
-n'invalident pas une analyse structurelle. Annuler/refaire invalide les résultats
-concernés comme toute mutation. Les versions de schéma de fichier sont indépendantes.
+Modified state compares persistent content with the last successful save, by
+equality or deterministic fingerprint. A revision counter alone is insufficient:
+undoing back to saved content must remove the indicator. Failed or cancelled
+saves do not update the saved reference.
 
-L'état « modifié » compare l'état persistant au dernier état sauvegardé avec succès,
-par égalité ou empreinte déterministe. Un compteur de révision seul ne suffit pas :
-annuler jusqu'à cet état doit retirer l'indicateur de modification. Une sauvegarde
-échouée ou annulée ne change pas la référence sauvegardée.
+## Canvas and notation-specific rules
 
-## Canvas et règles propres aux notations
+The canvas shares coordinate transforms, navigation, grid, drawing primitives,
+selection tools and movement mechanisms. Modules supply shapes, hit testing,
+anchors and movement/connection constraints.
 
-Le canvas partage les transformations de coordonnées, la navigation, la grille,
-les primitives de dessin, les outils de sélection et les mécanismes de déplacement.
-Le module fournit les formes, la détection des éléments sous le pointeur, les
-ancrages et les contraintes de déplacement et de connexion.
+UI-independent routing can remain in domain/geometry code, with notation-specific
+policy. Petri properties should not become a universal style imposed on unrelated
+diagrams. A BPMN gateway, Petri transition and UML association retain distinct
+invariants. A shared graph is a local option justified by concrete uses. A DMN
+table must integrate with documents, commands and files without a canvas.
 
-Les algorithmes de routage indépendants d'egui peuvent rester dans le métier ou
-la géométrie. Leur politique appartient à la notation. Les propriétés Petri ne
-doivent pas entrer dans un style universel imposé aux futurs diagrammes.
+`DiagramLayout` also shares the inspector, tabs, configuration bar and canvas
+space. Modules pass common controls and domain content instead of redefining
+styles or breakpoints for grid, zoom and issues. Inapplicable options stay absent;
+notation-specific tools use a dedicated slot.
 
-Les modèles restent spécialisés : une passerelle BPMN, une transition Petri et
-une association UML ont des invariants propres. Le partage d'un graphe générique
-est une possibilité locale, à justifier par des usages réels. Une table DMN doit
-pouvoir se brancher aux documents, commandes et fichiers sans implémenter de canvas.
+## Long computations and conversions
 
-Le chrome des éditeurs graphiques est lui aussi commun : `DiagramLayout` gère
-l'inspecteur, ses onglets, la barre de configuration et l'espace du canvas. Les
-modules passent des références aux contrôles communs et des contenus métier ;
-ils ne redéfinissent pas leurs propres styles ou seuils de mise en page pour la
-grille, le zoom ou l'affichage des problèmes. Les options sans équivalent dans
-une notation restent absentes. Les outils spécifiques utilisent un emplacement dédié.
+Algorithms remain UI-independent domain functions. A job service runs snapshots
+with limits, cancellation and diagnostics. Results identify their document and
+input revisions; stale results cannot replace newer analyses or revive a closed
+document.
 
-## Calculs longs et conversions
+Native platforms can use background tasks. Browsers need a worker or incremental
+computation that regularly yields: wrapping expensive synchronous work in
+`spawn_local` is insufficient. The Petri pilot uses a native thread or Web Worker
+with the same Wasm binary; see the current architecture for limits.
 
-Les algorithmes restent des fonctions métier indépendantes de l'UI. Un service
-de tâches les exécute sur un instantané avec limites, annulation et diagnostics.
-Chaque résultat porte l'identifiant du document et les révisions de ses entrées ;
-un résultat périmé ne remplace pas une analyse récente et ne réactive pas un document fermé.
+Conversions appear as workflow commands. A domain service produces a typed model
+and diagnostics; composition connects it to the target module. The shell receives
+a generic open request, keeps the source and displays reported approximations.
 
-Le natif peut utiliser des tâches en arrière-plan. Le navigateur exige un worker
-ou un calcul découpé qui rend régulièrement la main : `spawn_local` autour d'un
-calcul synchrone coûteux ne suffit pas. Le pilote Petri utilise désormais un thread natif ou un Web Worker avec le même
-binaire Wasm. Voir les détails et limites dans l'architecture actuelle.
+## Proposed logical tree
 
-Les conversions s'intègrent comme des commandes de workflow. Le service métier
-produit un modèle typé et des diagnostics ; la composition raccorde ce résultat
-au module cible. Le shell reçoit une demande générique d'ouverture. Il conserve
-le document source et présente les approximations signalées par la transformation.
-
-## Arborescence logique proposée
-
-Cette arborescence représente les responsabilités logiques. Les modules historiques
-ont été conservés pendant les extractions ; les chemins réels sont dans l'architecture actuelle.
+This is a responsibility map, not the current file tree. Existing module names
+were preserved during extraction; use the current architecture for real paths.
 
 ```text
 crates/op-core/src/
-  shared/            # géométrie, identifiants, diagnostics, enveloppe documentaire
+  shared/            # geometry, IDs, diagnostics, document envelope
   notations/
-    bpmn/            # modèle, validation, évaluation, XML et migrations
-    petri/           # modèle, analyses, PNML et migrations
-    uml/             # classes/cas d'utilisation, validation, routage et codecs
-    mining/          # logs, Alpha, exercices, replay et codecs
-  transforms/        # transformations métier entre modèles
+    bpmn/            # model, validation, evaluation, XML, migrations
+    petri/           # model, analysis, PNML, migrations
+    uml/             # class/use-case models, validation, routing, codecs
+    mining/          # logs, Alpha, exercises, replay, codecs
+  transforms/        # domain transformations between models
 
 crates/op-app/src/
-  composition.rs     # enregistrement explicite et raccordement des workflows
-  shell/             # application, accueil, menus, documents, docking
-  editor/            # contrats, registre, commandes, vues, services hôtes
+  composition.rs     # explicit registration and workflow wiring
+  shell/             # application, home, menus, documents, docking
+  editor/            # contracts, registry, commands, views, host services
   features/
-    bpmn/            # session, interactions, rendu, inspecteur, panneaux
+    bpmn/            # session, interaction, rendering, inspector, panels
     petri/
     uml/
     mining/
-  canvas/            # mécanismes graphiques mutualisés
-  platform/          # fichiers, persistance, images, exécution des tâches
-  ui/                # thème, widgets et traduction de l'interface
+  canvas/            # shared graphical mechanisms
+  platform/          # files, persistence, images, job execution
+  ui/                # theme, widgets, interface translation
 ```
 
-Le découpage ne demande pas de supprimer immédiatement les chemins publics
-actuels d'`op-core` : des réexportations peuvent préserver ses consommateurs.
-La traduction des diagnostics métier existants peut évoluer progressivement vers
-des codes et paramètres traduits à la présentation, sans bloquer le pilote.
+Existing public `op-core` paths need not disappear; re-exports can preserve
+consumers. Existing domain diagnostics can progressively move to codes/parameters
+translated at presentation time without blocking the pilot.
 
-## Critère d'extension réussi
+## Successful extension criterion
 
-Pour une nouvelle notation, les changements attendus sont son module métier, son
-adaptateur UI, ses tests et ressources, ses déclarations `mod`/exports et son entrée
-dans la composition. Les boucles de menus, l'accueil et le moteur de docking
-fonctionnent à partir des descripteurs existants.
-
-Une modification du socle commun reste légitime si la notation révèle un besoin
-réutilisable nouveau. Elle doit alors être explicite et testée avec les notations
-déjà présentes. Le pilote doit démontrer cette frontière avant d'étendre le contrat.
+A new notation should change its domain module, UI adapter, tests/resources,
+`mod`/export declarations and composition entry. Menus, home and docking work
+from existing descriptors. Changes to the shared foundation are legitimate when
+a notation reveals a reusable need, but must be explicit and tested against
+existing notations. Demonstrate the boundary before expanding the contract.

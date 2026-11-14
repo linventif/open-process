@@ -1,96 +1,84 @@
-# Dessin libre natif et web
+# Native and web free drawing
 
-**Implémenté : un éditeur Rust/egui de dessin libre, inspiré de l’usage
-d’Excalidraw, dans le shell et le layout communs.** Le choix retenu est un module
-natif + WebAssembly. Le composant React officiel Excalidraw n’est pas embarqué.
+**Implemented: a Rust/egui whiteboard inspired by Excalidraw workflows, within the
+common shell and layout.** It runs natively and in WebAssembly; the official
+Excalidraw React component is not embedded.
 
-## Utilisation
+## Usage
 
-Dans **File → New…**, le bouton **+** ou **Ctrl/Cmd+N**, rechercher « dessin »
-en français ou « whiteboard » et choisir **Nouveau dessin libre**. La carte
-**Dessiner librement** de l’accueil crée le même document. Un exemple est
-disponible depuis le bouton **Exemples** de la carte **Nouveau dessin libre**,
-dans la grille **File → New…** ou sur la carte **Dessiner librement** de l’accueil,
-puis **Dessin libre – Idée partagée**.
+Open **File → New…**, the **+** button or **Ctrl/Cmd+N**, search for “whiteboard”
+and choose **New free drawing**. **Draw freely** on the home screen creates the
+same document. The card's **Examples** button provides a starter drawing.
 
-La palette verticale à gauche du canvas propose sélection, main, rectangle, ellipse, losange, ligne,
-flèche, main levée, texte et note adhésive. Glisser sur le canvas trace l’élément.
-Elle utilise le même panneau flottant que les autres éditeurs graphiques et
-défile verticalement lorsque la hauteur disponible ne suffit pas.
-Les outils sont des boutons à pictogramme avec nom accessible et infobulle ;
-la sélection réutilise le curseur BPMN partagé par les autres éditeurs.
-Un clic avec un outil de forme crée un élément de taille initiale. Le crayon
-reste actif après un tracé ; les autres outils reviennent à la sélection.
+The vertical palette on the left offers select, hand, rectangle, ellipse, diamond,
+line, arrow, freehand, text and sticky note tools. Drag to draw an element. The
+palette reuses the floating panel from other graphical editors and scrolls
+vertically when needed. Icon buttons have accessible names/tooltips and share the
+BPMN selection cursor. A click with a shape tool creates a default-sized element.
+The pencil remains active after a stroke; other drawing tools return to selection.
 
-- Cliquer pour sélectionner ; Maj+clic ajoute ou retire un élément.
-- Glisser dans le vide dessine un rectangle de sélection ; Maj conserve la
-  sélection précédente.
-- Glisser une sélection la déplace. La poignée en bas à droite redimensionne
-  un élément seul, y compris les tracés et les flèches.
-- L’inspecteur édite le texte multiligne, les dimensions, la couleur du trait,
-  le remplissage, l’épaisseur, la taille du texte et le mode esquissé.
-  Un double-clic sur un élément ouvre l’inspecteur et donne le focus au texte.
-- Les réglages de style s’appliquent aux éléments sélectionnés et deviennent
-  les réglages des prochains éléments. Sans sélection, ils règlent le prochain outil.
-- **Ctrl/Cmd+D** duplique, Suppr efface, les flèches déplacent de 1 unité
-  (10 avec Maj), **Ctrl/Cmd+A** sélectionne tout. Ces raccourcis de dessin
-  s’appliquent lorsque le pointeur est sur le canvas et qu’aucun champ n’est édité.
-- **Échap** annule le geste en cours ; les modifications terminées sont annulables
-  et rétablissables avec l’historique commun.
-- La main, Espace+glisser, le bouton central/droit et la molette déplacent la vue.
-  Les contrôles de zoom et de cadrage sont ceux des autres éditeurs.
+- Click to select; Shift+click adds/removes elements.
+- Drag empty space for rubber-band selection; Shift preserves prior selection.
+- Drag a selection to move it. A bottom-right handle resizes a single element,
+  including strokes and arrows.
+- The inspector edits multiline text, dimensions, stroke/fill colors, thickness,
+  font size and sketch mode. Double-click opens it and focuses text editing.
+- Style changes affect selected elements and future creations. Without selection,
+  they configure the next element.
+- **Ctrl/Cmd+D** duplicates, Delete removes, arrow keys nudge by one unit (ten
+  with Shift), and **Ctrl/Cmd+A** selects all. Drawing shortcuts apply over the
+  canvas when no text field is being edited.
+- **Escape** cancels the active gesture; completed changes use shared undo/redo.
+- Hand, Space+drag, middle/right drag and scrolling navigate the view. Zoom/fit
+  use the common controls.
 
-Raccourcis d’outils : **V** sélection, **H** main, **R** rectangle, **E** ellipse,
-**D** losange, **L** ligne, **A** flèche, **P** main levée, **T** texte,
-**N** note. **F** cadre le dessin.
+Tool shortcuts: **V** select, **H** hand, **R** rectangle, **E** ellipse,
+**D** diamond, **L** line, **A** arrow, **P** freehand, **T** text, **N** note.
+**F** fits the drawing.
 
-La barre de configuration commune contient **Afficher la grille**,
-**Snap to grid**, le zoom et l’inspecteur. L’aimantation est désactivée par défaut ;
-les points du crayon restent libres même lorsqu’elle est activée. Les options
-rejoignent le menu compact lorsque la vue se rétrécit.
+The shared configuration bar contains **Show grid**, **Snap to grid**, zoom and
+inspector controls. Snapping is off by default; pencil points remain free even
+when it is enabled. Options move into the compact menu in narrow views.
 
-## Documents et exports
+## Documents and exports
 
-Les dessins se sauvegardent en `.opx` v2, sous le type `whiteboard`, version
-métier 1. Le modèle contient les éléments, leurs identifiants, géométries,
-textes, couleurs et styles. Le schéma des autres notations reste inchangé.
+Drawings save as `.opx` v2 with type `whiteboard`, model version 1. The model
+contains elements, IDs, geometry, text, colors and styles without changing other
+notations' schemas.
 
-La session conserve séparément caméra, aimantation, grille, inspecteur et style
-du prochain élément. Plusieurs panneaux partagent un document et un historique,
-avec des caméras et sélections indépendantes. Dans un dessin libre, la géométrie
-fait partie du contenu : déplacer une forme change aussi la révision sémantique.
+Sessions separately store camera, snapping, grid, inspector and next-element style.
+Multiple panels share one document/history with independent cameras/selections.
+For free drawing, geometry is semantic content: moving a shape also changes the
+semantic revision.
 
-**File → Export** propose :
+**File → Export** provides:
 
-- **SVG** : tout le dessin, géométrie vectorielle et texte éditable, sans sélection
-  ni grille. L’export utilise des contours réguliers et une police sans-serif ;
-  il ne reproduit pas exactement les irrégularités et la police manuscrite du canvas.
-- **PNG** : capture de la partie visible du canvas, avec son thème et son réglage
-  de grille, sans les poignées de sélection.
+- **SVG:** the whole drawing as vector geometry/editable text, without selection
+  or grid. Regular outlines and a sans-serif font do not reproduce the exact
+  canvas sketch irregularities or handwriting font.
+- **PNG:** the visible canvas with its theme/grid settings, without selection handles.
 
-## Frontières et limites
+## Boundaries and limits
 
-| Responsabilité | Implémentation |
+| Responsibility | Implementation |
 | --- | --- |
-| Modèle, géométrie, sélection et validation | [whiteboard.rs](../crates/op-core/src/whiteboard.rs) |
-| Export SVG | [whiteboard/svg.rs](../crates/op-core/src/whiteboard/svg.rs) |
-| Outils et inspecteur | [whiteboard_editor.rs](../crates/op-app/src/whiteboard_editor.rs) |
-| Gestes et clavier | [interaction.rs](../crates/op-app/src/whiteboard_editor/interaction.rs) |
-| Rendu | [render.rs](../crates/op-app/src/whiteboard_editor/render.rs) |
-| Sessions, commandes et enregistrement | [session.rs](../crates/op-app/src/whiteboard_editor/session.rs) |
+| Model, geometry, selection, validation | [whiteboard.rs](../crates/op-core/src/whiteboard.rs) |
+| SVG export | [whiteboard/svg.rs](../crates/op-core/src/whiteboard/svg.rs) |
+| Tools and inspector | [whiteboard_editor.rs](../crates/op-app/src/whiteboard_editor.rs) |
+| Gestures and keyboard | [interaction.rs](../crates/op-app/src/whiteboard_editor/interaction.rs) |
+| Rendering | [render.rs](../crates/op-app/src/whiteboard_editor/render.rs) |
+| Sessions, commands, registration | [session.rs](../crates/op-app/src/whiteboard_editor/session.rs) |
 | Layout | [editor/layout.rs](../crates/op-app/src/editor/layout.rs) |
 
-Le module s’enregistre dans `composition.rs`. Il ne nécessite aucune nouvelle
-dépendance, couche web ou modification du catalogue du shell.
+The module registers in `composition.rs` without additional dependencies, a web
+layer or changes to the shell's catalogue.
 
-Cette première version ne propose pas la collaboration réseau, les images,
-les bibliothèques de symboles, les groupes persistants, la rotation, le
-presse-papiers d’éléments entre documents, les flèches attachées aux formes
-ou l’import/export `.excalidraw`. Les flèches restent des tracés indépendants.
-Le texte conserve son contenu mais peut être masqué dans une boîte trop petite.
+This initial version has no network collaboration, images, symbol libraries,
+persistent groups, rotation, cross-document element clipboard, shape-attached
+arrows or `.excalidraw` exchange. Arrows are independent strokes. Text content is
+retained but may be hidden by an undersized box.
 
-Un document est borné à 20 000 éléments et 200 000 points ; un geste de crayon
-échantillonne au plus 20 000 points. La validation refuse les géométries et styles
-invalides. Les créations et duplications qui dépasseraient ces limites sont
-refusées avant de remplacer le document. Voir les
-[vérifications exécutées](verification.md#dessin-libre).
+Limits are 20,000 elements and 200,000 points per document, with at most 20,000
+sampled points per pencil gesture. Validation rejects invalid geometry/styles.
+Creation/duplication exceeding limits is rejected before replacing the document.
+See [recorded checks](verification.md#native-and-web-free-drawing).

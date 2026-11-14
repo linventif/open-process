@@ -1,72 +1,81 @@
-# Instructions pour travailler sur Open Process
+# Working on Open Process
 
-## Documentation et statut de l'architecture
+## Documentation and architecture status
 
-- Commencer par [docs/README.md](docs/README.md).
-- [L'architecture actuelle](docs/architecture-actuelle.md) décrit l'implémentation.
-- [La cible](docs/architecture-cible.md) et les [décisions](docs/decisions.md) sont
-  validées. Le [suivi de migration](docs/migration.md) précise les étapes réalisées.
-- Pour une extension, suivre [le guide d'ajout](docs/ajouter-une-notation.md).
-- Les nouvelles notations déclarent leurs fabriques, commandes, vues, imports et
-  exports dans leur module, puis s'enregistrent dans `composition.rs`. Le shell
-  consomme le registre injecté ; ne pas réintroduire un catalogue d'éditeurs par enum.
-- Les éditeurs graphiques réutilisent `op-app/src/editor/layout.rs` pour la barre
-  de configuration, l'inspecteur, ses onglets et le canvas. Ne pas recopier les
-  marges, hauteurs, seuils responsive ou widgets de zoom dans chaque notation.
-  Les modules fournissent les options et contenus métier via les emplacements prévus.
-- Garder les modèles et historiques typés. Les états de vues ne dupliquent pas le
-  document. Les sondes `Any` actuelles sont réservées aux tests d'interface.
-- Distinguer dans la documentation les comportements implémentés, les propositions
-  et les validations réellement exécutées. Après une évolution, actualiser les pages concernées.
+- Start with [docs/README.md](docs/README.md).
+- The [current architecture](docs/architecture-actuelle.md) describes the implementation.
+- The [target architecture](docs/architecture-cible.md) and [decisions](docs/decisions.md)
+  are approved. The [migration record](docs/migration.md) lists completed steps.
+- Follow the [extension guide](docs/ajouter-une-notation.md) when adding a notation.
+- New notations declare their factories, commands, views, imports and exports in
+  their own module, then register in `composition.rs`. The shell consumes the
+  injected registry; do not reintroduce an enum-based editor catalogue.
+- Graphical editors reuse `op-app/src/editor/layout.rs` for the configuration bar,
+  inspector, inspector tabs and canvas. Do not copy margins, heights, responsive
+  thresholds or zoom widgets into each notation. Modules provide domain options
+  and content through the available slots.
+- Keep models and histories typed. View state must not duplicate the document.
+  Existing `Any` probes are reserved for UI tests.
+- Distinguish implemented behavior, proposals and checks actually performed in
+  documentation. Update the relevant pages after a change.
 
-## Repères actuels
+## Project language
 
-- `crates/op-core/` : modèles typés, règles métier, analyses, conversions,
-  import/export et géométrie ; indépendant d'egui et d'eframe.
-- `crates/op-app/` : application egui/eframe, éditeurs BPMN, Petri, UML et Mining,
-  accueil, docking, historique, fichiers et persistance native/web.
-- `website/` : vitrine Astro/TypeScript/Bun et assemblage du site avec l'application
-  WebAssembly sous `/app/`. Voir [son README](website/README.md).
-- Versions Rust et dépendances : fichiers `Cargo.toml` du workspace et des crates.
+- English is the default language for documentation, new source comments and
+  original interface text. Write new documentation and updates in English.
+- English is also the application's first-run and fallback language and the
+  website's root language. Preserve explicit saved language preferences.
+- Keep French and Spanish translations and localized website routes. Use the
+  existing translation mechanisms rather than hardcoding interface text.
+- Community issues and pull requests may also be written in French.
+- Existing documentation filenames are retained to preserve links.
 
-## Règles de contribution
+## Current structure
 
-- Examiner `git status` avant d'éditer et préserver le travail déjà présent,
-  y compris les fichiers non suivis. Limiter les changements au périmètre demandé.
-- Garder les règles et algorithmes métier dans `op-core`, sans dépendance à l'UI,
-  aux dialogues système ou au stockage du navigateur.
-- Conserver les types et invariants propres aux notations. Mutualiser un mécanisme
-  lorsque plusieurs usages concrets justifient son interface.
-- Préserver les données `.opx`, les imports/exports existants et la restauration
-  des sessions. Documenter et tester toute modification de schéma avec des fichiers antérieurs.
-- Vérifier les conséquences native et WebAssembly ; isoler les API spécifiques
-  à une plateforme. Un futur calcul long dans le navigateur doit rendre la main à l'UI.
-- Utiliser les mécanismes de traduction existants pour les textes de l'interface.
-- Ne pas ajouter une dépendance ou extraire une crate pour un simple déplacement
-  de fichiers. Expliquer la frontière ou le besoin que cela apporte.
+- `crates/op-core/`: typed models, domain rules, analyses, conversions,
+  import/export and geometry; independent of egui and eframe.
+- `crates/op-app/`: the egui/eframe application, notation editors, home screen,
+  docking, history, files and native/web persistence.
+- `website/`: Astro/TypeScript/Bun presentation site and assembly with the
+  WebAssembly application under `/app/`. See [its README](website/README.md).
+- Rust versions and dependencies: workspace and crate `Cargo.toml` files.
 
-## Vérifications selon le changement
+## Contribution rules
 
-Exécuter les vérifications pertinentes et indiquer celles qui n'ont pas pu l'être.
-Pour un changement documentaire seul, vérifier les liens locaux et les différences ;
-une compilation complète n'est pas nécessaire.
+- Inspect `git status` before editing and preserve existing work, including
+  untracked files. Limit changes to the requested scope.
+- Keep domain rules and algorithms in `op-core`, without dependencies on the UI,
+  system dialogs or browser storage.
+- Preserve notation-specific types and invariants. Share a mechanism when
+  multiple concrete uses justify its interface.
+- Preserve `.opx` data, existing imports/exports and session restoration.
+  Document and test schema changes against older files.
+- Consider both native and WebAssembly effects; isolate platform-specific APIs.
+  Any future long browser computation must yield control to the UI.
+- Do not add a dependency or extract a crate just to move files. Explain the
+  boundary or need that the change addresses.
+
+## Checks by change type
+
+Run relevant checks and report any that could not be run. For documentation-only
+changes, check local links and diffs; a full build is unnecessary.
 
 ```sh
-# Modèles, règles, formats et algorithmes
+# Models, rules, formats and algorithms
 cargo test --locked -p op-core
 
-# Application et tests d'interface (comme en CI, exécution séquentielle)
+# Application and UI tests: sequential execution, as in CI
 cargo test --locked --workspace -- --test-threads=1
 
-# Compilation native et vérification de la cible web, si elle est installée
+# Native compilation and web target check, if installed
 cargo check --locked -p op-app
 cargo check --locked -p op-app --target wasm32-unknown-unknown
 
-# Espaces et erreurs de patch
+# Whitespace and patch errors
 git diff --check
 ```
 
-Pour le site, utiliser les commandes de [website/README.md](website/README.md).
-La [CI](.github/workflows/ci.yml) vérifie les tests sur trois OS, la compilation
-native release et le build du site avec l'application web. Ne pas présenter une
-vérification locale partielle comme une réussite de toute cette matrice.
+For the website, use the commands in [website/README.md](website/README.md).
+[CI](.github/workflows/ci.yml) runs tests on three operating systems, native
+release builds and the site build with the web application. Do not present a
+partial local check as success across that entire matrix.

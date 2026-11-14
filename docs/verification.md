@@ -1,14 +1,18 @@
-# Vérification de la migration
+# Verification record
 
-**Statut : contrôles locaux réussis.**
+**Status: historical local validation records.** Results below describe the
+checkout at each change, not a claim that all checks pass today. Test counts can
+change between sections. Local Linux/browser checks do not replace the complete
+Linux/Windows/macOS CI matrix. No deployment/publication is implied by a build.
 
-La référence de départ comportait 71 tests réussis. La suite après migration
-comprend **90 tests réussis** : 36 dans l'application, 49 dans le cœur et 5 tests
-d'intégration des documents historiques. Aucun test n'a été ignoré.
+## Initial architecture migration
 
-## Commandes exécutées
+The baseline had 71 passing tests. After migration, **90 tests passed**: 36 app,
+49 core and five historical-document integration tests; none ignored.
 
-Depuis la racine du dépôt :
+### Commands executed
+
+From the repository root:
 
 ```sh
 cargo test --locked --offline --workspace -- --test-threads=1
@@ -17,145 +21,103 @@ cargo check --locked --offline -p op-app --target wasm32-unknown-unknown
 git diff --check
 ```
 
-Le livrable web a également été construit avec Trunk, depuis `crates/op-app/` :
+The web artifact was also built from `crates/op-app/`:
 
 ```sh
 CARGO_NET_OFFLINE=true trunk build --dist /tmp/open-process-migration-web --public-url /
 ```
 
-Le build contient la colle JavaScript et le Wasm, les snippets du transport de
-tâches et `analysis-worker.js`. La vérification native finale ne produit pas
-d'avertissement. Le formatage Rust porte sur les fichiers de cette migration,
-sans parcourir les autres modules du dépôt.
+It contained JavaScript glue/Wasm, job-transport snippets and `analysis-worker.js`.
+The final native check had no warnings. Rust formatting was limited to migration
+files, without formatting unrelated modules.
 
-## Scénarios supplémentaires
+### Additional scenarios
 
-Les tests ajoutés couvrent notamment :
+- Five `.opx` v1 fixtures and migration/v2 round trips.
+- Future versions, invalid envelopes and a codec outside the built-in catalogue.
+- RON v1/v2 sessions, historical views and JSON v3 migration without deleting old keys.
+- Two UML views sharing one model/history with independent cameras.
+- Common BPMN/Petri/UML configuration in light/dark at 1,400, 420 and 280 px.
+- Zoom, grid, issues, inspector alignment and compact menus.
+- Independent grid/issue preferences across document views.
+- Petri graph camera restoration and cache rebuilding.
+- Undo to saved state, Escape cancellation and cancelled/failed saves.
+- Byte-for-byte unknown-file recovery, including session serialization.
+- A canvas-free table extension with multiple exports and no shell branch.
+- Namespace-prefix-independent XML detection, ambiguous imports and duplicate IDs.
+- Petri analysis replacement after semantic changes and reuse after movement.
 
-- Les cinq fixtures `.opx` v1 et leur migration/aller-retour v2.
-- Les versions futures, enveloppes invalides et codecs d'une notation extérieure au catalogue.
-- Les sessions RON v1/v2, leurs vues historiques et leur migration JSON v3 sans effacer les anciennes clés.
-- Deux vues UML sur le même modèle, avec caméras indépendantes et historique unique.
-- Une configuration graphique commune à BPMN, Petri et aux deux types UML, en clair/sombre et à 1 400, 420 et 280 pixels.
-- Les contrôles de zoom, grille, problèmes et inspecteur, leur alignement commun et le menu compact.
-- La reprise indépendante des réglages de grille et de problèmes dans plusieurs vues d'un document.
-- La caméra du graphe Petri après reprise de session et reconstruction de son cache.
-- Le retour à l'état sauvegardé, l'annulation d'un glissement par Échap et les sauvegardes annulées ou échouées.
-- La récupération octet pour octet des fichiers inconnus, y compris après sérialisation de session.
-- Une extension de table sans canvas avec plusieurs exports, sans ajout de branche dans le shell.
-- La détection XML indépendante des préfixes de namespace, les imports ambigus et les identifiants dupliqués.
-- Une analyse Petri remplacée après changement sémantique, puis réutilisée après changement de position.
+Existing interaction, translation and native rendering tests were retained. UI
+source inventories followed extracted submodules to retain translation/font coverage.
 
-Les tests existants d'interaction, de traduction et de rendu natif ont été
-conservés. L'inventaire des textes et sources UI suit maintenant les sous-modules
-extraits pour conserver la couverture des traductions et des polices embarquées.
+### Actual Web Worker test
 
-## Test réel du Web Worker
+[worker-smoke.html](../crates/op-app/tests/worker-smoke.html) exercises the Trunk
+JavaScript transport and the app's Wasm in a worker. It checks a two-state workflow,
+soundness, cancellation and a decoding error.
 
-La page [worker-smoke.html](../crates/op-app/tests/worker-smoke.html) exerce le
-transport JavaScript du livrable Trunk, puis le même Wasm que l'application dans
-un worker. Elle vérifie un petit workflow à deux états, son verdict de soundness,
-l'annulation d'une tâche et une erreur de décodage.
+Headless Firefox ran the local build at `/` and `/app/`; both returned `ok: true`
+with expected computation, cancellation and errors. A root run counted 63 main-thread
+timer ticks during 658 ms of worker startup/processing. That includes Wasm loading
+and initialization; it is not a large-model throughput benchmark. The `/app/` run
+also checked resource-path resolution.
 
-Elle a été exécutée dans Firefox sans interface avec un livrable Trunk local,
-à la racine et sous `/app/`. Les deux exécutions retournent `ok: true`, avec
-calcul, annulation et erreur attendus.
+To reproduce, build with Trunk, copy the test page into the output, serve it over
+HTTP and open `worker-smoke.html`. Results appear in the page and
+`document.documentElement.dataset.result`. `?report=1` also sends to local `/result`
+if supplied by the test server. The page is not automatically shipped in the app.
 
-À la racine, une exécution a compté 63 passages du timer du fil principal pendant
-658 ms de lancement et de traitement du worker. Cette durée comprend le chargement
-et l'initialisation du Wasm ; elle ne constitue pas une mesure de débit sur de gros
-modèles. Le test sous `/app/` valide également la résolution des chemins des ressources.
+These checks covered local Linux/Firefox. Release builds, other browsers and
+Windows/macOS remained CI/publication checks; no deployment or publication occurred.
 
-Pour reproduire, construire avec Trunk, copier la page de test dans le dossier
-produit, servir ce dossier en HTTP et ouvrir `worker-smoke.html`. Le résultat
-s'affiche dans la page et dans `document.documentElement.dataset.result`.
-L'option `?report=1` transmet aussi le résultat au point de collecte local `/result`
-si le serveur de test le fournit. La page de test n'est pas incluse automatiquement
-dans le produit.
+<a id="zones-et-style-de-linterface"></a>
 
-## Périmètre
+## Interface zones and style
 
-Ces contrôles portent sur Linux et Firefox dans l'environnement local. Les builds
-release, les autres navigateurs et la matrice Windows/macOS restent du ressort de
-la CI et des vérifications de publication. Aucun déploiement ni publication n'a été effectué.
+After adding the [annotated SVG](diagrams/interface-zones.svg) and shared bar style,
+the four root migration commands were rerun: **90 tests passed**, plus native and
+WebAssembly checks. Common layout tests covered BPMN, Petri and both UML editors
+at 1,400, 420 and 280 px. Light/dark Home/File/Style/Inspector hover screenshots
+were generated under `target/screenshots/toolbar_hover_*.png`. Light File and dark
+Style captures were visually inspected.
 
-## Zones et style de l’interface
-
-Après l’ajout du [layout SVG annoté](diagrams/interface-zones.svg) et du style
-commun des barres, les mêmes commandes Rust ont été exécutées à nouveau :
-
-```sh
-cargo test --locked --offline --workspace -- --test-threads=1
-cargo check --locked --offline -p op-app
-cargo check --locked --offline -p op-app --target wasm32-unknown-unknown
-git diff --check
-```
-
-Résultat : **90 tests réussis**, compilation native et vérification WebAssembly
-réussies. Le test des configurations partagées couvre toujours BPMN, Petri et
-les deux éditeurs UML, à 1 400, 420 et 280 px. Le test de captures existant produit
-désormais les survols de Home, File, Style et Inspector en clair et en sombre
-dans `target/screenshots/toolbar_hover_*.png`. Les captures File en clair et Style
-en sombre ont été inspectées visuellement.
-
-Le SVG a été parsé comme XML, ses douze groupes de zones et l’unicité des
-identifiants contrôlés, puis son rendu rasterisé avec Rsvg et inspecté. Les liens
-locaux des pages de `docs/` ont été vérifiés. Le site et le transport Web Worker
-n’ont pas été modifiés ni revalidés pour cette évolution visuelle.
+The SVG was parsed, its twelve zone groups and unique IDs checked, then rendered
+with Rsvg and inspected. Local documentation links were checked. The website and
+worker transport were unchanged and not revalidated for that visual change.
 
 <a id="notations-dmn-epc-et-activite"></a>
 
-## Notations DMN, EPC et activité
+## DMN, EPC and activity notations
 
-Les premières versions décrites dans [les notations ajoutées](notations-ajoutees.md)
-ont été vérifiées avec :
+The [initial integrations](notations-ajoutees.md) used the same four root migration
+commands: **100 passing tests** (39 app, 56 core, five integration), none ignored;
+native/WebAssembly checks passed without warnings. After the final palette icon
+adjustment, the multi-view session test and both compilation checks were rerun.
 
-```sh
-cargo test --locked --offline --workspace -- --test-threads=1
-cargo check --locked --offline -p op-app
-cargo check --locked --offline -p op-app --target wasm32-unknown-unknown
-git diff --check
-```
+Added/extended coverage included:
 
-Résultat : **100 tests réussis** — 39 application, 56 cœur et 5 intégration —,
-aucun ignoré. Compilation native et vérification WebAssembly réussies, sans
-avertissement. Après le dernier ajustement des icônes de palette, le test de
-sessions multi-vues et les deux vérifications de compilation ont été rejoués.
+- EPC/activity connection/degree rules, deletion and duplication with remapped IDs.
+- DMN UNIQUE/FIRST/ANY/COLLECT, interval boundaries, alternatives with commas in
+  strings and unknown-expression rejection.
+- JSON/DMN XML round trips, multi-model/aggregation rejection and SVG/DOT label escaping.
+- Home creation of all three types and scrolling to their cards.
+- Mouse creation/connections/movement, undo, reopening and exports.
+- Table editing/evaluation/invalidation, column undo and registry reopening of DMN XML.
+- Independent inspector preferences across views.
+- Shared light/dark graphical configuration for EPC/activity at 1,400, 420 and 280 px.
+- Translations and bundled-font glyph coverage.
 
-Les contrôles ajoutés ou étendus portent sur :
-
-- Les règles de connexion et de degrés EPC/activité, les suppressions et la
-  duplication avec remappage des identifiants.
-- Les politiques DMN UNIQUE/FIRST/ANY/COLLECT, les frontières d’intervalles,
-  les alternatives avec chaînes contenant une virgule et le refus d’expressions inconnues.
-- Les allers-retours JSON et XML DMN, le refus de modèles multiples ou d’agrégations,
-  et les exports SVG/DOT avec échappement des libellés.
-- La création depuis l’accueil des trois types et l’accès aux cartes après défilement.
-- La création et la connexion d’éléments à la souris, leur déplacement,
-  l’annulation, la réouverture et les exports.
-- L’édition d’une table, l’évaluation, l’invalidation du résultat, l’annulation
-  d’une colonne et la réouverture de l’export DMN par le registre.
-- Plusieurs vues d’un même document avec réglages d’inspecteur indépendants.
-- La barre graphique commune, étendue à EPC et UML activité, en clair/sombre
-  et aux largeurs 1 400, 420 et 280 px.
-- Les traductions et la couverture des glyphes par les polices embarquées.
-
-Les captures locales `target/screenshots/example_epc.png`,
-`example_uml.activity.png` et `example_dmn.table.png` ont été inspectées visuellement.
-Le SVG des zones de l’interface et les liens locaux de la documentation ont
-également été contrôlés.
-
-Il ne s’agit pas d’une certification OMG ou d’un essai exhaustif d’interopérabilité
-avec les outils externes. Aucun test de parité Looping/Bizagi, build release,
-publication ou déploiement n’a été exécuté. La comparaison des concurrents repose
-sur leurs sources publiques, référencées dans [l’analyse](parite-looping-bizagi.md).
+Local `example_epc.png`, `example_uml.activity.png` and `example_dmn.table.png`
+screenshots were inspected. SVG/local links were checked. This was neither OMG
+certification nor exhaustive external-tool interoperability. No Looping/Bizagi
+parity test, release build, publication or deployment ran. Competitor comparison
+used the public sources in [the product analysis](parite-looping-bizagi.md).
 
 <a id="base-de-donnees-et-ddl"></a>
 
-## Base de données et DDL
+## Database and DDL
 
-Le [module relationnel](base-de-donnees-ddl.md) a été vérifié avec les commandes
-suivantes :
+The [relational module](base-de-donnees-ddl.md) was checked with:
 
 ```sh
 cargo test --locked --offline --workspace -- --test-threads=1
@@ -166,38 +128,29 @@ python3 scripts/check-database-ddl.py /tmp/open-process-ddl
 git diff --check
 ```
 
-Résultat : **107 tests réussis** — 41 application, 61 cœur et 5 intégration —,
-aucun ignoré. Les vérifications de compilation native et WebAssembly ont réussi,
-sans avertissement.
+**107 tests passed** (41 app, 61 core, five integration), none ignored, and both
+compilation checks passed without warnings. Tests covered dialects, identities,
+SQL names, simple/composite keys, unique indexes, cycles, referential actions,
+defaults, decimal precision and inconsistent-schema rejection. UI scenarios created
+tables/links, moved without changing SQL, undid changes, switched dialects, reopened
+models and displayed/copied SQL in a second panel. Layout coverage included
+1,400, 420 and 280 px.
 
-Les tests vérifient les variantes de dialectes, identités et noms SQL, les clés
-simples/composées, les index uniques, les cycles, les actions référentielles, les
-valeurs par défaut, la précision décimale et le refus des schémas incohérents.
-Les scénarios UI créent des tables et une relation à la souris, déplacent une
-table sans changer son SQL, annulent, changent de dialecte, rouvrent le modèle et
-affichent/copient le SQL dans un second panneau. La barre commune est également
-testée pour ce module aux largeurs 1 400, 420 et 280 px.
+Python executed **three generated SQLite scripts** in memory: shop, composite
+keys/cycles and literals. It checked table/key metadata, orphan/duplicate rejection,
+NOT NULL, defaults and cascades. Quotes, backslashes and SQL characters in text
+remained data.
 
-Le contrôle Python a exécuté **trois scripts SQLite générés** dans des bases
-en mémoire : boutique, clés composées/cycles et valeurs littérales. Il vérifie
-les métadonnées de tables et clés, le rejet d’orphelins et de doublons, NOT NULL,
-les valeurs par défaut et une suppression en cascade. Les littéraux contenant
-apostrophes, antislash et caractères SQL ont été conservés comme données.
+Local `database_example_light.png`, `database_example_dark.png` and
+`database_ddl_split.png` captures showed light/dark and split SQL views; light/split
+were inspected. Documentation links/SVG were checked and [SQL examples](base-de-donnees-ddl.md)
+regenerated. PostgreSQL/MySQL were not run on servers. No browser test, release
+build, deployment or SQL-import trial was performed. Existing `.opx` compatibility
+tests stayed green; no historical schema changed.
 
-Les captures locales `target/screenshots/database_example_light.png`,
-`database_example_dark.png` et `database_ddl_split.png` montrent les rendus
-clair/sombre et la vue SQL partagée. Les rendus clair et SQL partagé ont été
-inspectés visuellement. Les liens de documentation et le SVG des zones ont été
-contrôlés ; les [exemples SQL](base-de-donnees-ddl.md) ont été régénérés.
+## Creation grid, exports and BPMN layout
 
-Les scripts PostgreSQL/MySQL n’ont pas été exécutés sur des serveurs dans cette
-session. Aucun test navigateur, build release, déploiement ou essai d’import SQL
-n’a été réalisé pour ce module. Les tests de compatibilité `.opx` existants
-restent réussis ; aucun schéma historique n’a changé.
-
-## Création en grille, exports et disposition BPMN
-
-Commandes exécutées après cette évolution de l’interface :
+Commands executed:
 
 ```sh
 cargo fmt --all -- --check
@@ -207,46 +160,37 @@ cargo check --locked --offline -p op-app --target wasm32-unknown-unknown
 git diff --check
 ```
 
-Résultat : **115 tests réussis** — 46 application, 64 cœur et 5 intégration —,
-aucun ignoré. Les compilations native et WebAssembly ont réussi sans avertissement.
+**115 tests passed** (46 app, 64 core, five integration), none ignored; compilation
+checks passed without warnings. Tests covered:
 
-Les nouveaux tests couvrent :
+- File → New…, **+**, Ctrl/Cmd+N, search/no results, cancellation and originating
+  tab groups, with the grid at 1,400, 420 and 280 px.
+- File → Export differences for BPMN, DMN, EPC and databases.
+- Wide/compact BPMN auto-arrange, preserved domain content/semantic revision and
+  exact undo/redo snapshots.
+- Layout non-overlap, pool/lane membership, cycles, disconnected components,
+  annotations, determinism and atomic rejection of pool-header containment.
 
-- Le sélecteur commun depuis File → New…, le bouton « + » et Ctrl/Cmd+N ;
-  la recherche, l’absence de résultat, l’annulation et la création dans le
-  groupe d’onglets d’origine. La grille est vérifiée à 1 400, 420 et 280 px.
-- File → Export, avec des formats différents pour BPMN, DMN, EPC et base de données.
-- Auto arrange BPMN en configuration large et dans Options en vue compacte ;
-  conservation du contenu métier, de la révision sémantique et restauration
-  exacte des instantanés par annulation/rétablissement.
-- L’algorithme de disposition : absence de chevauchement des nœuds, conservation
-  des appartenances pools/couloirs, cycles, composants déconnectés, annotations,
-  déterminisme et refus atomique d’une appartenance dans un en-tête de pool.
+`new_document_grid_1400.png`, `new_document_grid_280.png`, `file_export_submenu.png`
+and `bpmn_auto_arranged_1400.png` were inspected. Native interaction checks were
+not browser tests; no new browser run, release build or deployment occurred.
 
-Les captures `target/screenshots/new_document_grid_1400.png`,
-`new_document_grid_280.png`, `file_export_submenu.png` et
-`bpmn_auto_arranged_1400.png` ont été inspectées visuellement. Le contrôle natif
-des interactions n’est pas un test dans un navigateur : aucun nouveau test
-navigateur, build release ou déploiement n’a été exécuté pour cette évolution.
+## Petri place size
 
-## Taille des places Petri
+At this earlier revision the canvas radius changed from 11 to **5.5 model units**,
+a 50% diameter reduction. Tokens followed the radius, and anchors, hit testing
+and creation previews reused `PLACE_R`; labels kept their size. A later change
+increased the radius to 8.25, as described in the [current interface guide](interface.md).
 
-Le rayon des places sur le canvas passe de 11 à **5,5 unités**, soit une
-nouvelle réduction de 50 % du diamètre. Les jetons se dimensionnent à partir
-du rayon effectif ; les attaches d’arcs, la détection de sélection et l’aperçu
-de création réutilisent `PLACE_R`. Les libellés gardent leur taille.
+Formatting, local links, `git diff --check`, sequential workspace tests and
+native/WebAssembly checks with `--locked --offline` passed: **123 tests** (50 app,
+68 core, five integration), none ignored, no compilation warnings.
+`mining_petri.png` was inspected. No new browser/release/deployment check; schemas
+were unchanged.
 
-Vérifications exécutées : formatage, `git diff --check`, liens locaux,
-tests du workspace avec `--test-threads=1`, compilation native et cible
-`wasm32-unknown-unknown`, avec `--locked --offline` pour Cargo.
-**123 tests réussis** — 50 application, 68 cœur et 5 intégration —, aucun ignoré ;
-compilations sans avertissement. La capture `target/screenshots/mining_petri.png`
-a été inspectée visuellement. Aucun nouveau test navigateur, build release
-ou déploiement n’a été exécuté ; le schéma des documents reste inchangé.
+## Spanish application and website
 
-## Espagnol dans l’application et la vitrine
-
-Commandes exécutées pour l’ajout de la langue `es` :
+Commands executed:
 
 ```sh
 cargo test --locked --offline --workspace -- --test-threads=1
@@ -258,156 +202,87 @@ CARGO_NET_OFFLINE=true bun run build:app
 bun test
 ```
 
-Résultat : **123 tests Rust réussis** — 50 application, 68 cœur et 5 intégration —,
-aucun ignoré. Les vérifications native et WebAssembly et le build web release avec
-Trunk ont réussi. Le contrôle Astro/TypeScript ne signale aucune erreur ni aucun
-avertissement ; les **9 tests Bun** réussissent sur le livrable complet.
+**123 Rust tests passed** (50 app, 68 core, five integration), none ignored; native,
+Wasm and Trunk release web builds succeeded. Astro/TypeScript had no errors or
+warnings and **nine Bun tests** passed on combined output.
 
-Les 860 traductions espagnoles sont contrôlées par les tests existants de
-couverture, d’unicité, de paramètres, de sauts de ligne et de glyphes. Les tests
-ajoutés ou étendus vérifient le cycle EN → FR → ES → EN depuis l’accueil, la
-mémorisation/restauration des langues, les anciennes valeurs sérialisées et le
-repli sur l’anglais. La capture `target/screenshots/home_spanish.png` a été
-inspectée visuellement.
-
-Les tests du site vérifient le HTML espagnol à `/es/`, les liens entre les trois
-langues, les URL canoniques, `hreflang`, Open Graph, les données structurées et
-le sitemap. Les liens locaux de la documentation, le formatage des fichiers Rust
-de traduction modifiés et `git diff --check` ont été vérifiés.
-
-Aucun nouveau test dans un navigateur, build natif release, contrôle Windows/macOS,
-publication ou déploiement n’a été effectué pour cet ajout.
+At that revision, 860 Spanish translations were checked for coverage, uniqueness,
+placeholders, line breaks and glyphs. Tests covered EN → FR → ES → EN, persisted
+choices, historical serialized values and English fallback. `home_spanish.png`
+was inspected. Site tests covered `/es/`, language links, canonical URLs,
+`hreflang`, Open Graph, structured data and sitemap. Local links, touched Rust
+formatting and diff checks passed. No new interactive browser run, native release
+build, Windows/macOS validation, publication or deployment occurred.
 
 <a id="dessin-libre"></a>
 
-## Dessin libre natif et web
+## Native and web free drawing
 
-Le [module de dessin libre](dessin-libre.md) a été vérifié avec :
+The [whiteboard](dessin-libre.md) used the five commands from the creation-grid
+section: **123 tests passed** (50 app, 68 core, five integration), none ignored;
+native/WebAssembly checks had no warnings.
 
-```sh
-cargo fmt --all -- --check
-cargo test --locked --offline --workspace -- --test-threads=1
-cargo check --locked --offline -p op-app
-cargo check --locked --offline -p op-app --target wasm32-unknown-unknown
-git diff --check
-```
+Scenarios covered eight drawing tools via mouse, pencil points, multiline text,
+escaped SVG and `.opx` reopening, movement/resizing/duplication/deletion, exact
+gesture cancellation and history. Rubber-band selection/shared style editing
+preserved distinct fills; a pencil click produced a point. Core tests checked
+path direction, resizing, IDs, hit testing, invalid geometry and SVG XML validity.
 
-Résultat : **123 tests réussis** — 50 application, 68 cœur et 5 intégration —,
-aucun ignoré. Les vérifications native et WebAssembly réussissent sans avertissement.
+Shared home/export/view-restoration/configuration tests included whiteboard at
+1,400, 420 and 280 px, plus French/Spanish and glyph coverage.
+`whiteboard_all_tools_light.png` and `whiteboard_example_dark.png` were inspected;
+links/SVG were checked. The official Excalidraw component/format was not integrated.
+Web compiled, but no new interactive browser run, release build or deployment occurred.
 
-Les nouveaux scénarios vérifient les huit outils à la souris, les points du
-crayon, le texte multiligne, l’export SVG échappé et la réouverture `.opx`.
-Ils couvrent le déplacement, le redimensionnement, la duplication, la suppression,
-l’annulation exacte d’un geste et l’historique. Une sélection par rectangle
-et l’édition d’un style commun conservent les remplissages différents des éléments ;
-un clic au crayon produit un point. Les tests du cœur vérifient la direction
-des chemins, les redimensionnements, les identifiants, la détection de formes,
-le refus de géométries invalides et la validité XML du SVG.
+## Notation icons and shared selection
 
-Les tests communs incluent désormais ce module dans l’accueil, le sous-menu
-d’exports, la restauration de vues séparées et les contrôles de configuration
-aux largeurs 1 400, 420 et 280 px. Les traductions françaises/espagnoles et glyphes sont
-également vérifiés.
+Modules declared card icons through `DiagramDescriptor::icon` and
+`WorkflowDescriptor::icon`, independently of ordering/filtering. Whiteboard used
+icon tools, and BPMN, Petri, UML, EPC/activity, databases and whiteboard shared
+`icons.rs`'s BPMN selection cursor.
 
-Les captures `target/screenshots/whiteboard_all_tools_light.png` et
-`whiteboard_example_dark.png` ont été inspectées visuellement. Les liens locaux
-et le SVG des zones ont été contrôlés. Le composant officiel Excalidraw et
-son format d’échange ne sont pas intégrés. La cible web a été compilée ;
-aucun nouveau test dans un navigateur, build release ou déploiement n’a été exécuté.
+The five creation-grid commands passed: **123 tests** (50 app, 68 core, five
+integration), none ignored; native/Wasm checks without warnings. Existing tests
+covered tools, accessible names, selections and common controls.
+`home_narrow.png`, `new_document_grid_1400.png` and `whiteboard_all_tools_light.png`
+were inspected. The documentary SVG used the same selection shape; XML/links
+passed. No new browser test, release build or deployment occurred.
 
-## Pictogrammes de notations et sélection commune
+## Icons in BPMN type menus
 
-Les icônes des cartes sont désormais déclarées par les modules, dans
-`DiagramDescriptor::icon` et `WorkflowDescriptor::icon`. Leur choix est indépendant
-de l’ordre et du filtrage. La barre du dessin libre utilise des boutons à
-pictogramme ; les palettes BPMN, Petri, UML, EPC/activité, base de données et
-dessin libre partagent le curseur de sélection BPMN défini dans `icons.rs`.
+Task/Gateway type context menus, corresponding inspector lists and empty-space
+creation used standard buttons with decorative icons and active highlighting.
+Task markers/gateway vector shapes matched the canvas.
 
-Vérifications exécutées :
+`bpmn_editing_by_mouse` was extended for both submenus, all labels, type changes
+and exact undo/redo in light/dark. `bpmn_task_menu_dark.png` and
+`bpmn_gateway_menu_dark.png` were inspected. The preceding five commands passed:
+**123 tests** (50 app, 68 core, five integration), no ignored tests or compilation
+warnings; formatting/links/diff passed. No schema change, browser run, release
+build or deployment occurred for this change.
 
-```sh
-cargo fmt --all -- --check
-cargo test --locked --offline --workspace -- --test-threads=1
-cargo check --locked --offline -p op-app
-cargo check --locked --offline -p op-app --target wasm32-unknown-unknown
-git diff --check
-```
+## Language dropdowns
 
-Résultat : **123 tests réussis** — 50 application, 68 cœur et 5 intégration —,
-aucun ignoré. Les compilations native et WebAssembly réussissent sans avertissement.
-Les tests d’interaction existants couvrent les outils, noms accessibles,
-sélections et contrôles communs après ce changement visuel.
+The app button/site links became direct-choice menus for English, Français and
+Español. Existing app preferences remained valid; HTML links worked without
+JavaScript and identified the current language.
 
-Les captures `target/screenshots/home_narrow.png`, `new_document_grid_1400.png`
-et `whiteboard_all_tools_light.png` ont été inspectées visuellement : symboles
-distincts par notation, curseur commun et outils du dessin libre.
-Le SVG documentaire des zones utilise le même tracé
-de sélection ; sa syntaxe XML et les liens locaux ont été contrôlés. Aucun
-nouveau test navigateur, build release ou déploiement n’a été exécuté.
+The Spanish-addition command set was rerun: **123 Rust tests** (50 app, 68 core,
+five integration), **nine Bun tests**, native/Wasm checks and web release build
+passed without Astro errors/warnings. Home tests checked opening without changing
+language, three visible choices, direct selection and closure.
+`language_dropdown.png` was inspected. HTML tests checked links/unique active
+language on all three pages. Local links, UI-module formatting and diff passed.
+Site Escape/outside-click closure was implemented but not exercised in a browser.
+No deployment or Windows/macOS check occurred.
 
-## Icônes dans les menus de types BPMN
+## Stable translation keys
 
-Les choix des menus contextuels Task type et Gateway type, les listes
-correspondantes de l’inspecteur et la création par clic droit dans le vide
-utilisent des boutons standards avec pictogramme décoratif. Les tâches
-partagent leurs marqueurs avec le canvas ; les passerelles réutilisent son
-rendu vectoriel. Le type courant est surligné.
+At that revision, **859 messages** used stable IDs. English/French/Spanish
+catalogues shared keys. A one-off comparison preserved **2,577 values** exactly,
+including arguments/line breaks. A lexical inventory checked **1,057 literal calls**.
 
-Le scénario existant `bpmn_editing_by_mouse` a été étendu : ouverture des deux
-sous-menus, présence de tous les libellés, changement du type et restauration
-exacte par annulation/rétablissement, en thèmes clair et sombre. Les captures
-`target/screenshots/bpmn_task_menu_dark.png` et
-`bpmn_gateway_menu_dark.png` ont été inspectées visuellement.
-
-Les commandes de la section précédente ont été exécutées pour cette évolution :
-**123 tests réussis** — 50 application, 68 cœur et 5 intégration —, aucun ignoré ;
-compilations native et WebAssembly sans avertissement, formatage, liens locaux
-et `git diff --check` valides. Le schéma `.opx` n’a pas changé. Aucun test
-navigateur, build release ou déploiement n’a été exécuté pour cette évolution.
-
-## Menus déroulants de langue
-
-Le bouton de langue de l’application et les liens de la vitrine sont remplacés
-par des menus proposant directement English, Français et Español. La préférence
-existante de l’application reste mémorisée. Le menu HTML conserve des liens
-utilisables sans JavaScript et indique la langue active.
-
-Vérifications exécutées :
-
-```sh
-cargo test --locked --offline --workspace -- --test-threads=1
-cargo check --locked --offline -p op-app
-cargo check --locked --offline -p op-app --target wasm32-unknown-unknown
-cd website
-bun run build:site
-CARGO_NET_OFFLINE=true bun run build:app
-bun test
-```
-
-Résultat : **123 tests Rust réussis** (50 application, 68 cœur et 5 intégration),
-**9 tests Bun réussis**, vérifications native/WebAssembly et build web release
-réussis. Astro ne signale aucune erreur ni aucun avertissement. Le test d’accueil
-vérifie que l’ouverture du menu ne change pas la langue, que les trois choix sont
-visibles, que la sélection directe fonctionne et que le menu se ferme après le
-choix. La capture `target/screenshots/language_dropdown.png` a été inspectée.
-Les tests HTML vérifient les liens et l’indication unique de langue active sur
-les trois pages de la vitrine. Les liens locaux de documentation, le formatage
-du module UI de langue et `git diff --check` ont été vérifiés.
-
-La fermeture par Échap ou clic extérieur sur la vitrine est implémentée mais
-n’a pas été exercée dans un navigateur. Aucun déploiement ni contrôle
-Windows/macOS n’a été exécuté pour cette évolution.
-
-## Clés de traduction stables
-
-Les **859 messages** de l’application utilisent désormais des identifiants
-stables. Le nouveau catalogue anglais `op-core/src/i18n/en.rs` et les catalogues
-français/espagnol partagent les mêmes clés. Une comparaison ponctuelle avec les
-catalogues avant migration a vérifié que les **2 577 valeurs** (859 par langue)
-sont conservées exactement, paramètres et sauts de ligne compris. Un inventaire
-lexical a contrôlé les **1 057 appels littéraux** de traduction dans les sources.
-
-Commandes exécutées :
+Commands executed:
 
 ```sh
 cargo test --locked --offline -p op-core
@@ -421,94 +296,64 @@ CARGO_NET_OFFLINE=true bun run build:app
 bun test
 ```
 
-Résultat final : **124 tests Rust réussis** — 50 application, 69 cœur et
-5 intégration —, aucun ignoré. Les vérifications native/WebAssembly, le build web
-release et les **9 tests Bun** réussissent. Les fichiers Rust modifiés ont été
-formatés et le contrôle de formatage du workspace réussit.
+**124 Rust tests passed** (50 app, 69 core, five integration), none ignored;
+native/Wasm checks, web release build and **nine Bun tests** succeeded. Touched
+Rust files and workspace formatting passed.
 
-Le nouveau test du cœur vérifie qu’une correction du texte anglais laisse la
-clé et la traduction française inchangées, et que le repli utilise le nouveau
-texte anglais. Les contrôles des catalogues comparent les paramètres et sauts de
-ligne avec les valeurs anglaises, vérifient les clés identiques et leur syntaxe.
-Le contrôle des usages inclut maintenant le catalogue anglais ; celui des glyphes
-inclut explicitement les trois langues. Les tests UI qui consultent les clés des
-palettes et du registre traduisent ces clés avant de rechercher le libellé affiché.
-Les tests existants de documents historiques et de restauration des sessions
-réussissent. Les liens locaux des pages de documentation concernées ont été vérifiés.
+A new core test verified that changing English copy preserves its key/French
+translation and updates fallback. Catalogue checks covered identical/valid keys,
+placeholders and line breaks. Usage/glyph checks included English and all three
+languages. UI tests translated registry/palette keys before looking up labels.
+Historical-document/session tests and local links passed.
 
-La vitrine Astro utilisait déjà des clés stables : son catalogue et ses pages
-n’ont pas été modifiés pour cette migration. Son livrable a reçu l’application
-WebAssembly reconstruite. Aucun nouveau test navigateur, build natif release,
-contrôle Windows/macOS, publication ou déploiement n’a été effectué.
+Astro already used stable keys, so its catalogue/pages were unchanged; combined
+output received the rebuilt app. No new browser run, native release build,
+Windows/macOS validation, publication or deployment occurred.
 
-## Palette verticale du dessin libre
+## Vertical whiteboard palette
 
-Les outils du dessin libre sont placés dans une palette verticale flottant à
-gauche du canvas, comme BPMN et Petri. Elle réutilise `canvas::floating` et
-propose un défilement vertical lorsque la hauteur disponible est insuffisante.
-Les options, le zoom et l’inspecteur restent dans le layout partagé.
+The palette moved to the left of the canvas, reusing `canvas::floating` with
+vertical scrolling. Configuration, zoom and inspector remained in shared layout.
+Three whiteboard UI scenarios passed, including rubber-band selection beside the
+palette, creation, edits, movement/resizing, styles and undo. The completed-feature
+snapshot passed **123 Rust tests** during commit preparation, independently of
+the then-ongoing stable-key migration.
 
-Les trois scénarios UI du dessin libre passent après ce changement. La sélection
-par rectangle commence à côté de la palette ; création, édition, déplacements,
-redimensionnements, styles et annulation restent fonctionnels. L’instantané des
-fonctionnalités terminées passe les **123 tests Rust** pendant la préparation
-des commits, indépendamment de la migration des clés de traduction encore en cours.
+## Flags in language menus
 
-## Drapeaux dans les menus de langue
+English/Français/Español choices and the active button shared flags in app/site.
+`language_dropdown.png` was inspected and home tests retained accessible-name and
+language-selection checks. **124 Rust tests** passed (50 app, 69 core, five
+integration), along with native/Wasm, formatting, Astro/web release and **nine Bun
+tests**. HTML tests checked decorative flags/SVGs on all pages. Three SVGs were
+parsed; 156 local documentation links and diff checks passed. No new interactive
+browser run or Windows/macOS validation occurred.
 
-Les choix English, Français et Español affichent leur drapeau dans l’application
-et sur la vitrine, avec le même visuel dans le bouton de langue active. La capture
-`target/screenshots/language_dropdown.png` a été inspectée. Le test d’accueil
-existant vérifie toujours les noms accessibles et le changement de langue.
+## Examples on diagram cards
 
-La suite séquentielle passe les **124 tests Rust** (50 application, 69 cœur et
-5 intégration). Les vérifications native/WebAssembly, le formatage, le build Astro
-et le build web release réussissent. Les **9 tests Bun** passent ; le contrôle du
-HTML vérifie désormais les drapeaux décoratifs et leurs fichiers SVG pour chaque
-option des trois pages. Les trois SVG ont été parsés et les 156 liens locaux de
-la documentation contrôlés, sans erreur. `git diff --check` réussit.
+The card **Examples** menu in home/picker filtered by `ExampleDescriptor::kind`.
+The registry rejected unknown types; a new test checked factories produced the
+declared type and an openable document.
 
-Aucun nouveau test interactif dans un navigateur ni contrôle Windows/macOS
-n’a été exécuté pour cet ajout.
+Interaction tests checked button placement at 1,400, 420 and 280 px, filtering,
+no blank document on opening and Escape closing only the menu. Examples opened
+from home and search in a split tab group, preserving the existing document.
+`new_document_grid_1400.png`, `new_document_examples_280.png` and `home_french.png`
+were inspected. The sequential offline suite passed **125 tests** (51 app, 69 core,
+five integration); native/Wasm, workspace formatting, 156 links and diff passed.
+Site unchanged; no new browser run or release build occurred.
 
-## Exemples sur les cartes de diagrammes
+## Resume cards and PNG previews
 
-Le bouton **Exemples** se trouve sur chaque carte de type de diagramme, dans
-l’accueil et le sélecteur. Son menu ne contient que les exemples associés à
-ce type par `ExampleDescriptor::kind`. Le registre refuse les références à
-un type inconnu ; un nouveau test vérifie que chaque fabrique produit bien
-le type déclaré et un document ouvrable.
+Four new scenarios covered:
 
-Les tests d’interaction existants vérifient la position du bouton dans sa carte
-à 1 400, 420 et 280 px, le filtrage des exemples, l’absence de document vierge
-à l’ouverture du menu et sa fermeture par Échap sans fermer le sélecteur.
-Ils ouvrent un exemple depuis l’accueil et depuis une recherche dans un groupe
-d’onglets partagé, comparent son contenu au registre et préservent le document
-déjà ouvert. Les captures `target/screenshots/new_document_grid_1400.png`,
-`new_document_examples_280.png` et `home_french.png` ont été inspectées.
+- Distinct 320 × 180 previews for BPMN, Petri, DMN, database, whiteboard and logs,
+  with unchanged models, updates after editing and resumption without duplication.
+- Pixel-density-aware cropping and out-of-bounds regions.
+- Rejection of delayed captures after screen changes.
+- UID remapping, stale/corrupt cache rejection and session-schema independence.
 
-La suite séquentielle `cargo test --locked --offline --workspace -- --test-threads=1`
-passe les **125 tests Rust** (51 application, 69 cœur et 5 intégration).
-Les vérifications native et WebAssembly de `op-app`, `cargo fmt --all -- --check`,
-les 156 liens locaux de documentation et `git diff --check` réussissent.
-Le site n’a pas changé ; aucun nouveau test navigateur ou build release
-n’a été exécuté pour ce déplacement.
-
-## Cartes de reprise et aperçus PNG
-
-La section **Reprendre votre travail** utilise des cartes avec une capture PNG
-du document, son nom, son type et son état de sauvegarde. Les quatre nouveaux
-scénarios couvrent :
-
-- La génération de PNG distincts de 320 × 180 pixels pour BPMN, Petri, DMN,
-  base de données, dessin libre et journal, sans modifier leurs modèles ;
-  la mise à jour après édition et la reprise du même document sans duplication.
-- Le recadrage à la densité de pixels de la capture et les régions hors limites.
-- Le rejet d’une capture différée après un changement d’écran.
-- La restauration avec remappage des UID, le refus d’un cache périmé ou corrompu
-  et l’indépendance du cache vis-à-vis du schéma de session.
-
-Commandes exécutées :
+Commands executed:
 
 ```sh
 cargo test --locked --offline --workspace -- --test-threads=1
@@ -521,19 +366,47 @@ CARGO_NET_OFFLINE=true bun run build:app
 bun test
 ```
 
-Les suites Rust et les **9 tests Bun**, les compilations native/WebAssembly et
-le build web release réussissent. Les cartes sont exercées à 1 400, 720 et
-280 px ; les captures `target/screenshots/home_resume_cards_1400.png` et
-`home_resume_cards_280.png` ont été inspectées, ainsi que le rendu français.
+Rust suites, **nine Bun tests**, native/Wasm checks and the web release build
+passed. Cards were exercised at 1,400, 720 and 280 px; `home_resume_cards_1400.png`,
+`home_resume_cards_280.png` and French rendering were inspected.
 
-Un contrôle ponctuel dans Firefox sans interface, sur le livrable local sous
-`/app/`, a ouvert l’exemple BPMN, affiché sa carte de reprise et contrôlé la
-signature PNG de l’entrée conservée dans `localStorage`. Après rechargement,
-l’aperçu a été restauré sur l’accueil avant toute réouverture du document.
-Les captures navigateur avant et après rechargement ont été inspectées.
+A one-off headless Firefox check of local `/app/` opened the BPMN example, displayed
+its resume card and checked the stored `localStorage` entry's PNG signature.
+After reload, the preview restored on home before reopening the document.
+Browser screenshots before/after reload were inspected. Local links passed;
+Windows/macOS and the complete CI matrix were not run for that change.
 
-Les liens locaux ont été vérifiés. Les contrôles Windows/macOS et la matrice CI
-complète n’ont pas été exécutés pour cette évolution.
+## English documentation and project language — 14 November 2026
+
+The README was rewritten from the registered editor modules. Architecture,
+notation, compatibility, website and repository-rule documentation now uses
+English, as do interface-diagram labels and icon provenance. Existing document
+paths and explicit legacy verification anchors were retained. The website's
+README links to process discovery and running remain supported.
+
+Inspection confirmed that `Lang::default()` and the initial atomic language are
+English, that loading without a persisted preference uses that default, and that
+the website's `/` route is English. No runtime language behavior or translation
+catalogue was changed. Existing saved French/Spanish preferences remain supported.
+
+Commands actually executed for the language check:
+
+```sh
+cargo test --locked --offline -p op-core i18n
+cargo test --locked --offline -p op-app i18n -- --test-threads=1
+git diff --check
+```
+
+All **five core i18n tests and three application i18n tests passed**, including
+catalogue consistency, English fallback, saved-language restoration and startup
+without a saved preference. Local Markdown links/anchors and issue-form YAML were
+checked. The translated SVG was parsed for XML validity and twelve unique zone
+IDs, rasterized with Rsvg and visually inspected; one label was spaced farther
+from its neighbor after inspection.
+
+This documentation change did not run the full Rust suite, native/WebAssembly
+compilation checks, website builds, interactive browser checks or the CI matrix.
+Historical results above were translated, not rerun or reclassified as current results.
 
 ## Mermaid editor and preview
 

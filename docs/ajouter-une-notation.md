@@ -1,107 +1,98 @@
-# Ajouter une notation
+# Adding a notation
 
-Ce guide décrit les contrats implémentés. Un module peut proposer un diagramme,
-plusieurs types proches ou un document sans canvas, comme une table.
+This guide describes implemented contracts. A module may provide one diagram,
+several related types or a canvas-free document such as a table.
 
-## 1. Modèle et codec dans op-core
+## 1. Model and codec in op-core
 
-Définir un modèle typé, ses invariants et ses opérations sans dépendance à egui.
-Choisir un identifiant stable, par exemple `state-machine`, et une version métier.
-`DocumentCodec<M>` définit l'encodage et le décodage ; `JsonCodec<M>` fournit la
-version initiale JSON et refuse les versions métier inconnues.
+Define a typed model, invariants and operations independently of egui. Choose a
+stable identifier, such as `state-machine`, and a model version. `DocumentCodec<M>`
+defines encoding/decoding; `JsonCodec<M>` provides an initial JSON representation
+and rejects unknown model versions.
 
-Pour une évolution de schéma, implémenter les migrations dans le codec de la
-notation avant d'augmenter sa version. Conserver des fixtures historiques. Les
-algorithmes consomment le modèle typé ; l'enveloppe JSON sert à l'intégration et au stockage.
+For schema changes, implement notation-owned migrations before incrementing the
+version and retain historical fixtures. Algorithms consume typed models; the JSON
+envelope is an integration/storage boundary.
 
-## 2. Adaptateur dans op-app
+## 2. Adapter in op-app
 
-Implémenter `EditorBackend` près de l'éditeur. Les adaptateurs existants se trouvent
-dans les fichiers `*_editor/session.rs`. Les responsabilités sont :
+Implement `EditorBackend` beside the editor. Existing adapters include
+`*_editor/session.rs`. Responsibilities are:
 
-- Fournir le modèle persistant, son nom et les opérations de renommage.
-- Définir un état de vue typé contenant caméra, inspecteur et interactions locales.
-- Capturer/restaurer cet état et sérialiser seulement les éléments utiles à la reprise de session.
-- Déclarer commandes, disponibilité, vues secondaires et formats d'export.
-- Produire les clés sémantiques et graphiques ; une relation dérivée de la géométrie,
-  comme l'appartenance à un système UML, doit rester dans la clé sémantique.
-- Regrouper les mutations dans l'historique et permettre l'annulation d'une transaction.
+- Expose the persistent model, its name and rename operations.
+- Define typed view state for camera, inspector and local interactions.
+- Capture/restore it, serializing only what is useful for session restoration.
+- Declare commands, availability, secondary views and export formats.
+- Produce semantic/graphical keys; geometry-derived relationships such as UML
+  system containment must remain in the semantic key.
+- Group mutations in history and allow transaction cancellation.
 
-`Session::boxed(editor)` apporte l'interface applicative, la gestion des vues et
-le suivi des révisions. Le modèle et l'historique n'entrent pas dans l'état d'une vue.
-Un document textuel peut utiliser `()` comme état de vue et ignorer le canvas.
+`Session::boxed(editor)` supplies the application interface, view handling and
+revision tracking. Do not put the model or history into view state. A text editor
+may use `()` as view state and ignore canvas mechanisms.
 
-Pour un éditeur graphique, utiliser `editor::layout::DiagramLayout` pour
-l'inspecteur, ses onglets (`inspector_tabs`), son contenu défilant (`inspector_body`),
-la configuration et le canvas. Le module fournit `CanvasControls`, `FooterStatus`
-et les options propres à la notation. La hauteur de barre, les marges, le zoom
-et le passage au menu compact restent définis dans ce composant commun.
-Les actions métier supplémentaires peuvent occuper l'emplacement `tools`.
+Graphical editors use `editor::layout::DiagramLayout` for the inspector,
+`inspector_tabs`, scrollable `inspector_body`, configuration and canvas. Supply
+`CanvasControls`, `FooterStatus` and notation-specific options. Bar heights,
+spacing, zoom and compact-menu thresholds stay in the common component. Extra
+business actions use the `tools` slot.
 
-Pour les cartes de reprise de l’accueil, `EditorBackend::thumbnail_rect` peut
-renvoyer le rectangle du canvas déjà rendu. Le repli est le panneau complet,
-adapté aux vues textuelles et tabulaires. La capture et l’encodage PNG restent
-dans le shell ; le module ne gère pas de fichiers d’aperçu ni de copie du modèle.
+For home-screen previews, `EditorBackend::thumbnail_rect` may return the rendered
+canvas rectangle. The fallback is the whole panel, useful for text/table views.
+The shell owns capture and PNG encoding; modules do not manage preview files or
+copy their models.
 
-Conserver `snap`, l'ouverture d'inspecteur et les éventuels indicateurs de problèmes
-dans l'état de vue capturé et restauré ; leur sérialisation est indépendante du
-modèle. Les anciennes valeurs booléennes d'inspecteur restent lisibles. Les styles
-de dessin déjà sauvegardés dans les modèles restent persistants.
+Keep snapping, inspector state and optional issue indicators in captured/restored
+view state, serialized independently of the model. Historical boolean inspector
+values remain readable. Drawing styles already stored in models remain persistent.
 
-L'export standard utilise `ExportData`. Pour plusieurs formats, redéfinir
-`exports()` et `export_as(id)` ; l'application construit les boutons à partir
-des descripteurs. Le PNG est une commande de capture du canvas quand elle est disponible.
+Standard exports use `ExportData`. Override `exports()` and `export_as(id)` for
+multiple formats; the app builds buttons from descriptors. PNG is a canvas
+capture command when supported.
 
-## 3. Enregistrement
+## 3. Registration
 
-Le module expose une fonction `register(&mut DiagramRegistry)` qui ajoute :
+Expose `register(&mut DiagramRegistry)` to add:
 
-- Un `DiagramDescriptor` par type de document, avec fabrique vide, fabrique d'ouverture
-  et fonction `icon` pour son pictogramme vectoriel.
-- Ses importeurs externes, s'il en possède ; un export n'implique pas un import.
-- Ses exemples et éventuels lanceurs de workflow pour l'accueil. Chaque
-  `ExampleDescriptor` fournit `kind`, l’identifiant canonique du diagramme associé,
-  pour alimenter le bouton **Exemples** de sa carte dans les deux grilles.
+- A `DiagramDescriptor` per type with empty/opening factories and an `icon` function.
+- External importers, if any; an export does not imply an import.
+- Examples and optional home-screen workflow launchers. `ExampleDescriptor::kind`
+  names the canonical type used by its card's **Examples** button in both grids.
 
-Déclarer le module Rust puis appeler son `register` dans
-[composition.rs](../crates/op-app/src/composition.rs). Les identifiants de types,
-les alias et les exemples sont vérifiés pour éviter les doublons. Un exemple
-qui référence un type de diagramme non enregistré est également refusé.
+Declare the Rust module and call `register` in
+[composition.rs](../crates/op-app/src/composition.rs). Validation checks type IDs,
+aliases and examples for duplicates, and rejects examples naming unknown types.
 
-Les commandes et vues utilisent des identifiants explicites tels que
-`state-machine.validate`. Les libellés utilisent des clés de traduction stables,
-par exemple `tr("state_machine.validate")` ou `key("state_machine.validate")`
-dans un descripteur traduit ensuite par le shell. Déclarer la même clé dans les
-catalogues `en.rs`, `fr.rs` et `es.rs` de `op-core/src/i18n/` ; les textes anglais
-restent dans `en.rs`. `trf` remplit les paramètres du texte traduit. Voir
-[le guide des traductions](traductions.md). Les filtres de fichiers sont issus
-des importeurs enregistrés.
+Commands/views use explicit IDs such as `state-machine.validate`. Labels use
+stable translation keys, e.g. `tr("state_machine.validate")` or
+`key("state_machine.validate")` in descriptors translated later by the shell.
+Write original text in English and declare the same key in `en.rs`, `fr.rs` and
+`es.rs` in `op-core/src/i18n/`. `trf` fills translated placeholders. See
+[translations](traductions.md). Registered importers provide file filters.
 
-Les cartes de l’accueil et du sélecteur utilisent l’icône déclarée dans le
-descripteur, indépendamment de `home_order`. Un `WorkflowDescriptor` déclare aussi
-son icône. Les primitives réutilisables se trouvent dans
-[`icons.rs`](../crates/op-app/src/icons.rs) ; `icons::select` conserve le curseur
-de sélection BPMN pour les palettes des éditeurs graphiques.
+Home and picker cards use descriptor icons independently of `home_order`.
+`WorkflowDescriptor` also declares an icon. Reusable drawing primitives live in
+[icons.rs](../crates/op-app/src/icons.rs); `icons::select` shares the BPMN selection
+cursor with other graphical editors.
 
-## 4. Workflows et calculs
+## 4. Workflows and computations
 
-Une conversion produit un nouveau `Document` et des diagnostics. L'adaptateur
-émet `HostEvent::Open` et, si nécessaire, `HostEvent::Message`. Il ne manipule pas
-les onglets de l'application ni l'éditeur cible.
+A conversion produces a new `Document` and diagnostics. The adapter emits
+`HostEvent::Open` and, when needed, `HostEvent::Message`; it does not manipulate
+application tabs or the target editor.
 
-Pour un calcul long, partir d'un instantané immutable et identifier toutes ses
-entrées : contenu métier, paramètres et langue si les diagnostics en dépendent.
-Le service `platform/jobs.rs` fournit le transport et l'annulation. Ajouter le
-raccordement du traitement web dans la composition ; le traitement typé reste dans
-son module. Ne jamais remplacer un résultat récent par une réponse pour des entrées périmées.
+Long computations start from immutable snapshots and identify every input:
+domain content, parameters and language when diagnostics depend on it. The
+`platform/jobs.rs` service supplies transport/cancellation. Wire browser dispatch
+in composition while keeping typed processing in the module. Never replace a
+current result with a response for stale inputs.
 
-## 5. Vérifier l'extension
+## 5. Verify the extension
 
-Tester les invariants, le codec et ses versions, les transactions et le retour à
-l'état sauvegardé. Vérifier plusieurs vues d'un même document et les conversions
-éventuelles. Compiler le natif et le web ; si un worker est ajouté, vérifier son
-fonctionnement avec le livrable Trunk réel, à la racine et sous le chemin de publication.
+Test invariants, codec versions, transactions and undo to saved state. Check
+multiple views and any conversions. Compile native and web targets. If adding a
+worker, test the actual Trunk build at the root and under its publication path.
 
-Le test `extension_without_canvas_uses_the_same_document_shell` dans
-[editor/registry.rs](../crates/op-app/src/editor/registry.rs) donne une preuve minimale
-d'intégration d'un type absent du catalogue du produit.
+The `extension_without_canvas_uses_the_same_document_shell` test in
+[editor/registry.rs](../crates/op-app/src/editor/registry.rs) demonstrates minimal
+integration of a type outside the shipped catalogue.

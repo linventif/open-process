@@ -1,181 +1,131 @@
-# Zones et composants de l’interface
+# Interface zones and components
 
-**Statut : repères de l’interface implémentée et pistes de bibliothèques.**
+**Status: implemented interface references and separate component-library proposals.**
 
-Ouvrir le [layout SVG annoté](diagrams/interface-zones.svg) pour désigner une zone
-par son nom ou son identifiant, par exemple « Z10 : modifier le survol du bouton
-Style ». Le SVG est un document vectoriel modifiable, avec un groupe identifié
-pour chacune des douze zones.
+Open the [annotated SVG](diagrams/interface-zones.svg) to refer to a zone by name
+or ID, e.g. “Z10: change the Style button hover.” The editable vector document
+has an identified group for each of twelve zones.
 
-![Layout annoté d’Open Process](diagrams/interface-zones.svg)
+![Annotated Open Process layout](diagrams/interface-zones.svg)
 
-Le schéma réunit les emplacements facultatifs afin de les nommer : une notation
-n’affiche pas nécessairement tous les composants. Les proportions et les couleurs
-servent à lire la structure. Le SVG ne propose pas de déplacer les panneaux ni
-d’adopter ces couleurs dans le produit.
+The diagram collects optional slots to give them names; a notation need not show
+every component. Proportions/colors explain structure rather than propose moving
+panels or adopting a new product theme.
 
-## Vocabulaire commun
+## Shared vocabulary
 
-| Repère | Nom | Rôle et propriétaire |
+| ID | Name | Role and owner |
 | --- | --- | --- |
-| Z01 | Navigation principale / barre de menus | Home, File, Edit, View, Tools, Help, langue et thème. Shell : `app.rs::menu_bar`. |
-| Z02 | Barre d’onglets / docking | Documents et vues ouvertes, fermeture et division de l’espace de travail. `DockBehavior` dans `app.rs`, arbre dans `dock.rs`. |
-| Z03 | Vue de document / panneau ancrable | Conteneur affiché dans une zone du docking. Plusieurs vues peuvent partager le même document et son historique. |
-| Z04 | Barre d’actions métier | Actions propres à la notation, par exemple le type de relation et l’alignement UML. Emplacement commun : `DiagramLayout::tools`. |
-| Z05 | Palette d’outils | Choix de l’outil courant : sélectionner, connecter, créer une forme. Contenu fourni par la notation et primitives dans `canvas.rs`. |
-| Z06 | Canvas / zone de dessin | Dessin du modèle, grille de fond, sélection, déplacement et caméra. Emplacement `DiagramLayout::canvas`. |
-| Z07 | Inspecteur | Propriétés, validation ou analyses de la notation. Cadre et adaptation à la largeur : `DiagramLayout::inspector`. |
-| Z08 | Onglets de l’inspecteur | Change le contenu de Z07, par exemple Properties / Validation / Evaluation. `DiagramLayout::inspector_tabs`. |
-| Z09 | État / résumé | Compteurs, diagnostic, état de simulation. Contenu `FooterStatus` affiché dans `DiagramLayout::configuration`. |
-| Z10 | Configuration de la vue | Style, Show issues, Snap to grid, zoom et affichage de l’inspecteur. `DiagramLayout::configuration`. |
-| Z11 | Contrôles de zoom | Sous-groupe de Z10 : diminuer, pourcentage/réinitialisation, augmenter et cadrer. `canvas::zoom_controls` et `zoom_buttons`. |
-| Z12 | Menu Options compact | Regroupe les options de Z10 dans une vue étroite. Même composant de configuration. |
+| Z01 | Main navigation / menu bar | Home, File, Edit, View, Tools, Help, language and theme. Shell: `app.rs::menu_bar`. |
+| Z02 | Document tabs / docking | Open documents/views, closure and workspace splitting. `DockBehavior` in `app.rs`, tree in `dock.rs`. |
+| Z03 | Document view / dockable panel | Container in the docking layout. Multiple views may share a model/history. |
+| Z04 | Business action bar | Notation-specific actions such as UML relations/alignment. `DiagramLayout::tools`. |
+| Z05 | Tool palette | Active tool: select, connect, create. Notation content with `canvas.rs` primitives. |
+| Z06 | Canvas / drawing area | Model rendering, background grid, selection, movement and camera. `DiagramLayout::canvas`. |
+| Z07 | Inspector | Properties, validation or analysis. Frame/responsiveness: `DiagramLayout::inspector`. |
+| Z08 | Inspector tabs | Switch Z07 content, e.g. Properties / Validation / Evaluation. `DiagramLayout::inspector_tabs`. |
+| Z09 | Status / summary | Counts, diagnostics, simulation state. `FooterStatus` in `DiagramLayout::configuration`. |
+| Z10 | View configuration | Style, Show issues, Snap to grid, zoom, inspector visibility. `DiagramLayout::configuration`. |
+| Z11 | Zoom controls | Part of Z10: decrease, percentage/reset, increase, fit. `canvas::zoom_controls` and `zoom_buttons`. |
+| Z12 | Compact Options menu | Groups Z10 options in narrow views; the same configuration component. |
 
-Z09 et Z10 sont deux groupes d’une **seule barre inférieure**. Z11 appartient à
-Z10. Z02 et Z08 ont des responsabilités différentes : les premiers onglets
-changent de document ou de vue ; les seconds changent le contenu de l’inspecteur.
-La grille visible dans Z06 est le fond du canvas ; « Snap to grid » règle
-l’aimantation des déplacements.
+Z09 and Z10 share **one bottom bar**, with Z11 inside Z10. Z02 changes the document
+or view; Z08 changes inspector content. The Z06 grid is the canvas background,
+while **Snap to grid** controls movement snapping.
 
 Petri places use a model-space radius of 8.25 units, a diameter of 16.5 before
 zoom, following the later 50% increase. Tokens scale with the radius; arc anchors,
-creation previews and hit testing use the same value. Place labels keep their text size.
+creation previews and hit testing use it too. Labels retain their text size.
 Historical radius changes in the verification record refer to earlier revisions.
 
-Le bouton « + » de Z02, **File → New…** et **Ctrl/Cmd+N** ouvrent le même
-sélecteur de documents : une grille de cartes issue du registre, avec recherche,
-défilement et adaptation à la largeur. Cette grille réutilise les composants
-de l’accueil. Choisir une carte crée le document ; annuler ou appuyer sur Échap
-ferme le sélecteur. Depuis un groupe d’onglets partagé, le nouveau document
-est créé dans le groupe à l’origine de l’action.
-Chaque carte de type de diagramme propose son bouton **Exemples**, en bas à
-droite, avec uniquement les exemples de ce type. Le même composant est utilisé
-dans l’accueil et le sélecteur. Les cartes sans exemple et les lanceurs de
-workflow gardent leur action principale. Choisir un exemple ferme le sélecteur
-et conserve le groupe d’onglets à l’origine de l’ouverture. Ouvrir le menu
-d’exemples ne crée pas de document vierge.
+The Z02 **+**, **File → New…** and **Ctrl/Cmd+N** open the same searchable,
+scrollable, responsive grid of registry document cards. It reuses home components.
+Choosing a card creates a document; cancellation/Escape closes the picker.
+Creation preserves the originating tab group in split layouts.
 
-Dans l’accueil, **Reprendre votre travail** apparaît avant **Nouveau document**
-lorsque des documents sont ouverts. Chaque carte présente un aperçu PNG, le nom
-sur une ligne, l’icône et le type de notation, ainsi que **Non enregistré** quand
-des modifications restent à sauvegarder. Le nom complet est accessible au survol.
-Un clic ou une activation clavier reprend le document et son historique existants.
-La grille utilise une à quatre colonnes selon la largeur disponible.
+Each document card has an **Examples** button at the bottom right with only that
+type's examples. Home and picker use the same component. Cards without examples
+and workflow launchers retain their primary action. Choosing an example closes
+the picker and preserves the tab group; opening the menu creates no blank document.
 
-Les aperçus sont des captures locales du contenu affiché, réduites à 320 × 180
-pixels avec conservation des proportions. Les vues graphiques capturent leur
-canvas ; les tables et journaux utilisent leur panneau. Ils reflètent la vue
-affichée, avec ses éventuelles sélections et palettes, sans imposer de recadrage
-à l’utilisateur. Une icône remplace l’aperçu avant la première capture. Les PNG
-sont réutilisés et conservés avec les préférences de l’application, dans un cache
-séparé des documents.
+On home, **Resume your work** precedes **New document** when documents are open.
+Cards show a PNG preview, a one-line name with full hover text, type/icon and
+unsaved status. Click/keyboard activation resumes the same document/history.
+The responsive grid uses one to four columns.
 
-Les pictogrammes des cartes représentent leur notation : événement/tâche/passerelle
-BPMN, places et transition Petri, classes reliées, acteur/cas d’utilisation,
-table DMN, chaîne EPC, branche d’activité UML, tables relationnelles ou crayon.
-Chaque module déclare sa fonction `icon` dans son descripteur ; le tri et la
-recherche conservent cette identité. Les workflows déclarent également leur icône.
-Les dessins vectoriels communs se trouvent dans
-[`icons.rs`](../crates/op-app/src/icons.rs).
+Previews are local captures of displayed content, reduced to 320 × 180 pixels
+with aspect ratio preserved. They do not modify models/cameras and restore from
+a separate bounded cache. Missing previews fall back to notation icons.
 
-Les palettes des éditeurs graphiques partagent le curseur de sélection issu de
-BPMN. La palette verticale du dessin libre utilise aussi des pictogrammes pour la
-main, les formes, les lignes, le crayon, le texte et les notes. Les boutons
-conservent leurs noms accessibles, infobulles et état sélectionné.
-Elle flotte à gauche du canvas, comme les palettes BPMN et Petri, avec
-défilement vertical lorsque les outils dépassent la hauteur disponible.
+Notation/workflow icons come from descriptor functions rather than card position.
+The free-drawing palette uses accessible icon buttons, floating left of the canvas
+like BPMN/Petri, with vertical scrolling when needed. Graphical editors reuse the
+shared selection cursor from `icons.rs`.
 
-Dans BPMN, les menus contextuels **Task type** et **Gateway type** affichent
-une icône à gauche de chaque choix et mettent en évidence le type courant.
-Les listes correspondantes de l’inspecteur réutilisent ces mêmes lignes.
-Les marqueurs de tâches sont ceux du canvas ; les passerelles réutilisent
-son dessin vectoriel (XOR, AND, OR, événementielle ou complexe). Les commandes
-de création par clic droit dans le vide disposent également d’une icône.
-Le bouton complet reste cliquable, avec un libellé accessible ; le pictogramme
-est décoratif et suit la couleur du texte pour le thème et la sélection.
+BPMN **Task type**/**Gateway type** context menus and corresponding inspector lists
+use standard buttons with decorative icons and highlight the active type. Task
+markers and gateway drawings match the canvas. Empty-space creation menu actions
+also have icons. Full buttons remain clickable, with accessible labels; icons
+follow text color for theme/selection.
 
-Dans Z01, les formats d’export sont regroupés dans **File → Export**. Le contenu
-de ce sous-menu provient de la session du document actif, avec le PNG lorsque
-la vue permet la capture. L’export est désactivé depuis l’accueil.
+Z01 groups exports in **File → Export**, populated by the active session, with
+PNG where capture is supported. Exports are disabled on home.
 
-Pour BPMN, Z10 propose **Auto arrange** à côté des options de style. Dans une
-vue compacte, l’action rejoint le menu Z12. Elle dispose les éléments de gauche
-à droite, conserve les pools/couloirs et recadre la vue active. La disposition
-est sauvegardée dans le document et peut être annulée/rétablie. Les largeurs
-de pools et hauteurs de couloirs peuvent augmenter pour accueillir les éléments.
-Les géométries invalides et les éléments situés dans des en-têtes ambigus sont
-signalés avant toute modification. L’action existe aussi dans le menu Tools.
+For BPMN, Z10 offers **Auto arrange** alongside style; it moves into Z12 in compact
+views and is also available under Tools. It lays out left to right, preserves
+pool/lane membership and fits the active view. Geometry is persistent/undoable;
+pool widths/lane heights may grow to fit content. Invalid geometry and ambiguous
+header containment are diagnosed before mutation.
 
-Les repères concernent les éditeurs graphiques BPMN, Petri, UML, EPC, base de données
-et [dessin libre](dessin-libre.md). Les vues
-tabulaires ou textuelles, comme Mining et certaines analyses, ne doivent pas
-simuler un canvas pour entrer dans ce layout.
-Les nouvelles tables DMN partagent les actions et l’inspecteur, avec un contenu
-tabulaire défilant et sans contrôles de zoom artificiels.
-La base de données propose un canvas relationnel et une vue secondaire SQL,
-qui partage le document et affiche du texte sélectionnable.
+These references cover BPMN, Petri, UML, EPC, database and [free drawing](dessin-libre.md).
+Text/table views such as Mining must not simulate a canvas to fit the layout.
+DMN shares actions/inspector with scrollable table content and no artificial zoom.
+Database SQL is a secondary selectable-text view sharing the relational document.
+[Mermaid](mermaid.md) uses an inspector for source/templates and a graphical preview.
 
-## Layout réutilisable et apparence commune
+## Reusable layout and appearance
 
-La disposition des éditeurs reste dans
-[`editor/layout.rs`](../crates/op-app/src/editor/layout.rs). Les notations
-fournissent leur palette, les actions métier, les propriétés et leurs options
-spécifiques. Elles ne recopient pas la barre de configuration, le zoom, les
-marges ou les seuils d’adaptation.
+[editor/layout.rs](../crates/op-app/src/editor/layout.rs) owns editor arrangement.
+Notations provide palettes, business actions, properties and specific options
+rather than copying configuration bars, zoom, spacing or breakpoints.
 
-Les dimensions dépendent de la **largeur disponible de la vue**, notamment
-quand le docking partage la fenêtre :
+Thresholds depend on **available view width**, including docking splits:
 
-- Inspecteur automatique à droite au-dessus de 760 px ; masqué par défaut en dessous.
-  Une ouverture explicite dans une vue étroite l’affiche au-dessus du canvas,
-  avec une hauteur bornée.
-- Options regroupées dans Z12 sous 720 px disponibles dans la barre.
-- Bouton Inspector également regroupé dans Z12 sous 360 px.
+- Inspector on the right above 760 px; hidden by default below it. Explicitly
+  opening it in a narrow view places a bounded panel above the canvas.
+- Options grouped in Z12 below 720 px of bar width.
+- Inspector button also grouped in Z12 below 360 px.
 
-L’apparence réutilisable est définie dans
-[`theme.rs`](../crates/op-app/src/theme.rs). `toolbar_style` applique le même
-traitement aux boutons de navigation, aux actions métier, aux onglets de
-l’inspecteur et à la barre de configuration : fond transparent au repos, fond
-neutre au survol, sélection teintée avec l’accent de l’application, coins et
-épaisseur des glyphes constants. Le contour d’activation conserve un repère
-de focus clavier. Les champs de formulaire gardent leur style général.
+[theme.rs](../crates/op-app/src/theme.rs) owns reusable appearance.
+`toolbar_style` shares transparent idle backgrounds, neutral hover, accent-tinted
+selection, corner/glyph consistency and keyboard focus outlines across navigation,
+business actions, inspector tabs and configuration. Form fields retain their
+usual style. `DiagramLayout` determines placement; `theme.rs` determines appearance.
+A future component kit would integrate into that common layer.
 
-Cela sépare deux responsabilités concrètes : `DiagramLayout` décide où les
-composants se placent ; `theme.rs` décide de leur apparence. Un éventuel kit de
-composants s’intégrerait dans cette couche commune.
+## Rust component libraries: historical investigation
 
-## Bibliothèques graphiques Rust
+The app uses egui/eframe 0.37; see [Cargo.toml](../crates/op-app/Cargo.toml).
+Controls are drawn by egui, not HTML elements accepting Tailwind/DaisyUI classes.
+The following was a **13 November 2026 investigation**, not a current compatibility
+certification. None of these kits was integrated or tested in the repository.
 
-L’application utilise actuellement egui/eframe 0.37, voir son
-[`Cargo.toml`](../crates/op-app/Cargo.toml). Ses contrôles sont dessinés par egui ;
-ils ne sont pas des éléments HTML auxquels ajouter des classes Tailwind ou DaisyUI.
-Il existe cependant des kits de composants egui proches des bibliothèques web.
-
-Repérage consulté le 13 novembre 2026 ; **aucun de ces kits n’est intégré ni testé
-dans ce dépôt** :
-
-| Bibliothèque | Intérêt | Compatibilité constatée |
+| Library | Potential use | Compatibility recorded at the time |
 | --- | --- | --- |
-| [egui-shadcn](https://docs.rs/crate/egui-shadcn/latest) | Boutons, champs, onglets, cartes et variantes inspirés de shadcn/ui. | La version 0.5.0 documentée dépend d’egui 0.33 : adaptation nécessaire pour notre 0.37. |
-| [egui-material3](https://docs.rs/crate/egui-material3/latest) | Composants et thèmes Material Design 3. | La version 0.0.9 consultée dépend également d’egui 0.33. |
-| [shadcn-egui](https://docs.rs/shadcn-egui/latest/shadcn_egui/) | Autre projet : thèmes, composants, polices et icônes shadcn/ui. | Le [manifeste de la branche consultée](https://github.com/oetiker/shadcn-egui/blob/main/Cargo.toml) indique egui 0.34 ; compatibilité avec 0.37 non validée ici. |
+| [egui-shadcn](https://docs.rs/crate/egui-shadcn/latest) | shadcn/ui-inspired buttons, fields, tabs, cards and variants. | Documented 0.5.0 depended on egui 0.33; adaptation needed for 0.37. |
+| [egui-material3](https://docs.rs/crate/egui-material3/latest) | Material Design 3 components/themes. | Investigated 0.0.9 also depended on egui 0.33. |
+| [shadcn-egui](https://docs.rs/shadcn-egui/latest/shadcn_egui/) | A separate shadcn/ui-inspired theme/component/font/icon project. | The [inspected manifest](https://github.com/oetiker/shadcn-egui/blob/main/Cargo.toml) used egui 0.34; 0.37 compatibility was not validated. |
 
-La piste shadcn correspond au besoin de composants sobres avec des variantes
-cohérentes. Avant de retenir un kit, vérifier une version précise et l’essayer
-avec les menus, le docking, le focus clavier, les traductions et les builds
-natif/WebAssembly du projet. Des types egui provenant de versions différentes
-ne s’interchangent pas directement.
+Before selecting a kit, pin a version and exercise menus, docking, keyboard focus,
+translations and native/WebAssembly builds. Types from different egui versions
+are not directly interchangeable. Adoption remains a separate proposal to compare
+with maintaining the small shared theme.
 
-Le changement actuel corrige le style partagé avec egui existant. L’adoption
-d’une bibliothèque de composants reste une proposition distincte, à comparer
-avec l’entretien de ce petit thème commun.
+## Historical checks for the layout work
 
-## Vérifications de cette évolution
-
-Le rendu des douze zones du SVG a été vérifié après rasterisation et son XML
-validé. Les captures d’interface sont générées par le test `app::tests::screenshots`,
-y compris les survols de Home, File, Style et Inspector en clair et en sombre.
-Elles sont locales dans `target/screenshots/`.
-
-Les résultats des commandes Rust et des contrôles documentaires exécutés sont
-consignés dans [les vérifications](verification.md#zones-et-style-de-linterface).
+The SVG was parsed as XML, its twelve zone groups/unique IDs checked, then
+rasterized and inspected. `app::tests::screenshots` generates local light/dark
+hover captures for Home, File, Style and Inspector in `target/screenshots/`.
+Recorded Rust/document checks are in
+[verification](verification.md#interface-zones-and-style). See its later English
+documentation section for checks of the translated diagram.

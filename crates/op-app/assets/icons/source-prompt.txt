@@ -1,11 +1,11 @@
-Open Process — source de l’icône approuvée
+Open Process — approved icon source
 
-Création via l’outil intégré image_gen, puis intégration à la demande de l’utilisateur.
-source.png conserve la proposition raster historique. À la demande de l’utilisateur,
-open-process.svg remplace cette image comme dessin maître, sans fond ivoire.
-scripts/generate-icons.py produit désormais les formats système à partir du SVG.
+Created with the built-in image_gen tool and integrated at the user’s request.
+source.png preserves the historical raster proposal. At the user’s request,
+open-process.svg replaces it as the master artwork, without an ivory background.
+scripts/generate-icons.py now produces platform formats from that SVG.
 
-Prompt initial :
+Initial prompt:
 
 Use case: logo-brand
 Asset type: desktop application icon for Open Process, a process modelling and analysis application (BPMN, Petri nets, UML).
@@ -16,6 +16,6 @@ Color palette: existing brand deep navy #1B2A41, amber #E39B2E token, warm ivory
 Scene/backdrop: genuinely transparent outside the rounded-square tile.
 Constraints: deliver exactly one standalone icon filling the square canvas. No words, no captions, no letter labels in addition to the P-shaped symbol, no watermark, no perspective, no 3D, no texture, no decorative tiny details, no extra nodes, no gradients, no cast shadow.
 
-Prompt de retouche :
+Editing prompt:
 
 Use case: precise-object-edit. Edit the application icon just generated. Keep the exact O arrow P emblem, navy and amber colors, ivory rounded tile, square framing and placement. Clean up the tile silhouette: make all four sides and all four rounded corners perfectly smooth, precise geometric edges with consistent antialiasing. Remove every stray opaque pixel, fleck, protrusion and ragged mark outside the rounded square. Transparent background must be perfectly clean outside the tile. Make interior colors solid and flat with no mottled texture. Finished production software icon, no text, no additional shapes.
