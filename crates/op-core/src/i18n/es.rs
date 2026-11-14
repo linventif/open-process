@@ -415,6 +415,59 @@ pub const TABLE: &[(&str, &str)] = &[
     ),
     ("conversion.converted_process", "Proceso convertido"),
     (
+        "conversion.mermaid_annotations",
+        "Los espacios de nombres, notas y anotaciones del documento no se representan en el editor UML.",
+    ),
+    (
+        "conversion.mermaid_classes_only",
+        "La conversión admite actualmente diagramas de clases UML y código Mermaid classDiagram.",
+    ),
+    (
+        "conversion.mermaid_endpoint_roles",
+        "El texto de extremo que no es una multiplicidad UML se ha conservado como rol.",
+    ),
+    (
+        "conversion.mermaid_incomplete",
+        "Cierra todos los bloques de clases y espacios de nombres y las etiquetas entre comillas antes de convertir.",
+    ),
+    (
+        "conversion.mermaid_inferred_interface",
+        "Los destinos de realización sin anotación se han interpretado como interfaces.",
+    ),
+    (
+        "conversion.mermaid_interactions",
+        "Los enlaces y callbacks Mermaid no se representan en el editor UML.",
+    ),
+    (
+        "conversion.mermaid_layout",
+        "Las posiciones y dimensiones se recalculan en el documento de destino.",
+    ),
+    (
+        "conversion.mermaid_member",
+        "Clase «{}»: el miembro «{}» debe usar paréntesis solo para una operación.",
+    ),
+    (
+        "conversion.mermaid_relation",
+        "La relación de «{}» a «{}» no se admite o incumple las reglas del editor UML.",
+    ),
+    (
+        "conversion.mermaid_roles",
+        "Los roles separados de los extremos se omiten en Mermaid; se conservan las etiquetas y multiplicidades de las relaciones.",
+    ),
+    (
+        "conversion.mermaid_stereotypes",
+        "Los estereotipos personalizados se convierten en clases UML normales.",
+    ),
+    (
+        "conversion.mermaid_styles",
+        "Los temas y estilos personalizados Mermaid no se representan en el editor UML.",
+    ),
+    (
+        "conversion.mermaid_unsupported_member",
+        "Este miembro Mermaid no se puede representar en el editor UML.",
+    ),
+    ("conversion.mermaid_warnings", "Documento convertido abierto. Notas: {}"),
+    (
         "conversion.message_flows_ignored_translation",
         "Los flujos de mensaje se ignoran en la conversión",
     ),
@@ -427,6 +480,8 @@ pub const TABLE: &[(&str, &str)] = &[
         "conversion.process_has_start_event_s_end_event",
         "El proceso tiene {} evento(s) de inicio y {} evento(s) de fin: el resultado no es una red de flujo de trabajo",
     ),
+    ("conversion.to_mermaid", "Convertir a Mermaid"),
+    ("conversion.to_uml_classes", "Convertir a clases UML"),
     ("database.add_column", "Añadir columna"),
     ("database.add_column_mapping", "Añadir correspondencia de columnas"),
     ("database.add_foreign_key", "Añadir clave foránea"),

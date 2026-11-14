@@ -576,3 +576,38 @@ rendering to avoid a system-clock call; source documents remain intact.
 Local documentation links passed. Windows/macOS and the complete CI matrix were
 not run for this extension; no website-content build or new Bun test run is
 claimed. See [the Mermaid guide](mermaid.md) for rendering limitations.
+
+## UML class ↔ Mermaid conversions
+
+The UML and Mermaid modules declare conversion commands in their own adapters.
+Toolbar buttons and the existing Tools menu open a separate editable destination;
+no shell catalogue, dependency, file-schema change or new worker was added.
+
+Six core tests cover the built-in class example, all seven relation kinds,
+classifier kinds, duplicate/escaped names, Unicode and reserved text, reversed
+markers and endpoint multiplicities, interface inference, loss diagnostics,
+invalid/cyclic relations, incomplete sources, deterministic layout and empty
+models. Two application tests exercise both directions through the real buttons,
+Tools commands, independent history, dirty state, source preservation, unsupported
+source kinds and rejection without opening a partial document. Wide and narrow
+screenshots at 1,400 and 420 pixels were inspected.
+
+Commands executed:
+
+```sh
+cargo test --locked --offline -p op-core mermaid::conversion -- --test-threads=1
+cargo test --locked --offline -p op-app conversion -- --test-threads=1
+cargo test --locked --offline --workspace -- --test-threads=1
+cargo check --locked --offline -p op-app
+cargo check --locked --offline -p op-app --target wasm32-unknown-unknown
+cargo fmt --all -- --check
+git diff --check
+cd website
+CARGO_NET_OFFLINE=true bun run build:app
+```
+
+The workspace suite passes: **63 application tests, 78 core tests and five document
+integration tests**. Native/WebAssembly checks, the Trunk release build, formatting,
+patch checks and local documentation links pass. This change did not run a new
+interactive browser test, a website-content build, Bun tests, Windows/macOS or the
+complete CI matrix. See [conversion behavior and limits](mermaid.md#converting-uml-class-diagrams).

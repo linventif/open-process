@@ -27,6 +27,11 @@ const COMMANDS: &[CommandDescriptor] = &[
         label: key("canvas.zoom_fit"),
         group: CommandGroup::View,
     },
+    CommandDescriptor {
+        id: "uml.convert-to-mermaid",
+        label: key("conversion.to_mermaid"),
+        group: CommandGroup::Tools,
+    },
 ];
 const VIEWS: &[ViewDescriptor] = &[];
 
@@ -105,6 +110,9 @@ impl EditorBackend for UmlEditor {
     fn ui(&mut self, ui: &mut Ui, view: &str) -> Vec<HostEvent> {
         let _ = view;
         UmlEditor::ui(self, ui);
+        if std::mem::take(&mut self.convert_mermaid) {
+            return self.execute("uml.convert-to-mermaid", 0.0);
+        }
         let events = Vec::new();
 
         events
@@ -118,6 +126,7 @@ impl EditorBackend for UmlEditor {
             REDO => self.can_redo(),
             DELETE => self.selection.is_some() || !self.group.is_empty(),
             FIT | PNG => true,
+            "uml.convert-to-mermaid" => self.diagram.kind == DiagramKind::Class,
             _ => COMMANDS.iter().any(|c| c.id == command),
         }
     }
@@ -128,6 +137,21 @@ impl EditorBackend for UmlEditor {
             return events;
         }
         match command {
+            "uml.convert-to-mermaid" => {
+                return match op_core::mermaid::conversion::from_uml(&self.diagram) {
+                    Ok(converted) => {
+                        let mut events = vec![HostEvent::Open(JsonCodec::new("mermaid").encode(&converted.diagram))];
+                        if !converted.warnings.is_empty() {
+                            events.push(HostEvent::Message(trf(
+                                "conversion.mermaid_warnings",
+                                &[&converted.warnings.join(" · ")],
+                            )));
+                        }
+                        events
+                    }
+                    Err(error) => vec![HostEvent::Message(error)],
+                };
+            }
             UNDO => self.undo(),
             REDO => self.redo(),
             DELETE => self.delete_selection(),

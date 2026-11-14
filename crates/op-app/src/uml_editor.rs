@@ -63,6 +63,7 @@ pub struct UmlEditor {
     snap: bool,
     show_inspector: Option<bool>,
     status: String,
+    convert_mermaid: bool,
 }
 
 impl UmlEditor {
@@ -90,6 +91,7 @@ impl UmlEditor {
             snap: true,
             show_inspector: None,
             status: String::new(),
+            convert_mermaid: false,
         }
     }
 
@@ -186,6 +188,9 @@ impl UmlEditor {
                 {
                     let fragment = self.diagram.fragment(&self.group);
                     self.paste(&fragment);
+                }
+                if self.diagram.kind == DiagramKind::Class && ui.button(tr("conversion.to_mermaid")).clicked() {
+                    self.convert_mermaid = true;
                 }
             });
             layout.inspector(ui, |ui| DiagramLayout::inspector_body(ui, |ui| self.properties(ui)));

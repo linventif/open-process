@@ -179,6 +179,93 @@ fn mermaid_creator_opens_from_home_edits_templates_and_renders_at_responsive_wid
 }
 
 #[test]
+fn uml_mermaid_conversion_buttons_open_independent_editable_documents() {
+    for width in [1400.0, 420.0] {
+        let mut h = harness_sized(false, [width, 860.0]);
+        h.state_mut().open_example("uml.classes");
+        h.run_steps(5);
+        let source_index = h.state().active;
+        let source = h.state().docs[source_index].snapshot();
+        let source_uid = h.state().docs[source_index].uid;
+        let original = uml(&h).diagram.clone();
+        let count = h.state().docs.len();
+        h.get_by_label("Convert to Mermaid").click();
+        h.run_steps(6);
+        assert_eq!(h.state().docs.len(), count + 1);
+        assert_eq!(h.state().docs[source_index].snapshot(), source);
+        assert_eq!(h.state().docs[source_index].uid, source_uid);
+        assert_eq!(h.state().docs[h.state().active].editor.kind(), "mermaid");
+        let mermaid_index = h.state().active;
+        let mermaid = h.state().docs[mermaid_index].snapshot();
+        assert!(
+            String::from_utf8(h.state().docs[mermaid_index].editor.export().unwrap().bytes)
+                .unwrap()
+                .contains("classDiagram")
+        );
+        h.get_by_label("Convert to UML classes").click();
+        h.run_steps(6);
+        assert_eq!(h.state().docs.len(), count + 2);
+        assert_eq!(h.state().docs[mermaid_index].snapshot(), mermaid);
+        assert_eq!(h.state().docs[source_index].snapshot(), source);
+        let restored = uml(&h).diagram.clone();
+        assert_eq!(restored.nodes.len(), original.nodes.len());
+        for (a, b) in original.nodes.iter().zip(&restored.nodes) {
+            assert_eq!(
+                (&a.name, &a.attributes, &a.operations, a.kind),
+                (&b.name, &b.attributes, &b.operations, b.kind)
+            );
+        }
+        assert_eq!(restored.relations, original.relations);
+        assert!(restored.validate().is_empty());
+        let index = h.state().active;
+        assert!(h.state().docs[index].dirty());
+        h.state_mut().docs[index].editor.rename("Converted copy".into());
+        h.state_mut().docs[index].editor.execute(UNDO, 0.0);
+        assert_eq!(h.state().docs[index].name(), original.name);
+        assert_eq!(h.state().docs[source_index].snapshot(), source);
+        assert_eq!(h.state().docs[mermaid_index].snapshot(), mermaid);
+        shot(&mut h, &format!("uml_mermaid_roundtrip_{width}"));
+    }
+}
+
+#[test]
+fn mermaid_conversion_commands_respect_source_kinds_and_fail_without_opening_partial_documents() {
+    use op_core::document::DocumentCodec;
+    let mut h = harness(false);
+    h.state_mut().open_example("uml.use-cases");
+    h.run_steps(4);
+    assert!(!h.state().docs[h.state().active].editor.enabled("uml.convert-to-mermaid"));
+    assert!(h.query_by_label("Convert to Mermaid").is_none());
+    h.state_mut().open_example("mermaid.flowchart");
+    h.run_steps(4);
+    assert!(!h.state().docs[h.state().active].editor.enabled("mermaid.convert-to-uml"));
+    let source = op_core::mermaid::Diagram {
+        name: "Draft".into(),
+        source: "classDiagram\nclass A {".into(),
+    };
+    h.state_mut()
+        .open_document(op_core::document::JsonCodec::new("mermaid").encode(&source), None, false);
+    h.run_steps(4);
+    let count = h.state().docs.len();
+    let original = h.state().docs[h.state().active].snapshot();
+    h.get_by_label("Convert to UML classes").click();
+    h.run_steps(4);
+    assert_eq!(h.state().docs.len(), count);
+    assert_eq!(h.state().docs[h.state().active].snapshot(), original);
+    assert!(h.state().message.as_ref().unwrap().0.contains("Close all"));
+    h.state_mut().open_example("mermaid.class");
+    h.run_steps(4);
+    h.get_by_label("Tools").click();
+    h.run_steps(3);
+    h.get_all_by_role_and_label(egui::accesskit::Role::Button, "Convert to UML classes")
+        .last()
+        .unwrap()
+        .click();
+    h.run_steps(5);
+    assert_eq!(h.state().docs[h.state().active].editor.kind(), "uml.class");
+}
+
+#[test]
 fn home_responsive_grid() {
     for (width, columns) in [(1400.0, 3), (720.0, 2), (420.0, 1)] {
         let mut h = Harness::builder()

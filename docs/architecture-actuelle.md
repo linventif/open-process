@@ -41,6 +41,7 @@ flowchart TD
 | Schéma relationnel et DDL | [database.rs](../crates/op-core/src/database.rs), [générateurs SQL](../crates/op-core/src/database/ddl.rs), [éditeur](../crates/op-app/src/database_editor.rs). |
 | Dessin libre | [modèle typé](../crates/op-core/src/whiteboard.rs), [éditeur](../crates/op-app/src/whiteboard_editor.rs), [session](../crates/op-app/src/whiteboard_editor/session.rs). |
 | Mermaid | [Model/SVG](../crates/op-core/src/mermaid.rs), [editor](../crates/op-app/src/mermaid_editor.rs), [preview job](../crates/op-app/src/mermaid_editor/preview.rs). |
+| UML class ↔ Mermaid conversion | [Typed conversion](../crates/op-core/src/mermaid/conversion.rs), commands owned by the UML and Mermaid editor adapters; [features and limits](mermaid.md#converting-uml-class-diagrams). |
 | Enveloppe et codecs typés | [document/envelope.rs](../crates/op-core/src/document/envelope.rs). |
 | Reprise des sessions | [platform/persistence.rs](../crates/op-app/src/platform/persistence.rs). |
 | Exécution des tâches | [platform/jobs.rs](../crates/op-app/src/platform/jobs.rs), [tâche Petri](../crates/op-app/src/petri_editor/analysis_job.rs), [worker](../crates/op-app/analysis-worker.js). |

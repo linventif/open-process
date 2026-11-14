@@ -415,6 +415,59 @@ pub const TABLE: &[(&str, &str)] = &[
     ),
     ("conversion.converted_process", "Processus converti"),
     (
+        "conversion.mermaid_annotations",
+        "Les espaces de noms, notes et annotations du document ne sont pas représentés dans le builder UML.",
+    ),
+    (
+        "conversion.mermaid_classes_only",
+        "La conversion prend actuellement en charge les diagrammes de classes UML et les sources Mermaid classDiagram.",
+    ),
+    (
+        "conversion.mermaid_endpoint_roles",
+        "Le texte d’extrémité qui n’est pas une multiplicité UML a été conservé comme rôle.",
+    ),
+    (
+        "conversion.mermaid_incomplete",
+        "Fermez tous les blocs de classes et d’espaces de noms ainsi que les libellés entre guillemets avant de convertir.",
+    ),
+    (
+        "conversion.mermaid_inferred_interface",
+        "Les cibles de réalisation sans annotation ont été interprétées comme des interfaces.",
+    ),
+    (
+        "conversion.mermaid_interactions",
+        "Les liens et callbacks Mermaid ne sont pas représentés dans le builder UML.",
+    ),
+    (
+        "conversion.mermaid_layout",
+        "Les positions et dimensions sont recalculées dans le document de destination.",
+    ),
+    (
+        "conversion.mermaid_member",
+        "Classe « {} » : le membre « {} » doit utiliser des parenthèses uniquement pour une opération.",
+    ),
+    (
+        "conversion.mermaid_relation",
+        "La relation de « {} » vers « {} » n’est pas prise en charge ou enfreint les règles du builder UML.",
+    ),
+    (
+        "conversion.mermaid_roles",
+        "Les rôles d’extrémité distincts sont omis dans Mermaid ; les libellés et multiplicités des relations sont conservés.",
+    ),
+    (
+        "conversion.mermaid_stereotypes",
+        "Les stéréotypes personnalisés sont convertis en classes UML ordinaires.",
+    ),
+    (
+        "conversion.mermaid_styles",
+        "Les thèmes et styles personnalisés Mermaid ne sont pas représentés dans le builder UML.",
+    ),
+    (
+        "conversion.mermaid_unsupported_member",
+        "Ce membre Mermaid ne peut pas être représenté dans le builder UML.",
+    ),
+    ("conversion.mermaid_warnings", "Document converti ouvert. Remarques : {}"),
+    (
         "conversion.message_flows_ignored_translation",
         "Les flux de message sont ignorés par la traduction",
     ),
@@ -427,6 +480,8 @@ pub const TABLE: &[(&str, &str)] = &[
         "conversion.process_has_start_event_s_end_event",
         "Le processus a {} événement(s) de début et {} événement(s) de fin : le résultat n'est pas un réseau workflow",
     ),
+    ("conversion.to_mermaid", "Convertir en Mermaid"),
+    ("conversion.to_uml_classes", "Convertir en classes UML"),
     ("database.add_column", "Ajouter une colonne"),
     ("database.add_column_mapping", "Ajouter une correspondance de colonnes"),
     ("database.add_foreign_key", "Ajouter une clé étrangère"),

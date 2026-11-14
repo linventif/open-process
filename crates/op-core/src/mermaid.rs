@@ -2,6 +2,8 @@
 use crate::i18n::key;
 use serde::{Deserialize, Serialize};
 
+pub mod conversion;
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Diagram {
     pub name: String,
@@ -53,7 +55,7 @@ impl Diagram {
 
 /// Content sniffing only: no parsing/layout on the UI thread or while importing.
 /// A recognized but invalid draft must open so its source can be corrected.
-pub fn accepts(source: &str) -> bool {
+fn header_token(source: &str) -> Option<&str> {
     let source = source.trim_start_matches('\u{feff}').trim_start();
     let mut lines = source.lines().map(str::trim).filter(|l| !l.is_empty());
     // Mermaid YAML frontmatter is preserved verbatim.
@@ -77,15 +79,26 @@ pub fn accepts(source: &str) -> bool {
         }
         !line.starts_with("%%")
     }) else {
+        return None;
+    };
+    header.split(|c: char| c.is_whitespace() || c == ';').next()
+}
+
+pub fn is_class_source(source: &str) -> bool {
+    header_token(source).is_some_and(|token| matches!(token, "classDiagram" | "classDiagram-v2"))
+}
+
+pub fn accepts(source: &str) -> bool {
+    let Some(token) = header_token(source) else {
         return false;
     };
-    let token = header.split(|c: char| c.is_whitespace() || c == ';').next().unwrap_or("");
     matches!(
         token.to_ascii_lowercase().as_str(),
         "flowchart"
             | "graph"
             | "sequencediagram"
             | "classdiagram"
+            | "classdiagram-v2"
             | "statediagram"
             | "statediagram-v2"
             | "erdiagram"

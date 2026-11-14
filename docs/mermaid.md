@@ -23,6 +23,54 @@ above the preview.
   errors/images are not saved.
 - English, French and Spanish interface text, with English as the default.
 
+## Converting UML class diagrams
+
+In the UML class builder, select **Convert to Mermaid** in the toolbar or the
+**Tools** menu. A new Mermaid document opens with editable `classDiagram` source
+and its preview. Its source can then be exported as `.mmd` with the existing
+Mermaid export command. The original UML document remains open and unchanged.
+
+For the reverse direction, open or import a Mermaid `classDiagram` and select
+**Convert to UML classes**, again in the toolbar or **Tools**. This creates a
+separate editable UML document with its own history and save state. This command
+is disabled for other Mermaid families; UML use-case diagrams are not supported
+by this conversion either. This is an explicit class-diagram mapping, not a
+general conversion between every registered notation.
+
+The conversion preserves class names, duplicate display names, interfaces,
+enumerations, abstract classes, attributes, operations, relation labels and UML
+multiplicities. It maps association, directed association, aggregation,
+composition, generalization, realization and dependency in both directions.
+Reversed Mermaid arrows keep their semantic direction and swap endpoint
+multiplicities as needed. Unannotated realization targets are inferred as
+interfaces, with a diagnostic.
+
+Mermaid's method/attribute distinction uses parentheses. Builder operations must
+contain `(`, and attribute lines must not; ambiguous member compartments are
+rejected rather than silently moved. Member whitespace is normalized. Stable
+aliases and Mermaid entity escapes allow duplicate names, Unicode, quotes and
+reserved syntax without treating user text as new declarations.
+
+Positions and sizes are regenerated, using a deterministic nonoverlapping grid
+when opening a UML document. Separate UML endpoint roles have no dedicated
+mapping in the emitted Mermaid syntax and are omitted with a warning. In the
+reverse direction, endpoint text that is not a valid UML multiplicity is kept
+as a role, also with a diagnostic.
+
+Namespace frames, notes, custom stereotypes, themes, styles, links, callbacks and
+document annotations have no equivalent in this UML builder. The conversion
+reports these omissions or approximations. Inheritance cycles, invalid builder
+relations, two-ended decorated links, lollipop interfaces, undirected dashed
+links and incomplete class/namespace blocks are rejected. A failed conversion
+opens no partial destination and leaves the source intact.
+
+The typed conversion functions live in
+[`mermaid/conversion.rs`](../crates/op-core/src/mermaid/conversion.rs).
+Each editor declares its own command and emits the existing `HostEvent::Open`
+and diagnostic messages. No editor catalogue, document schema, dependency or
+shell-specific notation branch is added. Existing BPMN/Petri conversions remain
+available through their own modules.
+
 ## Implementation and limits
 
 The [typed model and SVG rendering](../crates/op-core/src/mermaid.rs) stay in

@@ -400,6 +400,59 @@ pub const TABLE: &[(&str, &str)] = &[
     ),
     ("conversion.converted_process", "Converted process"),
     (
+        "conversion.mermaid_annotations",
+        "Namespaces, notes and document annotations are not represented in the UML builder.",
+    ),
+    (
+        "conversion.mermaid_classes_only",
+        "Conversion currently supports UML class diagrams and Mermaid classDiagram sources.",
+    ),
+    (
+        "conversion.mermaid_endpoint_roles",
+        "Endpoint text that is not a UML multiplicity was kept as an end role.",
+    ),
+    (
+        "conversion.mermaid_incomplete",
+        "Close all class and namespace blocks and quoted labels before converting.",
+    ),
+    (
+        "conversion.mermaid_inferred_interface",
+        "Unannotated realization targets were inferred as interfaces.",
+    ),
+    (
+        "conversion.mermaid_interactions",
+        "Mermaid links and callbacks are not represented in the UML builder.",
+    ),
+    (
+        "conversion.mermaid_layout",
+        "Positions and sizes are regenerated in the destination.",
+    ),
+    (
+        "conversion.mermaid_member",
+        "Class '{}': member '{}' must use parentheses only for operations.",
+    ),
+    (
+        "conversion.mermaid_relation",
+        "The relation from '{}' to '{}' is unsupported or violates the UML builder rules.",
+    ),
+    (
+        "conversion.mermaid_roles",
+        "Separate endpoint roles are omitted from Mermaid; relation labels and multiplicities are retained.",
+    ),
+    (
+        "conversion.mermaid_stereotypes",
+        "Custom stereotypes are converted to ordinary UML classes.",
+    ),
+    (
+        "conversion.mermaid_styles",
+        "Mermaid themes and custom styles are not represented in the UML builder.",
+    ),
+    (
+        "conversion.mermaid_unsupported_member",
+        "This Mermaid member cannot be represented in the UML builder.",
+    ),
+    ("conversion.mermaid_warnings", "Converted document opened. Notes: {}"),
+    (
         "conversion.message_flows_ignored_translation",
         "Message flows are ignored by the translation",
     ),
@@ -412,6 +465,8 @@ pub const TABLE: &[(&str, &str)] = &[
         "conversion.process_has_start_event_s_end_event",
         "The process has {} start event(s) and {} end event(s): the result is not a workflow net",
     ),
+    ("conversion.to_mermaid", "Convert to Mermaid"),
+    ("conversion.to_uml_classes", "Convert to UML classes"),
     ("database.add_column", "Add column"),
     ("database.add_column_mapping", "Add column mapping"),
     ("database.add_foreign_key", "Add foreign key"),

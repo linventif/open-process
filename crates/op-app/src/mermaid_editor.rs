@@ -50,6 +50,7 @@ pub struct MermaidEditor {
     changed_at: f64,
     pending: Option<Job>,
     result: Option<Result<Rendered, String>>,
+    convert_uml: bool,
 }
 
 impl MermaidEditor {
@@ -62,6 +63,7 @@ impl MermaidEditor {
             changed_at: 0.0,
             pending: None,
             result: None,
+            convert_uml: false,
         }
     }
 
@@ -105,6 +107,18 @@ impl MermaidEditor {
 
     fn show(&mut self, ui: &mut Ui) {
         let layout = DiagramLayout::new(ui, self.state.uid, self.state.inspector);
+        layout.tools(ui, |ui| {
+            if ui
+                .add_enabled(
+                    op_core::mermaid::is_class_source(&self.diagram.source),
+                    egui::Button::new(tr("conversion.to_uml_classes")),
+                )
+                .on_hover_text(tr("conversion.mermaid_classes_only"))
+                .clicked()
+            {
+                self.convert_uml = true;
+            }
+        });
         let mut editing = false;
         layout.inspector(ui, |ui| {
             DiagramLayout::inspector_tabs(
@@ -254,6 +268,9 @@ impl EditorBackend for MermaidEditor {
     }
     fn ui(&mut self, ui: &mut Ui, _: &str) -> Vec<HostEvent> {
         self.show(ui);
+        if std::mem::take(&mut self.convert_uml) {
+            return self.execute("mermaid.convert-to-uml", 0.0);
+        }
         vec![]
     }
     fn commands(&self) -> &'static [CommandDescriptor] {
@@ -273,6 +290,11 @@ impl EditorBackend for MermaidEditor {
                 label: key("canvas.zoom_fit"),
                 group: CommandGroup::View,
             },
+            CommandDescriptor {
+                id: "mermaid.convert-to-uml",
+                label: key("conversion.to_uml_classes"),
+                group: CommandGroup::Tools,
+            },
         ];
         COMMANDS
     }
@@ -281,11 +303,27 @@ impl EditorBackend for MermaidEditor {
             UNDO => self.history.can_undo(),
             REDO => self.history.can_redo(),
             FIT => true,
+            "mermaid.convert-to-uml" => op_core::mermaid::is_class_source(&self.diagram.source),
             _ => false,
         }
     }
     fn execute(&mut self, command: &str, _: f64) -> Vec<HostEvent> {
         match command {
+            "mermaid.convert-to-uml" => {
+                return match op_core::mermaid::conversion::to_uml(&self.diagram) {
+                    Ok(converted) => {
+                        let mut events = vec![HostEvent::Open(JsonCodec::new("uml.class").encode(&converted.diagram))];
+                        if !converted.warnings.is_empty() {
+                            events.push(HostEvent::Message(trf(
+                                "conversion.mermaid_warnings",
+                                &[&converted.warnings.join(" · ")],
+                            )));
+                        }
+                        events
+                    }
+                    Err(error) => vec![HostEvent::Message(error)],
+                };
+            }
             UNDO => self.history.undo(&mut self.diagram),
             REDO => self.history.redo(&mut self.diagram),
             FIT => self.state.fit = true,

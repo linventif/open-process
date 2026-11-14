@@ -25,7 +25,7 @@ le dossier de travail, en préservant les autres modifications locales.
 | [DMN, EPC et UML activité](notations-ajoutees.md) | Retrouver les fonctions et limites des trois nouvelles intégrations. |
 | [Base de données et DDL](base-de-donnees-ddl.md) | Concevoir des tables et générer le SQL PostgreSQL, MySQL/MariaDB et SQLite. |
 | [Dessin libre](dessin-libre.md) | Dessiner formes, flèches, notes et tracés à main levée, en natif et sur le web. |
-| [Mermaid editor](mermaid.md) | Source editing, preview, templates and source/SVG export. |
+| [Mermaid editor](mermaid.md) | Source editing, preview, templates, source/SVG export and UML class conversions. |
 | [Icône du logiciel](icone.md) | Retrouver les formats et l’intégration de l’identité visuelle. |
 | [Ajout d’une notation](ajouter-une-notation.md) | Implémenter un module et l’enregistrer. |
 | [Vérifications](verification.md) | Retrouver les tests et contrôles exécutés. |
