@@ -1275,3 +1275,31 @@ Temporary browser/server processes were closed and existing servers left running
 
 Native save-dialog interaction, other operating systems/browsers, official
 JavaScript Mermaid rendering, deployment and the remote CI matrix were not run.
+
+
+## Strict Clippy CI correction — 15 November 2026
+
+The [reported Ubuntu job](https://github.com/linventif/open-process/actions/runs/43717166198/job/132821075395)
+completed its tests but failed `cargo clippy --locked --workspace --all-targets
+-- -D warnings` under Rust 1.100.0. `Footprint::pairs` now enumerates matrix rows
+and cells instead of indexing range loops. Its ordering, directed relations,
+single symmetric pairs, parallel self-loops and omitted independent diagonals
+retain their behavior. A new regression checks all four relations and empty logs.
+
+The full lint command also exposed an existing nested thumbnail-acknowledgement
+condition and the size imbalance between mining result variants. The condition
+uses a let chain, retaining its short-circuit behavior. The discovery variant
+boxes its `AlphaResult`; a worker transport regression confirms the JSON remains
+readable as the previous unboxed type. Documents and session schemas are unchanged.
+
+The exact strict Clippy command passes on Linux with **Rust 1.98.0 and 1.100.0**.
+The 1.100.0 compiler and build artifacts use temporary/ignored directories;
+the default Rust toolchain remains unchanged. Formatting checks pass under both
+versions. With the default Rust 1.98.0, core tests and the complete sequential
+workspace suite pass **226 tests**: 103 application and 123 core tests. Native
+and WebAssembly compilation checks also pass. Documentation links and patch
+whitespace checks pass.
+
+These are local checks. The failed GitHub run was inspected but not rerun;
+native release builds, the website build, other operating systems and the remote
+CI matrix were not rerun for this correction.

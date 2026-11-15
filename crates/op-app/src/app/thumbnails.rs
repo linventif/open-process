@@ -111,10 +111,10 @@ impl Thumbnails {
         if let Some(thumbnail) = self.entries.remove(&Identity::Open(uid)) {
             self.entries.insert(identity.clone(), thumbnail);
         }
-        if let Some(thumbnail) = self.entries.get_mut(&identity) {
-            if thumbnail.digest == digest(&state.bytes()) {
-                thumbnail.archive_revision = Some(entry.revision.clone());
-            }
+        if let Some(thumbnail) = self.entries.get_mut(&identity)
+            && thumbnail.digest == digest(&state.bytes())
+        {
+            thumbnail.archive_revision = Some(entry.revision.clone());
         }
     }
 

@@ -419,16 +419,16 @@ impl Footprint {
         self.rel[a][b] == Relation::Independent
     }
 
-    /// Pairs (a, b) in the given relation, a < b for symmetric relations.
+    /// Pairs in matrix order; symmetric pairs occur once, excluding independent diagonals.
     pub fn pairs(&self, r: Relation) -> Vec<(usize, usize)> {
         let n = self.len();
+        let sym = matches!(r, Relation::Parallel | Relation::Independent);
         let mut out = Vec::new();
-        for a in 0..n {
-            for b in 0..n {
-                if self.rel[a][b] != r {
+        for (a, row) in self.rel.iter().enumerate().take(n) {
+            for (b, &relation) in row.iter().enumerate().take(n) {
+                if relation != r {
                     continue;
                 }
-                let sym = matches!(r, Relation::Parallel | Relation::Independent);
                 if (sym && a > b) || (r == Relation::Independent && a == b) {
                     continue;
                 }
@@ -944,6 +944,21 @@ pub fn replay(net: &PetriNet, trace: &[String]) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn footprint_pairs_preserve_direction_symmetry_order_and_self_loops() {
+        let log = EventLog::parse("AABC\nBAD\nCD\nDC").unwrap();
+        let footprint = Footprint::from_log(&log);
+        assert_eq!(footprint.activities, ["A", "B", "C", "D"]);
+        assert_eq!(footprint.pairs(Relation::Causal), [(0, 3), (1, 2)]);
+        assert_eq!(footprint.pairs(Relation::Reverse), [(2, 1), (3, 0)]);
+        assert_eq!(footprint.pairs(Relation::Parallel), [(0, 0), (0, 1), (2, 3)]);
+        assert_eq!(footprint.pairs(Relation::Independent), [(0, 2), (1, 3)]);
+        let empty = Footprint::from_log(&EventLog::default());
+        for relation in [Relation::Causal, Relation::Reverse, Relation::Parallel, Relation::Independent] {
+            assert!(empty.pairs(relation).is_empty());
+        }
+    }
 
     #[test]
     fn discovery_refuses_cancelled_or_incomplete_results() {

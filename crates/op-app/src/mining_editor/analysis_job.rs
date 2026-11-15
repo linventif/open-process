@@ -35,7 +35,7 @@ pub(crate) fn compute_json(input: String, stop: Arc<AtomicBool>) -> Result<Strin
                     return Ok(MiningOutput::Exam(activities));
                 }
                 let result = discover_cancellable(&log, &cancelled)?;
-                Ok(MiningOutput::Discovery(log, result))
+                Ok(MiningOutput::Discovery(log, Box::new(result)))
             })
         };
         let soundness = match &result {
@@ -95,6 +95,10 @@ mod tests {
             panic!("expected discovery")
         };
         assert_eq!(result.footprint.activities.len(), 5);
+        // Boxing the in-memory result must retain the worker's existing JSON shape.
+        let wire: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let unboxed: op_core::mining::AlphaResult = serde_json::from_value(wire["result"]["Ok"]["Discovery"][1].clone()).unwrap();
+        assert_eq!(unboxed.net, result.net);
         assert!(compute_json(input, Arc::new(AtomicBool::new(true))).is_err());
         let invalid = serde_json::to_string(&Input {
             task: "mining.discovery".into(),

@@ -34,7 +34,7 @@ struct Computed {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 enum MiningOutput {
-    Discovery(EventLog, AlphaResult),
+    Discovery(EventLog, Box<AlphaResult>),
     Exam(Vec<String>),
 }
 
