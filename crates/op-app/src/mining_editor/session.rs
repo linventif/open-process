@@ -160,7 +160,12 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
         },
         ImportDescriptor {
             extensions: &["csv", "txt"],
-            accepts: |s| !s.starts_with(['<', '{']) && !s.trim().is_empty() && !op_core::mermaid::accepts(s),
+            accepts: |s| {
+                !s.starts_with(['<', '{'])
+                    && !s.trim().is_empty()
+                    && !op_core::mermaid::accepts(s)
+                    && !op_core::mermaid::markdown::accepts(s)
+            },
             decode: |s| {
                 let log = op_core::mining::EventLog::parse(s)?;
                 if log.traces.is_empty() {

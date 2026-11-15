@@ -75,6 +75,11 @@ Standard exports use `ExportData`. Override `exports()` and `export_as(id)` for
 multiple formats; the app builds buttons from descriptors. PNG is a canvas
 capture command when supported.
 
+Use `export_format_requires_assistance` when only some formats generate assistance,
+such as Mermaid projections alongside native XML. Its default delegates to
+`export_requires_assistance`, preserving modules whose whole export is derived.
+The shared session filters both descriptors and direct export calls in exam mode.
+
 ## 3. Registration
 
 Expose `register(&mut DiagramRegistry)` to add:

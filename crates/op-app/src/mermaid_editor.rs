@@ -369,11 +369,16 @@ impl EditorBackend for MermaidEditor {
                 id: "svg",
                 label: key("mermaid.export_svg"),
             },
+            mermaid_exports::MARKDOWN,
         ]
     }
     fn export_as(&self, format: &str) -> Result<ExportData, String> {
         match format {
             "standard" => self.export(),
+            "mermaid-markdown" => Ok(ExportData {
+                suffix: "mermaid.md",
+                bytes: op_core::mermaid::markdown::export(&self.diagram, &[]).into_bytes(),
+            }),
             "svg" if self.requested_source.as_ref() == Some(&self.diagram.source) => match &self.result {
                 Some(Ok(preview)) => Ok(ExportData {
                     suffix: "svg",
@@ -424,6 +429,17 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
             Ok(JsonCodec::new("mermaid").encode(&Diagram {
                 name: tr("mermaid.imported").into(),
                 source: source.into(),
+            }))
+        },
+    });
+    registry.imports.push(ImportDescriptor {
+        extensions: &["md", "markdown"],
+        accepts: op_core::mermaid::markdown::accepts,
+        decode: |source| {
+            let source = op_core::mermaid::markdown::source(source).ok_or_else(|| tr("mermaid.markdown_single").to_owned())?;
+            Ok(JsonCodec::new("mermaid").encode(&Diagram {
+                name: tr("mermaid.imported").into(),
+                source,
             }))
         },
     });

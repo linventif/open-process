@@ -1232,3 +1232,46 @@ checks pass.
 Rust sources and models were not changed; the Rust test suites were not rerun.
 Other browsers/operating systems, deployment and the remote CI matrix were not
 run for this website correction.
+
+
+## Mermaid and Markdown exports — 15 November 2026
+
+File → Export now offers `.mmd` and `.mermaid.md` for BPMN, Petri, EPC, UML
+activities, classes and use cases, alongside existing formats. The Mermaid editor
+also exports Markdown without requiring a valid preview. Typed projections retain
+graph identities/connections and notation labels, with loss notes in both file
+forms; [the format guide](export-formats.md) describes exact limits. No toolbar,
+dependency, model version or document/session schema is added.
+
+The Mermaid module imports one complete fenced block, including invalid drafts.
+Multiple/unfinished Mermaid blocks produce a targeted error. The event-log
+fallback excludes explicit Mermaid fences, so Markdown is not mistaken for trace
+data. The session's per-format assistance hook hides generated projections in
+exam mode without removing native exports; authored Mermaid text remains exportable.
+
+`cargo test --locked -p op-core` and the complete sequential workspace suite pass.
+The workspace contains **225 passing tests**: 103 application and 122 core tests.
+Seven new core tests parse/render projections, check BPMN pool/lane membership
+and arrow kinds, initial Petri markings/capacities/inhibitors/weights, empty
+diagrams, escaping, deterministic output, exact Markdown source round trips and
+fence rejection. Two new adapter tests cover all six notation families, registry
+reopening, unchanged snapshots/revisions/views/native exports and exam filtering.
+The existing File/Export UI test now covers the new formats and all relevant types.
+
+Native and WebAssembly compilation checks pass without warnings. The full website
+build, including the Trunk release app, passes with no Astro diagnostics; all
+**18 Bun tests** pass. Formatting, local Markdown links and patch whitespace
+checks pass.
+
+Firefox runs the rebuilt app under the shipped CSP with an isolated profile and
+loopback server. It creates a three-node/two-flow BPMN, invokes both real export
+menu actions, and checks the generated Blob contents and `.mmd`/`.mermaid.md`
+download filenames. Native `.opx` snapshots before/after export are equal.
+Dropping the exported Markdown into the app opens a Mermaid document with the
+exact exported source; saving it confirms the registered document type. The
+export menu and rendered Mermaid preview were visually inspected. The test
+captures download bytes instead of writing through the browser's download UI.
+Temporary browser/server processes were closed and existing servers left running.
+
+Native save-dialog interaction, other operating systems/browsers, official
+JavaScript Mermaid rendering, deployment and the remote CI matrix were not run.

@@ -167,6 +167,9 @@ pub trait EditorBackend: 'static {
     fn export_requires_assistance(&self) -> bool {
         false
     }
+    fn export_format_requires_assistance(&self, _format: &str) -> bool {
+        self.export_requires_assistance()
+    }
     fn exports(&self) -> Vec<ExportDescriptor> {
         vec![ExportDescriptor {
             id: "standard",
@@ -334,7 +337,7 @@ impl<E: EditorBackend> EditorSession for Session<E> {
         self.editor.views()
     }
     fn export(&self) -> Result<ExportData, String> {
-        if self.exam_mode && self.editor.export_requires_assistance() {
+        if self.exam_mode && self.editor.export_format_requires_assistance("standard") {
             return Err(op_core::i18n::tr("exam.assistance_disabled").into());
         }
         self.editor.export()
@@ -343,14 +346,14 @@ impl<E: EditorBackend> EditorSession for Session<E> {
         self.editor.export_label()
     }
     fn exports(&self) -> Vec<ExportDescriptor> {
-        if self.exam_mode && self.editor.export_requires_assistance() {
-            vec![]
-        } else {
-            self.editor.exports()
-        }
+        self.editor
+            .exports()
+            .into_iter()
+            .filter(|format| !self.exam_mode || !self.editor.export_format_requires_assistance(format.id))
+            .collect()
     }
     fn export_as(&self, format: &str) -> Result<ExportData, String> {
-        if self.exam_mode && self.editor.export_requires_assistance() {
+        if self.exam_mode && self.editor.export_format_requires_assistance(format) {
             return Err(op_core::i18n::tr("exam.assistance_disabled").into());
         }
         self.editor.export_as(format)

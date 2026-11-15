@@ -16,19 +16,31 @@ above the preview.
 - Shared preview pan, zoom and fit controls.
 - `.mmd` and `.mermaid` source import, detected by Mermaid headers. Drafts with
   recognized headers can open even if they contain syntax errors.
-- `.mmd` source export even when invalid; SVG export when the preview for the
+- `.mmd` and `.mermaid.md` exports even when invalid; SVG export when the preview for the
   current source is ready.
+- Markdown import with exactly one complete Mermaid fence. Incomplete or multiple
+  Mermaid blocks are rejected; invalid source inside a complete fence remains editable.
 - `.opx` saves, session restoration and history shared across views. Name/source
   persist; each view keeps its camera, inspector visibility and tab. Computed
   errors/images are not saved.
 - English, French and Spanish interface text, with English as the default.
 
+## Exporting other diagram builders
+
+**File → Export** in BPMN, Petri, EPC and UML builders offers Mermaid source and
+Mermaid Markdown. Classes use `classDiagram`; the process/control-flow and
+use-case builders use flowchart projections. The Markdown file contains a title,
+conversion notes and a fenced Mermaid block. Original native formats remain
+available; `.opx` remains the editable save format. See the
+[format catalogue and projection limits](export-formats.md).
+
 ## Converting UML class diagrams
 
 In the UML class builder, select **Convert to Mermaid** in the **Tools** menu or
 the canvas context menu. A new Mermaid document opens with editable
-`classDiagram` source and its preview. Its source can then be exported as `.mmd` with the existing
-Mermaid export command. The original UML document remains open and unchanged.
+`classDiagram` source and its preview. Its source can then be exported as `.mmd`
+or `.mermaid.md`. Direct exports are also available in the UML builder's File
+menu. The original UML document remains open and unchanged.
 
 For the reverse direction, open or import a Mermaid `classDiagram` and select
 **Convert to UML classes** in the Mermaid toolbar or **Tools**. This creates a

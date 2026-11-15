@@ -235,6 +235,24 @@ impl EditorBackend for PetriEditor {
     fn export_label(&self) -> &'static str {
         key("petri.export_pnml_pnml")
     }
+    fn exports(&self) -> Vec<ExportDescriptor> {
+        let mut formats = vec![ExportDescriptor {
+            id: "standard",
+            label: self.export_label(),
+        }];
+        formats.extend(mermaid_exports::FORMATS);
+        formats
+    }
+    fn export_as(&self, format: &str) -> Result<ExportData, String> {
+        match format {
+            "standard" => self.export(),
+            "mermaid" | "mermaid-markdown" => mermaid_exports::data(format, op_core::mermaid::export::petri(&self.net)?),
+            _ => Err(format!("Unknown Petri export: {format}")),
+        }
+    }
+    fn export_format_requires_assistance(&self, format: &str) -> bool {
+        mermaid_exports::is_projection(format)
+    }
 }
 
 use crate::theme;

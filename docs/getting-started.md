@@ -66,6 +66,11 @@ exports are useful for sharing; save `.opx` as well to retain editable content.
 An export or conversion may not preserve every feature of the original notation.
 PNG export captures the visible diagram region.
 
+BPMN, Petri, EPC and UML diagrams also export Mermaid source (`.mmd`) or a
+Markdown document with a Mermaid block (`.mermaid.md`). Reopening these files
+opens a Mermaid source editor. See [export formats](export-formats.md) for the
+available formats and the limits of each projection.
+
 Some analyses have supported model classes and exploration limits. Read the
 diagnostics and any truncation notices before interpreting a result; incomplete
 exploration is not proof of a property. In particular, BPMN process evaluation

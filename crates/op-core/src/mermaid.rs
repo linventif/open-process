@@ -3,6 +3,8 @@ use crate::i18n::key;
 use serde::{Deserialize, Serialize};
 
 pub mod conversion;
+pub mod export;
+pub mod markdown;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Diagram {

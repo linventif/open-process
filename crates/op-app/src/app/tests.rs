@@ -2179,13 +2179,29 @@ fn new_document_from_a_split_tab_bar_stays_in_that_group() {
 
 #[test]
 fn file_exports_are_grouped_and_follow_the_active_document() {
-    for (kind, formats, png) in [
+    for (kind, mut formats, png) in [
         ("bpmn", vec!["Export BPMN 2.0 XML (.bpmn)…"], true),
+        ("petri", vec!["Export PNML (.pnml)…"], true),
+        ("uml.class", vec!["Export PlantUML (.puml)…"], true),
+        ("uml.use-case", vec!["Export PlantUML (.puml)…"], true),
+        ("uml.activity", vec!["Export SVG (.svg)…", "Export Graphviz (.dot)…"], true),
+        (
+            "mermaid",
+            vec![
+                "Export Mermaid source (.mmd)…",
+                "Export Mermaid Markdown (.mermaid.md)…",
+                "Export Mermaid preview (.svg)…",
+            ],
+            false,
+        ),
         ("dmn.table", vec!["Export DMN XML (.dmn)…", "Export decision table (.csv)…"], false),
         ("epc", vec!["Export SVG (.svg)…", "Export Graphviz (.dot)…"], true),
         ("database.schema", vec!["Export SQL DDL (.sql)…"], true),
         ("whiteboard", vec!["Export SVG (.svg)…"], true),
     ] {
+        if ["bpmn", "petri", "uml.class", "uml.use-case", "uml.activity", "epc"].contains(&kind) {
+            formats.extend(["Export Mermaid source (.mmd)…", "Export Mermaid Markdown (.mermaid.md)…"]);
+        }
         let mut h = harness(false);
         h.state_mut().new_document(kind, None);
         h.run_steps(4);

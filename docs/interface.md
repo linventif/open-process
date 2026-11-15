@@ -83,6 +83,8 @@ follow text color for theme/selection.
 
 Z01 groups exports in **File → Export**, populated by the active session, with
 PNG where capture is supported. Exports are disabled on home.
+The BPMN, Petri, EPC and UML format lists include Mermaid source and Mermaid
+Markdown. These [exports](export-formats.md) add no canvas toolbar buttons.
 
 For BPMN, Z10 offers **Auto arrange** alongside style; it moves into Z12 in compact
 views and is also available under Tools. It lays out left to right, preserves

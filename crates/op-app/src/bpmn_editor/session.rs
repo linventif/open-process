@@ -207,6 +207,24 @@ impl EditorBackend for BpmnEditor {
     fn export_label(&self) -> &'static str {
         key("bpmn.export_bpmn_2_0_xml_bpmn")
     }
+    fn exports(&self) -> Vec<ExportDescriptor> {
+        let mut formats = vec![ExportDescriptor {
+            id: "standard",
+            label: self.export_label(),
+        }];
+        formats.extend(mermaid_exports::FORMATS);
+        formats
+    }
+    fn export_as(&self, format: &str) -> Result<ExportData, String> {
+        match format {
+            "standard" => self.export(),
+            "mermaid" | "mermaid-markdown" => mermaid_exports::data(format, op_core::mermaid::export::bpmn(&self.diagram)?),
+            _ => Err(format!("Unknown BPMN export: {format}")),
+        }
+    }
+    fn export_format_requires_assistance(&self, format: &str) -> bool {
+        mermaid_exports::is_projection(format)
+    }
 }
 
 use crate::theme;

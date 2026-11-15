@@ -181,6 +181,13 @@ Database foreign keys retain their column-row attachments when tables move.
 reuses the common inspector and configuration; grid snapping is optional and
 absent for this preview because its nodes cannot be dragged.
 
+Typed Mermaid projections in `op-core/src/mermaid/export.rs` cover BPMN, Petri,
+EPC/activity and UML. Their adapters declare `.mmd` and `.mermaid.md` exports;
+`editor/mermaid_exports.rs` only packages the typed conversion results and notes.
+The Mermaid module owns single-block Markdown import. The event-log fallback
+excludes explicit Mermaid fences, including invalid drafts, to avoid ambiguous
+format detection or treating diagram code as trace data.
+
 ## Examination preference
 
 The shell owns the application-wide exam toggle. It propagates it through
@@ -192,7 +199,9 @@ adapters stop transient analysis/simulation work when needed.
 `Session<E>` blocks assistance commands and derived result views. Tool commands
 require assistance by default; modules can classify other commands through
 `command_requires_assistance` and generated-answer exports through
-`export_requires_assistance`. Modules also guard their own inspector actions,
+`export_requires_assistance`, or `export_format_requires_assistance` for mixed
+format lists. Generated Mermaid projections are blocked without hiding the
+original diagram's native exports. Modules also guard their own inspector actions,
 canvas highlights and shortcuts. Mining's exam job returns activity headers
 instead of computed solutions. The preference is not serialized into `.opx` or
 workspace documents; legacy log fields remain readable and writable. See

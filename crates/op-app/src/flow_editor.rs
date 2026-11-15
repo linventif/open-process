@@ -745,7 +745,7 @@ impl<K: Notation> EditorBackend for FlowEditor<K> {
         key("flow.export_svg_svg")
     }
     fn exports(&self) -> Vec<ExportDescriptor> {
-        vec![
+        let mut formats = vec![
             ExportDescriptor {
                 id: "standard",
                 label: self.export_label(),
@@ -754,7 +754,9 @@ impl<K: Notation> EditorBackend for FlowEditor<K> {
                 id: "dot",
                 label: key("flow.export_graphviz_dot"),
             },
-        ]
+        ];
+        formats.extend(mermaid_exports::FORMATS);
+        formats
     }
     fn export_as(&self, id: &str) -> Result<ExportData, String> {
         match id {
@@ -763,8 +765,12 @@ impl<K: Notation> EditorBackend for FlowEditor<K> {
                 suffix: "dot",
                 bytes: self.diagram.to_dot().into_bytes(),
             }),
+            "mermaid" | "mermaid-markdown" => mermaid_exports::data(id, op_core::mermaid::export::flow(&self.diagram)?),
             _ => Err("Unknown graph export".into()),
         }
+    }
+    fn export_format_requires_assistance(&self, format: &str) -> bool {
+        mermaid_exports::is_projection(format)
     }
 }
 fn register_one<K: Notation>(registry: &mut DiagramRegistry, order: usize) {

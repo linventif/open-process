@@ -26,7 +26,8 @@ For questions, bugs and suggestions, see [SUPPORT.md](../SUPPORT.md).
 | [DMN, EPC and UML activities](notations-ajoutees.md) | Implemented features and limits of the initial integrations. |
 | [Database design and DDL](base-de-donnees-ddl.md) | Tables and SQL generation for PostgreSQL, MySQL/MariaDB and SQLite. |
 | [Free drawing](dessin-libre.md) | Shapes, arrows, notes and freehand strokes on desktop and web. |
-| [Mermaid editor](mermaid.md) | Source editing, preview, templates, source/SVG export and UML class conversions. |
+| [Export formats](export-formats.md) | Native formats, images, Mermaid projections and Mermaid Markdown files. |
+| [Mermaid editor](mermaid.md) | Source editing, preview, Markdown/source/SVG export and UML class conversions. |
 | [Visual identity](identite-graphique.md) | Classic styling, light/dark color modes and real gallery previews. |
 | [Application icon](icone.md) | Master artwork, generated formats and platform integration. |
 | [Adding a notation](ajouter-une-notation.md) | Implement and register a notation module. |
