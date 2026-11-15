@@ -72,16 +72,19 @@ and [Pages build configuration](https://developers.cloudflare.com/pages/configur
 ## Classic appearance
 
 Classic is the only theme. The comparison bar, family dropdown and swatches have
-been removed. The compact sun/moon button preserves light/dark selection in the
-English, French and Spanish presentation and legal pages. Its mode-only local
-preference survives reloads and language navigation; old stored family values
-cannot restore an alternative theme. Language preferences remain independent.
+been removed. The English, French and Spanish presentation and legal pages follow
+the system's light/dark preference, including changes while a page is open.
+Automatic mode does not save an override. A choice made with the compact sun/moon
+button or a valid `mode` URL takes priority, survives reloads and language
+navigation, and synchronizes between tabs. Language preferences remain independent.
 
 The [visual identity guide](../docs/identite-graphique.md) describes the shared
 Classic identity. Static styling lives in `src/styles/global.css` and
-`src/styles/color-mode.css`; the script migrates the former appearance setting
-to `open-process-color-mode-v1`. App links retain the local `/app/` destination
-and pass only the color mode. The original O → P assets and light logo remain.
+`src/styles/color-mode.css`; only explicit color choices are saved under
+`open-process-color-mode-v2`. The old color-mode and appearance v1 settings are
+reset once because they also recorded automatic defaults. Old manual choices can
+be selected again. App links retain the local `/app/` destination and pass only
+the current color mode. The original O → P assets and light logo remain.
 
 The gallery loads 16 real app images from `public/assets/classic/<mode>/`.
 Regenerate them with the gallery UI test and exporter documented in the guide.

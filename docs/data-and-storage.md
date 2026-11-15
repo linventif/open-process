@@ -63,10 +63,14 @@ documents the file and session schemas.
 
 Classic is the only theme. The application's existing eframe preferences retain
 its light/dark choice; the retired `open-process-appearance-v1` family setting is
-no longer read or written. The website stores only `light` or `dark` in
-`open-process-color-mode-v1`. It migrates the color mode from its former
-`open-process-site-appearance-v1` setting and removes that old key when storage
-is writable. Language navigation retains the mode independently of language.
+no longer read or written. The website follows the system's light/dark preference
+on load and during live changes unless a visitor chooses a mode explicitly.
+Only a button choice or valid `mode` URL stores `light` or `dark` in
+`open-process-color-mode-v2`. Reloads and language navigation retain that choice;
+other tabs follow its changes or removal. Automatic mode writes no override.
+The former color-mode v1 and `open-process-site-appearance-v1` keys are removed
+when storage is writable: they did not distinguish automatic defaults from
+manual choices. Old manual choices are reset too and can be selected again.
 Explicit `mode` URL parameters may choose a web-app color mode; old `theme`
 parameters cannot choose another family. These settings contain no document
 content and do not change `.opx` or workspace schemas. Clearing browser site data

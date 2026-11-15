@@ -1200,3 +1200,35 @@ pixels were visually inspected, alongside light/dark UI-test captures and the
 selection context menu. Temporary browser/server processes were closed. Native
 release builds, Windows/macOS display, other browsers, deployment and the remote
 CI matrix were not run.
+
+
+## Website system color mode — 15 November 2026
+
+Without an explicit choice, presentation and legal pages now read
+`prefers-color-scheme` on load and listen for changes while open. Automatic mode
+does not write a browser preference. A sun/moon button choice or valid `mode` URL
+remains an explicit override, stored under `open-process-color-mode-v2`.
+Ambiguous v1 color/appearance preferences are cleared, including old manual
+choices, because previous visits saved defaults as though they were explicit.
+Language preferences and application/document storage are unchanged.
+
+The full website build passes with no Astro diagnostics, including assembly of
+the unchanged WebAssembly app. All **18 Bun tests** pass. Six new tests execute
+the bundled browser event handlers and cover initial/live system modes without
+automatic persistence, old pinned defaults, explicit choices/reload, cross-tab
+updates/removal/clear, URL priority, malformed values and unavailable storage.
+
+Firefox checks under the shipped CSP use real changes to the browser's system
+color-scheme preference and confirm both initial dark and live light/dark modes
+on all nine EN/FR/ES presentation/legal pages. Logos, theme-color metadata, app
+links and the selected gallery view update together. Checks also pass for manual
+choice persistence across reload/language navigation, storage events between
+tabs, clearing an override and explicit URL modes. Desktop and 320 px mobile
+captures in both modes were visually inspected. The existing Astro server at
+`localhost:4321` passes the same checks and was left running. Temporary test
+profiles and servers were closed. Local documentation links and patch whitespace
+checks pass.
+
+Rust sources and models were not changed; the Rust test suites were not rerun.
+Other browsers/operating systems, deployment and the remote CI matrix were not
+run for this website correction.

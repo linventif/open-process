@@ -1,21 +1,16 @@
 export type ColorMode = "light" | "dark";
-export const colorModeStorageKey = "open-process-color-mode-v1";
+// Only explicit choices are saved in v2; v1 also saved automatic defaults.
+export const colorModeStorageKey = "open-process-color-mode-v2";
+export const legacyColorModeStorageKey = "open-process-color-mode-v1";
 export const legacyAppearanceStorageKey = "open-process-site-appearance-v1";
 
-/** Accept the former preference only to preserve its light/dark choice. */
-export function readColorMode(raw: string | null): ColorMode {
-  if (raw === "dark" || raw === "light") return raw;
-  try {
-    const value: unknown = JSON.parse(raw ?? "null");
-    return value && typeof value === "object" && "mode" in value && value.mode === "dark" ? "dark" : "light";
-  } catch {
-    return "light";
-  }
+/** Missing or invalid preferences follow the system. */
+export function readColorMode(raw: string | null): ColorMode | null {
+  return raw === "dark" || raw === "light" ? raw : null;
 }
 
-export function modeFromQuery(search: string, fallback: ColorMode): ColorMode {
-  const mode = new URLSearchParams(search).get("mode");
-  return mode === "dark" || mode === "light" ? mode : fallback;
+export function modeFromQuery(search: string, fallback: ColorMode | null): ColorMode | null {
+  return readColorMode(new URLSearchParams(search).get("mode")) ?? fallback;
 }
 
 export function appUrl(href: string, origin: string, mode: ColorMode): string {

@@ -2,12 +2,12 @@ import { expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
 import { appUrl, galleryImage, modeFromQuery, readColorMode } from "../src/lib/color-mode";
 
-test("retired appearance preferences retain only their color mode", () => {
+test("only valid explicit modes override the system preference", () => {
   for (const theme of ["classic", "cloud", "lilac", "blossom", "lagoon", "midnight", "graphite", "workshop", "unknown"]) {
-    expect(readColorMode(JSON.stringify({ theme, mode: "dark" }))).toBe("dark");
-    expect(readColorMode(JSON.stringify({ theme, mode: "light" }))).toBe("light");
+    expect(readColorMode(JSON.stringify({ theme, mode: "dark" }))).toBeNull();
+    expect(readColorMode(JSON.stringify({ theme, mode: "light" }))).toBeNull();
   }
-  for (const raw of [null, "bad json", "null", "[]", "{}", '{"mode":"unknown"}']) expect(readColorMode(raw)).toBe("light");
+  for (const raw of [null, "bad json", "null", "[]", "{}", '{"mode":"unknown"}']) expect(readColorMode(raw)).toBeNull();
   expect(readColorMode("dark")).toBe("dark");
   expect(readColorMode("light")).toBe("light");
 });
@@ -23,6 +23,7 @@ test("app links and explicit mode URLs cannot select retired themes", () => {
   expect(modeFromQuery("?theme=cloud", "light")).toBe("light");
   expect(modeFromQuery("?theme=midnight&mode=dark", "light")).toBe("dark");
   expect(modeFromQuery("?mode=invalid", "dark")).toBe("dark");
+  expect(modeFromQuery("?mode=invalid", null)).toBeNull();
   expect(galleryImage("../../private", "dark")).toBe("/assets/classic/dark/draw.webp");
 });
 

@@ -22,12 +22,22 @@ Previously saved family values are ignored. Eframe continues to own the app's
 light/dark preference.
 
 The website uses [global.css](../website/src/styles/global.css) and
-[color-mode.css](../website/src/styles/color-mode.css). Its mode-only preference
-is `open-process-color-mode-v1`. When the former
-`open-process-site-appearance-v1` preference exists, only its light/dark choice is
-retained, then the retired setting is removed if browser storage is writable.
-Storage failures leave the current page usable. Reloads and language navigation
-retain the selected color mode.
+[color-mode.css](../website/src/styles/color-mode.css). Without an explicit
+choice, it follows `prefers-color-scheme` on load and listens for live system
+changes. Automatic mode never writes a color preference. Logos, the selected
+gallery view, application links and browser theme-color metadata update together.
+
+A sun/moon button choice or valid `mode` URL is saved in
+`open-process-color-mode-v2` and takes priority over the system across reloads
+and language navigation. Other tabs follow changes to that preference; removing
+it resumes system tracking. Storage failures still allow automatic updates and
+a manual choice for the current page.
+
+The former `open-process-color-mode-v1` and
+`open-process-site-appearance-v1` settings are removed once. They saved defaults
+as well as manual choices, so their values cannot establish an explicit override.
+This also resets old manual color choices; the sun/moon button can save a new one.
+Saved language preferences are preserved.
 
 Explicit `mode=light` or `mode=dark` links select a web-app color mode. Old `theme`
 parameters cannot select another family; website links remove that parameter.
