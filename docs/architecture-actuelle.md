@@ -40,7 +40,7 @@ flowchart TD
 | Decision tables and flow editors | [DMN](../crates/op-app/src/dmn_editor.rs), [EPC/activities](../crates/op-app/src/flow_editor.rs). |
 | Relational schemas and DDL | [Model](../crates/op-core/src/database.rs), [SQL generation](../crates/op-core/src/database/ddl.rs), [editor](../crates/op-app/src/database_editor.rs). |
 | Free drawing | [Model](../crates/op-core/src/whiteboard.rs), [editor](../crates/op-app/src/whiteboard_editor.rs), [session](../crates/op-app/src/whiteboard_editor/session.rs). |
-| Mermaid | [Model/SVG](../crates/op-core/src/mermaid.rs), [editor](../crates/op-app/src/mermaid_editor.rs), [preview job](../crates/op-app/src/mermaid_editor/preview.rs). |
+| Mermaid | [Model/SVG](../crates/op-core/src/mermaid.rs), [form operations](../crates/op-core/src/mermaid/builder.rs), [editor](../crates/op-app/src/mermaid_editor.rs), [preview job](../crates/op-app/src/mermaid_editor/preview.rs). |
 | UML class ↔ Mermaid conversion | [Typed conversion](../crates/op-core/src/mermaid/conversion.rs), commands owned by the UML and Mermaid editor adapters; [features and limits](mermaid.md#converting-uml-class-diagrams). |
 | Envelope and typed codecs | [document/envelope.rs](../crates/op-core/src/document/envelope.rs). |
 | Session restoration | [platform/persistence.rs](../crates/op-app/src/platform/persistence.rs). |
@@ -177,9 +177,22 @@ round event/use-case shapes retain boundary-aware routing. Shared canvas port
 guides preview attachment positions without adding another editor catalogue.
 Database foreign keys retain their column-row attachments when tables move.
 
-[Mermaid](mermaid.md) registers a source document with asynchronous preview. It
-reuses the common inspector and configuration; grid snapping is optional and
-absent for this preview because its nodes cannot be dragged.
+[Mermaid](mermaid.md) registers a source document with form authoring and
+asynchronous preview. Its module owns 35 templates/basic form families, with
+27 local previews and eight explicitly unavailable previews. The builder patches
+selected source statements and preserves all other bytes; switching Source and
+Builder shares the same model/history. Unapplied fields/source guards are
+transient per-view interactions, separate from stored content. It reuses the
+common inspector and configuration; grid snapping is optional and absent because
+preview nodes cannot be dragged. Native BPMN, Petri, EPC, activity and UML
+adapters declare direct Mermaid conversion commands using their typed
+projections. The shared packaging helper opens the new document and reports
+loss notes. Reverse conversion covers UML classes and an initial flowchart subset.
+The [flowchart module](../crates/op-app/src/flowchart_editor.rs) owns the
+`flowchart.import` worker and registers its typed
+[model/conversion](../crates/op-core/src/flowchart.rs) and reuses FlowEditor;
+`Notation::to_mermaid` keeps its export semantics in that module. Complete native
+coverage of all Mermaid families remains unfinished.
 
 Typed Mermaid projections in `op-core/src/mermaid/export.rs` cover BPMN, Petri,
 EPC/activity and UML. Their adapters declare `.mmd` and `.mermaid.md` exports;

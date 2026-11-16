@@ -16,6 +16,7 @@ pub mod epc;
 pub mod evaluation;
 pub mod examples;
 pub mod flow;
+pub mod flowchart;
 pub mod geom;
 pub mod i18n;
 pub mod mermaid;

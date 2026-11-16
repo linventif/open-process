@@ -1303,3 +1303,67 @@ whitespace checks pass.
 These are local checks. The failed GitHub run was inspected but not rerun;
 native release builds, the website build, other operating systems and the remote
 CI matrix were not rerun for this correction.
+
+## Mermaid catalogue, forms and initial native flowcharts — 16 November 2026
+
+**The request for complete native graphical editors for every Mermaid family is
+not complete.** Basic source forms/templates are not counted as dedicated native
+editors. The [Mermaid guide](mermaid.md#native-graphical-editor-work) identifies
+the implemented subset and remaining native work.
+
+The Mermaid module declares 35 templates covering the reviewed catalogue, with
+five C4 levels, and 75 basic statement forms. Twenty-seven templates have local
+Rust previews. Swimlane, Mermaid use case, event modeling, Venn, Ishikawa,
+Wardley, Cynefin and TreeView retain source/forms, storage and text exports, with
+an explicit unavailable-preview message. Switching Source/Builder alone retains
+all source bytes, saved state and revisions. Applied edits guard the selected
+statement and preserve surrounding unknown syntax. Builder input is bounded;
+statement source lines and virtualized rows avoid repeated prefix scans and
+drawing every row of a long source.
+
+An initial native `flowchart` module now registers its own typed model,
+descriptor and example through composition. It reuses FlowEditor and
+DiagramLayout for creation, movement, resizing, selection, properties, labelled
+connections, history and SVG/DOT/Mermaid exports. The five supported kinds are
+process, decision, terminator, circle connector and preparation. Basic native
+flowchart ↔ Mermaid conversion preserves these kinds, names and connections;
+layout is regenerated with a diagnostic. Rounded rectangles map to terminators
+with a presentation diagnostic. Groups, unsupported shapes, decorated/dashed
+links, self-links and parallel links fail without opening a partial destination.
+
+Native flowchart import runs in the existing native pool/Web Worker. Changed
+source/name/language and exam mode cancel pending imports; stale results cannot
+open a destination. The common flow storage validator indexes node kinds rather
+than repeatedly scanning nodes for each edge. Existing EPC/activity invariants
+and payloads retain their behavior. The new kind uses model version 1; existing
+document versions, .opx envelopes and dependencies are unchanged.
+
+Tools commands also open projections directly from the six existing BPMN, Petri,
+EPC, activity and UML builders. Source documents/histories/views stay unchanged;
+conversion notes accompany the new source as comments and a message.
+
+Local checks performed:
+
+- `cargo test --locked -p op-core` passes **130 tests**.
+- `cargo test --locked --workspace -- --test-threads=1` passes **241 tests**:
+  111 application and 130 core tests.
+- New regressions cover family forms/storage, rendering of preview-capable
+  patterns, delimiter-containing labels, guarded edits, atomic errors, bounds,
+  dates/packet ranges, Unicode, preambles, unknown syntax, original encodings and
+  CRLF. UI checks cover switching, apply/remove, undo/redo, reopening, all
+  templates, direct conversions, the last example in the scrollable home menu
+  and native graphical create/connect/move gestures. Worker tests cover stale
+  source and exam cancellation.
+- Native and `wasm32-unknown-unknown` compilation, strict workspace Clippy,
+  formatting and patch whitespace checks pass.
+- Local links in the Mermaid documentation updates were checked. Native
+  flowchart and builder-inspector captures at 1,400, 420 and 280 px were visually
+  inspected. The inspector captures show a rendering-in-progress state; SVG and
+  rasterizer behavior is covered by automated tests.
+
+The official JavaScript Mermaid parser was not executed: a temporary validation
+installation failed because npm registry DNS resolution was unavailable. Newer
+starter forms follow the official syntax documentation without claiming full
+grammar validation. Native release builds, the website/Trunk build, browser
+interaction, other operating systems and remote CI were not run for this Mermaid
+work.

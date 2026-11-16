@@ -12,6 +12,7 @@ starts a download. PNG captures the visible diagram where supported.
 | BPMN | BPMN 2.0 XML (`.bpmn`), Mermaid (`.mmd`), Mermaid Markdown (`.mermaid.md`), PNG. |
 | Petri net | PNML (`.pnml`), Mermaid, Mermaid Markdown, PNG. |
 | UML classes / use cases | PlantUML (`.puml`), Mermaid, Mermaid Markdown, PNG. |
+| Native flowchart | SVG, Graphviz (`.dot`), Mermaid, Mermaid Markdown, PNG. |
 | EPC / UML activities | SVG, Graphviz (`.dot`), Mermaid, Mermaid Markdown, PNG. |
 | Mermaid source | Mermaid (`.mmd`), Mermaid Markdown, SVG when the current preview is ready. |
 | Database schema | SQL DDL (`.sql`) for the selected dialect, PNG. |
@@ -33,9 +34,14 @@ are ignored. Multiple Mermaid blocks or an unfinished fence produce an error
 rather than silently opening a partial diagram. A complete explicit Mermaid
 block can contain invalid source: it opens as an editable draft.
 
-Reopening these files creates a Mermaid source document. It does not reconstruct
-the originating BPMN, Petri, EPC or UML activity document. Keep `.opx` or the
-notation's native export for that purpose.
+Reopening these files creates a Mermaid document with Source and basic Builder
+forms sharing its source. Switching those tabs preserves the source exactly,
+including syntax without a form. Families without a local renderer retain both
+text exports and `.opx` saving, while SVG remains unavailable. See the
+[family coverage table](mermaid.md#switching-source-and-builder).
+
+Reopening Mermaid text does not reconstruct the originating BPMN, Petri, EPC or
+UML activity document. Keep `.opx` or the notation's native export for that purpose.
 
 ## What the projections preserve
 

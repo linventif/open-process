@@ -4,6 +4,7 @@ use egui_kittest::kittest::Queryable;
 use op_core::geom::Pos;
 
 mod appearance;
+mod mermaid_builder;
 mod resize;
 mod uml_tools;
 mod whiteboard_editing;
@@ -246,7 +247,7 @@ fn mermaid_conversion_commands_respect_source_kinds_and_fail_without_opening_par
     let mut h = harness(false);
     h.state_mut().open_example("uml.use-cases");
     h.run_steps(4);
-    assert!(!h.state().docs[h.state().active].editor.enabled("uml.convert-to-mermaid"));
+    assert!(h.state().docs[h.state().active].editor.enabled("uml.convert-to-mermaid"));
     assert!(h.query_by_label("Convert to Mermaid").is_none());
     h.state_mut().open_example("mermaid.flowchart");
     h.run_steps(4);
@@ -2465,6 +2466,7 @@ fn new_graph_notations_create_connect_move_undo_and_reopen() {
     }
     exercise::<op_core::epc::EpcKind>("epc", "Event", "Function", false);
     exercise::<op_core::activity::ActivityKind>("uml.activity", "Initial node", "Action", true);
+    exercise::<op_core::flowchart::FlowchartKind>("flowchart", "Node", "Decision", false);
 }
 
 #[test]

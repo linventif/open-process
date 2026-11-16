@@ -52,6 +52,11 @@ const COMMANDS: &[CommandDescriptor] = &[
         label: key("petri.convert_petri_net_bpmn"),
         group: CommandGroup::Tools,
     },
+    CommandDescriptor {
+        id: "petri.convert-to-mermaid",
+        label: key("conversion.to_mermaid"),
+        group: CommandGroup::Tools,
+    },
 ];
 const VIEWS: &[ViewDescriptor] = &[
     ViewDescriptor {
@@ -201,6 +206,7 @@ impl EditorBackend for PetriEditor {
             return events;
         }
         match command {
+            "petri.convert-to-mermaid" => return mermaid_exports::open(op_core::mermaid::export::petri(&self.net)),
             UNDO => self.undo(),
             REDO => self.redo(),
             DELETE => self.delete_selection(),

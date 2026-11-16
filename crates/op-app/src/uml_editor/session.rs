@@ -135,7 +135,7 @@ impl EditorBackend for UmlEditor {
             REDO => self.can_redo(),
             DELETE => self.selection.is_some() || !self.group.is_empty(),
             FIT | PNG => true,
-            "uml.convert-to-mermaid" => self.diagram.kind == DiagramKind::Class,
+            "uml.convert-to-mermaid" => true,
             _ => COMMANDS.iter().any(|c| c.id == command),
         }
     }
@@ -146,21 +146,7 @@ impl EditorBackend for UmlEditor {
             return events;
         }
         match command {
-            "uml.convert-to-mermaid" => {
-                return match op_core::mermaid::conversion::from_uml(&self.diagram) {
-                    Ok(converted) => {
-                        let mut events = vec![HostEvent::Open(JsonCodec::new("mermaid").encode(&converted.diagram))];
-                        if !converted.warnings.is_empty() {
-                            events.push(HostEvent::Message(trf(
-                                "conversion.mermaid_warnings",
-                                &[&converted.warnings.join(" · ")],
-                            )));
-                        }
-                        events
-                    }
-                    Err(error) => vec![HostEvent::Message(error)],
-                };
-            }
+            "uml.convert-to-mermaid" => return mermaid_exports::open(op_core::mermaid::export::uml(&self.diagram)),
             UNDO => self.undo(),
             REDO => self.redo(),
             DELETE => self.delete_selection(),

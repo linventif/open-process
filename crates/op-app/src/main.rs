@@ -15,6 +15,7 @@ mod dmn_editor;
 mod dock;
 mod editor;
 mod flow_editor;
+mod flowchart_editor;
 mod history;
 mod home;
 mod i18n;

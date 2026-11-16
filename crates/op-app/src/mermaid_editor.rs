@@ -1,4 +1,5 @@
 //! Mermaid source editor and live preview, integrated through the notation registry.
+mod builder;
 pub(crate) mod preview;
 
 use crate::canvas::{self, View};
@@ -21,6 +22,8 @@ pub struct MermaidView {
     fit: bool,
     inspector: Option<bool>,
     templates: bool,
+    builder: bool,
+    builder_state: builder::BuilderState,
 }
 
 impl Default for MermaidView {
@@ -32,6 +35,8 @@ impl Default for MermaidView {
             fit: true,
             inspector: None,
             templates: false,
+            builder: false,
+            builder_state: Default::default(),
         }
     }
 }
@@ -52,6 +57,9 @@ pub struct MermaidEditor {
     pending: Option<Job>,
     result: Option<Result<Rendered, String>>,
     convert_uml: bool,
+    convert_flowchart: bool,
+    flowchart_import: Option<Job>,
+    flowchart_input: Option<(Diagram, op_core::i18n::Lang)>,
 }
 
 impl MermaidEditor {
@@ -66,6 +74,9 @@ impl MermaidEditor {
             pending: None,
             result: None,
             convert_uml: false,
+            convert_flowchart: false,
+            flowchart_import: None,
+            flowchart_input: None,
         }
     }
 
@@ -110,43 +121,130 @@ impl MermaidEditor {
         }
     }
 
+    fn update_flowchart_import(&mut self, ui: &Ui) -> Vec<HostEvent> {
+        let lang = op_core::i18n::lang();
+        if crate::editor::exam::active(ui.ctx())
+            || self
+                .flowchart_input
+                .as_ref()
+                .is_some_and(|(source, language)| source != &self.diagram || *language != lang)
+        {
+            self.flowchart_import = None;
+            self.flowchart_input = None;
+        }
+        if std::mem::take(&mut self.convert_flowchart) && !crate::editor::exam::active(ui.ctx()) {
+            let input = serde_json::to_string(&crate::flowchart_editor::ImportInput {
+                task: "flowchart.import".into(),
+                source: self.diagram.clone(),
+                lang,
+            })
+            .unwrap();
+            match Job::spawn(input, crate::flowchart_editor::import_json, ui.ctx()) {
+                Ok(job) => {
+                    self.flowchart_import = Some(job);
+                    self.flowchart_input = Some((self.diagram.clone(), lang));
+                }
+                Err(error) => return vec![HostEvent::Message(error)],
+            }
+        }
+        if let Some(result) = self.flowchart_import.as_mut().and_then(Job::poll) {
+            self.flowchart_import = None;
+            self.flowchart_input = None;
+            let converted =
+                result.and_then(|source| serde_json::from_str::<crate::flowchart_editor::ImportOutput>(&source).map_err(|e| e.to_string()));
+            return match converted {
+                Ok(converted) => {
+                    let mut events = vec![HostEvent::Open(JsonCodec::new("flowchart").encode(&converted.diagram))];
+                    if !converted.warnings.is_empty() {
+                        events.push(HostEvent::Message(trf(
+                            "conversion.mermaid_warnings",
+                            &[&converted.warnings.join(" · ")],
+                        )));
+                    }
+                    events
+                }
+                Err(error) => vec![HostEvent::Message(error)],
+            };
+        }
+        if self.flowchart_import.is_some() {
+            ui.ctx().request_repaint_after(std::time::Duration::from_millis(50));
+        }
+        vec![]
+    }
+
     fn show(&mut self, ui: &mut Ui) {
         let layout = DiagramLayout::new(ui, self.state.uid, self.state.inspector);
         layout.tools(ui, |ui| {
             if crate::editor::exam::active(ui.ctx()) {
                 return;
             }
-            if ui
-                .add_enabled(
-                    op_core::mermaid::is_class_source(&self.diagram.source),
-                    egui::Button::new(tr("conversion.to_uml_classes")),
-                )
-                .on_hover_text(tr("conversion.mermaid_classes_only"))
-                .clicked()
-            {
-                self.convert_uml = true;
+            if op_core::mermaid::builder::family(&self.diagram.source).is_some_and(|t| t.id == "mermaid.flowchart") {
+                if self.flowchart_import.is_some() {
+                    ui.spinner();
+                }
+                if ui
+                    .add_enabled(self.flowchart_import.is_none(), egui::Button::new(tr("flowchart.from_mermaid")))
+                    .clicked()
+                {
+                    self.convert_flowchart = true;
+                }
+            } else {
+                if ui
+                    .add_enabled(
+                        op_core::mermaid::is_class_source(&self.diagram.source),
+                        egui::Button::new(tr("conversion.to_uml_classes")),
+                    )
+                    .on_hover_text(tr("conversion.mermaid_classes_only"))
+                    .clicked()
+                {
+                    self.convert_uml = true;
+                }
             }
         });
         let mut editing = false;
         layout.inspector(ui, |ui| {
             let exam = crate::editor::exam::active(ui.ctx());
             if !exam {
+                let mut tab = if self.state.templates {
+                    2
+                } else if self.state.builder {
+                    1
+                } else {
+                    0
+                };
                 DiagramLayout::inspector_tabs(
                     ui,
-                    &mut self.state.templates,
-                    &[(false, tr("mermaid.source")), (true, tr("mermaid.templates"))],
+                    &mut tab,
+                    &[
+                        (0, tr("mermaid.source")),
+                        (1, tr("mermaid.builder.title")),
+                        (2, tr("mermaid.templates")),
+                    ],
                     |_, _| {},
                 );
+                self.state.templates = tab == 2;
+                self.state.builder = tab == 1;
             }
             DiagramLayout::inspector_body(ui, |ui| {
-                if self.state.templates && !exam {
+                if self.state.builder && !exam {
+                    self.history.sync(&self.diagram, false);
+                    if self.state.builder_state.show(ui, &mut self.diagram) {
+                        self.history.sync(&self.diagram, false);
+                    }
+                } else if self.state.templates && !exam {
                     ui.label(tr("mermaid.template_hint"));
                     for template in TEMPLATES {
-                        if ui.button(tr(template.label)).clicked() {
+                        let hint = if template.preview {
+                            tr("mermaid.template_hint")
+                        } else {
+                            tr("mermaid.preview_unsupported")
+                        };
+                        if ui.button(tr(template.label)).on_hover_text(hint).clicked() {
                             self.history.sync(&self.diagram, false);
                             self.diagram.source = template.source.into();
                             self.history.sync(&self.diagram, false);
                             self.state.templates = false;
+                            self.state.builder_state = Default::default();
                             self.state.fit = true;
                         }
                     }
@@ -172,7 +270,9 @@ impl MermaidEditor {
         });
         self.history.sync(&self.diagram, editing);
         self.update_preview(ui);
+        let unavailable = op_core::mermaid::builder::family(&self.diagram.source).is_some_and(|t| !t.preview);
         let status = match &self.result {
+            _ if unavailable => tr("mermaid.preview_unavailable"),
             Some(Ok(_)) => tr("mermaid.preview"),
             Some(Err(_)) => tr("mermaid.preview_error"),
             None => tr("mermaid.rendering"),
@@ -220,6 +320,7 @@ impl MermaidEditor {
                 }
                 result => {
                     let text = match result {
+                        _ if unavailable => tr("mermaid.preview_unsupported").into(),
                         Some(Err(e)) => format!("{}\n\n{e}", tr("mermaid.preview_error")),
                         _ => tr("mermaid.rendering").into(),
                     };
@@ -234,6 +335,14 @@ impl MermaidEditor {
 }
 
 impl EditorBackend for MermaidEditor {
+    fn set_exam_mode(&mut self, active: bool) {
+        if active {
+            self.flowchart_import = None;
+            self.flowchart_input = None;
+            self.convert_flowchart = false;
+            self.convert_uml = false;
+        }
+    }
     type ViewState = MermaidView;
     fn capture_view(&self) -> MermaidView {
         self.state.clone()
@@ -245,11 +354,12 @@ impl EditorBackend for MermaidEditor {
         MermaidView::default()
     }
     fn save_view(state: &MermaidView) -> Value {
-        serde_json::json!({"camera":state.camera,"inspector":state.inspector,"templates":state.templates})
+        serde_json::json!({"camera":state.camera,"inspector":state.inspector,"templates":state.templates,"builder":state.builder})
     }
     fn load_view(state: &mut MermaidView, value: &Value) {
         state.inspector = value["inspector"].as_bool();
         state.templates = value["templates"].as_bool().unwrap_or(false);
+        state.builder = value["builder"].as_bool().unwrap_or(false);
         if let Ok(camera) = serde_json::from_value::<View>(value["camera"].clone())
             && camera.offset.is_finite()
             && camera.zoom.is_finite()
@@ -287,6 +397,10 @@ impl EditorBackend for MermaidEditor {
     }
     fn ui(&mut self, ui: &mut Ui, _: &str) -> Vec<HostEvent> {
         self.show(ui);
+        let imported = self.update_flowchart_import(ui);
+        if !imported.is_empty() {
+            return imported;
+        }
         if std::mem::take(&mut self.convert_uml) {
             return self.execute("mermaid.convert-to-uml", 0.0);
         }
@@ -310,6 +424,11 @@ impl EditorBackend for MermaidEditor {
                 group: CommandGroup::View,
             },
             CommandDescriptor {
+                id: "mermaid.convert-to-flowchart",
+                label: key("flowchart.from_mermaid"),
+                group: CommandGroup::Tools,
+            },
+            CommandDescriptor {
                 id: "mermaid.convert-to-uml",
                 label: key("conversion.to_uml_classes"),
                 group: CommandGroup::Tools,
@@ -323,11 +442,16 @@ impl EditorBackend for MermaidEditor {
             REDO => self.history.can_redo(),
             FIT => true,
             "mermaid.convert-to-uml" => op_core::mermaid::is_class_source(&self.diagram.source),
+            "mermaid.convert-to-flowchart" => {
+                self.flowchart_import.is_none()
+                    && op_core::mermaid::builder::family(&self.diagram.source).is_some_and(|t| t.id == "mermaid.flowchart")
+            }
             _ => false,
         }
     }
     fn execute(&mut self, command: &str, _: f64) -> Vec<HostEvent> {
         match command {
+            "mermaid.convert-to-flowchart" => self.convert_flowchart = true,
             "mermaid.convert-to-uml" => {
                 return match op_core::mermaid::conversion::to_uml(&self.diagram) {
                     Ok(converted) => {
@@ -407,19 +531,51 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
         create: |n| JsonCodec::new("mermaid").encode(&Diagram::new(trf("mermaid.name", &[&n]))),
         open: |d| Ok(Session::boxed(MermaidEditor::new(JsonCodec::new("mermaid").decode(d)?))),
     });
-    for template in TEMPLATES {
-        // Descriptors use function pointers. Each factory is selected statically below.
+    // Static generic factories keep examples in this module; the shell consumes descriptors.
+    const FACTORIES: &[fn() -> Document] = &[
+        example::<0>,
+        example::<1>,
+        example::<2>,
+        example::<3>,
+        example::<4>,
+        example::<5>,
+        example::<6>,
+        example::<7>,
+        example::<8>,
+        example::<9>,
+        example::<10>,
+        example::<11>,
+        example::<12>,
+        example::<13>,
+        example::<14>,
+        example::<15>,
+        example::<16>,
+        example::<17>,
+        example::<18>,
+        example::<19>,
+        example::<20>,
+        example::<21>,
+        example::<22>,
+        example::<23>,
+        example::<24>,
+        example::<25>,
+        example::<26>,
+        example::<27>,
+        example::<28>,
+        example::<29>,
+        example::<30>,
+        example::<31>,
+        example::<32>,
+        example::<33>,
+        example::<34>,
+    ];
+    assert_eq!(FACTORIES.len(), TEMPLATES.len());
+    for (template, &create) in TEMPLATES.iter().zip(FACTORIES) {
         registry.examples.push(ExampleDescriptor {
             id: template.id,
             kind: "mermaid",
             label: template.label,
-            create: match template.id {
-                "mermaid.sequence" => || example(1),
-                "mermaid.class" => || example(2),
-                "mermaid.state" => || example(3),
-                "mermaid.er" => || example(4),
-                _ => || example(0),
-            },
+            create,
         });
     }
     registry.imports.push(ImportDescriptor {
@@ -445,8 +601,8 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
     });
 }
 
-fn example(index: usize) -> Document {
-    let t = &TEMPLATES[index];
+fn example<const INDEX: usize>() -> Document {
+    let t = &TEMPLATES[INDEX];
     JsonCodec::new("mermaid").encode(&Diagram {
         name: tr(t.label).into(),
         source: t.source.into(),
@@ -479,10 +635,39 @@ mod tests {
     }
 
     #[test]
+    fn native_flowchart_jobs_discard_changed_sources_and_stop_in_exam_mode() {
+        fn pending(_: String, stop: std::sync::Arc<std::sync::atomic::AtomicBool>) -> Result<String, String> {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+            while !stop.load(std::sync::atomic::Ordering::Relaxed) && std::time::Instant::now() < deadline {
+                std::thread::sleep(std::time::Duration::from_millis(1));
+            }
+            Err("Cancelled".into())
+        }
+        let ctx = egui::Context::default();
+        let mut editor = MermaidEditor::new(Diagram::new("Native conversion"));
+        editor.flowchart_import = Some(Job::spawn("{}".into(), pending, &ctx).unwrap());
+        editor.flowchart_input = Some((editor.diagram.clone(), op_core::i18n::lang()));
+        editor.diagram.source.push_str("    Changed[\"Changed\"]\n");
+        let original = editor.diagram.clone();
+        let mut output = ctx.run_ui(Default::default(), |ui| {
+            assert!(editor.update_flowchart_import(ui).is_empty());
+        });
+        output.textures_delta.clear();
+        assert!(editor.flowchart_import.is_none());
+        assert_eq!(editor.diagram, original);
+        editor.flowchart_import = Some(Job::spawn("{}".into(), pending, &ctx).unwrap());
+        editor.flowchart_input = Some((editor.diagram.clone(), op_core::i18n::lang()));
+        editor.set_exam_mode(true);
+        assert!(editor.flowchart_import.is_none());
+        assert!(editor.flowchart_input.is_none());
+        assert_eq!(editor.diagram, original);
+    }
+
+    #[test]
     fn registry_imports_mermaid_without_stealing_logs_and_opx_preserves_invalid_drafts() {
         let registry = crate::composition::registry();
         let descriptor = registry.find("mermaid").unwrap();
-        assert_eq!(registry.examples.iter().filter(|e| e.kind == "mermaid").count(), 5);
+        assert_eq!(registry.examples.iter().filter(|e| e.kind == "mermaid").count(), TEMPLATES.len());
         assert!(registry.extensions().contains(&"mmd"));
         assert!(registry.extensions().contains(&"mermaid"));
         for template in TEMPLATES {

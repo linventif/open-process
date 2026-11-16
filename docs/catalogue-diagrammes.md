@@ -34,8 +34,11 @@ artificial canvas controls.
 
 [Free drawing](dessin-libre.md) is available for sketches, shapes, notes and
 freehand strokes; it does not replace the typed families below. The
-[Mermaid source editor](mermaid.md) also previews selected diagram families, but
-is separate from a dedicated typed graphical editor for each notation.
+[Mermaid editor](mermaid.md) provides basic statement forms and source editing
+for 35 templates (including five C4 levels), with 27 local previews and eight
+explicitly unavailable previews. These form capabilities remain separate from
+the dedicated typed graphical editors proposed below; preview nodes cannot be
+dragged and most native-builder conversions are not implemented.
 
 | Type | Proposed use | Dependency / distinction |
 | --- | --- | --- |
@@ -54,7 +57,7 @@ is separate from a dedicated typed graphical editor for each notation.
 | DFD | Data transformation/circulation. | Levels and data stores. |
 | Merise conceptual processing (MCT) | Conceptual events/operations. | Additional proposal; do not attribute to Looping without evidence. |
 | Merise organizational processing (MOT) | Operations, actors, places, timing. | Depends on an actor directory. |
-| Flowchart | Simple algorithms/procedures. | Separate from BPMN/UML activity. |
+| Flowchart | Simple algorithms/procedures. | Initial native editor with five node kinds and conservative Mermaid conversion; [limits](mermaid.md#native-graphical-editor-work). |
 | C4 context | People, system, neighboring systems. | References shared across C4 levels. |
 | C4 container | Applications, services, stores. | Hierarchy and typed links. |
 | C4 component | Components inside a container. | Navigation to UML/deployment. |

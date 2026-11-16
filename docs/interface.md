@@ -85,6 +85,8 @@ Z01 groups exports in **File → Export**, populated by the active session, with
 PNG where capture is supported. Exports are disabled on home.
 The BPMN, Petri, EPC and UML format lists include Mermaid source and Mermaid
 Markdown. These [exports](export-formats.md) add no canvas toolbar buttons.
+Their **Tools → Convert to Mermaid** command opens a separate Mermaid document
+with the same projection and conversion notes.
 
 For BPMN, Z10 offers **Auto arrange** alongside style; it moves into Z12 in compact
 views and is also available under Tools. It lays out left to right, preserves
@@ -148,7 +150,8 @@ These references cover BPMN, Petri, UML, EPC, database and [free drawing](dessin
 Text/table views such as Mining must not simulate a canvas to fit the layout.
 DMN shares actions/inspector with scrollable table content and no artificial zoom.
 Database SQL is a secondary selectable-text view sharing the relational document.
-[Mermaid](mermaid.md) uses an inspector for source/templates and a graphical preview.
+[Mermaid](mermaid.md) uses Source/Builder/Templates inspector tabs and a graphical
+preview where supported.
 
 ## Exam mode
 

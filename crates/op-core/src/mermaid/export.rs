@@ -123,6 +123,7 @@ pub fn flow<K: flow::FlowKind>(source: &flow::Diagram<K>) -> Result<Conversion<D
             flow::Shape::Diamond => ("{", "}"),
             flow::Shape::Initial | flow::Shape::Connector(_) => ("((", "))"),
             flow::Shape::Final | flow::Shape::FlowFinal => ("(((", ")))"),
+            flow::Shape::Terminator => ("([", "])"),
             flow::Shape::Action | flow::Shape::Bar => ("[", "]"),
         };
         let label = if n.name.is_empty() {

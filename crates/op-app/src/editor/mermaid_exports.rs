@@ -1,6 +1,7 @@
 //! Shared file packaging; each notation supplies its own typed Mermaid projection.
-use super::{ExportData, ExportDescriptor};
-use op_core::i18n::key;
+use super::{ExportData, ExportDescriptor, HostEvent};
+use op_core::document::{DocumentCodec, JsonCodec};
+use op_core::i18n::{key, trf};
 use op_core::mermaid::{Diagram, conversion::Conversion};
 
 pub const MARKDOWN: ExportDescriptor = ExportDescriptor {
@@ -17,6 +18,24 @@ pub const FORMATS: [ExportDescriptor; 2] = [
 
 pub fn is_projection(format: &str) -> bool {
     matches!(format, "mermaid" | "mermaid-markdown")
+}
+
+/// Each adapter supplies its typed projection; the host opens a separate document.
+pub fn open(converted: Result<Conversion<Diagram>, String>) -> Vec<HostEvent> {
+    match converted {
+        Ok(mut converted) => {
+            converted.diagram.source = op_core::mermaid::export::source(&converted.diagram, &converted.warnings);
+            let mut events = vec![HostEvent::Open(JsonCodec::new("mermaid").encode(&converted.diagram))];
+            if !converted.warnings.is_empty() {
+                events.push(HostEvent::Message(trf(
+                    "conversion.mermaid_warnings",
+                    &[&converted.warnings.join(" · ")],
+                )));
+            }
+            events
+        }
+        Err(error) => vec![HostEvent::Message(error)],
+    }
 }
 
 pub fn data(format: &str, converted: Conversion<Diagram>) -> Result<ExportData, String> {
@@ -81,6 +100,41 @@ mod tests {
             assert_eq!(editor.export().unwrap().bytes, standard.bytes);
             editor.set_exam_mode(false);
             assert!(editor.exports().iter().any(|f| f.id == "mermaid-markdown"));
+        }
+    }
+
+    #[test]
+    fn direct_conversion_commands_preserve_native_documents_and_follow_exam_policy() {
+        let registry = crate::composition::registry();
+        for (example, command) in [
+            ("bpmn.order", "bpmn.convert-to-mermaid"),
+            ("petri.mutex", "petri.convert-to-mermaid"),
+            ("epc.order", "flow.convert-to-mermaid"),
+            ("uml.activity.order", "flow.convert-to-mermaid"),
+            ("uml.classes", "uml.convert-to-mermaid"),
+            ("uml.use-cases", "uml.convert-to-mermaid"),
+        ] {
+            let mut editor = registry.open(&registry.example(example).unwrap()).unwrap();
+            let original = editor.snapshot();
+            let revisions = editor.revisions();
+            let workspace = editor.workspace();
+            let expected = editor.export_as("mermaid").unwrap().bytes;
+            assert!(editor.enabled(command));
+            let events = editor.execute(command, 0.0);
+            assert_eq!(events.len(), 2, "open a document and report its conversion notes");
+            let HostEvent::Open(document) = &events[0] else {
+                panic!("missing Mermaid document")
+            };
+            assert_eq!(document.kind, "mermaid");
+            let opened = registry.open(document).unwrap();
+            assert_eq!(opened.export().unwrap().bytes, expected);
+            assert_eq!(editor.snapshot(), original);
+            assert_eq!(editor.revisions(), revisions);
+            assert_eq!(editor.workspace(), workspace);
+            editor.set_exam_mode(true);
+            assert!(!editor.enabled(command));
+            assert!(editor.execute(command, 0.0).is_empty());
+            assert_eq!(editor.snapshot(), original);
         }
     }
 

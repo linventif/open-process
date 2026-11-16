@@ -37,6 +37,11 @@ const COMMANDS: &[CommandDescriptor] = &[
         label: key("bpmn.auto_arrange"),
         group: CommandGroup::Tools,
     },
+    CommandDescriptor {
+        id: "bpmn.convert-to-mermaid",
+        label: key("conversion.to_mermaid"),
+        group: CommandGroup::Tools,
+    },
 ];
 const VIEWS: &[ViewDescriptor] = &[];
 
@@ -175,6 +180,7 @@ impl EditorBackend for BpmnEditor {
             return events;
         }
         match command {
+            "bpmn.convert-to-mermaid" => return mermaid_exports::open(op_core::mermaid::export::bpmn(&self.diagram)),
             UNDO => self.undo(),
             REDO => self.redo(),
             DELETE => self.delete_selection(),

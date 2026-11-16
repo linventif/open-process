@@ -19,6 +19,16 @@ does not distinguish the automatic `main-*` releases.
 
 ### Editing
 
+- Add Mermaid form authoring with explicit apply/remove actions, source-preserving
+  tab switching and shared undo/redo. Expand the catalogue to 35 templates:
+  27 have local previews; eight newer families retain source/forms and text
+  exports with an explicit unavailable-preview message. Add direct Tools
+  conversions from BPMN, Petri, EPC, activities and both UML builders; reverse
+  conversion covers UML classes and an initial native flowchart subset.
+- Add a typed native flowchart editor with draggable/resizable shapes, labelled
+  connections, shared history and `.opx`/SVG/DOT/Mermaid formats. Advanced Mermaid
+  flowchart syntax and the remaining dedicated graphical editors are unfinished.
+
 - Make BPMN auto arrange respect grid snapping and align mixed-shape centers,
   keeping flows attached to the placed shapes and preserving lane membership.
 - Hide routine automatic-save status messages; keep storage errors visible.

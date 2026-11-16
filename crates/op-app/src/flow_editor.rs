@@ -26,6 +26,9 @@ pub trait Notation: FlowKind + Serialize + DeserializeOwned {
     const EXAMPLE: &'static str;
     const EXAMPLE_LABEL: &'static str;
     fn example() -> Diagram<Self>;
+    fn to_mermaid(diagram: &Diagram<Self>) -> Result<op_core::mermaid::conversion::Conversion<op_core::mermaid::Diagram>, String> {
+        op_core::mermaid::export::flow(diagram)
+    }
 }
 impl Notation for EpcKind {
     const ID: &'static str = "epc";
@@ -397,7 +400,7 @@ impl<K: Notation> FlowEditor<K> {
             let selected = !exporting && self.state.selected.contains(&n.id);
             let stroke = Stroke::new(if selected { 2.0 } else { 1.5 }, if selected { pal.select } else { pal.ink });
             paint_shape(&p, r, n.kind.shape(), stroke, pal.task_fill, pal.ink);
-            let inside = matches!(n.kind.shape(), Shape::Action | Shape::Event);
+            let inside = matches!(n.kind.shape(), Shape::Action | Shape::Terminator | Shape::Event);
             let galley = p.layout(
                 n.name.clone(),
                 FontId::proportional(13.0 * z),
@@ -492,7 +495,7 @@ impl<K: Notation> FlowEditor<K> {
                     if canvas::icon_button(ui, self.state.tool == Some(kind), tr(kind.label()), |p, r, c| {
                         let icon = match kind.shape() {
                             Shape::Bar => Rect::from_center_size(r.center(), vec2(r.width(), 4.0)),
-                            Shape::Action | Shape::Event => r.shrink2(vec2(0.0, 3.0)),
+                            Shape::Action | Shape::Terminator | Shape::Event => r.shrink2(vec2(0.0, 3.0)),
                             _ => r,
                         };
                         paint_shape(p, icon, kind.shape(), Stroke::new(1.4, c), Color32::TRANSPARENT, c)
@@ -580,6 +583,9 @@ fn paint_shape(p: &egui::Painter, r: Rect, shape: Shape, stroke: Stroke, fill: C
         Shape::Bar => {
             p.rect_filled(r, 0.0, ink);
         }
+        Shape::Terminator => {
+            p.rect(r, r.height() / 2.0, fill, stroke, StrokeKind::Inside);
+        }
         Shape::Action => {
             p.rect(r, (r.height() * 0.14).clamp(2.0, 8.0), fill, stroke, StrokeKind::Inside);
         }
@@ -606,6 +612,11 @@ const COMMANDS: &[CommandDescriptor] = &[
         id: FIT,
         label: key("canvas.zoom_fit"),
         group: CommandGroup::View,
+    },
+    CommandDescriptor {
+        id: "flow.convert-to-mermaid",
+        label: key("conversion.to_mermaid"),
+        group: CommandGroup::Tools,
     },
 ];
 impl<K: Notation> EditorBackend for FlowEditor<K> {
@@ -714,12 +725,13 @@ impl<K: Notation> EditorBackend for FlowEditor<K> {
             UNDO => self.history.can_undo(),
             REDO => self.history.can_redo(),
             DELETE => !self.state.selected.is_empty() || self.state.flow.is_some(),
-            FIT | PNG => true,
+            FIT | PNG | "flow.convert-to-mermaid" => true,
             _ => false,
         }
     }
     fn execute(&mut self, c: &str, _: f64) -> Vec<HostEvent> {
         match c {
+            "flow.convert-to-mermaid" => return mermaid_exports::open(K::to_mermaid(&self.diagram)),
             UNDO => {
                 self.history.undo(&mut self.diagram);
                 self.clear_selection();
@@ -765,7 +777,7 @@ impl<K: Notation> EditorBackend for FlowEditor<K> {
                 suffix: "dot",
                 bytes: self.diagram.to_dot().into_bytes(),
             }),
-            "mermaid" | "mermaid-markdown" => mermaid_exports::data(id, op_core::mermaid::export::flow(&self.diagram)?),
+            "mermaid" | "mermaid-markdown" => mermaid_exports::data(id, K::to_mermaid(&self.diagram)?),
             _ => Err("Unknown graph export".into()),
         }
     }
@@ -773,7 +785,7 @@ impl<K: Notation> EditorBackend for FlowEditor<K> {
         mermaid_exports::is_projection(format)
     }
 }
-fn register_one<K: Notation>(registry: &mut DiagramRegistry, order: usize) {
+pub(crate) fn register_one<K: Notation>(registry: &mut DiagramRegistry, order: usize) {
     registry.diagrams.push(DiagramDescriptor {
         id: K::ID,
         aliases: &[],

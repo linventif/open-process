@@ -379,12 +379,14 @@ fn process_card(ui: &mut Ui, process: &Process, width: f32, examples: &[&crate::
         let examples_response = footer
             .menu_button(tr("menu.examples"), |ui| {
                 theme::menu_style(ui.style_mut());
-                for example in examples {
-                    if ui.button(tr(example.label)).clicked() {
-                        chosen = Some(Action::Example(example.id, None));
-                        ui.close();
+                egui::ScrollArea::vertical().max_height(ui.available_height()).show(ui, |ui| {
+                    for example in examples {
+                        if ui.button(tr(example.label)).clicked() {
+                            chosen = Some(Action::Example(example.id, None));
+                            ui.close();
+                        }
                     }
-                }
+                });
             })
             .response
             .on_hover_text(tr("workspace.start_example"));

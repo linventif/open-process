@@ -10,6 +10,7 @@ pub type Id = u64;
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Shape {
     Action,
+    Terminator,
     Event,
     Diamond,
     Initial,
@@ -160,6 +161,7 @@ impl<K: FlowKind> Diagram<K> {
     /// Storage invariants, distinct from an incomplete model's editable diagnostics.
     pub fn check_storage(&self) -> Result<(), String> {
         let mut ids = BTreeSet::new();
+        let mut kinds = std::collections::HashMap::new();
         for n in &self.nodes {
             let r = n.bounds;
             if n.id == 0
@@ -171,6 +173,7 @@ impl<K: FlowKind> Diagram<K> {
             {
                 return Err("Invalid flow node identity or geometry".into());
             }
+            kinds.insert(n.id, n.kind);
         }
         let mut ends = BTreeSet::new();
         for f in &self.flows {
@@ -179,10 +182,7 @@ impl<K: FlowKind> Diagram<K> {
                 || !ids.insert(f.id)
                 || f.from == f.to
                 || !ends.insert((f.from, f.to))
-                || !self
-                    .node(f.from)
-                    .zip(self.node(f.to))
-                    .is_some_and(|(a, b)| a.kind.can_connect(b.kind))
+                || !kinds.get(&f.from).zip(kinds.get(&f.to)).is_some_and(|(a, b)| a.can_connect(*b))
             {
                 return Err("Invalid flow identity or endpoints".into());
             }
@@ -290,6 +290,14 @@ impl<K: FlowKind> Diagram<K> {
                     r.x,
                     c.y
                 ),
+                Shape::Terminator => format!(
+                    "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" rx=\"{}\" {attr}/>",
+                    r.x,
+                    r.y,
+                    r.w,
+                    r.h,
+                    r.h / 2.0
+                ),
                 Shape::Initial => format!(
                     "<ellipse cx=\"{}\" cy=\"{}\" rx=\"{}\" ry=\"{}\" fill=\"#172033\"/>",
                     c.x,
@@ -341,7 +349,7 @@ impl<K: FlowKind> Diagram<K> {
                     escape(symbol)
                 ));
             }
-            let y = if matches!(n.kind.shape(), Shape::Action | Shape::Event) {
+            let y = if matches!(n.kind.shape(), Shape::Action | Shape::Terminator | Shape::Event) {
                 c.y + 4.0
             } else {
                 r.bottom() + 20.0
