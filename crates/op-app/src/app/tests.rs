@@ -6,6 +6,7 @@ use op_core::geom::Pos;
 mod appearance;
 mod mermaid_builder;
 mod resize;
+mod selection_editing;
 mod uml_tools;
 mod whiteboard_editing;
 
@@ -679,9 +680,19 @@ fn uml_group_gestures_clipboard_and_inline_rename() {
     assert_eq!(uml(&h).diagram.relations.len(), 1);
     h.key_press_modifiers(Modifiers::COMMAND, Key::A);
     h.run_steps(2);
-    h.key_press_modifiers(Modifiers::COMMAND, Key::C);
-    h.run_steps(2);
-    h.key_press_modifiers(Modifiers::COMMAND, Key::V);
+    h.event(egui::Event::Copy);
+    h.run_steps(1);
+    let copied = h
+        .output()
+        .platform_output
+        .commands
+        .iter()
+        .find_map(|command| match command {
+            egui::OutputCommand::CopyText(text) => Some(text.clone()),
+            _ => None,
+        })
+        .expect("copy writes the system clipboard");
+    h.event(egui::Event::Paste(copied));
     h.run_steps(3);
     assert_eq!(uml(&h).diagram.nodes.len(), 4, "clipboard preserves the group");
     assert_eq!(uml(&h).diagram.relations.len(), 2);

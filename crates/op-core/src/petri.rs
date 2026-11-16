@@ -1,5 +1,6 @@
 //! Place/Transition Petri nets: model, firing rule and incidence matrices.
 
+pub mod editing;
 use crate::geom::Pos;
 use crate::i18n::tr;
 use serde::{Deserialize, Serialize};

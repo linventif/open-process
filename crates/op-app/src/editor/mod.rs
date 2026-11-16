@@ -11,3 +11,5 @@ pub use document::Doc;
 pub mod exam;
 pub mod layout;
 pub mod mermaid_exports;
+
+pub mod clipboard;

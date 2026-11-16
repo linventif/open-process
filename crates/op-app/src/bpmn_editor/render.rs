@@ -19,7 +19,7 @@ impl BpmnEditor {
         // Pools & lanes
         for p in &self.diagram.pools {
             let r = v.rect_to_screen(canvas, p.rect());
-            let sel = self.selection == Some(Sel::Pool(p.id));
+            let sel = self.selection == Some(Sel::Pool(p.id)) || self.pool_group.contains(&p.id);
             painter.rect_filled(r, 0.0, pal.fill.gamma_multiply(0.6));
             let header = Rect::from_min_size(r.min, vec2(POOL_HEADER * z, r.height()));
             painter.rect_filled(header, 0.0, pal.pool_header);

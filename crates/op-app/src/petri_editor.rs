@@ -4,6 +4,7 @@ mod render;
 
 mod panels;
 
+mod editing;
 mod interaction;
 
 mod session;
@@ -13,6 +14,7 @@ pub(crate) mod analysis_job;
 use crate::editor::layout::{CanvasControls, DiagramLayout, FooterStatus};
 
 use crate::canvas::{self, InlineOutcome, Palette, Rng, View};
+use crate::editor::clipboard::{CanvasClipboard, ClipboardState};
 use crate::history::History;
 use egui::{Color32, CornerRadius, FontId, Key, Painter, PointerButton, Pos2, Rect, RichText, Sense, Stroke, StrokeKind, Ui, pos2, vec2};
 use op_core::analysis::{self, BehaviouralReport, Soundness, StateSpace, StructuralReport, format_marking};
@@ -124,6 +126,7 @@ pub struct PetriEditor {
     selection: Option<Sel>,
     drag: Option<Drag>,
     arc_pending: Option<NodeRef>,
+    clipboard: ClipboardState,
     history: History<PetriNet>,
     pub sim: Option<Simulation>,
     analysis: Option<AnalysisCache>,
@@ -165,6 +168,7 @@ impl PetriEditor {
             selection: None,
             drag: None,
             arc_pending: None,
+            clipboard: ClipboardState::default(),
             history,
             sim: None,
             analysis: None,
@@ -190,6 +194,7 @@ impl PetriEditor {
         if self.sim.is_none() {
             self.history.undo(&mut self.net);
             self.selection = None;
+            self.group.clear();
         }
     }
 
@@ -197,6 +202,7 @@ impl PetriEditor {
         if self.sim.is_none() {
             self.history.redo(&mut self.net);
             self.selection = None;
+            self.group.clear();
         }
     }
 
@@ -714,6 +720,7 @@ impl PetriEditor {
         if self.sim.is_some() {
             self.sim_interaction(&response, wp);
         } else {
+            self.clipboard_ui(ui, &response);
             self.edit_interaction(ui, &response, canvas, wp);
         }
 

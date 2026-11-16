@@ -1367,3 +1367,35 @@ starter forms follow the official syntax documentation without claiming full
 grammar validation. Native release builds, the website/Trunk build, browser
 interaction, other operating systems and remote CI were not run for this Mermaid
 work.
+
+## Shared graphical selection editing (2026-11-16)
+
+BPMN, Petri, UML class/use-case, EPC, activity, native flowchart and database
+builders use the shared typed selection clipboard controller. It supplies
+copy/cut/paste, duplicate/select-all commands, canvas context actions and native
+paste requests/browser menu fallback. The drawing editor retains its existing
+portable format, plain-text paste and gestures and shares clipboard event
+ownership with the controller. No document or workspace storage schema changed.
+
+Domain regression tests cover BPMN pools/lanes, documentation and default flows;
+Petri markings, capacities, silent transitions and inhibitor weights; flow labels
+and omitted external edges; relational column/index/foreign-key remapping and
+SQL name uniqueness; and atomic rejection of malformed clipboard references.
+Four UI scenarios cover all eight newly connected builders' selection commands,
+copy/cut/paste across documents, text-field focus, Edit/context menus and Alt-drag
+with one-step undo/Escape cancellation, plus a fifth BPMN pool regression preserving
+original nodes while moving only the copy.
+
+Checks performed on the final checkout:
+
+- `cargo test --locked -p op-core`: passed (135 tests).
+- `cargo test --locked --workspace -- --test-threads=1`: passed (251 tests,
+  including 116 application tests).
+- `cargo check --locked -p op-app`: passed.
+- `cargo check --locked -p op-app --target wasm32-unknown-unknown`: passed.
+- Local links in the six affected documentation pages: 96 checked, none missing.
+- `git diff --check`: passed.
+
+UI coverage uses egui clipboard/pointer event simulations. Physical OS/browser
+clipboard integration, native release builds and the full three-OS CI matrix
+were not exercised by these local checks.

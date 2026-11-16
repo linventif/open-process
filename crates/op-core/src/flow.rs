@@ -51,6 +51,13 @@ pub struct Diagram<K> {
     pub flows: Vec<Flow>,
 }
 
+/// A transient selection, independent of document storage.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Fragment<K> {
+    pub nodes: Vec<Node<K>>,
+    pub flows: Vec<Flow>,
+}
+
 impl<K: FlowKind> Node<K> {
     pub fn anchor(&self, toward: Pos) -> Pos {
         let r = self.bounds;
@@ -139,24 +146,45 @@ impl<K: FlowKind> Diagram<K> {
         self.flows
             .retain(|f| !nodes.contains(&f.from) && !nodes.contains(&f.to) && flow != Some(f.id));
     }
-    pub fn duplicate(&mut self, ids: &BTreeSet<Id>) -> BTreeSet<Id> {
-        let nodes: Vec<_> = self.nodes.iter().filter(|n| ids.contains(&n.id)).cloned().collect();
-        let flows = self.flows.clone();
-        let mut map = std::collections::BTreeMap::new();
-        for mut n in nodes {
-            let id = self.next_id();
-            map.insert(n.id, id);
-            n.id = id;
-            n.bounds.x += 30.0;
-            n.bounds.y += 30.0;
-            self.nodes.push(n);
+    pub fn fragment(&self, ids: &BTreeSet<Id>) -> Fragment<K> {
+        Fragment {
+            nodes: self.nodes.iter().filter(|n| ids.contains(&n.id)).cloned().collect(),
+            flows: self
+                .flows
+                .iter()
+                .filter(|f| ids.contains(&f.from) && ids.contains(&f.to))
+                .cloned()
+                .collect(),
         }
-        for f in flows {
-            if let (Some(&from), Some(&to)) = (map.get(&f.from), map.get(&f.to)) {
-                self.connect(from, to, f.label);
+    }
+    pub fn paste(&mut self, fragment: &Fragment<K>, delta: Pos) -> Result<BTreeSet<Id>, String> {
+        Self {
+            name: String::new(),
+            nodes: fragment.nodes.clone(),
+            flows: fragment.flows.clone(),
+        }
+        .check_storage()?;
+        let mut result = self.clone();
+        let mut map = std::collections::BTreeMap::new();
+        for mut node in fragment.nodes.clone() {
+            let id = result.next_id();
+            map.insert(node.id, id);
+            node.id = id;
+            node.bounds.x += delta.x;
+            node.bounds.y += delta.y;
+            result.nodes.push(node);
+        }
+        for flow in &fragment.flows {
+            if let (Some(&from), Some(&to)) = (map.get(&flow.from), map.get(&flow.to)) {
+                result.connect(from, to, flow.label.clone());
             }
         }
-        map.into_values().collect()
+        result.check_storage()?;
+        *self = result;
+        Ok(map.into_values().collect())
+    }
+    pub fn duplicate(&mut self, ids: &BTreeSet<Id>) -> BTreeSet<Id> {
+        self.paste(&self.fragment(ids), Pos::new(30.0, 30.0)).unwrap_or_default()
     }
     /// Storage invariants, distinct from an incomplete model's editable diagnostics.
     pub fn check_storage(&self) -> Result<(), String> {

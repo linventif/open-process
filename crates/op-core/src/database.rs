@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
 mod ddl;
+pub mod editing;
 pub use ddl::{generate, quote_identifier};
 
 pub type Id = u64;

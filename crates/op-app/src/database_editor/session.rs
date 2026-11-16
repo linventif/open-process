@@ -4,6 +4,11 @@ use op_core::i18n::key;
 use serde_json::Value;
 
 const COMMANDS: &[CommandDescriptor] = &[
+    clipboard::COPY_COMMAND,
+    clipboard::CUT_COMMAND,
+    clipboard::PASTE_COMMAND,
+    clipboard::DUPLICATE_COMMAND,
+    clipboard::SELECT_ALL_COMMAND,
     CommandDescriptor {
         id: UNDO,
         label: key("common.undo"),
@@ -103,6 +108,8 @@ impl EditorBackend for DatabaseEditor {
     }
     fn cancel_edit(&mut self) {
         self.history.cancel(&mut self.schema);
+        self.state.group.clear();
+        self.state.selected = None;
         self.state.drag = None;
         self.state.pending = None;
         self.state.connecting = false;
@@ -118,6 +125,9 @@ impl EditorBackend for DatabaseEditor {
         command == "database.show-ddl"
     }
     fn enabled(&self, c: &str) -> bool {
+        if let Some(enabled) = self.selection_command_enabled(c) {
+            return enabled;
+        }
         match c {
             UNDO => self.history.can_undo(),
             REDO => self.history.can_redo(),
@@ -129,14 +139,21 @@ impl EditorBackend for DatabaseEditor {
         }
     }
     fn execute(&mut self, c: &str, _: f64) -> Vec<HostEvent> {
+        if self.selection_command(c) {
+            return vec![];
+        }
         match c {
             UNDO => {
                 self.history.undo(&mut self.schema);
+                self.state.group.clear();
+                self.state.selected = None;
                 self.state.drag = None;
                 self.state.pending = None;
             }
             REDO => {
                 self.history.redo(&mut self.schema);
+                self.state.group.clear();
+                self.state.selected = None;
                 self.state.drag = None;
                 self.state.pending = None;
             }

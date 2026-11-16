@@ -4,9 +4,14 @@ use crate::editor::*;
 use op_core::document::{Document, DocumentCodec, JsonCodec};
 use op_core::i18n::key;
 
-view_state!(PetriEditor, PetriEditorView, uid: u64, view: View, last_canvas: Rect, snap: bool, fit_request: bool, show_inspector: Option<bool>, tab: SideTab, tool: Tool, drag: Option<Drag>, editing: Option<(NodeRef, String, bool)>, arc_pending: Option<NodeRef>, dnd: Option<Tool>, graph_view: View, graph_fit: bool, graph_key: Option<u64>, graph_open: bool);
+view_state!(PetriEditor, PetriEditorView, uid: u64, clipboard: ClipboardState, group: Vec<NodeRef>, selection: Option<Sel>, view: View, last_canvas: Rect, snap: bool, fit_request: bool, show_inspector: Option<bool>, tab: SideTab, tool: Tool, drag: Option<Drag>, editing: Option<(NodeRef, String, bool)>, arc_pending: Option<NodeRef>, dnd: Option<Tool>, graph_view: View, graph_fit: bool, graph_key: Option<u64>, graph_open: bool);
 
 const COMMANDS: &[CommandDescriptor] = &[
+    clipboard::COPY_COMMAND,
+    clipboard::CUT_COMMAND,
+    clipboard::PASTE_COMMAND,
+    clipboard::DUPLICATE_COMMAND,
+    clipboard::SELECT_ALL_COMMAND,
     CommandDescriptor {
         id: UNDO,
         label: key("common.undo"),
@@ -101,6 +106,9 @@ impl EditorBackend for PetriEditor {
         state.uid = canvas::next_uid();
         state.view = View::default();
         state.fit_request = true;
+        state.clipboard = ClipboardState::default();
+        state.group.clear();
+        state.selection = None;
         state.drag = None;
         state.editing = None;
         state.dnd = None;
@@ -191,6 +199,9 @@ impl EditorBackend for PetriEditor {
         COMMANDS
     }
     fn enabled(&self, command: &str) -> bool {
+        if let Some(enabled) = self.selection_command_enabled(command) {
+            return enabled;
+        }
         match command {
             UNDO => self.sim.is_none() && self.can_undo(),
             REDO => self.sim.is_none() && self.can_redo(),
@@ -200,6 +211,9 @@ impl EditorBackend for PetriEditor {
         }
     }
     fn execute(&mut self, command: &str, time: f64) -> Vec<HostEvent> {
+        if self.selection_command(command) {
+            return vec![];
+        }
         let _ = time;
         let mut events = Vec::new();
         if !self.enabled(command) && command != "bpmn.evaluation" {

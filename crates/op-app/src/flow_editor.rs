@@ -1,6 +1,7 @@
 //! Shared interactions for two typed notations: EPC and UML activity.
 //! Models and rules stay in op-core; all graphical chrome stays in DiagramLayout.
 use crate::canvas::{self, Palette, View};
+use crate::editor::clipboard::{CanvasClipboard, ClipboardState};
 use crate::editor::layout::{CanvasControls, DiagramLayout, FooterStatus};
 use crate::editor::*;
 use crate::history::History;
@@ -86,6 +87,7 @@ pub struct FlowView<K> {
     drag: Option<Drag>,
     export_png: bool,
     tab: bool,
+    clipboard: ClipboardState,
     status: String,
 }
 impl<K> Default for FlowView<K> {
@@ -105,6 +107,7 @@ impl<K> Default for FlowView<K> {
             drag: None,
             export_png: false,
             tab: false,
+            clipboard: ClipboardState::default(),
             status: String::new(),
         }
     }
@@ -217,6 +220,7 @@ impl<K: Notation> FlowEditor<K> {
         let pointer = ui.input(|i| i.pointer.interact_pos());
         let world = pointer.map(|p| self.state.camera.to_world(rect, p));
         let shift = ui.input(|i| i.modifiers.shift);
+        self.clipboard_ui(ui, &response);
         if response.hovered() && !ui.ctx().egui_wants_keyboard_input() {
             if ui.input(|i| i.key_pressed(Key::Delete) || i.key_pressed(Key::Backspace)) {
                 self.delete();
@@ -227,11 +231,6 @@ impl<K: Notation> FlowEditor<K> {
             if ui.input(|i| i.modifiers.command && i.key_pressed(Key::A)) {
                 self.state.selected = self.diagram.nodes.iter().map(|n| n.id).collect();
             }
-            if ui.input(|i| i.modifiers.command && i.key_pressed(Key::D)) {
-                self.history.sync(&self.diagram, false);
-                self.state.selected = self.diagram.duplicate(&self.state.selected);
-                self.history.sync(&self.diagram, false);
-            }
         }
         if response.drag_started_by(PointerButton::Primary)
             && let Some(screen) = ui.input(|i| i.pointer.press_origin())
@@ -240,7 +239,7 @@ impl<K: Notation> FlowEditor<K> {
             self.history.sync(&self.diagram, false);
             if ui.input(|i| i.key_down(Key::Space)) {
                 self.state.drag = Some(Drag::Pan);
-            } else if let Some((id, edge)) = self.resize_at(screen) {
+            } else if let Some((id, edge)) = self.resize_at(screen).filter(|_| !ui.input(|i| i.modifiers.alt)) {
                 self.state.selected.clear();
                 self.state.selected.insert(id);
                 self.state.flow = None;
@@ -258,6 +257,9 @@ impl<K: Notation> FlowEditor<K> {
                             self.state.selected.clear();
                         }
                         self.state.selected.insert(id);
+                    }
+                    if ui.input(|i| i.modifiers.alt) {
+                        self.duplicate_selection(Pos::default(), false);
                     }
                     let origins = self
                         .diagram
@@ -376,6 +378,18 @@ impl<K: Notation> FlowEditor<K> {
         }
         let pal = Palette::for_ui(ui);
         let p = ui.painter().with_clip_rect(rect);
+        if response.secondary_clicked()
+            && let Some(id) = world.and_then(|p| self.hit(p))
+            && !self.state.selected.contains(&id)
+        {
+            self.state.selected.clear();
+            self.state.selected.insert(id);
+            self.state.flow = None;
+        }
+        response.context_menu(|ui| {
+            crate::theme::menu_style(ui.style_mut());
+            self.selection_menu(ui);
+        });
         let exporting = std::mem::take(&mut self.state.export_png);
         canvas::draw_background(&p, rect, &self.state.camera, &pal);
         for f in &self.diagram.flows {
@@ -593,6 +607,11 @@ fn paint_shape(p: &egui::Painter, r: Rect, shape: Shape, stroke: Stroke, fill: C
 }
 
 const COMMANDS: &[CommandDescriptor] = &[
+    clipboard::COPY_COMMAND,
+    clipboard::CUT_COMMAND,
+    clipboard::PASTE_COMMAND,
+    clipboard::DUPLICATE_COMMAND,
+    clipboard::SELECT_ALL_COMMAND,
     CommandDescriptor {
         id: UNDO,
         label: key("common.undo"),
@@ -721,6 +740,9 @@ impl<K: Notation> EditorBackend for FlowEditor<K> {
         COMMANDS
     }
     fn enabled(&self, c: &str) -> bool {
+        if let Some(enabled) = self.selection_command_enabled(c) {
+            return enabled;
+        }
         match c {
             UNDO => self.history.can_undo(),
             REDO => self.history.can_redo(),
@@ -730,6 +752,9 @@ impl<K: Notation> EditorBackend for FlowEditor<K> {
         }
     }
     fn execute(&mut self, c: &str, _: f64) -> Vec<HostEvent> {
+        if self.selection_command(c) {
+            return vec![];
+        }
         match c {
             "flow.convert-to-mermaid" => return mermaid_exports::open(K::to_mermaid(&self.diagram)),
             UNDO => {
@@ -813,4 +838,47 @@ pub(crate) fn register_one<K: Notation>(registry: &mut DiagramRegistry, order: u
 pub fn register(registry: &mut DiagramRegistry) {
     register_one::<EpcKind>(registry, 9);
     register_one::<ActivityKind>(registry, 10);
+}
+
+impl<K: Notation> CanvasClipboard for FlowEditor<K> {
+    type Fragment = op_core::flow::Fragment<K>;
+    fn clipboard_state(&mut self) -> &mut ClipboardState {
+        &mut self.state.clipboard
+    }
+    fn clipboard_kind(&self) -> &'static str {
+        K::ID
+    }
+    fn has_selection(&self) -> bool {
+        !self.state.selected.is_empty()
+    }
+    fn fragment(&self) -> Self::Fragment {
+        self.diagram.fragment(&self.state.selected)
+    }
+    fn paste_fragment(&mut self, fragment: &Self::Fragment, delta: Pos, commit: bool) {
+        if commit {
+            self.history.sync(&self.diagram, false);
+        } else {
+            self.history.begin(&self.diagram);
+        }
+        match self.diagram.paste(fragment, delta) {
+            Ok(ids) => {
+                self.state.selected = ids;
+                self.state.flow = None;
+                self.state.pending = None;
+                self.state.tool = None;
+                self.state.connecting = false;
+                self.state.status.clear();
+            }
+            Err(error) => self.state.status = error,
+        }
+        if commit {
+            self.history.sync(&self.diagram, false);
+        }
+    }
+    fn cut_selection(&mut self) {
+        self.delete();
+    }
+    fn select_everything(&mut self) {
+        self.state.selected = self.diagram.nodes.iter().map(|n| n.id).collect();
+    }
 }

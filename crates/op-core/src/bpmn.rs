@@ -2,6 +2,7 @@
 //! events, tasks, gateways, sub-processes, data objects, annotations,
 //! sequence flows, message flows, pools and lanes.
 
+pub mod editing;
 use crate::geom::{Pos, Rect};
 use crate::i18n::{tr, trf};
 use serde::{Deserialize, Serialize};

@@ -5,6 +5,7 @@ mod render;
 
 mod inspector;
 
+mod editing;
 mod interaction;
 mod resize;
 
@@ -14,6 +15,7 @@ pub(crate) use session::register;
 use crate::editor::layout::{CanvasControls, DiagramLayout, FooterStatus};
 
 use crate::canvas::{self, InlineOutcome, Palette, View, to_pos2};
+use crate::editor::clipboard::{CanvasClipboard, ClipboardState};
 use crate::history::History;
 use egui::{
     Color32, CornerRadius, FontId, Key, Painter, PointerButton, Pos2, Rect, RichText, Sense, Shape, Stroke, StrokeKind, Ui, pos2, vec2,
@@ -79,6 +81,8 @@ pub struct BpmnEditor {
     pub export_png: bool,
     /// Multi-selection of nodes (rubber band, Shift+click, Ctrl+A).
     group: Vec<Id>,
+    pool_group: Vec<Id>,
+    pool_move_nodes: Vec<Id>,
     dnd: Option<Tool>,
     toolbar_rect: Rect,
     /// None = automatic (hidden when the pane is narrow).
@@ -90,6 +94,7 @@ pub struct BpmnEditor {
     selection: Option<Sel>,
     drag: Option<Drag>,
     connect_pending: Option<Id>,
+    clipboard: ClipboardState,
     history: History<BpmnDiagram>,
     pub status: String,
     snap: bool,
@@ -167,6 +172,8 @@ impl BpmnEditor {
             uid: canvas::next_uid(),
             export_png: false,
             group: Vec::new(),
+            pool_group: Vec::new(),
+            pool_move_nodes: Vec::new(),
             dnd: None,
             toolbar_rect: Rect::NOTHING,
             show_inspector: None,
@@ -177,6 +184,7 @@ impl BpmnEditor {
             selection: None,
             drag: None,
             connect_pending: None,
+            clipboard: ClipboardState::default(),
             history,
             status: String::new(),
             snap: true,
@@ -193,11 +201,15 @@ impl BpmnEditor {
     pub fn undo(&mut self) {
         self.history.undo(&mut self.diagram);
         self.selection = None;
+        self.group.clear();
+        self.pool_group.clear();
     }
 
     pub fn redo(&mut self) {
         self.history.redo(&mut self.diagram);
         self.selection = None;
+        self.group.clear();
+        self.pool_group.clear();
     }
 
     pub fn can_undo(&self) -> bool {
@@ -218,6 +230,9 @@ impl BpmnEditor {
     }
 
     pub fn delete_selection(&mut self) {
+        for id in std::mem::take(&mut self.pool_group) {
+            self.diagram.remove_pool(id);
+        }
         for id in std::mem::take(&mut self.group) {
             self.diagram.remove_node(id);
         }
@@ -474,6 +489,7 @@ impl BpmnEditor {
         let pointer = response.hover_pos().or(response.interact_pointer_pos());
         let wp = pointer.map(|p| self.view.to_world(canvas, p));
 
+        self.clipboard_ui(ui, &response);
         self.interaction(ui, &response, canvas, pointer, wp);
         if response.hovered() && !ui.ctx().egui_wants_keyboard_input() {
             self.shortcuts(ui);
@@ -481,7 +497,13 @@ impl BpmnEditor {
 
         // Image export: render this frame without selection, hover and palette.
         let exporting = std::mem::take(&mut self.export_png);
-        let saved = exporting.then(|| (self.selection.take(), std::mem::take(&mut self.group)));
+        let saved = exporting.then(|| {
+            (
+                self.selection.take(),
+                std::mem::take(&mut self.group),
+                std::mem::take(&mut self.pool_group),
+            )
+        });
         canvas::draw_background(&painter, canvas, &self.view, &pal);
         self.draw(
             &painter,
@@ -490,9 +512,10 @@ impl BpmnEditor {
             if exporting { None } else { wp },
             if exporting { None } else { pointer },
         );
-        if let Some((sel, group)) = saved {
+        if let Some((sel, group, pools)) = saved {
             self.selection = sel;
             self.group = group;
+            self.pool_group = pools;
             crate::io::request_png_export(
                 ui.ctx(),
                 canvas,

@@ -162,10 +162,22 @@ fallback endpoints. It reuses `DiagramLayout` and
 `canvas::floating`, registers its example and SVG export in composition, and
 keeps cameras/preferences per view. Geometry is semantic content for a drawing.
 
+The shared [selection controller](../crates/op-app/src/editor/clipboard.rs)
+provides default clipboard events, copy/cut/paste, duplicate/select-all commands,
+context actions and browser menu-paste fallback for graphical builders. BPMN,
+Petri, UML, EPC/activity, native flowcharts and database adapters implement
+`CanvasClipboard` with concrete fragment types. Domain extraction, validation,
+identity remapping and internal-link preservation stay in `op-core`. Alt-drag
+uses the same typed paste operation inside the movement's history transaction;
+Escape cancels both. BPMN pool gestures retain explicit copied node IDs so
+spatially overlapping originals cannot be moved with their copies. Selection and
+clipboard counters are transient per-view state, separate from `.opx` schemas.
+
 Portable drawing selections, fresh-ID paste and stable stacking order live in
 [whiteboard/editing.rs](../crates/op-core/src/whiteboard/editing.rs). The editor's
 [editing adapter](../crates/op-app/src/whiteboard_editor/editing.rs) handles
-system clipboard events, an application-local clipboard fallback on the web,
+system clipboard events through the shared event collector, an application-local
+clipboard fallback on the web,
 context actions and Alt-drag duplication. Clipboard fragments are transient,
 separate from the document/view schemas. The shell's Edit menu consumes extra
 `CommandGroup::Edit` descriptors from the active session; no notation-specific

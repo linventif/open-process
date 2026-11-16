@@ -1,10 +1,12 @@
 //! Relational schema editor. UI chrome is shared; database rules and DDL live in op-core.
+mod editing;
 mod inspector;
 mod render;
 mod session;
 pub(crate) use session::register;
 
 use crate::canvas::{self, View};
+use crate::editor::clipboard::{CanvasClipboard, ClipboardState};
 use crate::editor::layout::{CanvasControls, DiagramLayout, FooterStatus};
 use crate::editor::*;
 use crate::history::History;
@@ -16,7 +18,7 @@ use std::hash::{Hash, Hasher};
 
 #[derive(Clone)]
 enum Drag {
-    Move { table: Id, start: Pos, origin: Pos },
+    Move { start: Pos, origins: Vec<(Id, Pos)> },
     Resize { id: Id, gesture: canvas::resize::ResizeGesture },
     Pan,
     Connect(Id),
@@ -30,10 +32,12 @@ pub struct DatabaseView {
     snap: bool,
     inspector: Option<bool>,
     selected: Option<Id>,
+    group: std::collections::BTreeSet<Id>,
     validation: bool,
     connecting: bool,
     pending: Option<Id>,
     drag: Option<Drag>,
+    clipboard: ClipboardState,
     status: String,
     export_png: bool,
     sql_view: bool,
@@ -48,10 +52,12 @@ impl Default for DatabaseView {
             snap: true,
             inspector: None,
             selected: None,
+            group: Default::default(),
             validation: false,
             connecting: false,
             pending: None,
             drag: None,
+            clipboard: ClipboardState::default(),
             status: String::new(),
             export_png: false,
             sql_view: false,
@@ -99,6 +105,7 @@ impl DatabaseEditor {
         self.history.sync(&self.schema, false);
         let id = self.schema.add_table(pos);
         self.state.selected = Some(id);
+        self.state.group.clear();
         self.state.status.clear();
         self.history.sync(&self.schema, false);
     }
@@ -115,9 +122,13 @@ impl DatabaseEditor {
         self.history.sync(&self.schema, false);
     }
     fn delete_selected(&mut self) {
-        if let Some(id) = self.state.selected.take() {
+        let mut selected = std::mem::take(&mut self.state.group);
+        selected.extend(self.state.selected.take());
+        if !selected.is_empty() {
             self.history.sync(&self.schema, false);
-            self.schema.delete_table(id);
+            for id in selected {
+                self.schema.delete_table(id);
+            }
             self.state.pending = None;
             self.history.sync(&self.schema, false);
         }

@@ -46,6 +46,7 @@ impl DatabaseEditor {
         }
         let pointer = ui.input(|i| i.pointer.interact_pos());
         let world = pointer.map(|p| self.state.camera.to_world(rect, p));
+        self.clipboard_ui(ui, &response);
         if response.hovered() && !ui.ctx().egui_wants_keyboard_input() {
             if ui.input(|i| i.key_pressed(Key::Delete) || i.key_pressed(Key::Backspace)) {
                 self.delete_selected();
@@ -60,9 +61,10 @@ impl DatabaseEditor {
             let start = self.state.camera.to_world(rect, p);
             if ui.input(|i| i.key_down(Key::Space)) {
                 self.state.drag = Some(Drag::Pan);
-            } else if let Some((id, edge)) = self.resize_at(p) {
+            } else if let Some((id, edge)) = self.resize_at(p).filter(|_| !ui.input(|i| i.modifiers.alt)) {
                 self.history.sync(&self.schema, false);
                 self.state.selected = Some(id);
+                self.state.group.clear();
                 self.state.drag = Some(Drag::Resize {
                     id,
                     gesture: canvas::resize::ResizeGesture::new(self.schema.table(id).unwrap().rect(), edge, start),
@@ -74,12 +76,23 @@ impl DatabaseEditor {
                     self.state.drag = Some(Drag::Connect(id));
                     self.state.pending = Some(id);
                 } else {
-                    let t = self.schema.table(id).unwrap();
-                    self.state.drag = Some(Drag::Move {
-                        table: id,
-                        start,
-                        origin: Pos::new(t.bounds.x, t.bounds.y),
-                    });
+                    if !self.state.group.contains(&id) {
+                        if !ui.input(|i| i.modifiers.shift) {
+                            self.state.group.clear();
+                        }
+                        self.state.group.insert(id);
+                    }
+                    if ui.input(|i| i.modifiers.alt) {
+                        self.duplicate_selection(Pos::default(), false);
+                    }
+                    let origins = self
+                        .schema
+                        .tables
+                        .iter()
+                        .filter(|t| self.state.group.contains(&t.id))
+                        .map(|t| (t.id, Pos::new(t.bounds.x, t.bounds.y)))
+                        .collect();
+                    self.state.drag = Some(Drag::Move { start, origins });
                 }
             }
         }
@@ -87,14 +100,16 @@ impl DatabaseEditor {
             && let Some(p) = world
         {
             match &self.state.drag {
-                Some(Drag::Move { table, start, origin }) => {
+                Some(Drag::Move { start, origins }) => {
                     let mut delta = p - *start;
                     if self.state.snap {
                         delta = delta.snapped(10.0);
                     }
-                    if let Some(t) = self.schema.tables.iter_mut().find(|t| t.id == *table) {
-                        t.bounds.x = origin.x + delta.x;
-                        t.bounds.y = origin.y + delta.y;
+                    for (id, origin) in origins {
+                        if let Some(table) = self.schema.tables.iter_mut().find(|t| t.id == *id) {
+                            table.bounds.x = origin.x + delta.x;
+                            table.bounds.y = origin.y + delta.y;
+                        }
                     }
                 }
                 Some(Drag::Pan) => self.state.camera.offset += response.drag_delta(),
@@ -144,7 +159,18 @@ impl DatabaseEditor {
                     self.state.pending = None;
                 }
             } else {
-                self.state.selected = hit;
+                if ui.input(|i| i.modifiers.shift) {
+                    self.state.group.extend(self.state.selected);
+                    if let Some(id) = hit
+                        && !self.state.group.insert(id)
+                    {
+                        self.state.group.remove(&id);
+                    }
+                    self.state.selected = self.state.group.iter().next().copied();
+                } else {
+                    self.state.group.clear();
+                    self.state.selected = hit;
+                }
             }
         }
         if response.double_clicked()
@@ -154,6 +180,17 @@ impl DatabaseEditor {
         {
             self.add_table(if self.state.snap { p.snapped(10.0) } else { p });
         }
+        if response.secondary_clicked()
+            && let Some(id) = world.and_then(|p| self.hit_table(p))
+            && !self.state.group.contains(&id)
+        {
+            self.state.group.clear();
+            self.state.selected = Some(id);
+        }
+        response.context_menu(|ui| {
+            crate::theme::menu_style(ui.style_mut());
+            self.selection_menu(ui);
+        });
         let exporting = std::mem::take(&mut self.state.export_png);
         let pal = Palette::for_ui(ui);
         let painter = ui.painter().with_clip_rect(rect);
@@ -220,7 +257,7 @@ impl DatabaseEditor {
     fn draw_table(&self, p: &egui::Painter, canvas: Rect, t: &Table, pal: &Palette, exporting: bool) {
         let r = self.state.camera.rect_to_screen(canvas, t.rect());
         let z = self.state.camera.zoom;
-        let selected = !exporting && self.state.selected == Some(t.id);
+        let selected = !exporting && (self.state.selected == Some(t.id) || self.state.group.contains(&t.id));
         canvas::shadow_rect(p, r, 8.0, pal);
         p.rect_filled(r, 8.0, pal.fill);
         let header = Rect::from_min_size(r.min, vec2(r.width(), 36.0 * z));

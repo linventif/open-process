@@ -19,6 +19,13 @@ does not distinguish the automatic `main-*` releases.
 
 ### Editing
 
+- Share graphical selection clipboard actions across BPMN, Petri, UML, EPC,
+  activities, native flowcharts and database builders: copy/cut/paste across
+  same-notation documents, duplicate, select-all and Alt-drag duplication.
+  Preserve internal links with fresh IDs, keep text-field shortcuts, and undo
+  or cancel duplication and movement as one gesture. Drawing retains its
+  established clipboard and shares event ownership with other canvases.
+
 - Add Mermaid form authoring with explicit apply/remove actions, source-preserving
   tab switching and shared undo/redo. Expand the catalogue to 35 templates:
   27 have local previews; eight newer families retain source/forms and text

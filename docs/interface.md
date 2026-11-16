@@ -138,13 +138,26 @@ remains in the context menu and **Ctrl/Cmd+D**. UML class conversion to Mermaid
 is available in **Tools** and the canvas context menu, including narrow views;
 exam mode hides it. These actions retain their existing undo/conversion behavior.
 
-Free drawing exposes copy/cut/paste, duplicate, delete and select-all in **Edit**
-and its canvas context menu. **Alt+drag** duplicates a selection in one undoable
-gesture; **Shift+drag** constrains movement/drawing. The context menu also changes
-stacking order. **F2**, Enter or double-click focuses the selected element's text
-in the inspector. Focused text fields keep their own clipboard and undo behavior.
-The shortcut help and [drawing guide](dessin-libre.md) list keyboard equivalents
-and the browser menu-paste fallback.
+Graphical builders share copy/cut/paste, duplicate and select-all actions in
+**Edit** and their canvas context menu: BPMN, Petri, UML classes/use cases, EPC,
+activities, native flowcharts and database schemas. Use **Ctrl/Cmd+C**, **X**,
+**V**, **D** and **A**, respectively. Hold **Alt** when starting a selection drag
+to duplicate it; the copy and movement form one undo step, and **Escape** cancels
+both. Copies retain internal links and receive fresh identifiers. Paste works
+between documents of the same notation; unrelated clipboard text is ignored.
+Petri mutation actions are unavailable during simulation.
+
+Keyboard paste consumes system clipboard events on native and web builds.
+Native menu paste requests the system clipboard; browser menu paste uses the
+last selection copied within the application. Focused text fields retain their
+own clipboard and undo behavior, even with the pointer above the canvas.
+
+Free drawing retains its portable clipboard format, plain-text paste and
+**Alt+drag** duplication, including pressing Alt during an existing move.
+**Shift+drag** constrains movement/drawing. Its context menu also changes stacking
+order. **F2**, Enter or double-click focuses the selected element's text in the
+inspector. The shortcut help and [drawing guide](dessin-libre.md) list keyboard
+equivalents and the browser menu-paste fallback.
 
 These references cover BPMN, Petri, UML, EPC, database and [free drawing](dessin-libre.md).
 Text/table views such as Mining must not simulate a canvas to fit the layout.

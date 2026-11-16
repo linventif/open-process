@@ -102,13 +102,7 @@ impl WhiteboardEditor {
         if ui.ctx().egui_wants_keyboard_input() || !(response.hovered() || self.state.pending_paste.is_some()) {
             return;
         }
-        let events = ui.input_mut(|i| {
-            let (clipboard, remaining): (Vec<_>, Vec<_>) = std::mem::take(&mut i.events)
-                .into_iter()
-                .partition(|event| matches!(event, egui::Event::Copy | egui::Event::Cut | egui::Event::Paste(_)));
-            i.events = remaining;
-            clipboard
-        });
+        let events = crate::editor::clipboard::take_events(ui, response, self.state.pending_paste.is_some());
         let command = ui.input(|i| i.modifiers.command);
         let copy = events.iter().any(|e| matches!(e, egui::Event::Copy)) || command && ui.input(|i| i.key_pressed(Key::C));
         let cut = events.iter().any(|e| matches!(e, egui::Event::Cut)) || command && ui.input(|i| i.key_pressed(Key::X));

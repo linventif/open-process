@@ -8,6 +8,7 @@ pub(crate) use session::register;
 use crate::editor::layout::{CanvasControls, DiagramLayout, FooterStatus};
 
 use crate::canvas::{self, Palette, View};
+use crate::editor::clipboard::{CanvasClipboard, ClipboardState};
 use crate::history::History;
 use egui::{Align2, FontId, Key, Painter, PointerButton, Rect, Sense, Shape, Stroke, StrokeKind, Ui, pos2, vec2};
 use op_core::geom::{Pos, dist_to_polyline};
@@ -15,6 +16,7 @@ use op_core::i18n::{tr, trf};
 use std::collections::{BTreeSet, HashMap};
 
 mod draw;
+mod editing;
 mod interaction;
 mod tools;
 use op_core::uml::*;
@@ -58,7 +60,7 @@ pub struct UmlEditor {
     routes: HashMap<Id, Vec<Pos>>,
     routed_model: Option<UmlDiagram>,
     label_hits: Vec<(Id, Rect)>,
-    paste_count: u32,
+    clipboard: ClipboardState,
     history: History<UmlDiagram>,
     fit: bool,
     snap: bool,
@@ -70,6 +72,7 @@ pub struct UmlEditor {
 impl UmlEditor {
     pub fn new(diagram: UmlDiagram) -> Self {
         Self {
+            clipboard: ClipboardState::default(),
             history: History::new(&diagram),
             diagram,
             export_png: false,
@@ -87,7 +90,6 @@ impl UmlEditor {
             routes: HashMap::new(),
             routed_model: None,
             label_hits: Vec::new(),
-            paste_count: 0,
             fit: true,
             snap: true,
             show_inspector: None,

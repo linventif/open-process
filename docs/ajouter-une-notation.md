@@ -62,6 +62,18 @@ notation-specific size limits to the shared `geom::ResizeEdge` operation in
 `op-core`. Keep special constraints (such as lane separators or content minima)
 in the domain model, and commit/cancel the gesture through the typed history.
 
+Graphical builders implement `editor::clipboard::CanvasClipboard` with their own
+serializable fragment type. Reuse `clipboard_ui` for keyboard/platform events and
+`selection_menu` for context actions. Include the shared command descriptors and
+delegate availability/execution to `selection_command_enabled` and
+`selection_command`. Keep `ClipboardState` in transient view state. Extract and
+paste typed selections in `op-core`, validating external data and remapping all
+identities and internal references. Alt-drag calls `duplicate_selection` with a
+zero offset and `commit = false` before moving the copied selection; keep the
+whole gesture in one cancelable history transaction. Focused text fields must
+retain their clipboard events. Tables and source editors keep normal text/cell
+editing rather than implementing artificial draggable selections.
+
 For home-screen previews, `EditorBackend::thumbnail_rect` may return the rendered
 canvas rectangle. The fallback is the whole panel, useful for text/table views.
 The shell owns capture and PNG encoding; modules do not manage preview files or
