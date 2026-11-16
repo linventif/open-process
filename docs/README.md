@@ -8,6 +8,31 @@ Start with [getting started](getting-started.md) to use the application,
 [the current architecture](architecture-actuelle.md) to explore the code.
 For questions, bugs and suggestions, see [SUPPORT.md](../SUPPORT.md).
 
+The website publishes these maintained sources under
+[/docs/](https://open-process.linv.dev/docs/), with searchable navigation and a
+table of contents. French and Spanish routes localize the navigation; guide
+content is currently English.
+
+## Tool guides
+
+| Tool or workflow | User guide |
+| --- | --- |
+| Free drawing | [Shapes, text, arrows and clipboard](dessin-libre.md) |
+| Relational databases | [Tables, keys and SQL DDL](base-de-donnees-ddl.md) |
+| UML classes | [Classifiers, members and relationships](uml-classes.md) |
+| BPMN | [Process editing, validation and exchange](bpmn.md) |
+| UML use cases | [Actors, goals and system boundaries](uml-use-cases.md) |
+| Petri nets | [Token play, matrices and analysis](petri-nets.md) |
+| Process discovery | [Event logs, Alpha and trace replay](process-discovery.md) |
+| BPMN evaluation | [Costs, durations and assumptions](bpmn-evaluation.md) |
+| DMN | [Decision rules, hit policies and evaluation](dmn.md) |
+| EPC | [Events, functions and connectors](epc.md) |
+| UML activities | [Actions, control flows and guards](uml-activities.md) |
+| Mermaid | [Source, forms, preview and conversions](mermaid.md) |
+
+For missing documents, unavailable results and import errors, start with
+[troubleshooting](troubleshooting.md).
+
 ## Reading guide
 
 | Document | Purpose |

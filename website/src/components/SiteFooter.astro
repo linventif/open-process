@@ -1,9 +1,10 @@
 ---
-import { messages, localizedPath, type Language, type LegalPage } from "../lib/messages";
+import { messages, localizedPath, type Language, type SitePage } from "../lib/messages";
 import { legalMessages } from "../lib/legal";
+import { docsMessages } from "../lib/docs-messages";
 import { repository } from "../lib/site";
 
-interface Props { lang: Language; page?: LegalPage }
+interface Props { lang: Language; page?: SitePage }
 const { lang, page } = Astro.props;
 const t = legalMessages[lang];
 ---
@@ -11,6 +12,7 @@ const t = legalMessages[lang];
   <a class="brand" href={localizedPath(lang)}><img src="/assets/logo.svg" width="35" height="35" alt=""><span>Open Process<span class="brand-dot">.</span></span></a>
   <p>{messages[lang].footerText}</p>
   <nav class="footer-links" aria-label={t.navigation}>
+    <a href={localizedPath(lang, "docs")} aria-current={page === "docs" ? "page" : undefined}>{docsMessages[lang].title}</a>
     <a href={localizedPath(lang, "terms")} aria-current={page === "terms" ? "page" : undefined}>{t.termsLabel}</a>
     <a href={localizedPath(lang, "privacy")} aria-current={page === "privacy" ? "page" : undefined}>{t.privacyLabel}</a>
     <a href={repository}>GitHub <span aria-hidden="true">↗</span></a>

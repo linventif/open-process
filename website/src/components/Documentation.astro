@@ -1,0 +1,90 @@
+---
+import Page from "../layouts/Page.astro";
+import LanguageMenu from "./LanguageMenu.astro";
+import ColorModeToggle from "./ColorModeToggle.astro";
+import SiteFooter from "./SiteFooter.astro";
+import { messages, localizedPath, type Language, type SitePage } from "../lib/messages";
+import { docsMessages } from "../lib/docs-messages";
+import { documentation, docGroups, docsPath, type DocEntry } from "../lib/docs-catalogue";
+import { docHtml, docSource } from "../lib/docs";
+import { cloudApp, repository } from "../lib/site";
+import "../styles/docs.css";
+
+interface Props { lang: Language; entry?: DocEntry }
+const { lang, entry } = Astro.props;
+const t = docsMessages[lang];
+const page: SitePage = entry ? `docs/${entry.slug}` : "docs";
+const title = entry ? `${entry.title} — ${t.title} — Open Process` : `${t.title} — Open Process`;
+const html = entry ? await docHtml(entry, lang) : "";
+const headings = entry ? docSource(entry).getHeadings().filter(heading => heading.depth === 2) : [];
+const peers = entry ? documentation.filter(doc => doc.group === entry.group) : [];
+const position = peers.findIndex(doc => doc.slug === entry?.slug);
+const previous = peers[position - 1];
+const next = peers[position + 1];
+const searchText = (doc: DocEntry) => `${doc.title} ${doc.description} ${doc.keywords ?? ""} ${t[doc.group]}`;
+---
+<Page lang={lang} page={page} title={title} description={entry?.description ?? t.intro}>
+  <a class="skip-link" href="#main">{messages[lang].skip}</a>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href={localizedPath(lang)} aria-label="Open Process"><img src="/assets/logo.svg" width="45" height="45" alt=""><span>Open Process<span class="brand-dot">.</span></span></a>
+      <nav aria-label={messages[lang].navLabel}><a href={docsPath(lang)} aria-current={!entry ? "page" : undefined}>{t.title}</a></nav>
+      <div class="header-actions">
+        <ColorModeToggle lang={lang} />
+        <LanguageMenu lang={lang} page={page} />
+        <a class="button button-small button-dark" href={new URL(cloudApp).pathname}><span>{messages[lang].getApp}</span><span aria-hidden="true">↗</span></a>
+      </div>
+    </div>
+  </header>
+  <div class="container docs-shell" data-docs-root>
+    <aside class="docs-sidebar">
+      <details class="docs-navigation" open>
+        <summary>{t.browse}<span aria-hidden="true">▾</span></summary>
+        <div class="docs-navigation-body">
+          <a class="docs-home" href={docsPath(lang)} aria-current={!entry ? "page" : undefined}>{t.title}<span aria-hidden="true">↗</span></a>
+          <div class="docs-search" hidden>
+            <label for="docs-search">{t.search}</label>
+            <input id="docs-search" type="search" placeholder={t.placeholder} autocomplete="off" aria-controls="docs-guide-navigation" />
+            <p class="docs-search-status" role="status" data-results-label={t.results}></p>
+          </div>
+          <nav id="docs-guide-navigation" aria-label={t.browse}>
+            {docGroups.map(group => <section class="docs-nav-group" data-doc-group>
+              <h2>{t[group]}</h2>
+              <ul>{documentation.filter(doc => doc.group === group).map(doc => <li data-doc-item data-search={searchText(doc)} data-doc-slug={doc.slug}><a href={docsPath(lang, doc.slug)} aria-current={entry?.slug === doc.slug ? "page" : undefined} lang="en">{doc.title}</a></li>)}</ul>
+            </section>)}
+          </nav>
+          <p class="docs-empty" hidden>{t.empty}</p>
+        </div>
+      </details>
+    </aside>
+    <main id="main" class:list={["docs-main", { "docs-article-layout": entry }]}>
+      <div class="docs-body">
+        <nav class="docs-breadcrumbs" aria-label={t.browse}>
+          <a href={localizedPath(lang)}>{t.home}</a><span aria-hidden="true">/</span>
+          {entry ? <><a href={docsPath(lang)}>{t.title}</a><span aria-hidden="true">/</span><span lang="en">{entry.title}</span></> : <span aria-current="page">{t.title}</span>}
+        </nav>
+        {entry ? <>
+          <div class="docs-article-meta"><span class="eyebrow">{t[entry.group]}</span><a href={`${repository}/blob/main/${entry.source}`}>{t.source}<span aria-hidden="true"> ↗</span></a></div>
+          {lang !== "en" && <p class="docs-language-note">{t.english}</p>}
+          {headings.length > 0 && <details class="docs-inline-toc"><summary>{t.contents}</summary><ul>{headings.map(heading => <li><a href={`#${heading.slug}`} lang="en">{heading.text}</a></li>)}</ul></details>}
+          <article class="doc-content" lang="en" set:html={html} />
+          <nav class="docs-pagination" aria-label={t.browse}>
+            {previous ? <a href={docsPath(lang, previous.slug)}><span>{t.previous}</span><strong lang="en">← {previous.title}</strong></a> : <span />}
+            {next && <a href={docsPath(lang, next.slug)}><span>{t.next}</span><strong lang="en">{next.title} →</strong></a>}
+          </nav>
+        </> : <>
+          <div class="docs-intro"><p class="eyebrow">OPEN PROCESS / DOCS</p><h1>{t.title}<span class="accent">.</span></h1><p>{t.intro}</p><a class="button button-dark" href={docsPath(lang, "getting-started")}>{t.start}<span aria-hidden="true">→</span></a></div>
+          {lang !== "en" && <p class="docs-language-note">{t.english}</p>}
+          {docGroups.map(group => <section class="docs-card-group" data-doc-group aria-labelledby={`group-${group}`}>
+            <div class="docs-group-heading"><h2 id={`group-${group}`}>{t[group]}</h2><p>{t[`${group}Intro`]}</p></div>
+            <div class="docs-card-grid">{documentation.filter(doc => doc.group === group).map(doc => <a class="docs-card" href={docsPath(lang, doc.slug)} data-doc-item data-search={searchText(doc)} data-doc-slug={doc.slug} lang="en"><h3>{doc.title}<span aria-hidden="true">→</span></h3><p>{doc.description}</p></a>)}</div>
+          </section>)}
+          <p class="docs-empty" hidden>{t.empty}</p>
+        </>}
+      </div>
+      {entry && headings.length > 0 && <aside class="docs-toc"><nav aria-label={t.contents}><p class="mono">{t.contents}</p><ul>{headings.map(heading => <li><a href={`#${heading.slug}`} lang="en">{heading.text}</a></li>)}</ul></nav></aside>}
+    </main>
+  </div>
+  <SiteFooter lang={lang} page={page} />
+</Page>
+<script>import "../scripts/docs";</script>

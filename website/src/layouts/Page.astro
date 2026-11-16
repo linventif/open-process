@@ -1,11 +1,11 @@
 ---
-import { messages, languages, localizedPath, languageLocales, type Language, type LegalPage } from "../lib/messages";
+import { messages, languages, localizedPath, languageLocales, type Language, type SitePage } from "../lib/messages";
 import { cloudApp, repository } from "../lib/site";
 import { isPreview } from "../lib/deployment";
 import "../styles/global.css";
 import "../styles/color-mode.css";
 
-interface Props { lang: Language; page?: LegalPage; title?: string; description?: string; noindex?: boolean }
+interface Props { lang: Language; page?: SitePage; title?: string; description?: string; noindex?: boolean }
 const { lang, page, title = messages[lang].title, description = messages[lang].description, noindex = false } = Astro.props;
 const site = Astro.site!;
 const canonical = new URL(localizedPath(lang, page), site);

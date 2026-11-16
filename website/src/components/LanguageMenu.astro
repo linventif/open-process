@@ -1,8 +1,8 @@
 ---
-import { messages, languages, languageNames, localizedPath, type Language, type LegalPage } from "../lib/messages";
+import { messages, languages, languageNames, localizedPath, type Language, type SitePage } from "../lib/messages";
 import LanguageFlag from "./LanguageFlag.astro";
 
-interface Props { lang: Language; page?: LegalPage }
+interface Props { lang: Language; page?: SitePage }
 const { lang, page } = Astro.props;
 ---
 <details class="language-dropdown" id="language-dropdown">

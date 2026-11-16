@@ -143,12 +143,14 @@ covered metadata, alternate URLs, sitemap entries, CSP routes, scripts, local
 links and section anchors. Current checks also cover retired preference/URL
 handling and retained light/dark behavior.
 
-The presentation covers the eleven registered document types and the BPMN
-cost/duration workflow, in home-screen order. Cards link to the corresponding
-repository guides. Keep feature descriptions within the implemented scope in
+The presentation covers the main document types and the BPMN cost/duration
+workflow, in home-screen order. Cards link to the corresponding internal guides. Keep feature descriptions within the implemented scope in
 those guides; translations share the English message keys. The local-saving
 section distinguishes desktop Documents/Open Process, browser local storage and
 manual `.opx` copies. Clearing browser storage removes its automatic copies.
+The learning callout and its navigation link have been removed from all three
+language versions; the feature cards still describe Petri analysis and Alpha
+discovery.
 
 The gallery has eight actual application views, with drawing first. Its counter
 derives from the rendered tabs. Classic has light/dark 1400 × 860 WebP
@@ -172,6 +174,44 @@ Classic fallbacks for initial HTML, metadata and the no-JavaScript page.
 
 The transparent logo and favicons in `public/icons/` derive from shared native/web
 vector artwork. See [the icon guide](../docs/icone.md) to regenerate formats.
+
+## Integrated documentation
+
+`/docs/` is the documentation home; `/fr/docs/` and `/es/docs/` provide localized
+navigation. Every catalogue card now opens the corresponding internal tool
+guide. The header and shared footer also link to documentation.
+
+The site renders the maintained Markdown in `../docs/` directly, along with the
+project overview, contribution/community pages and this README. There is no
+second copy of their prose. New practical guides cover BPMN, Petri, UML classes
+and use cases, discovery, BPMN evaluation, DMN, EPC, UML activities and
+troubleshooting. General guides cover the interface, saving, formats and
+compatibility; project documents and historical/proposed work have their own
+navigation groups. The English guide content is marked `lang="en"`; French and
+Spanish pages explicitly identify this fallback.
+
+`src/lib/docs-catalogue.ts` declares source paths, stable public slugs, groups,
+descriptions, search keywords and the tool-to-guide mapping. Add a catalogue
+entry when adding a maintained Markdown guide. `src/lib/docs.ts` imports Astro's
+Markdown modules and resolves relative guide links for the current route
+language. Code/source links retain their repository destination; the annotated
+interface SVG and SQL examples are also served locally under `/docs-assets/`.
+
+`Documentation.astro` shares branding, color preferences, language switching and
+page metadata with the rest of the site. Guides have a section table of contents,
+active navigation and previous/next links within their group. On smaller screens,
+the guide menu and section contents use native expandable controls. Every guide,
+navigation link and table of contents is readable without JavaScript. JavaScript
+adds accent-insensitive filtering by guide title, description and keywords, with
+a result count and an empty state; it makes no network request.
+
+Documentation routes use the presentation CSP without inline styles or scripts.
+Markdown code blocks are plain text styled by the shared documentation stylesheet.
+Astro generates canonical URLs, matching language alternates and sitemap entries.
+Documentation tests verify source coverage, all tool destinations, rendered
+metadata, local links/anchors, assets and language-preserving navigation. Run
+`bun run build:site` before output-dependent documentation tests. A full
+`bun run build` remains necessary before tests that inspect the shipped Wasm app.
 
 ## Downloads and CI/CD
 
@@ -215,8 +255,9 @@ downloads and mobile layout. Spanish and EN/FR/ES links were checked by builds/H
 tests, without an additional interactive browser validation for that addition.
 See [the verification record](../docs/verification.md) for historical check scope.
 
-After a complete build, an installed Firefox can run all four Wasm job types,
-cancellation and error handling against the shipped app CSP:
+After a complete build, an installed Firefox can exercise the Petri, discovery,
+BPMN evaluation and Mermaid preview jobs, cancellation and error handling against
+the shipped app CSP:
 
 ```sh
 python3 ../scripts/check-web-worker.py

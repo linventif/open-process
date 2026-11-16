@@ -6,6 +6,8 @@ export default defineConfig({
   site: getSiteUrl(process.env.SITE_URL),
   output: "static",
   trailingSlash: "always",
+  // Plain code blocks keep documentation compatible with the no-inline-style CSP.
+  markdown: { syntaxHighlight: false },
   // Keep executable scripts in cacheable files, compatible with the Pages CSP.
   vite: { build: { assetsInlineLimit: 0 } },
   i18n: {

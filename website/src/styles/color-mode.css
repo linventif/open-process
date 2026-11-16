@@ -20,10 +20,6 @@
 .terminal { background: var(--dark-bg); color: var(--dark-text); border-color: var(--line); }
 .terminal-heading, .code-comment, .terminal > a { color: var(--dark-muted); }
 .code-accent { color: var(--dark-accent); }
-.learning { background: var(--dark-bg); color: var(--dark-text); }
-.learning-copy .eyebrow, .learning-copy > p:not(.eyebrow), .learning-steps p, .learning-footer { color: var(--dark-muted); }
-.light-link { color: var(--dark-text); }
-.learning .accent, .step-marker, .learning-footer > .mono { color: var(--dark-accent); }
 .preview-tabs button[aria-selected="true"] { background: var(--white); color: var(--ink); border-color: var(--line); }
 .preview-tabs button:hover { background: var(--white); }
 .download-card, .catalogue-card { background: var(--white); }

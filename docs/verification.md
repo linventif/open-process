@@ -1304,6 +1304,46 @@ These are local checks. The failed GitHub run was inspected but not rerun;
 native release builds, the website build, other operating systems and the remote
 CI matrix were not rerun for this correction.
 
+## Integrated website documentation — 16 November 2026
+
+The website now publishes 40 maintained documentation sources under `/docs/`,
+with equivalent navigation routes under `/fr/docs/` and `/es/docs/`. The landing
+catalogue's twelve tool/workflow links open dedicated internal guides. Ten new
+English guides cover the previously missing tool workflows and troubleshooting;
+existing Markdown guides and project documents are rendered directly.
+
+The documentation includes grouped navigation, accent-insensitive title/summary/
+keyword filtering, section contents, group-local previous/next links and active
+page state. Language switching keeps the selected guide; French and Spanish
+navigation explicitly identifies the English article content. Relative guide
+links keep the route language; source links remain repository links. Interface
+artwork and SQL examples are available locally. Presentation CSP rules also
+cover the documentation routes, without inline scripts or syntax-highlighter
+styles.
+
+Local checks performed:
+
+- `bun run build:site`: Astro/TypeScript reports zero errors, warnings and hints;
+  the static build generates 133 HTML pages, including 123 documentation pages.
+- `bun test --test-name-pattern '^(?!the shared Cloudflare output|the standalone app)'`:
+  22 tests pass. The two output tests that require a freshly built Wasm application
+  are deliberately excluded from this presentation-only check.
+- Documentation tests cover every maintained `docs/*.md` source, all twelve tool
+  destinations, local guide/asset links and anchors, labelled heading targets,
+  language alternates, canonical URLs, sitemap entries and the documentation CSP.
+- A temporary headless Firefox harness exercises the built site's presentation
+  script/style restrictions. All 21 browser assertions pass: internal guide links, search
+  normalization/multiple terms/empty/reset states, article rendering, language
+  switching, desktop contents, saved color preference, compact menu interaction,
+  viewport resizing, local image loading and absence of page overflow on the
+  index/database/interface pages at 375 px.
+- Desktop index and mobile dark-mode BPMN screenshots were visually inspected.
+  Temporary Firefox profiles and the owned localhost server were closed.
+- `git diff --check` passes.
+
+The combined Rust/Wasm build, the full Rust suite, other browsers/operating
+systems, remote CI and production deployment were not run for this website work.
+
 ## Mermaid catalogue, forms and initial native flowcharts — 16 November 2026
 
 **The request for complete native graphical editors for every Mermaid family is
@@ -1366,7 +1406,7 @@ installation failed because npm registry DNS resolution was unavailable. Newer
 starter forms follow the official syntax documentation without claiming full
 grammar validation. Native release builds, the website/Trunk build, browser
 interaction, other operating systems and remote CI were not run for this Mermaid
-work.
+work. The separate website verification above describes independent website work.
 
 ## Shared graphical selection editing (2026-11-16)
 
@@ -1399,3 +1439,18 @@ Checks performed on the final checkout:
 UI coverage uses egui clipboard/pointer event simulations. Physical OS/browser
 clipboard integration, native release builds and the full three-OS CI matrix
 were not exercised by these local checks.
+
+## Combined commit preparation checks — 16 November 2026
+
+The remaining selection-editing and website documentation changes were checked
+together before committing them. The complete sequential workspace suite passed
+251 tests (116 application and 135 core). Native and WebAssembly checks passed.
+Four nested conditions flagged by strict Clippy were simplified without changing
+short-circuit behavior; the five selection-editing UI tests were rerun afterward,
+and strict Clippy plus formatting checks pass.
+
+The site and application builds were both run with `bun run build:site` and
+`bun run build:app`; the latter rebuilt the release WebAssembly application.
+The complete `bun test` suite passes all 24 tests, including the previously
+excluded output checks and the documentation link/anchor/CSP checks. No new
+interactive browser run or remote CI matrix was performed for commit preparation.
