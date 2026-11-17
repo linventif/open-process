@@ -1522,3 +1522,28 @@ and semantic-version dependencies are native-only. These local Linux checks do
 not establish an actual GitHub-to-desktop download or Windows/macOS behavior.
 No native release build, combined site/WebAssembly release build, remote CI run,
 publication or deployment was performed for this change.
+
+## Website dependency advisory gate — 17 November 2026
+
+The [desktop update commit's website audit](https://github.com/linventif/open-process/actions/runs/44139862108/job/134239381062)
+failed on `picomatch` advisory `GHSA-fc5q-39xc-vjpf`. The same online audit was
+reproduced locally. The reviewed advisory lists no patched version; the npm
+registry reports 4.0.7 as latest. The dependency remains unpatched. A single-GHSA,
+time-limited exception for repository-controlled build globs is documented in
+[SECURITY.md](../SECURITY.md#dependency-audit-exception), with automatic expiry
+at 00:00 UTC on 1 December 2026. The complete advisory report remains in CI logs;
+other advisories and registry failures still block the gate.
+
+Online `bun run audit` passes with the exception banner and the unfiltered
+`picomatch` report. Running it without network access returns failure rather
+than a clean audit. Two policy tests pass, covering the exact advisory scope,
+UTC expiry boundary and invalid-date behavior. Frozen installation with ignored
+scripts passes without dependency or lockfile changes. Security workflow YAML
+and the website/Rust audit commands were checked.
+
+Astro checks and the static build pass; after permitting Cargo cache writes, the
+WebAssembly release build completes the combined output. All **26 Bun tests**
+pass, including output assets, documentation links/anchors and the new audit
+policy tests. Local checks used Bun 1.4.0; CI selects 1.4.4. Local documentation
+file links and `git diff --check` pass. No Rust source changed, so native builds
+and the Rust workspace suite were not repeated for this audit-policy change.

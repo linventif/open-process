@@ -237,6 +237,14 @@ tests and four target builds succeed; `v*` tags are supported too. `main-*` buil
 and prerelease tags remain prereleases; only `vMAJOR.MINOR.PATCH` becomes latest
 stable. Release assets include `SHA256SUMS`. Dependency audits and executable
 SQLite checks are part of CI; action versions are pinned to commits.
+
+Use `bun run audit` to run the website dependency gate used in CI. It audits the
+complete lockfile and retains the full JSON advisory report. A temporary exception
+for the unpatched build-tool advisory `GHSA-fc5q-39xc-vjpf` expires automatically
+on 1 December 2026 at 00:00 UTC; other advisories and network failures still block
+CI. Raw `bun audit` reports the exception too. See the
+[review and removal criteria](../SECURITY.md#dependency-audit-exception).
+
 Cloudflare Pages is the deployment target and builds/deploys through its Git
 integration. The GitHub Actions website job only validates the build and uploads
 an artifact; it does not publish a site.

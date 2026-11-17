@@ -9,6 +9,9 @@ does not distinguish the automatic `main-*` releases.
 
 ### Dependencies and CI
 
+- Keep website audits blocking while temporarily excepting the reviewed,
+  unpatched `picomatch` advisory for repository-controlled build globs. Retain the
+  full report and automatically expire the exception on 1 December 2026 UTC.
 - Embed the published release identifier in native binaries and check for updates
   in the background at startup. Show a translated popup with the matching system
   download and release notes, plus a manual check in Help; keep stable and
