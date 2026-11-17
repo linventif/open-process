@@ -1656,4 +1656,26 @@ pub const TABLE: &[(&str, &str)] = &[
     ("drawing.duplicate_drag_keys", "Dessin : Alt + glisser"),
     ("drawing.constrain_drag_keys", "Dessin : Maj + glisser"),
     ("drawing.order_keys", "Dessin : Ctrl/Cmd+[ / ]"),
+    ("updates.available", "Une nouvelle version est disponible"),
+    ("updates.check", "Rechercher des mises à jour…"),
+    ("updates.checking", "Recherche de mises à jour…"),
+    (
+        "updates.current",
+        "Aucune version plus récente n’est disponible dans ce canal de versions.",
+    ),
+    ("updates.download", "Télécharger pour cet ordinateur"),
+    (
+        "updates.failed",
+        "Impossible de rechercher les mises à jour. Réessayez plus tard ou consultez les versions publiées.",
+    ),
+    ("updates.installed", "Version installée : {}"),
+    ("updates.later", "Plus tard"),
+    ("updates.latest", "Version disponible : {}"),
+    (
+        "updates.manual_install",
+        "Téléchargez la nouvelle version, puis fermez Open Process avant de remplacer l’application installée.",
+    ),
+    ("updates.release_notes", "Notes de version et autres téléchargements"),
+    ("updates.releases", "Voir les versions publiées"),
+    ("updates.title", "Mises à jour du logiciel"),
 ];

@@ -11,6 +11,8 @@ use op_core::i18n::{tr, trf};
 mod automatic;
 mod new_document;
 mod thumbnails;
+#[cfg(not(target_arch = "wasm32"))]
+mod updates;
 
 #[cfg(test)]
 use crate::{bpmn_editor::BpmnEditor, petri_editor::PetriEditor, uml_editor::UmlEditor};
@@ -58,6 +60,8 @@ pub struct OpenProcessApp {
     automatic: autosave::Library,
     automatic_error: Option<String>,
     automatic_attempts: std::collections::HashMap<u64, f64>,
+    #[cfg(not(target_arch = "wasm32"))]
+    updates: updates::Updates,
 }
 
 impl OpenProcessApp {
@@ -94,6 +98,8 @@ impl OpenProcessApp {
             automatic,
             automatic_error,
             automatic_attempts: Default::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            updates: updates::Updates::default(),
         };
         if let Some(storage) = cc.storage {
             let mut map = std::collections::HashMap::new();
@@ -172,6 +178,10 @@ impl OpenProcessApp {
         app.active = app.active.min(app.docs.len().saturating_sub(1));
         app.set_active(app.active);
         app.show_home = true;
+        #[cfg(not(target_arch = "wasm32"))]
+        if !cfg!(test) {
+            app.updates.start(&cc.egui_ctx, false);
+        }
         app
     }
 
@@ -444,11 +454,23 @@ impl OpenProcessApp {
         }
     }
 
+    fn update_dialog_open(&self) -> bool {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.updates.is_open()
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            false
+        }
+    }
+
     fn thumbnail_capture_blocked(&self, ctx: &egui::Context) -> bool {
         self.show_home
             || self.new_picker.is_some()
             || self.show_about
             || self.show_shortcuts
+            || self.update_dialog_open()
             || self.confirm_close.is_some()
             || egui::Popup::is_any_open(ctx)
             || ctx.memory(|m| m.top_modal_layer().is_some())
@@ -495,7 +517,7 @@ impl OpenProcessApp {
     }
 
     fn shortcuts(&mut self, ui: &mut Ui) {
-        if self.new_picker.is_some() {
+        if self.new_picker.is_some() || self.update_dialog_open() {
             return;
         }
         let sc = |m: Modifiers, k: Key| KeyboardShortcut::new(m, k);
@@ -780,6 +802,8 @@ impl OpenProcessApp {
                 if ui.button(tr("app.about_open_process")).clicked() {
                     self.show_about = true;
                 }
+                #[cfg(not(target_arch = "wasm32"))]
+                self.updates.menu(ui);
             });
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 theme_toggle(ui);
@@ -793,7 +817,13 @@ impl OpenProcessApp {
 
     fn dialogs(&mut self, ui: &Ui) {
         let ctx = ui.ctx().clone();
+        #[cfg(not(target_arch = "wasm32"))]
+        let update_blocked = self.new_picker.is_some() || self.confirm_close.is_some() || self.show_about || self.show_shortcuts;
         self.new_document_dialog(&ctx);
+        #[cfg(not(target_arch = "wasm32"))]
+        if !update_blocked {
+            self.updates.dialog(&ctx);
+        }
         if self.show_about {
             egui::Window::new(tr("app.about_open_process"))
                 .collapsible(false)
@@ -806,6 +836,10 @@ impl OpenProcessApp {
                     });
                     ui.label(trf("app.version", &[&(env!("CARGO_PKG_VERSION"))]));
                     ui.label(trf("app.build", &[&env!("OP_BUILD_ID")]));
+                    #[cfg(not(target_arch = "wasm32"))]
+                    if let Some(tag) = crate::platform::updates::installed_release() {
+                        ui.label(trf("updates.installed", &[&tag]));
+                    }
                     ui.label(tr("app.free_open_source_process_modelling_analysis_bpmn"));
                     ui.label(tr("app.written_rust_egui_runs_natively_windows_macos"));
                     ui.label(tr("app.license_mit_apache_2_0"));
@@ -1154,6 +1188,8 @@ impl eframe::App for OpenProcessApp {
     }
 
     fn ui(&mut self, ui: &mut Ui, _frame: &mut eframe::Frame) {
+        #[cfg(not(target_arch = "wasm32"))]
+        self.updates.poll();
         crate::editor::exam::set_active(ui.ctx(), self.exam_mode);
         self.automatic_status(ui);
         self.thumbnails.poll(ui.ctx(), &self.docs, &self.automatic.entries);

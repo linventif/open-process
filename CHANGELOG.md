@@ -9,6 +9,13 @@ does not distinguish the automatic `main-*` releases.
 
 ### Dependencies and CI
 
+- Embed the published release identifier in native binaries and check for updates
+  in the background at startup. Show a translated popup with the matching system
+  download and release notes, plus a manual check in Help; keep stable and
+  automatic `main-*` channels separate and startup network failures silent.
+- Ad-hoc sign complete macOS application bundles, verify their signatures before
+  archiving and after release extraction, and document the local workaround for
+  older builds reported as damaged. Apple notarization remains unavailable.
 - Upgrade resvg/usvg to 0.50 and the wgpu/naga stack to 30.0.2; refresh the Rust
   lockfile and remove the obsolete rustybuzz dependency.
 - Update Astro to 7.4.12, sitemap to 3.7.5 and website transitive dependencies.

@@ -1468,3 +1468,57 @@ and 135 core). Native and WebAssembly compilation, workspace formatting, the 12
 local links in the drawing guide and `git diff --check` pass. These are local
 Linux and egui checks; browser interaction, release builds and the remote CI
 matrix were not run for this change.
+
+## macOS application bundle signing — 17 November 2026
+
+The packaging script now ad-hoc signs the complete macOS `.app` after adding
+metadata, icons and licences, then requires strict signature verification before
+archiving. The release workflow also verifies the bundle extracted from each
+macOS distribution archive before uploading it. This does not provide Developer
+ID signing or Apple notarization, and does not establish the exact cause of a
+particular user's Gatekeeper alert.
+
+On Linux with Python 3.14.4, four packaging tests pass, covering archive contents,
+Linux installation, complete-bundle signing order and failure propagation. The
+fifth test is macOS-only and was skipped locally: it compiles a real executable,
+packages and extracts it, verifies and executes it, then checks that modifying a
+bundled resource invalidates the signature. Existing macOS CI will run that test;
+no remote CI result is claimed here.
+
+`bun run build:site` passes Astro checks and the static site build. Ten targeted
+Bun tests pass, including generated documentation links/anchors and release
+download selection (local Bun 1.4.0). Release workflow YAML, Bash syntax and
+embedded Python syntax checks pass, as does `git diff --check`.
+
+No Rust source changed, so workspace tests and native/WebAssembly builds were
+not repeated. No actual macOS signing, quarantined-download launch, full CI
+matrix, Developer ID/notarization operation or publication was performed locally.
+
+## Desktop release checks — 17 November 2026
+
+Official native builds embed the release tag computed once by the release
+workflow. A native platform service checks GitHub metadata on a background thread
+and the shell shows translated update, download and release-note links. Stable
+and automatic `main-*` builds use separate channels. Startup failures stay quiet;
+manual checks report the result. No document or workspace schema changed.
+
+The complete sequential workspace suite passed. The final nine focused updater
+tests also pass with `OP_RELEASE_TAG=main-123-abcdef0`, covering displayed build
+identity, semantic and automatic-build comparisons, identical commits, incomplete
+uploads, platform downloads, untrusted metadata URLs, malformed responses,
+nonblocking polling, popup dismissal, keyboard ownership, links and three
+interface languages. Tests inject metadata/results without making live update
+requests. The update popup screenshot was visually inspected.
+
+Native and WebAssembly `cargo check --locked -p op-app`, strict workspace Clippy,
+formatting and `git diff --check` pass. The site build and ten targeted Bun tests
+pass, including documentation links/anchors and release download selection.
+Release workflow YAML/script syntax, stable/preview/automatic release-tag cases,
+and the shared compilation/publication tag were checked locally.
+
+`cargo audit --no-fetch --no-yanked` passed against the locally available RustSec
+database, with four warnings about existing unmaintained transitive dependencies. The new HTTPS
+and semantic-version dependencies are native-only. These local Linux checks do
+not establish an actual GitHub-to-desktop download or Windows/macOS behavior.
+No native release build, combined site/WebAssembly release build, remote CI run,
+publication or deployment was performed for this change.

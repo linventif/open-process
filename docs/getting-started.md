@@ -12,6 +12,27 @@ anything, or download your platform's build from
 Desktop packaging and installation are described in the
 [README](../README.md#automatic-releases).
 
+## Desktop updates
+
+Official desktop builds check GitHub for a newer release once at startup without
+blocking the interface. When an update is available, a popup shows the installed
+and available release identifiers, a download link for this computer, and a link
+to release notes and other downloads. **Later** dismisses it for this session.
+Download the new build, close Open Process, then replace the installed application.
+
+Use **Help → Check for updates…** to retry or check manually. A network failure
+at startup stays silent; a manual check reports failures and links to the releases.
+Updates are downloaded through your browser and installed by you.
+
+Stable `vX.Y.Z` builds check the latest stable release. Automatic `main-*` builds
+check the 30 most recent releases for a higher run number with a different commit.
+These channels do not suggest each other's builds. Tagged semantic preview builds
+can also see newer semantic previews or stable releases in that recent list.
+The release identifier appears in **Help → About Open Process** alongside the
+package version and build identifier. Local builds without a recognized release
+tag skip the startup check; their manual check uses the package version against
+stable releases. The browser application does not run the desktop update check.
+
 ## Create a first diagram
 
 The home screen and **New document** picker start with free drawing, relational

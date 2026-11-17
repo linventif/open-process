@@ -45,7 +45,20 @@ flowchart TD
 | Envelope and typed codecs | [document/envelope.rs](../crates/op-core/src/document/envelope.rs). |
 | Session restoration | [platform/persistence.rs](../crates/op-app/src/platform/persistence.rs). |
 | Automatic document library | [platform/autosave.rs](../crates/op-app/src/platform/autosave.rs), coordinated by [app/automatic.rs](../crates/op-app/src/app/automatic.rs). |
+| Desktop updates | [platform/updates.rs](../crates/op-app/src/platform/updates.rs) fetches and compares release metadata on a background thread; [app/updates.rs](../crates/op-app/src/app/updates.rs) owns the translated popup and manual check. |
 | Background execution | [Jobs](../crates/op-app/src/platform/jobs.rs), [Petri task](../crates/op-app/src/petri_editor/analysis_job.rs), [worker](../crates/op-app/analysis-worker.js). |
+
+## Desktop update checks
+
+Native release builds embed `OP_RELEASE_TAG` through
+[build.rs](../crates/op-app/build.rs). The
+[release workflow](../.github/workflows/release.yml) computes that tag once and
+shares it with compilation and publication. Native-only `ureq` provides HTTPS
+without a system command or async runtime, and `semver` provides semantic version
+comparison; the Cargo package version alone cannot distinguish automatic builds.
+This platform service is absent from WebAssembly and does not involve domain
+models or document storage. See [desktop updates](getting-started.md#desktop-updates)
+and [network behavior](data-and-storage.md#website-and-external-services).
 
 ## Documents and views
 

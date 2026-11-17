@@ -1569,4 +1569,23 @@ pub const TABLE: &[(&str, &str)] = &[
     ("drawing.duplicate_drag_keys", "Drawing: Alt + drag"),
     ("drawing.constrain_drag_keys", "Drawing: Shift + drag"),
     ("drawing.order_keys", "Drawing: Ctrl/Cmd+[ / ]"),
+    ("updates.available", "A new version is available"),
+    ("updates.check", "Check for updates…"),
+    ("updates.checking", "Checking for updates…"),
+    ("updates.current", "No newer release is available in this version channel."),
+    ("updates.download", "Download for this computer"),
+    (
+        "updates.failed",
+        "Could not check for updates. Try again later or view the releases.",
+    ),
+    ("updates.installed", "Installed version: {}"),
+    ("updates.later", "Later"),
+    ("updates.latest", "Available version: {}"),
+    (
+        "updates.manual_install",
+        "Download the new version, then close Open Process before replacing the installed application.",
+    ),
+    ("updates.release_notes", "Release notes and other downloads"),
+    ("updates.releases", "View releases"),
+    ("updates.title", "Software updates"),
 ];

@@ -368,7 +368,7 @@ fn home_document_cards_capture_pngs_reflow_and_resume_the_same_document() {
     assert_ne!(h.state().thumbnails.png(&h.state().docs[0]).unwrap(), old, "edits refresh the PNG");
 }
 
-fn shot(h: &mut Harness<'static, OpenProcessApp>, name: &str) {
+pub(super) fn shot(h: &mut Harness<'static, OpenProcessApp>, name: &str) {
     h.run_steps(if name.contains("animation") { 0 } else { 4 });
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/screenshots");
     std::fs::create_dir_all(&dir).unwrap();

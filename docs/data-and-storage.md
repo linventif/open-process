@@ -110,6 +110,22 @@ legacy session data.
 
 ## Website and external services
 
+Official desktop builds send one HTTPS request to the public GitHub releases API
+at startup to check for updates. **Help → Check for updates…** sends another on
+request. Stable builds use `/repos/linventif/open-process/releases/latest`;
+automatic `main-*` and semantic preview builds use that repository's releases
+list, limited to 30 entries. Requests send an application/version user agent and
+standard HTTP headers, with no diagram content, local paths or saved preferences.
+GitHub receives ordinary connection information such as the source IP address.
+The check runs on a background thread, with an eight-second request timeout and
+a 2 MiB response limit. Startup failures are silent. No update-check state is
+persisted; **Later** dismisses the notice only for the current session.
+
+Local builds without a recognized embedded release tag skip the startup request.
+The browser application has no desktop update checker. Update links open GitHub
+in the user's browser; downloads and installation require user action. See
+[desktop updates](getting-started.md#desktop-updates) for version channels.
+
 The public site and browser app are served through the hosting setup described
 in [website/README.md](../website/README.md). Loading them sends ordinary web
 requests to the host. The presentation website also requests the latest release

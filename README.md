@@ -78,6 +78,12 @@ Desktop distributions include:
 
 Standalone Linux/macOS binaries are also published. See the
 [icon and packaging guide](docs/icone.md) for package details.
+macOS bundles are ad-hoc signed, without Apple notarization, so downloaded builds
+may require a security exception. If macOS reports the app as damaged or blocks
+opening it, see [macOS troubleshooting](docs/troubleshooting.md#macos-blocks-the-application).
+Official desktop builds check for updates at startup and offer platform download
+and release-note links. **Help → Check for updates…** retries manually; see
+[desktop updates](docs/getting-started.md#desktop-updates) for channels and installation.
 
 Desktop versions automatically create **Documents/Open Process** and keep editable
 copies there. The web app automatically keeps diagrams in the browser's local

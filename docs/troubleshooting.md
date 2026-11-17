@@ -4,6 +4,53 @@ Start with a small example of the same document type. If it works, compare its
 structure, input format and size with your document. Preserve a separate `.opx`
 copy before attempting recovery or simplifying a model.
 
+## macOS blocks the application
+
+Download the archive for your Mac from the project's
+[GitHub Releases](https://github.com/linventif/open-process/releases), extract it,
+and move **Open Process.app** into **Applications**. Use the Apple Silicon archive
+for M-series Macs and the Intel archive for Intel Macs.
+
+The current packaging script ad-hoc signs the complete application bundle and
+verifies its signature. It does not provide Apple Developer ID signing or
+notarization. Builds made before this packaging fix did not seal the complete
+bundle, which can contribute to macOS reporting the app as "damaged". That alert
+alone does not establish the cause; a corrupted download or modified app can
+also trigger it. Prefer a new build containing the fix when one is available.
+
+For an unidentified-developer or notarization alert, try opening the app once,
+then use **System Settings → Privacy & Security → Open Anyway** if offered and
+you trust the download. See [Apple's explanation of these alerts](https://support.apple.com/en-us/102445).
+
+For an older official build still reported as damaged, first compare the archive's
+SHA-256 with its entry in the same release's **SHA256SUMS** using
+`shasum -a 256 /path/to/the/archive.tar.gz`. If they match and you trust that
+release, this local workaround re-signs and verifies only this application, then
+removes its download quarantine attribute:
+
+```sh
+codesign --force --sign - "/Applications/Open Process.app" &&
+codesign --verify --deep --strict "/Applications/Open Process.app" &&
+xattr -dr com.apple.quarantine "/Applications/Open Process.app"
+```
+
+Reopen the app from Finder. This is a local exception, not Apple notarization.
+If signing or verification fails, the remaining commands do not run; keep the
+error text when reporting the problem. Do not use this workaround for a checksum
+mismatch or an alert explicitly reporting malware. The
+[browser app](https://open-process.linv.dev/app/) is also available without a
+desktop installation.
+
+## No desktop update popup appears
+
+Use **Help → Check for updates…** to retry and see the check's result, or open
+[GitHub Releases](https://github.com/linventif/open-process/releases) directly.
+Startup checks stay silent when offline, rate-limited, current, or without an
+uploaded package for this system. A dismissed notice returns only on another
+check or a later launch. Local builds without an embedded release tag do not
+check automatically. Stable and automatic `main-*` builds use separate version
+channels; see [desktop updates](getting-started.md#desktop-updates).
+
 ## A document is missing
 
 **Resume your work** refers to documents still open in the workspace.

@@ -30,6 +30,9 @@ env_logger = "0.11"
 tempfile = "3.27"
 # Resolve redirected Documents folders and XDG user directories through platform APIs.
 directories = "6"
+# Native release checks need portable HTTPS and semantic version comparison.
+ureq = { version = "3.5", default-features = false, features = ["rustls"] }
+semver = "1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen-futures = "0.4"

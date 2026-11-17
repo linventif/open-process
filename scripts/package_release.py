@@ -5,6 +5,7 @@ import argparse
 from pathlib import Path
 import plistlib
 import shutil
+import subprocess
 import tarfile
 import tempfile
 import tomllib
@@ -70,6 +71,12 @@ def package(binary: Path, target: str, output: Path) -> Path:
         for name in ("LICENSE-MIT", "LICENSE-APACHE"):
             destination = root / "Contents/Resources" if "apple" in target else root
             shutil.copyfile(ROOT / name, destination / name)
+        if "apple" in target:
+            # Seal the complete bundle, including metadata, icons and licences.
+            # A linker's executable-only signature does not seal an .app bundle.
+            # Ad-hoc signing needs no certificate; it does not provide notarization.
+            subprocess.run(["codesign", "--force", "--sign", "-", str(root)], check=True)
+            subprocess.run(["codesign", "--verify", "--deep", "--strict", str(root)], check=True)
         with tarfile.open(archive, "w:gz") as tar:
             executables = {executable.relative_to(staging).as_posix(), f"{root.name}/install.sh"}
 
