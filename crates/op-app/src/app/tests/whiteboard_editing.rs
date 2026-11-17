@@ -34,6 +34,10 @@ fn setup() -> Harness<'static, OpenProcessApp> {
         )
         .unwrap(),
     );
+    setup_board(board)
+}
+
+fn setup_board(board: Board) -> Harness<'static, OpenProcessApp> {
     let mut h = harness(false);
     h.state_mut().open_document(Board::CODEC.encode(&board), None, true);
     h.run_steps(5);
@@ -53,6 +57,127 @@ fn setup() -> Harness<'static, OpenProcessApp> {
     h.hover_at(whiteboard(&h).element_screen_center(1));
     h.run_steps(2);
     h
+}
+
+#[test]
+fn drawing_advanced_sizes_preserve_custom_values_and_edit_exact_geometry() {
+    use egui::accesskit::Role;
+    use egui_kittest::kittest::NodeT;
+
+    let mut board = Board::new("Exact sizes");
+    let id = board.add(Element::new(
+        Kind::Rectangle,
+        Pos::new(200.0, 180.0),
+        Pos::new(360.25, 280.75),
+        Paint {
+            width: 2.750123,
+            font_size: 23.512345,
+            ..Paint::default()
+        },
+    ));
+    let mut h = setup_board(board.clone());
+    let center = whiteboard(&h).element_screen_center(id);
+    click(&mut h, center);
+    assert!(h.query_by_label("Stroke width: XS").is_some());
+    assert!(h.query_by_label("Font size: XL").is_some());
+    assert_eq!(h.query_all_by_label("Custom").count(), 2);
+    assert!(h.query_by_role_and_label(Role::SpinButton, "Font size").is_none());
+    assert!(h.query_by_label("Width").is_none());
+    shot(&mut h, "whiteboard_sizes_simple");
+
+    h.get_by_label("Advanced").click();
+    h.run_steps(5);
+    for (label, value) in [
+        ("Stroke width", 2.750123_f32),
+        ("Font size", 23.512345_f32),
+        ("Width", 160.25),
+        ("Height", 100.75),
+    ] {
+        assert_eq!(
+            h.get_by_role_and_label(Role::SpinButton, label).accesskit_node().numeric_value(),
+            Some(f64::from(value)),
+            "{label} shows the stored value"
+        );
+        assert_eq!(h.get_by_role_and_label(Role::SpinButton, label).value(), Some(value.to_string()));
+    }
+    h.get_by_role_and_label(Role::SpinButton, "Font size").focus();
+    h.run_steps(3);
+    h.get_by_role_and_label(Role::TextInput, "Name").focus();
+    h.run_steps(3);
+    assert_eq!(whiteboard(&h).board, board, "opening Advanced must preserve custom values");
+    assert!(!h.state().docs[h.state().active].editor.enabled(UNDO));
+    shot(&mut h, "whiteboard_sizes_advanced");
+    h.get_by_role_and_label(Role::SpinButton, "Font size").set_value_accesskit(27.5);
+    h.run_steps(3);
+    h.get_by_role_and_label(Role::SpinButton, "Width").set_value_accesskit(225.5);
+    h.run_steps(3);
+    assert_eq!(whiteboard(&h).board.element(id).unwrap().paint.font_size, 27.5);
+    assert_eq!(whiteboard(&h).board.element(id).unwrap().bounds.w, 225.5);
+    assert_eq!(whiteboard(&h).board.element(id).unwrap().bounds.h, 100.75);
+    h.get_by_label("Advanced").click();
+    h.run_steps(5);
+    assert!(h.query_by_role_and_label(Role::SpinButton, "Font size").is_none());
+    assert_eq!(h.query_all_by_label("Custom").count(), 2);
+    h.get_by_label("Font size: XL").click();
+    h.run_steps(3);
+    assert_eq!(whiteboard(&h).board.element(id).unwrap().paint.font_size, 48.0);
+    assert_eq!(whiteboard(&h).board.element(id).unwrap().paint.width, 2.750123);
+    let active = h.state().active;
+    h.state_mut().docs[active].editor.execute(UNDO, 0.0);
+    h.run_steps(3);
+    assert_eq!(whiteboard(&h).board.element(id).unwrap().paint.font_size, 27.5);
+    whiteboard(&h).board.validate().unwrap();
+}
+
+#[test]
+fn drawing_size_preset_unifies_mixed_selection_and_sets_the_next_element_style() {
+    let mut board = Board::new("Mixed sizes");
+    board.add(Element::new(
+        Kind::Rectangle,
+        Pos::new(200.0, 180.0),
+        Pos::new(360.0, 280.0),
+        Paint::default(),
+    ));
+    board.add(Element::new(
+        Kind::Ellipse,
+        Pos::new(500.0, 180.0),
+        Pos::new(660.0, 280.0),
+        Paint {
+            width: 8.0,
+            font_size: 48.0,
+            fill: Some([255, 236, 153]),
+            ..Paint::default()
+        },
+    ));
+    let mut h = setup_board(board.clone());
+    shortcut(&mut h, Key::A, Modifiers::COMMAND);
+    assert_eq!(h.query_all_by_label("Mixed").count(), 2);
+    // M is already the first element's size; choosing it still applies to the whole selection.
+    h.get_by_label("Font size: M").click();
+    h.run_steps(3);
+    for (original, element) in board.elements.iter().zip(&whiteboard(&h).board.elements) {
+        assert_eq!(element.paint.font_size, 20.0);
+        let mut expected = original.clone();
+        expected.paint.font_size = 20.0;
+        assert_eq!(*element, expected, "other styles and geometry are preserved");
+    }
+    let active = h.state().active;
+    h.state_mut().docs[active].editor.execute(UNDO, 0.0);
+    h.run_steps(3);
+    assert_eq!(whiteboard(&h).board, board);
+    h.get_by_label("Font size: S").click();
+    h.run_steps(3);
+    h.get_by_label("Stroke width: XS").click();
+    h.run_steps(3);
+    h.get_by_label("Rectangle").click();
+    h.run_steps(3);
+    let from = whiteboard(&h).screen_point(Pos::new(200.0, 400.0));
+    let to = whiteboard(&h).screen_point(Pos::new(360.0, 500.0));
+    drag(&mut h, from, to);
+    let element = whiteboard(&h).board.elements.last().unwrap();
+    assert_eq!(element.paint.width, 0.5);
+    assert_eq!(element.paint.font_size, 16.0);
+    whiteboard(&h).board.validate().unwrap();
 }
 
 fn shortcut(h: &mut Harness<'static, OpenProcessApp>, key: Key, modifiers: Modifiers) {

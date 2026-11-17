@@ -1454,3 +1454,17 @@ The site and application builds were both run with `bun run build:site` and
 The complete `bun test` suite passes all 24 tests, including the previously
 excluded output checks and the documentation link/anchor/CSP checks. No new
 interactive browser run or remote CI matrix was performed for commit preparation.
+
+## Simple drawing sizes — 17 November 2026
+
+Free drawing uses XS–XL presets for stroke width and font size. A collapsed
+Advanced section exposes exact stroke/font values and single-element dimensions.
+Two egui interaction tests cover preserving custom precision when opening or
+focusing fields, exact edits, undo, mixed selections and styles for new elements.
+The simple and advanced inspector screenshots were visually inspected.
+
+The complete sequential workspace suite passes **253 tests** (118 application
+and 135 core). Native and WebAssembly compilation, workspace formatting, the 12
+local links in the drawing guide and `git diff --check` pass. These are local
+Linux and egui checks; browser interaction, release builds and the remote CI
+matrix were not run for this change.

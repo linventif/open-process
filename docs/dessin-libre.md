@@ -23,9 +23,11 @@ The pencil remains active after a stroke; other drawing tools return to selectio
   or corner to resize an element, including freehand strokes; prior selection is
   optional. The highlighted edge and directional cursor identify the target.
   Lines and arrows have handles at both endpoints with an endpoint-editing cursor.
-- The inspector edits multiline text, dimensions, stroke/fill colors, thickness,
-  font size and sketch mode. Double-click, **F2** or **Enter** on a single selected
-  element opens it and focuses text editing.
+- The inspector edits multiline text, stroke/fill colors and sketch mode.
+  Stroke width and font size use **XS, S, M, L, XL** buttons by default. Expand
+  **Advanced** to inspect or enter exact stroke/font values and, for a single
+  selected element, its width and height. Double-click, **F2** or **Enter** on a
+  single selected element opens the inspector and focuses text editing.
 - Style changes affect selected elements and future creations. Without selection,
   they configure the next element.
 - **Ctrl/Cmd+C**, **X** and **V** copy, cut and paste selected elements, including
@@ -57,6 +59,24 @@ Tool shortcuts: **V** select, **H** hand, **R** rectangle, **E** ellipse,
 The shared configuration bar contains **Show grid**, **Snap to grid**, zoom and
 inspector controls. Snapping is off by default; pencil points remain free even
 when it is enabled. Options move into the compact menu in narrow views.
+
+### Simple and exact sizes
+
+| Preset | XS | S | M | L | XL |
+| --- | --- | --- | --- | --- | --- |
+| Stroke width | 0.5 | 1 | 2 | 4 | 8 |
+| Font size | 12 | 16 | 20 | 32 | 48 |
+
+**Advanced** is collapsed initially. Its numeric fields support direct entry and
+dragging, with stroke widths from 0.5 to 12, font sizes from 8 to 96, and element
+dimensions from 1 to 10,000 drawing units. These values are independent of zoom.
+Opening or closing Advanced preserves exact values: a value outside the presets
+is marked **Custom**, without rounding it to a preset. A selection with different
+sizes is marked **Mixed**; choosing a preset applies that size to the whole
+selection while preserving its other styles. Size edits use the shared undo/redo
+history. The document and session formats are unchanged.
+
+### Clipboard and undo
 
 Keyboard paste uses the system clipboard on desktop and web. Desktop menu paste
 requests its contents from the platform. Browser menu paste uses the last drawing
