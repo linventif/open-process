@@ -44,7 +44,10 @@ structure. Inspect the parsed activities and traces before studying the result.
 ## Follow Alpha
 
 The footprint shows direct succession (`>`), causality (`→`), reverse causality,
-parallelism (`||`) and independence (`#`) between activities.
+parallelism (`||`) and independence (`#`) between activities. Matrix columns and
+the row-header column widen to fit activity names; names longer than about
+180 points are shortened with an ellipsis and shown in full on hover. The exam
+answer matrix uses the same layout.
 
 Follow the walkthrough from activity, initial and final sets through candidate
 pairs `XW`, maximal pairs `YW`, places, transitions and arcs to the discovered

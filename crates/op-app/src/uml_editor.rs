@@ -5,7 +5,7 @@ mod inspector;
 mod session;
 pub(crate) use session::register;
 
-use crate::editor::layout::{CanvasControls, DiagramLayout, FooterStatus};
+use crate::editor::layout::{ArrangeControl, CanvasControls, DiagramLayout, FooterStatus};
 
 use crate::canvas::{self, Palette, View};
 use crate::editor::clipboard::{CanvasClipboard, ClipboardState};
@@ -127,6 +127,20 @@ impl UmlEditor {
         self.fit = true;
     }
 
+    /// One undoable layout step; use cases stay in their system boundary.
+    pub fn auto_arrange(&mut self) {
+        self.history.sync(&self.diagram, false);
+        match self.diagram.auto_arrange(self.snap.then_some(10.0)) {
+            Ok(()) => {
+                self.clear_interaction();
+                self.fit = true;
+                self.status.clear();
+                self.history.sync(&self.diagram, false);
+            }
+            Err(e) => self.status = e,
+        }
+    }
+
     pub fn delete_selection(&mut self) {
         self.history.sync(&self.diagram, false);
         let ids = self.group.clone();
@@ -166,6 +180,7 @@ impl UmlEditor {
             detail_color: (!self.status.is_empty()).then(|| ui.visuals().warn_fg_color),
             ..Default::default()
         };
+        let mut arrange = false;
         layout.configuration(
             ui,
             CanvasControls {
@@ -175,10 +190,17 @@ impl UmlEditor {
                 snap: Some(&mut self.snap),
                 inspector: &mut self.show_inspector,
                 issues: None,
+                arrange: Some(ArrangeControl {
+                    requested: &mut arrange,
+                    enabled: !self.diagram.nodes.is_empty(),
+                }),
             },
             status,
             |_| {},
         );
+        if arrange {
+            self.auto_arrange();
+        }
     }
 
     fn hit_node(&self, p: Pos) -> Option<Id> {

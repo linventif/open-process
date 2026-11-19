@@ -57,6 +57,8 @@ pub const UNDO: &str = "edit.undo";
 pub const REDO: &str = "edit.redo";
 pub const DELETE: &str = "edit.delete";
 pub const FIT: &str = "view.fit";
+/// Automatic layout of a graph notation (one undoable step).
+pub const ARRANGE: &str = "view.arrange";
 pub const PNG: &str = "export.png";
 
 pub struct ViewDescriptor {
