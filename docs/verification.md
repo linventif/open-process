@@ -1547,3 +1547,22 @@ pass, including output assets, documentation links/anchors and the new audit
 policy tests. Local checks used Bun 1.4.0; CI selects 1.4.4. Local documentation
 file links and `git diff --check` pass. No Rust source changed, so native builds
 and the Rust workspace suite were not repeated for this audit-policy change.
+
+## Whole-diagram PNG export — 19 November 2026
+
+PNG export from the BPMN, Petri, UML, EPC/activity/flowchart, database and free
+drawing editors previously saved one screenshot of the visible canvas. It now
+visits the diagram's bounds tile by tile at a fixed scale, copies each capture
+into one image and restores the previous view (`canvas/export.rs`).
+
+`cargo fmt --check`, `cargo clippy --workspace --all-targets -D warnings`,
+native/WebAssembly checks and `git diff --check` pass; **266 tests passed**
+(131 app, 121 core, 14 integration), none ignored.
+
+Unit tests cover tile coverage, the size limits, and a simulated nine-tile
+export: every output pixel comes from the expected tile, the view is restored and
+the PNG reaches the save queue. A UI test zooms a BPMN view to 300% on one
+corner, exports and checks that the PNG is wider than the window and than twice
+the diagram width, that drawn content reaches both ends and that the view is
+restored. `bpmn_full_export.png` (2440 × 1000 px) was inspected: no seams and no
+selection. Native and web save dialogs were not exercised interactively.

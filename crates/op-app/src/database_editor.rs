@@ -70,6 +70,7 @@ pub struct DatabaseEditor {
     state: DatabaseView,
     sql_cache: Option<(u64, Result<String, Vec<Diagnostic>>)>,
     events: Vec<HostEvent>,
+    png_export: Option<canvas::export::ImageExport>,
 }
 impl DatabaseEditor {
     pub fn new(schema: Schema) -> Self {
@@ -79,6 +80,7 @@ impl DatabaseEditor {
             state: Default::default(),
             sql_cache: None,
             events: vec![],
+            png_export: None,
         }
     }
     fn sql(&mut self) -> &Result<String, Vec<Diagnostic>> {

@@ -1,5 +1,6 @@
 //! Shared canvas utilities: view transform (pan/zoom), grid, palette and drawing helpers.
 
+pub mod export;
 pub mod resize;
 
 use egui::epaint::{CubicBezierShape, PathStroke};

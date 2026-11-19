@@ -4,6 +4,7 @@ use egui_kittest::kittest::Queryable;
 use op_core::geom::Pos;
 
 mod appearance;
+mod image_export;
 mod mermaid_builder;
 mod resize;
 mod selection_editing;

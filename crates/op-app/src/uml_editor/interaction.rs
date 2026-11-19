@@ -240,28 +240,9 @@ impl UmlEditor {
         self.shortcuts(ui, &response);
         if self.fit {
             self.fit = false;
-            let mut bounds: Vec<_> = self
-                .diagram
-                .nodes
-                .iter()
-                .flat_map(|n| {
-                    let r = n.rect();
-                    [Pos::new(r.x, r.y), Pos::new(r.right(), r.bottom())]
-                })
-                .collect();
-            bounds.extend(self.routes.values().flatten().copied());
-            if !bounds.is_empty() {
-                let min = Pos::new(
-                    bounds.iter().map(|p| p.x).fold(f32::INFINITY, f32::min),
-                    bounds.iter().map(|p| p.y).fold(f32::INFINITY, f32::min),
-                );
-                let max = Pos::new(
-                    bounds.iter().map(|p| p.x).fold(f32::NEG_INFINITY, f32::max),
-                    bounds.iter().map(|p| p.y).fold(f32::NEG_INFINITY, f32::max),
-                );
-                self.view.fit(rect, min, max);
-            } else {
-                self.view = View::default();
+            match self.content_bounds() {
+                Some((min, max)) => self.view.fit(rect, min, max),
+                None => self.view = View::default(),
             }
         }
         let pointer = ui.input(|i| i.pointer.interact_pos());
@@ -470,7 +451,11 @@ impl UmlEditor {
         self.update_routes();
         let pal = Palette::for_ui(ui);
         let painter = ui.painter().with_clip_rect(rect);
-        let exporting = std::mem::take(&mut self.export_png);
+        if std::mem::take(&mut self.export_png) {
+            let name = self.diagram.name.clone();
+            self.png_export = Some(canvas::export::ImageExport::start(self.content_bounds(), self.view, rect, name));
+        }
+        let exporting = canvas::export::frame(&mut self.png_export, &mut self.view, rect, ui.ctx());
         canvas::draw_background(&painter, rect, &self.view, &pal);
         for n in self.diagram.nodes.iter().filter(|n| n.kind == NodeKind::System) {
             self.draw_node(&painter, rect, n, &pal, exporting);
@@ -498,8 +483,14 @@ impl UmlEditor {
             self.palette(ui, rect);
             self.inline_editor(ui, rect);
         } else {
-            crate::io::request_png_export(ui.ctx(), rect, format!("{}.png", self.diagram.name));
+            canvas::export::capture(&mut self.png_export, ui.ctx());
         }
+    }
+
+    /// World extents of every element and routed relation.
+    fn content_bounds(&self) -> Option<(Pos, Pos)> {
+        let points = self.routes.values().flatten().map(|p| op_core::geom::Rect::new(p.x, p.y, 0.0, 0.0));
+        canvas::export::bounds(self.diagram.nodes.iter().map(|n| n.rect()).chain(points))
     }
 
     fn inline_editor(&mut self, ui: &Ui, rect: Rect) {

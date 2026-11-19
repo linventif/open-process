@@ -46,6 +46,7 @@ enum Drag {
 pub struct UmlEditor {
     pub diagram: UmlDiagram,
     pub export_png: bool,
+    png_export: Option<canvas::export::ImageExport>,
     pub view: View,
     uid: u64,
     tool: Tool,
@@ -76,6 +77,7 @@ impl UmlEditor {
             history: History::new(&diagram),
             diagram,
             export_png: false,
+            png_export: None,
             view: View::default(),
             uid: canvas::next_uid(),
             tool: Tool::Select,
