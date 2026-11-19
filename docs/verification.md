@@ -1643,6 +1643,10 @@ UML editors; dragging one calls the notation's `reconnect` in `op-core`.
 Deleting BPMN or flow-diagram elements merges the flows around each deleted
 block through the shared `flow::bridges` helper.
 
+`cargo fmt --check`, `cargo clippy --workspace --all-targets -D warnings` (Rust
+1.100), native/WebAssembly checks and `git diff --check` pass; **289 tests passed**
+(140 app, 129 core, 20 integration), none ignored.
+
 Integration tests (`op-core/tests/connections.rs`) cover:
 
 - BPMN: merging a single in/out pair while keeping the name and flow order;
