@@ -2,8 +2,10 @@
 
 **Status: stable message keys are implemented for English, French and Spanish.**
 
-English is the default application language and the source and fallback catalogue.
-A saved language preference takes precedence at startup. Project documentation
+English is the source and fallback catalogue. Until a language is chosen in the
+dropdown, each launch uses the first supported language among the system's (or
+browser's) preferred languages, and English otherwise. A chosen language takes
+precedence at startup. Project documentation
 and new original interface copy use English; French and Spanish remain supported.
 
 Rust messages use identifiers independent of displayed text. The catalogues are
@@ -72,8 +74,14 @@ cargo test --locked -p op-app i18n -- --test-threads=1
 ```
 
 The language dropdown and persisted preference use the existing
-`open-process-lang` key. `Lang::default()` is English; loading without a saved
-preference uses that default. Serialized French and Spanish preferences remain valid.
+`open-process-lang` key, still written on every exit for older versions.
+`open-process-lang-explicit` records whether the language was picked in the
+dropdown. Older versions also saved the language on every exit, so without that
+flag a saved French or Spanish value counts as a choice and a saved English value
+does not. Without a choice, system locales such as `fr-CA` or `es_ES.UTF-8` are
+matched by language code (`sys-locale`; `navigator.languages` on the web); other
+languages fall back to `Lang::default()`, English. Serialized French and Spanish
+preferences remain valid.
 The dropdown button and each language option separate the decorative flag from
 the text with the theme's horizontal item spacing (8 logical pixels).
 

@@ -64,3 +64,23 @@ fn classic_gallery_captures_keep_document_snapshots_unchanged() {
         }
     }
 }
+
+#[test]
+fn choosing_the_system_theme_resumes_following_it() {
+    use egui::{Theme, ThemePreference};
+    assert_eq!(super::super::toggled_preference(Theme::Dark, Theme::Dark), ThemePreference::System);
+    assert_eq!(
+        super::super::toggled_preference(Theme::Light, Theme::Light),
+        ThemePreference::System
+    );
+    assert_eq!(super::super::toggled_preference(Theme::Light, Theme::Dark), ThemePreference::Light);
+    assert_eq!(super::super::toggled_preference(Theme::Dark, Theme::Light), ThemePreference::Dark);
+    // While following, a new fallback (the Linux desktop preference) applies at once.
+    let ctx = egui::Context::default();
+    ctx.set_theme(ThemePreference::System);
+    for theme in [Theme::Light, Theme::Dark] {
+        ctx.options_mut(|o| o.fallback_theme = theme);
+        assert_eq!(ctx.theme(), theme);
+        assert_eq!(super::super::system_theme(&ctx), theme);
+    }
+}
