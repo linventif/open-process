@@ -1,7 +1,8 @@
 //! Shared interactions for two typed notations: EPC and UML activity.
 //! Models and rules stay in op-core; all graphical chrome stays in DiagramLayout.
 use crate::canvas::{self, Palette, View};
-use crate::editor::layout::{CanvasControls, DiagramLayout, FooterStatus};
+use crate::editor::clipboard::{CanvasClipboard, ClipboardState};
+use crate::editor::layout::{ArrangeControl, CanvasControls, DiagramLayout, FooterStatus};
 use crate::editor::*;
 use crate::history::History;
 use egui::{Align2, Color32, FontId, Key, PointerButton, Rect, Sense, Stroke, StrokeKind, Ui, pos2, vec2};
@@ -26,6 +27,9 @@ pub trait Notation: FlowKind + Serialize + DeserializeOwned {
     const EXAMPLE: &'static str;
     const EXAMPLE_LABEL: &'static str;
     fn example() -> Diagram<Self>;
+    fn to_mermaid(diagram: &Diagram<Self>) -> Result<op_core::mermaid::conversion::Conversion<op_core::mermaid::Diagram>, String> {
+        op_core::mermaid::export::flow(diagram)
+    }
 }
 impl Notation for EpcKind {
     const ID: &'static str = "epc";
@@ -61,7 +65,8 @@ impl Notation for ActivityKind {
 #[derive(Clone)]
 enum Drag {
     Move { start: Pos, origins: Vec<(Id, Pos)> },
-    Resize(Id),
+    Resize { id: Id, gesture: canvas::resize::ResizeGesture },
+    Pan,
     Connect(Id),
     Rubber { start: Pos, base: BTreeSet<Id> },
 }
@@ -82,6 +87,7 @@ pub struct FlowView<K> {
     drag: Option<Drag>,
     export_png: bool,
     tab: bool,
+    clipboard: ClipboardState,
     status: String,
 }
 impl<K> Default for FlowView<K> {
@@ -101,6 +107,7 @@ impl<K> Default for FlowView<K> {
             drag: None,
             export_png: false,
             tab: false,
+            clipboard: ClipboardState::default(),
             status: String::new(),
         }
     }
@@ -109,6 +116,7 @@ pub struct FlowEditor<K: Notation> {
     pub diagram: Diagram<K>,
     history: History<Diagram<K>>,
     state: FlowView<K>,
+    png_export: Option<canvas::export::ImageExport>,
 }
 impl<K: Notation> FlowEditor<K> {
     pub fn new(diagram: Diagram<K>) -> Self {
@@ -116,6 +124,7 @@ impl<K: Notation> FlowEditor<K> {
             history: History::new(&diagram),
             diagram,
             state: Default::default(),
+            png_export: None,
         }
     }
     fn clear_selection(&mut self) {
@@ -123,6 +132,21 @@ impl<K: Notation> FlowEditor<K> {
         self.state.flow = None;
         self.state.pending = None;
         self.state.drag = None;
+    }
+    /// One undoable layout step along the flows.
+    fn auto_arrange(&mut self) {
+        self.history.sync(&self.diagram, false);
+        match self.diagram.auto_arrange(self.state.snap.then_some(10.0)) {
+            Ok(()) => {
+                self.state.drag = None;
+                self.state.pending = None;
+                self.state.connecting = false;
+                self.state.fit = true;
+                self.state.status.clear();
+                self.history.sync(&self.diagram, false);
+            }
+            Err(e) => self.state.status = e,
+        }
     }
     fn delete(&mut self) {
         self.history.sync(&self.diagram, false);
@@ -132,6 +156,17 @@ impl<K: Notation> FlowEditor<K> {
     }
     fn hit(&self, p: Pos) -> Option<Id> {
         self.diagram.nodes.iter().rev().find(|n| n.contains(p)).map(|n| n.id)
+    }
+    fn resize_at(&self, pointer: egui::Pos2) -> Option<(Id, canvas::resize::ResizeEdge)> {
+        if self.state.connecting || self.state.tool.is_some() {
+            return None;
+        }
+        canvas::resize::target(
+            self.state.camera,
+            self.state.canvas,
+            pointer,
+            self.diagram.nodes.iter().map(|n| (n.id, n.bounds)),
+        )
     }
     fn connect(&mut self, from: Id, to: Id) {
         self.history.sync(&self.diagram, false);
@@ -146,14 +181,17 @@ impl<K: Notation> FlowEditor<K> {
         self.history.sync(&self.diagram, false);
     }
     fn properties(&mut self, ui: &mut Ui) {
-        DiagramLayout::inspector_tabs(
-            ui,
-            &mut self.state.tab,
-            &[(false, tr("common.properties")), (true, tr("common.validation"))],
-            |_, _| {},
-        );
+        let exam = crate::editor::exam::active(ui.ctx());
+        if !exam {
+            DiagramLayout::inspector_tabs(
+                ui,
+                &mut self.state.tab,
+                &[(false, tr("common.properties")), (true, tr("common.validation"))],
+                |_, _| {},
+            );
+        }
         DiagramLayout::inspector_body(ui, |ui| {
-            if self.state.tab {
+            if self.state.tab && !exam {
                 let issues = self.diagram.issues();
                 if issues.is_empty() {
                     ui.label(tr("database.no_structural_issues"));
@@ -199,6 +237,7 @@ impl<K: Notation> FlowEditor<K> {
         let pointer = ui.input(|i| i.pointer.interact_pos());
         let world = pointer.map(|p| self.state.camera.to_world(rect, p));
         let shift = ui.input(|i| i.modifiers.shift);
+        self.clipboard_ui(ui, &response);
         if response.hovered() && !ui.ctx().egui_wants_keyboard_input() {
             if ui.input(|i| i.key_pressed(Key::Delete) || i.key_pressed(Key::Backspace)) {
                 self.delete();
@@ -209,42 +248,44 @@ impl<K: Notation> FlowEditor<K> {
             if ui.input(|i| i.modifiers.command && i.key_pressed(Key::A)) {
                 self.state.selected = self.diagram.nodes.iter().map(|n| n.id).collect();
             }
-            if ui.input(|i| i.modifiers.command && i.key_pressed(Key::D)) {
-                self.history.sync(&self.diagram, false);
-                self.state.selected = self.diagram.duplicate(&self.state.selected);
-                self.history.sync(&self.diagram, false);
-            }
         }
         if response.drag_started_by(PointerButton::Primary)
             && let Some(screen) = ui.input(|i| i.pointer.press_origin())
         {
             let start = self.state.camera.to_world(rect, screen);
             self.history.sync(&self.diagram, false);
-            if let Some(id) = self.hit(start) {
+            if ui.input(|i| i.key_down(Key::Space)) {
+                self.state.drag = Some(Drag::Pan);
+            } else if let Some((id, edge)) = self.resize_at(screen).filter(|_| !ui.input(|i| i.modifiers.alt)) {
+                self.state.selected.clear();
+                self.state.selected.insert(id);
+                self.state.flow = None;
+                self.state.drag = Some(Drag::Resize {
+                    id,
+                    gesture: canvas::resize::ResizeGesture::new(self.diagram.node(id).unwrap().bounds, edge, start),
+                });
+            } else if let Some(id) = self.hit(start) {
                 if self.state.connecting {
                     self.state.drag = Some(Drag::Connect(id));
                     self.state.pending = Some(id);
                 } else if self.state.tool.is_none() {
-                    let n = self.diagram.node(id).unwrap();
-                    let r = self.state.camera.rect_to_screen(rect, n.bounds);
-                    if self.state.selected.len() == 1 && self.state.selected.contains(&id) && r.right_bottom().distance(screen) < 12.0 {
-                        self.state.drag = Some(Drag::Resize(id));
-                    } else {
-                        if !self.state.selected.contains(&id) {
-                            if !shift {
-                                self.state.selected.clear();
-                            }
-                            self.state.selected.insert(id);
+                    if !self.state.selected.contains(&id) {
+                        if !shift {
+                            self.state.selected.clear();
                         }
-                        let origins = self
-                            .diagram
-                            .nodes
-                            .iter()
-                            .filter(|n| self.state.selected.contains(&n.id))
-                            .map(|n| (n.id, Pos::new(n.bounds.x, n.bounds.y)))
-                            .collect();
-                        self.state.drag = Some(Drag::Move { start, origins });
+                        self.state.selected.insert(id);
                     }
+                    if ui.input(|i| i.modifiers.alt) {
+                        self.duplicate_selection(Pos::default(), false);
+                    }
+                    let origins = self
+                        .diagram
+                        .nodes
+                        .iter()
+                        .filter(|n| self.state.selected.contains(&n.id))
+                        .map(|n| (n.id, Pos::new(n.bounds.x, n.bounds.y)))
+                        .collect();
+                    self.state.drag = Some(Drag::Move { start, origins });
                 }
             } else if !self.state.connecting && self.state.tool.is_none() {
                 self.state.drag = Some(Drag::Rubber {
@@ -269,11 +310,16 @@ impl<K: Notation> FlowEditor<K> {
                         }
                     }
                 }
-                Some(Drag::Resize(id)) => {
+                Some(Drag::Pan) => self.state.camera.offset += response.drag_delta(),
+                Some(Drag::Resize { id, gesture }) => {
                     if let Some(n) = self.diagram.nodes.iter_mut().find(|n| n.id == *id) {
-                        let p = if self.state.snap { world.snapped(10.0) } else { world };
-                        n.bounds.w = (p.x - n.bounds.x).clamp(20.0, 2000.0);
-                        n.bounds.h = (p.y - n.bounds.y).clamp(8.0, 2000.0);
+                        n.bounds = gesture.apply(
+                            n.bounds,
+                            world,
+                            Pos::new(20.0, 8.0),
+                            Pos::new(2000.0, 2000.0),
+                            self.state.snap.then_some(10.0),
+                        );
                     }
                 }
                 Some(Drag::Rubber { start, base }) => {
@@ -303,6 +349,7 @@ impl<K: Notation> FlowEditor<K> {
             }
         }
         if response.clicked_by(PointerButton::Primary)
+            && !ui.input(|i| i.key_down(Key::Space))
             && let Some(p) = world
         {
             if let Some(kind) = self.state.tool {
@@ -348,7 +395,28 @@ impl<K: Notation> FlowEditor<K> {
         }
         let pal = Palette::for_ui(ui);
         let p = ui.painter().with_clip_rect(rect);
-        let exporting = std::mem::take(&mut self.state.export_png);
+        if response.secondary_clicked()
+            && let Some(id) = world.and_then(|p| self.hit(p))
+            && !self.state.selected.contains(&id)
+        {
+            self.state.selected.clear();
+            self.state.selected.insert(id);
+            self.state.flow = None;
+        }
+        response.context_menu(|ui| {
+            crate::theme::menu_style(ui.style_mut());
+            self.selection_menu(ui);
+        });
+        if std::mem::take(&mut self.state.export_png) {
+            let name = self.diagram.name.clone();
+            self.png_export = Some(canvas::export::ImageExport::start(
+                self.diagram.bounds(),
+                self.state.camera,
+                rect,
+                name,
+            ));
+        }
+        let exporting = canvas::export::frame(&mut self.png_export, &mut self.state.camera, rect, ui.ctx());
         canvas::draw_background(&p, rect, &self.state.camera, &pal);
         for f in &self.diagram.flows {
             if let Some((a, b)) = self.diagram.points(f) {
@@ -372,7 +440,7 @@ impl<K: Notation> FlowEditor<K> {
             let selected = !exporting && self.state.selected.contains(&n.id);
             let stroke = Stroke::new(if selected { 2.0 } else { 1.5 }, if selected { pal.select } else { pal.ink });
             paint_shape(&p, r, n.kind.shape(), stroke, pal.task_fill, pal.ink);
-            let inside = matches!(n.kind.shape(), Shape::Action | Shape::Event);
+            let inside = matches!(n.kind.shape(), Shape::Action | Shape::Terminator | Shape::Event);
             let galley = p.layout(
                 n.name.clone(),
                 FontId::proportional(13.0 * z),
@@ -390,6 +458,16 @@ impl<K: Notation> FlowEditor<K> {
             }
         }
         if !exporting {
+            let resize = match self.state.drag {
+                Some(Drag::Resize { id, gesture }) => Some((id, gesture.edge)),
+                None if response.hovered() && !ui.input(|i| i.key_down(Key::Space)) => pointer.and_then(|p| self.resize_at(p)),
+                _ => None,
+            };
+            if let Some((id, edge)) = resize
+                && let Some(node) = self.diagram.node(id)
+            {
+                canvas::resize::feedback(ui, &p, self.state.camera, rect, node.bounds, edge, pal.select);
+            }
             if let Some(from) = self.state.pending.and_then(|id| self.diagram.node(id))
                 && let Some(to) = pointer.filter(|p| rect.contains(*p))
             {
@@ -420,7 +498,7 @@ impl<K: Notation> FlowEditor<K> {
             }
             self.palette(ui, rect);
         } else {
-            crate::io::request_png_export(ui.ctx(), rect, self.diagram.name.clone());
+            canvas::export::capture(&mut self.png_export, ui.ctx());
         }
     }
     fn palette(&mut self, ui: &Ui, rect: Rect) {
@@ -457,7 +535,7 @@ impl<K: Notation> FlowEditor<K> {
                     if canvas::icon_button(ui, self.state.tool == Some(kind), tr(kind.label()), |p, r, c| {
                         let icon = match kind.shape() {
                             Shape::Bar => Rect::from_center_size(r.center(), vec2(r.width(), 4.0)),
-                            Shape::Action | Shape::Event => r.shrink2(vec2(0.0, 3.0)),
+                            Shape::Action | Shape::Terminator | Shape::Event => r.shrink2(vec2(0.0, 3.0)),
                             _ => r,
                         };
                         paint_shape(p, icon, kind.shape(), Stroke::new(1.4, c), Color32::TRANSPARENT, c)
@@ -545,6 +623,9 @@ fn paint_shape(p: &egui::Painter, r: Rect, shape: Shape, stroke: Stroke, fill: C
         Shape::Bar => {
             p.rect_filled(r, 0.0, ink);
         }
+        Shape::Terminator => {
+            p.rect(r, r.height() / 2.0, fill, stroke, StrokeKind::Inside);
+        }
         Shape::Action => {
             p.rect(r, (r.height() * 0.14).clamp(2.0, 8.0), fill, stroke, StrokeKind::Inside);
         }
@@ -552,6 +633,11 @@ fn paint_shape(p: &egui::Painter, r: Rect, shape: Shape, stroke: Stroke, fill: C
 }
 
 const COMMANDS: &[CommandDescriptor] = &[
+    clipboard::COPY_COMMAND,
+    clipboard::CUT_COMMAND,
+    clipboard::PASTE_COMMAND,
+    clipboard::DUPLICATE_COMMAND,
+    clipboard::SELECT_ALL_COMMAND,
     CommandDescriptor {
         id: UNDO,
         label: key("common.undo"),
@@ -571,6 +657,16 @@ const COMMANDS: &[CommandDescriptor] = &[
         id: FIT,
         label: key("canvas.zoom_fit"),
         group: CommandGroup::View,
+    },
+    CommandDescriptor {
+        id: ARRANGE,
+        label: key("canvas.auto_arrange"),
+        group: CommandGroup::Tools,
+    },
+    CommandDescriptor {
+        id: "flow.convert-to-mermaid",
+        label: key("conversion.to_mermaid"),
+        group: CommandGroup::Tools,
     },
 ];
 impl<K: Notation> EditorBackend for FlowEditor<K> {
@@ -647,6 +743,7 @@ impl<K: Notation> EditorBackend for FlowEditor<K> {
     fn ui(&mut self, ui: &mut Ui, _: &str) -> Vec<HostEvent> {
         let layout = DiagramLayout::new(ui, self.state.uid, self.state.inspector);
         layout.inspector(ui, |ui| self.properties(ui));
+        let mut arrange = false;
         layout.configuration(
             ui,
             CanvasControls {
@@ -656,6 +753,10 @@ impl<K: Notation> EditorBackend for FlowEditor<K> {
                 snap: Some(&mut self.state.snap),
                 inspector: &mut self.state.inspector,
                 issues: None,
+                arrange: Some(ArrangeControl {
+                    requested: &mut arrange,
+                    enabled: !self.diagram.nodes.is_empty(),
+                }),
             },
             FooterStatus {
                 summary: trf("common.element_count", &[&self.diagram.nodes.len()]),
@@ -664,6 +765,9 @@ impl<K: Notation> EditorBackend for FlowEditor<K> {
             },
             |_| {},
         );
+        if arrange {
+            self.auto_arrange();
+        }
         layout.canvas(ui, |ui| self.canvas(ui));
         self.history.sync(
             &self.diagram,
@@ -675,16 +779,24 @@ impl<K: Notation> EditorBackend for FlowEditor<K> {
         COMMANDS
     }
     fn enabled(&self, c: &str) -> bool {
+        if let Some(enabled) = self.selection_command_enabled(c) {
+            return enabled;
+        }
         match c {
             UNDO => self.history.can_undo(),
             REDO => self.history.can_redo(),
             DELETE => !self.state.selected.is_empty() || self.state.flow.is_some(),
-            FIT | PNG => true,
+            FIT | PNG | "flow.convert-to-mermaid" => true,
+            ARRANGE => !self.diagram.nodes.is_empty(),
             _ => false,
         }
     }
     fn execute(&mut self, c: &str, _: f64) -> Vec<HostEvent> {
+        if self.selection_command(c) {
+            return vec![];
+        }
         match c {
+            "flow.convert-to-mermaid" => return mermaid_exports::open(K::to_mermaid(&self.diagram)),
             UNDO => {
                 self.history.undo(&mut self.diagram);
                 self.clear_selection();
@@ -695,6 +807,7 @@ impl<K: Notation> EditorBackend for FlowEditor<K> {
             }
             DELETE => self.delete(),
             FIT => self.state.fit = true,
+            ARRANGE => self.auto_arrange(),
             PNG => self.state.export_png = true,
             _ => {}
         }
@@ -710,7 +823,7 @@ impl<K: Notation> EditorBackend for FlowEditor<K> {
         key("flow.export_svg_svg")
     }
     fn exports(&self) -> Vec<ExportDescriptor> {
-        vec![
+        let mut formats = vec![
             ExportDescriptor {
                 id: "standard",
                 label: self.export_label(),
@@ -719,7 +832,9 @@ impl<K: Notation> EditorBackend for FlowEditor<K> {
                 id: "dot",
                 label: key("flow.export_graphviz_dot"),
             },
-        ]
+        ];
+        formats.extend(mermaid_exports::FORMATS);
+        formats
     }
     fn export_as(&self, id: &str) -> Result<ExportData, String> {
         match id {
@@ -728,11 +843,15 @@ impl<K: Notation> EditorBackend for FlowEditor<K> {
                 suffix: "dot",
                 bytes: self.diagram.to_dot().into_bytes(),
             }),
+            "mermaid" | "mermaid-markdown" => mermaid_exports::data(id, K::to_mermaid(&self.diagram)?),
             _ => Err("Unknown graph export".into()),
         }
     }
+    fn export_format_requires_assistance(&self, format: &str) -> bool {
+        mermaid_exports::is_projection(format)
+    }
 }
-fn register_one<K: Notation>(registry: &mut DiagramRegistry, order: usize) {
+pub(crate) fn register_one<K: Notation>(registry: &mut DiagramRegistry, order: usize) {
     registry.diagrams.push(DiagramDescriptor {
         id: K::ID,
         aliases: &[],
@@ -760,4 +879,47 @@ fn register_one<K: Notation>(registry: &mut DiagramRegistry, order: usize) {
 pub fn register(registry: &mut DiagramRegistry) {
     register_one::<EpcKind>(registry, 9);
     register_one::<ActivityKind>(registry, 10);
+}
+
+impl<K: Notation> CanvasClipboard for FlowEditor<K> {
+    type Fragment = op_core::flow::Fragment<K>;
+    fn clipboard_state(&mut self) -> &mut ClipboardState {
+        &mut self.state.clipboard
+    }
+    fn clipboard_kind(&self) -> &'static str {
+        K::ID
+    }
+    fn has_selection(&self) -> bool {
+        !self.state.selected.is_empty()
+    }
+    fn fragment(&self) -> Self::Fragment {
+        self.diagram.fragment(&self.state.selected)
+    }
+    fn paste_fragment(&mut self, fragment: &Self::Fragment, delta: Pos, commit: bool) {
+        if commit {
+            self.history.sync(&self.diagram, false);
+        } else {
+            self.history.begin(&self.diagram);
+        }
+        match self.diagram.paste(fragment, delta) {
+            Ok(ids) => {
+                self.state.selected = ids;
+                self.state.flow = None;
+                self.state.pending = None;
+                self.state.tool = None;
+                self.state.connecting = false;
+                self.state.status.clear();
+            }
+            Err(error) => self.state.status = error,
+        }
+        if commit {
+            self.history.sync(&self.diagram, false);
+        }
+    }
+    fn cut_selection(&mut self) {
+        self.delete();
+    }
+    fn select_everything(&mut self) {
+        self.state.selected = self.diagram.nodes.iter().map(|n| n.id).collect();
+    }
 }

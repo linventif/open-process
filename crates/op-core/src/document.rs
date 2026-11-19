@@ -5,7 +5,7 @@ use crate::petri::PetriNet;
 use serde::{Deserialize, Serialize};
 
 mod envelope;
-pub use envelope::{Document, DocumentCodec, JsonCodec, ReadError};
+pub use envelope::{CONTENT_REVISION, Document, DocumentCodec, Generator, JsonCodec, ReadError, set_writer_version, unsupported_content};
 
 pub const EXTENSION: &str = "opx";
 pub const MAX_DOCUMENT_BYTES: usize = 32 * 1024 * 1024;
@@ -24,7 +24,8 @@ pub enum Model {
 pub struct LogDocument {
     pub name: String,
     pub text: String,
-    /// Step-by-step (manual) mode of the Alpha exercise.
+    /// Legacy step-by-step preference, retained when reading and writing older logs.
+    /// Examination mode is now an application preference, outside document content.
     #[serde(default)]
     pub manual: bool,
     /// The student's answers (relations, matrix cells, algorithm steps).

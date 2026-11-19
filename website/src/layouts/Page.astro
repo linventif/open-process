@@ -1,16 +1,25 @@
 ---
-import { messages, languages, languagePaths, languageLocales, type Language } from "../lib/messages";
+import { messages, languages, localizedPath, languageLocales, type Language, type SitePage } from "../lib/messages";
 import { cloudApp, repository } from "../lib/site";
 import { isPreview } from "../lib/deployment";
 import "../styles/global.css";
+import "../styles/color-mode.css";
 
-interface Props { lang: Language; title?: string; description?: string; noindex?: boolean }
-const { lang, title = messages[lang].title, description = messages[lang].description, noindex = false } = Astro.props;
+interface Props { lang: Language; page?: SitePage; title?: string; description?: string; noindex?: boolean }
+const { lang, page, title = messages[lang].title, description = messages[lang].description, noindex = false } = Astro.props;
 const site = Astro.site!;
-const canonical = new URL(languagePaths[lang], site);
+const canonical = new URL(localizedPath(lang, page), site);
 const image = new URL("/assets/bpmn.webp", site);
 const robots = noindex || isPreview ? "noindex, nofollow" : "index, follow, max-image-preview:large";
-const structuredData = {
+const structuredData = page ? {
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  name: title,
+  url: canonical.href,
+  description,
+  inLanguage: lang,
+  isPartOf: { "@type": "WebSite", name: "Open Process", url: site.href },
+} : {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   name: "Open Process",
@@ -25,11 +34,16 @@ const structuredData = {
   installUrl: cloudApp,
   license: [`${repository}/blob/main/LICENSE-MIT`, `${repository}/blob/main/LICENSE-APACHE`],
   screenshot: image.href,
+  featureList: [messages[lang].drawTitle, messages[lang].databaseTitle,
+    messages[lang].umlTitle, messages[lang].bpmnTitle, messages[lang].usecaseTitle,
+    messages[lang].petriTitle, messages[lang].miningTitle, messages[lang].evaluationTitle,
+    messages[lang].dmnTitle, messages[lang].epcTitle, messages[lang].activityTitle,
+    messages[lang].mermaidTitle],
   image: new URL("/assets/logo.svg", site).href,
 };
 ---
 <!doctype html>
-<html lang={lang}>
+<html lang={lang} data-mode="light">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -40,8 +54,8 @@ const structuredData = {
     <meta name="robots" content={robots} />
     {!noindex && <>
       <link rel="canonical" href={canonical} />
-      {languages.map(language => <link rel="alternate" hreflang={language} href={new URL(languagePaths[language], site)} />)}
-      <link rel="alternate" hreflang="x-default" href={new URL("/", site)} />
+      {languages.map(language => <link rel="alternate" hreflang={language} href={new URL(localizedPath(language, page), site)} />)}
+      <link rel="alternate" hreflang="x-default" href={new URL(localizedPath("en", page), site)} />
     </>}
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Open Process" />
@@ -67,5 +81,5 @@ const structuredData = {
     <link rel="sitemap" href="/sitemap-index.xml" />
     {!noindex && <script type="application/ld+json" set:html={JSON.stringify(structuredData).replace(/</g, "\\u003c")} />}
   </head>
-  <body><slot /></body>
+  <body><slot /><script>import "../scripts/color-mode";</script></body>
 </html>

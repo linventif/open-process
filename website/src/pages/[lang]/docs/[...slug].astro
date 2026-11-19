@@ -1,0 +1,15 @@
+---
+import Documentation from "../../../components/Documentation.astro";
+import { documentation, type DocEntry } from "../../../lib/docs-catalogue";
+import { languages, type Language } from "../../../lib/messages";
+
+export function getStaticPaths() {
+  return languages.filter(lang => lang !== "en").flatMap(lang => [
+    { params: { lang, slug: undefined }, props: { lang } },
+    ...documentation.map(entry => ({ params: { lang, slug: entry.slug }, props: { lang, entry } })),
+  ]);
+}
+interface Props { lang: Language; entry?: DocEntry }
+const { lang, entry } = Astro.props;
+---
+<Documentation lang={lang} entry={entry} />

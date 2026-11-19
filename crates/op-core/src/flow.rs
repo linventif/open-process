@@ -10,6 +10,7 @@ pub type Id = u64;
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Shape {
     Action,
+    Terminator,
     Event,
     Diamond,
     Initial,
@@ -50,6 +51,13 @@ pub struct Diagram<K> {
     pub flows: Vec<Flow>,
 }
 
+/// A transient selection, independent of document storage.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Fragment<K> {
+    pub nodes: Vec<Node<K>>,
+    pub flows: Vec<Flow>,
+}
+
 impl<K: FlowKind> Node<K> {
     pub fn anchor(&self, toward: Pos) -> Pos {
         let r = self.bounds;
@@ -80,6 +88,24 @@ impl<K: FlowKind> Node<K> {
 }
 
 impl<K: FlowKind> Diagram<K> {
+    /// Arranges nodes left to right along their flows. Loops return leftward;
+    /// identities, kinds, names, sizes and flows are unchanged.
+    pub fn auto_arrange(&mut self, grid: Option<f32>) -> Result<(), String> {
+        let index: std::collections::HashMap<Id, usize> = self.nodes.iter().enumerate().map(|(i, n)| (n.id, i)).collect();
+        let sizes: Vec<_> = self.nodes.iter().map(|n| (n.bounds.w, n.bounds.h)).collect();
+        let edges: Vec<_> = self
+            .flows
+            .iter()
+            .filter_map(|f| Some((*index.get(&f.from)?, *index.get(&f.to)?)))
+            .collect();
+        let options = crate::layout::Options::new(crate::layout::Direction::LeftToRight, grid);
+        let centers = crate::layout::layered(&sizes, &edges, options).map_err(|e| e.to_string())?;
+        for (n, c) in self.nodes.iter_mut().zip(centers) {
+            n.bounds = Rect::from_center(c, n.bounds.w, n.bounds.h);
+        }
+        Ok(())
+    }
+
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
@@ -138,28 +164,50 @@ impl<K: FlowKind> Diagram<K> {
         self.flows
             .retain(|f| !nodes.contains(&f.from) && !nodes.contains(&f.to) && flow != Some(f.id));
     }
-    pub fn duplicate(&mut self, ids: &BTreeSet<Id>) -> BTreeSet<Id> {
-        let nodes: Vec<_> = self.nodes.iter().filter(|n| ids.contains(&n.id)).cloned().collect();
-        let flows = self.flows.clone();
-        let mut map = std::collections::BTreeMap::new();
-        for mut n in nodes {
-            let id = self.next_id();
-            map.insert(n.id, id);
-            n.id = id;
-            n.bounds.x += 30.0;
-            n.bounds.y += 30.0;
-            self.nodes.push(n);
+    pub fn fragment(&self, ids: &BTreeSet<Id>) -> Fragment<K> {
+        Fragment {
+            nodes: self.nodes.iter().filter(|n| ids.contains(&n.id)).cloned().collect(),
+            flows: self
+                .flows
+                .iter()
+                .filter(|f| ids.contains(&f.from) && ids.contains(&f.to))
+                .cloned()
+                .collect(),
         }
-        for f in flows {
-            if let (Some(&from), Some(&to)) = (map.get(&f.from), map.get(&f.to)) {
-                self.connect(from, to, f.label);
+    }
+    pub fn paste(&mut self, fragment: &Fragment<K>, delta: Pos) -> Result<BTreeSet<Id>, String> {
+        Self {
+            name: String::new(),
+            nodes: fragment.nodes.clone(),
+            flows: fragment.flows.clone(),
+        }
+        .check_storage()?;
+        let mut result = self.clone();
+        let mut map = std::collections::BTreeMap::new();
+        for mut node in fragment.nodes.clone() {
+            let id = result.next_id();
+            map.insert(node.id, id);
+            node.id = id;
+            node.bounds.x += delta.x;
+            node.bounds.y += delta.y;
+            result.nodes.push(node);
+        }
+        for flow in &fragment.flows {
+            if let (Some(&from), Some(&to)) = (map.get(&flow.from), map.get(&flow.to)) {
+                result.connect(from, to, flow.label.clone());
             }
         }
-        map.into_values().collect()
+        result.check_storage()?;
+        *self = result;
+        Ok(map.into_values().collect())
+    }
+    pub fn duplicate(&mut self, ids: &BTreeSet<Id>) -> BTreeSet<Id> {
+        self.paste(&self.fragment(ids), Pos::new(30.0, 30.0)).unwrap_or_default()
     }
     /// Storage invariants, distinct from an incomplete model's editable diagnostics.
     pub fn check_storage(&self) -> Result<(), String> {
         let mut ids = BTreeSet::new();
+        let mut kinds = std::collections::HashMap::new();
         for n in &self.nodes {
             let r = n.bounds;
             if n.id == 0
@@ -171,6 +219,7 @@ impl<K: FlowKind> Diagram<K> {
             {
                 return Err("Invalid flow node identity or geometry".into());
             }
+            kinds.insert(n.id, n.kind);
         }
         let mut ends = BTreeSet::new();
         for f in &self.flows {
@@ -179,10 +228,7 @@ impl<K: FlowKind> Diagram<K> {
                 || !ids.insert(f.id)
                 || f.from == f.to
                 || !ends.insert((f.from, f.to))
-                || !self
-                    .node(f.from)
-                    .zip(self.node(f.to))
-                    .is_some_and(|(a, b)| a.kind.can_connect(b.kind))
+                || !kinds.get(&f.from).zip(kinds.get(&f.to)).is_some_and(|(a, b)| a.can_connect(*b))
             {
                 return Err("Invalid flow identity or endpoints".into());
             }
@@ -290,6 +336,14 @@ impl<K: FlowKind> Diagram<K> {
                     r.x,
                     c.y
                 ),
+                Shape::Terminator => format!(
+                    "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" rx=\"{}\" {attr}/>",
+                    r.x,
+                    r.y,
+                    r.w,
+                    r.h,
+                    r.h / 2.0
+                ),
                 Shape::Initial => format!(
                     "<ellipse cx=\"{}\" cy=\"{}\" rx=\"{}\" ry=\"{}\" fill=\"#172033\"/>",
                     c.x,
@@ -341,7 +395,7 @@ impl<K: FlowKind> Diagram<K> {
                     escape(symbol)
                 ));
             }
-            let y = if matches!(n.kind.shape(), Shape::Action | Shape::Event) {
+            let y = if matches!(n.kind.shape(), Shape::Action | Shape::Terminator | Shape::Event) {
                 c.y + 4.0
             } else {
                 r.bottom() + 20.0

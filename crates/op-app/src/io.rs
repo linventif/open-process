@@ -67,12 +67,14 @@ impl FileIo {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    /// Several files can be selected; each opens in its own tab.
     pub fn open_dialog(&self, _ctx: &egui::Context, extensions: Vec<&'static str>) {
-        if let Some(path) = rfd::FileDialog::new()
+        let paths = rfd::FileDialog::new()
             .add_filter(tr(FILTER_NAME), &extensions)
             .add_filter(tr("file.all_files"), &["*"])
-            .pick_file()
-        {
+            .pick_files()
+            .unwrap_or_default();
+        for path in paths {
             match read_file(&path) {
                 Ok(bytes) => self.push((path.display().to_string(), bytes)),
                 Err(e) => self.errors.lock().unwrap().push(trf("file.open_failed", &[&path.display(), &e])),
@@ -86,21 +88,23 @@ impl FileIo {
         let errors = self.errors.clone();
         let ctx = ctx.clone();
         wasm_bindgen_futures::spawn_local(async move {
-            if let Some(file) = rfd::AsyncFileDialog::new()
+            let files = rfd::AsyncFileDialog::new()
                 .add_filter(tr(FILTER_NAME), &extensions)
-                .pick_file()
+                .pick_files()
                 .await
-            {
+                .unwrap_or_default();
+            // Each file is checked and read on its own; one oversized file does
+            // not prevent the others from opening.
+            for file in files {
                 if file.inner().size() > op_core::document::MAX_DOCUMENT_BYTES as f64 {
                     errors
                         .lock()
                         .unwrap()
                         .push(trf("file.open_failed", &[&file.file_name(), &tr("file.input_limit")]));
-                    ctx.request_repaint();
-                    return;
+                } else {
+                    let data = file.read().await;
+                    inbox.lock().unwrap().push((file.file_name(), data));
                 }
-                let data = file.read().await;
-                inbox.lock().unwrap().push((file.file_name(), data));
                 ctx.request_repaint();
             }
         });
@@ -180,20 +184,40 @@ pub fn request_png_export(ctx: &egui::Context, rect: egui::Rect, file_name: Stri
 /// Encodes a region of a screenshot as PNG.
 pub fn encode_png(img: &egui::ColorImage, rect: egui::Rect, pixels_per_point: f32) -> Result<Vec<u8>, String> {
     let region = img.region(&rect, Some(pixels_per_point));
-    let [w, h] = region.size;
-    let raw: Vec<u8> = region.pixels.iter().flat_map(|c| c.to_array()).collect();
-    let buf = image::RgbaImage::from_raw(w as u32, h as u32, raw).ok_or("invalid image")?;
+    encode_rgba(region.size, &region.pixels)
+}
+
+pub fn encode_rgba(size: [usize; 2], pixels: &[egui::Color32]) -> Result<Vec<u8>, String> {
+    let raw: Vec<u8> = pixels.iter().flat_map(|c| c.to_array()).collect();
+    let buf = image::RgbaImage::from_raw(size[0] as u32, size[1] as u32, raw).ok_or("invalid image")?;
     let mut out = std::io::Cursor::new(Vec::new());
     buf.write_to(&mut out, image::ImageFormat::Png).map_err(|e| e.to_string())?;
     Ok(out.into_inner())
 }
 
-/// Saves a finished screenshot request, if any. Returns a status message.
+/// A whole-diagram export assembled from tiles: PNG bytes and file name.
+type Finished = Result<(Vec<u8>, String), String>;
+static FINISHED: StdMutex<Option<Finished>> = StdMutex::new(None);
+
+pub(crate) fn finish_png_export(result: Finished) {
+    *FINISHED.lock().unwrap() = Some(result);
+}
+
+pub(crate) fn poll_finished_png() -> Option<Finished> {
+    FINISHED.lock().unwrap().take()
+}
+
+/// Saves a finished export, if any. Returns a status message.
 pub fn poll_png_export(ctx: &egui::Context) -> Option<Result<String, String>> {
-    let (img, rect, name) = READY.lock().unwrap().take()?;
-    let bytes = match encode_png(&img, rect, ctx.pixels_per_point()) {
-        Ok(b) => b,
-        Err(e) => return Some(Err(e)),
+    let (bytes, name) = match READY.lock().unwrap().take() {
+        Some((img, rect, name)) => match encode_png(&img, rect, ctx.pixels_per_point()) {
+            Ok(bytes) => (bytes, name),
+            Err(e) => return Some(Err(e)),
+        },
+        None => match poll_finished_png()? {
+            Ok(finished) => finished,
+            Err(e) => return Some(Err(e)),
+        },
     };
     Some(match save_file(&name, &bytes) {
         Ok(Some(outcome)) => Ok(outcome.message(op_core::i18n::key("app.exported"))),

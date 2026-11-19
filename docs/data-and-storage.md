@@ -44,6 +44,10 @@ view state and layout through eframe's persistence layer. Desktop sessions use
 application storage; browser sessions use local storage. Language settings and
 cached previews are also persisted. Confirmed automatic copies are acknowledged
 separately from the manual destination and from in-flight edits.
+Home cards retain captured previews for closed **Saved diagrams** as well as open
+documents. The combined preview cache holds at most 64 images and 512 KiB of PNG
+data. A saved diagram without a valid cached image shows its notation icon until
+opened again. Previews are disposable and are not embedded in exported `.opx` files.
 
 There is no account-based document sync in these storage paths. Another browser,
 profile, device or site origin has its own session. Private browsing, storage
@@ -54,6 +58,39 @@ Stale document revisions are rejected rather than silently replacing a newer
 copy; simultaneous applications are not a collaborative editing system. Keep separate `.opx`
 files for backups. The [compatibility guide](documents-et-compatibilite.md)
 documents the file and session schemas.
+
+## Color-mode preference
+
+Classic is the only theme. The application's existing eframe preferences retain
+its light/dark choice; the retired `open-process-appearance-v1` family setting is
+no longer read or written. **View → Theme** offers System, Light and Dark. The
+sun/moon button switches theme; picking the system's own theme returns to
+**System**, so later system changes apply again, while the other theme stays an
+explicit override. On Linux, where winit reports no system theme (X11 or Wayland), the app
+reads `org.freedesktop.appearance color-scheme` from the settings portal over
+D-Bus and follows its changes while running (no preference counts as light).
+Without a portal, egui's dark fallback still applies. The website follows the system's light/dark preference
+on load and during live changes unless a visitor chooses a mode explicitly.
+Only a button choice or valid `mode` URL stores `light` or `dark` in
+`open-process-color-mode-v2`. Reloads and language navigation retain that choice;
+other tabs follow its changes or removal. Automatic mode writes no override.
+The former color-mode v1 and `open-process-site-appearance-v1` keys are removed
+when storage is writable: they did not distinguish automatic defaults from
+manual choices. Old manual choices are reset too and can be selected again.
+Explicit `mode` URL parameters may choose a web-app color mode; old `theme`
+parameters cannot choose another family. These settings contain no document
+content and do not change `.opx` or workspace schemas. Clearing browser site data
+also removes the mode preference.
+
+## Drawing clipboard
+
+Explicit copy/cut actions in free drawings write the selected elements, including
+their text, styles and internal connections, as versioned JSON to the system
+clipboard. Pasting can transfer them between drawing documents; plain text
+creates a text element. The running app also keeps the last copied drawing
+selection in memory for browser menu paste. Clipboard state is not stored in
+`.opx` files or workspace preferences and is not sent to an application server.
+See the [drawing guide](dessin-libre.md) for keyboard and menu behavior.
 
 ## Remove local data
 
@@ -78,6 +115,22 @@ does not delete its automatic copy or every persisted session/preview, including
 legacy session data.
 
 ## Website and external services
+
+Official desktop builds send one HTTPS request to the public GitHub releases API
+at startup to check for updates. **Help → Check for updates…** sends another on
+request. Stable builds use `/repos/linventif/open-process/releases/latest`;
+automatic `main-*` and semantic preview builds use that repository's releases
+list, limited to 30 entries. Requests send an application/version user agent and
+standard HTTP headers, with no diagram content, local paths or saved preferences.
+GitHub receives ordinary connection information such as the source IP address.
+The check runs on a background thread, with an eight-second request timeout and
+a 2 MiB response limit. Startup failures are silent. No update-check state is
+persisted; **Later** dismisses the notice only for the current session.
+
+Local builds without a recognized embedded release tag skip the startup request.
+The browser application has no desktop update checker. Update links open GitHub
+in the user's browser; downloads and installation require user action. See
+[desktop updates](getting-started.md#desktop-updates) for version channels.
 
 The public site and browser app are served through the hosting setup described
 in [website/README.md](../website/README.md). Loading them sends ordinary web

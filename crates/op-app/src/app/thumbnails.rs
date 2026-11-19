@@ -1,5 +1,6 @@
 //! Disposable PNG previews of rendered documents, separate from document/session data.
 use crate::editor::{Doc, Revisions};
+use crate::platform::autosave;
 use egui::{ColorImage, Context, Rect, TextureHandle, TextureId};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -31,6 +32,21 @@ struct Thumbnail {
     png: Vec<u8>,
     texture: TextureHandle,
     sequence: u64,
+    archive_revision: Option<String>,
+}
+
+#[derive(Clone, Hash, PartialEq, Eq)]
+enum Identity {
+    Open(u64),
+    Saved(String),
+}
+
+impl Identity {
+    fn document(doc: &Doc) -> Self {
+        doc.archive
+            .as_ref()
+            .map_or(Self::Open(doc.uid), |entry| Self::Saved(entry.id.clone()))
+    }
 }
 
 #[derive(Clone)]
@@ -52,21 +68,54 @@ struct Inbox {
 #[derive(Serialize, Deserialize)]
 struct Saved {
     uid: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    archive: Option<Archive>,
     digest: u64,
     png: Vec<u8>,
 }
 
+#[derive(Serialize, Deserialize)]
+struct Archive {
+    id: String,
+    revision: String,
+}
+
 #[derive(Default)]
 pub(super) struct Thumbnails {
-    entries: HashMap<u64, Thumbnail>,
+    entries: HashMap<Identity, Thumbnail>,
     pending: Option<Request>,
     inbox: Arc<Mutex<Inbox>>,
     sequence: u64,
 }
 
 impl Thumbnails {
-    pub fn texture(&self, uid: u64) -> Option<TextureId> {
-        self.entries.get(&uid).map(|t| t.texture.id())
+    fn document(&self, doc: &Doc) -> Option<&Thumbnail> {
+        self.entries
+            .get(&Identity::document(doc))
+            .or_else(|| self.entries.get(&Identity::Open(doc.uid)))
+    }
+
+    pub fn texture(&self, doc: &Doc) -> Option<TextureId> {
+        self.document(doc).map(|t| t.texture.id())
+    }
+
+    pub fn saved_texture(&self, entry: &autosave::Entry) -> Option<TextureId> {
+        self.entries
+            .get(&Identity::Saved(entry.id.clone()))
+            .filter(|t| t.archive_revision.as_deref() == Some(entry.revision.as_str()))
+            .map(|t| t.texture.id())
+    }
+
+    pub fn acknowledge(&mut self, uid: u64, entry: &autosave::Entry, state: &crate::editor::StoredDocument) {
+        let identity = Identity::Saved(entry.id.clone());
+        if let Some(thumbnail) = self.entries.remove(&Identity::Open(uid)) {
+            self.entries.insert(identity.clone(), thumbnail);
+        }
+        if let Some(thumbnail) = self.entries.get_mut(&identity)
+            && thumbnail.digest == digest(&state.bytes())
+        {
+            thumbnail.archive_revision = Some(entry.revision.clone());
+        }
     }
 
     pub fn invalidate_scene(&mut self) {
@@ -75,8 +124,16 @@ impl Thumbnails {
         self.inbox.lock().unwrap().epoch += 1;
     }
 
-    pub fn poll(&mut self, ctx: &Context, docs: &[Doc]) {
-        self.entries.retain(|uid, _| docs.iter().any(|d| d.uid == *uid));
+    pub fn poll(&mut self, ctx: &Context, docs: &[Doc], library: &[autosave::Entry]) {
+        self.entries.retain(|identity, thumbnail| match identity {
+            Identity::Open(uid) => docs.iter().any(|d| d.uid == *uid),
+            Identity::Saved(id) => {
+                docs.iter().any(|d| d.archive.as_ref().is_some_and(|entry| entry.id == *id))
+                    || library
+                        .iter()
+                        .any(|entry| entry.id == *id && thumbnail.archive_revision.as_deref() == Some(entry.revision.as_str()))
+            }
+        });
         let ready = self.inbox.lock().unwrap().ready.take();
         let Some((request, image)) = ready else { return };
         if self.pending.as_ref().is_none_or(|p| p.id != request.id) {
@@ -84,30 +141,40 @@ impl Thumbnails {
         }
         self.pending = None;
         let Some(image) = image else { return };
-        if !docs
+        let Some(doc) = docs
             .iter()
-            .any(|d| d.uid == request.uid && d.editor.revisions() == request.stamp.revisions)
-        {
+            .find(|d| d.uid == request.uid && d.editor.revisions() == request.stamp.revisions)
+        else {
             return;
-        }
+        };
         let Ok((png, image)) = encode(&image, request.stamp.rect, request.stamp.pixels_per_point) else {
             return;
         };
         let texture = ctx.load_texture(format!("document-thumbnail-{}", request.uid), image, egui::TextureOptions::LINEAR);
+        self.entries.remove(&Identity::Open(request.uid));
         self.entries.insert(
-            request.uid,
+            Identity::document(doc),
             Thumbnail {
                 stamp: Some(request.stamp),
                 digest: request.digest,
                 png,
                 texture,
                 sequence: request.id,
+                archive_revision: doc
+                    .archive
+                    .as_ref()
+                    .filter(|entry| !entry.revision.is_empty() && doc.autosaved_revision == Some(doc.editor.revisions()))
+                    .map(|entry| entry.revision.clone()),
             },
         );
         if self.entries.len() > MAX_ENTRIES {
-            let oldest = self.entries.iter().min_by_key(|(_, t)| t.sequence).map(|(uid, _)| *uid);
-            if let Some(uid) = oldest {
-                self.entries.remove(&uid);
+            let oldest = self
+                .entries
+                .iter()
+                .min_by_key(|(_, t)| t.sequence)
+                .map(|(identity, _)| identity.clone());
+            if let Some(identity) = oldest {
+                self.entries.remove(&identity);
             }
         }
     }
@@ -151,7 +218,7 @@ impl Thumbnails {
         }
         let Some((doc, stamp)) = candidates
             .into_iter()
-            .find(|(d, s)| self.entries.get(&d.uid).is_none_or(|t| t.stamp.as_ref() != Some(s)))
+            .find(|(d, s)| self.document(d).is_none_or(|t| t.stamp.as_ref() != Some(s)))
         else {
             return;
         };
@@ -182,7 +249,14 @@ impl Thumbnails {
         ctx.request_repaint_after(std::time::Duration::from_secs(5));
     }
 
-    pub fn restore(&mut self, storage: &dyn eframe::Storage, ctx: &Context, ids: &HashMap<u64, u64>, docs: &[Doc]) {
+    pub fn restore(
+        &mut self,
+        storage: &dyn eframe::Storage,
+        ctx: &Context,
+        ids: &HashMap<u64, u64>,
+        docs: &[Doc],
+        library: &[autosave::Entry],
+    ) {
         let Some(raw) = storage.get_string(KEY) else { return };
         if raw.len() > MAX_CACHE_BYTES * 4 + 16_384 {
             return;
@@ -196,11 +270,34 @@ impl Thumbnails {
             if total > MAX_CACHE_BYTES {
                 break;
             }
-            let Some(uid) = ids.get(&saved.uid).copied() else { continue };
-            let Some(doc) = docs.iter().find(|d| d.uid == uid) else { continue };
-            if digest(&doc.snapshot().bytes()) != saved.digest {
-                continue;
-            }
+            let (identity, archive_revision) = if let Some(archive) = saved.archive {
+                if !library
+                    .iter()
+                    .any(|entry| entry.id == archive.id && entry.revision == archive.revision)
+                {
+                    continue;
+                }
+                if docs
+                    .iter()
+                    .find(|d| d.archive.as_ref().is_some_and(|entry| entry.id == archive.id))
+                    .is_some_and(|d| digest(&d.snapshot().bytes()) != saved.digest)
+                {
+                    continue;
+                }
+                (Identity::Saved(archive.id), Some(archive.revision))
+            } else {
+                let Some(uid) = ids.get(&saved.uid).copied() else { continue };
+                let Some(doc) = docs.iter().find(|d| d.uid == uid) else { continue };
+                if digest(&doc.snapshot().bytes()) != saved.digest {
+                    continue;
+                }
+                let revision = doc
+                    .archive
+                    .as_ref()
+                    .filter(|_| doc.autosaved_revision == Some(doc.editor.revisions()))
+                    .map(|entry| entry.revision.clone());
+                (Identity::document(doc), revision)
+            };
             let reader = image::ImageReader::with_format(std::io::Cursor::new(&saved.png), image::ImageFormat::Png);
             if reader.into_dimensions().ok() != Some((SIZE[0], SIZE[1])) {
                 continue;
@@ -209,48 +306,88 @@ impl Thumbnails {
                 continue;
             };
             let image = ColorImage::from_rgba_unmultiplied([SIZE[0] as usize, SIZE[1] as usize], image.to_rgba8().as_raw());
-            let texture = ctx.load_texture(format!("document-thumbnail-{uid}"), image, egui::TextureOptions::LINEAR);
+            let texture = ctx.load_texture("document-thumbnail", image, egui::TextureOptions::LINEAR);
             self.entries.insert(
-                uid,
+                identity,
                 Thumbnail {
                     stamp: None,
                     digest: saved.digest,
                     png: saved.png,
                     texture,
                     sequence: 0,
+                    archive_revision,
                 },
             );
         }
     }
 
-    pub fn save(&self, storage: &mut dyn eframe::Storage, docs: &[Doc]) {
+    fn serialized(&self, docs: &[Doc], library: &[autosave::Entry]) -> String {
         let mut saved = Vec::new();
         let mut total = 0;
-        for doc in docs.iter().rev() {
-            let Some(t) = self.entries.get(&doc.uid) else { continue };
-            if total + t.png.len() > MAX_CACHE_BYTES || saved.len() >= MAX_ENTRIES {
-                continue;
+        let mut append = |uid, archive, t: &Thumbnail| {
+            if total + t.png.len() <= MAX_CACHE_BYTES && saved.len() < MAX_ENTRIES {
+                total += t.png.len();
+                saved.push(Saved {
+                    uid,
+                    archive,
+                    digest: t.digest,
+                    png: t.png.clone(),
+                });
             }
+        };
+        for doc in docs.iter().rev() {
+            let Some(t) = self.document(doc) else { continue };
             // A stale image remains useful on Home, but is never restored for
             // a different version of the document on the next launch.
             if digest(&doc.snapshot().bytes()) != t.digest {
                 continue;
             }
-            total += t.png.len();
-            saved.push(Saved {
-                uid: doc.uid,
-                digest: t.digest,
-                png: t.png.clone(),
-            });
+            let archive = doc
+                .archive
+                .as_ref()
+                .filter(|entry| !entry.revision.is_empty() && doc.autosaved_revision == Some(doc.editor.revisions()))
+                .map(|entry| Archive {
+                    id: entry.id.clone(),
+                    revision: entry.revision.clone(),
+                });
+            append(doc.uid, archive, t);
         }
-        if let Ok(raw) = serde_json::to_string(&saved) {
-            storage.set_string(KEY, raw);
+        for entry in library {
+            if docs.iter().any(|doc| doc.archive.as_ref().is_some_and(|open| open.id == entry.id)) {
+                continue;
+            }
+            let Some(t) = self.entries.get(&Identity::Saved(entry.id.clone())) else {
+                continue;
+            };
+            if t.archive_revision.as_deref() != Some(entry.revision.as_str()) {
+                continue;
+            }
+            append(
+                0,
+                Some(Archive {
+                    id: entry.id.clone(),
+                    revision: entry.revision.clone(),
+                }),
+                t,
+            );
         }
+        serde_json::to_string(&saved).expect("thumbnail cache is serializable")
+    }
+
+    pub fn save(&self, storage: &mut dyn eframe::Storage, docs: &[Doc], library: &[autosave::Entry]) {
+        storage.set_string(KEY, self.serialized(docs, library));
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn save_browser(&self, storage: &web_sys::Storage, docs: &[Doc], library: &[autosave::Entry]) -> Result<(), String> {
+        storage
+            .set_item(KEY, &self.serialized(docs, library))
+            .map_err(|error| format!("{error:?}"))
     }
 
     #[cfg(test)]
-    pub fn png(&self, uid: u64) -> Option<&[u8]> {
-        self.entries.get(&uid).map(|t| t.png.as_slice())
+    pub fn png(&self, doc: &Doc) -> Option<&[u8]> {
+        self.document(doc).map(|t| t.png.as_slice())
     }
 }
 
@@ -372,8 +509,8 @@ mod tests {
             .expect("a rendered document requests a preview");
         cache.invalidate_scene();
         callback.complete(Arc::new(ColorImage::filled([320, 180], Color32::RED)));
-        cache.poll(&ctx, &docs);
-        assert!(cache.texture(docs[0].uid).is_none(), "Home must not be captured as a diagram");
+        cache.poll(&ctx, &docs, &[]);
+        assert!(cache.texture(&docs[0]).is_none(), "Home must not be captured as a diagram");
         assert!(cache.pending.is_none());
     }
 
@@ -391,17 +528,18 @@ mod tests {
         .unwrap();
         let mut cache = Thumbnails::default();
         cache.entries.insert(
-            old.uid,
+            Identity::Open(old.uid),
             Thumbnail {
                 stamp: None,
                 digest: digest(&original.bytes()),
                 png: png.clone(),
                 texture: ctx.load_texture("preview-test", image, egui::TextureOptions::LINEAR),
                 sequence: 1,
+                archive_revision: None,
             },
         );
         let old_uid = old.uid;
-        cache.save(&mut storage, &[old]);
+        cache.save(&mut storage, &[old], &[]);
         assert!(
             storage.get_string(crate::platform::persistence::KEY).is_none(),
             "preview storage never changes the workspace schema"
@@ -409,24 +547,81 @@ mod tests {
         let restored = document();
         let ids = HashMap::from([(old_uid, restored.uid)]);
         let mut loaded = Thumbnails::default();
-        loaded.restore(&storage, &ctx, &ids, std::slice::from_ref(&restored));
-        assert_eq!(loaded.png(restored.uid), Some(png.as_slice()));
+        loaded.restore(&storage, &ctx, &ids, std::slice::from_ref(&restored), &[]);
+        assert_eq!(loaded.png(&restored), Some(png.as_slice()));
         assert_eq!(restored.snapshot(), original);
         let mut changed = restored;
         changed.editor.rename("Changed since capture".into());
         let mut stale = Thumbnails::default();
-        stale.restore(&storage, &ctx, &ids, std::slice::from_ref(&changed));
-        assert!(stale.texture(changed.uid).is_none());
+        stale.restore(&storage, &ctx, &ids, std::slice::from_ref(&changed), &[]);
+        assert!(stale.texture(&changed).is_none());
         storage.set_string(
             KEY,
             serde_json::to_string(&vec![Saved {
                 uid: old_uid,
+                archive: None,
                 digest: digest(&changed.snapshot().bytes()),
                 png: vec![1, 2, 3],
             }])
             .unwrap(),
         );
-        stale.restore(&storage, &ctx, &ids, &[changed]);
+        stale.restore(&storage, &ctx, &ids, &[changed], &[]);
         assert!(stale.entries.is_empty());
+    }
+
+    #[test]
+    fn saved_previews_require_the_same_library_identity_revision_and_content() {
+        let ctx = Context::default();
+        let mut doc = document();
+        let mut entry = autosave::Entry::new(doc.name(), doc.editor.kind().into(), None);
+        entry.revision = "saved-revision".into();
+        let (png, image) = encode(
+            &ColorImage::filled([32, 18], Color32::GREEN),
+            Rect::from_min_size(pos2(0.0, 0.0), vec2(32.0, 18.0)),
+            1.0,
+        )
+        .unwrap();
+        let mut cache = Thumbnails::default();
+        cache.entries.insert(
+            Identity::Open(doc.uid),
+            Thumbnail {
+                stamp: None,
+                digest: digest(&doc.snapshot().bytes()),
+                png,
+                texture: ctx.load_texture("saved-preview-test", image, egui::TextureOptions::LINEAR),
+                sequence: 1,
+                archive_revision: None,
+            },
+        );
+        cache.acknowledge(doc.uid, &entry, &doc.snapshot());
+        assert!(cache.saved_texture(&entry).is_some());
+        let mut storage = Storage::default();
+        cache.save(&mut storage, &[], std::slice::from_ref(&entry));
+
+        // Closed library entries restore without any open workspace or UID mapping.
+        let mut restored = Thumbnails::default();
+        restored.restore(&storage, &ctx, &HashMap::new(), &[], std::slice::from_ref(&entry));
+        restored.poll(&ctx, &[], std::slice::from_ref(&entry));
+        assert!(restored.saved_texture(&entry).is_some());
+        doc.archive = Some(entry.clone());
+        assert!(restored.texture(&doc).is_some());
+
+        let mut changed = entry.clone();
+        changed.revision = "newer-revision".into();
+        assert!(restored.saved_texture(&changed).is_none());
+        let mut stale = Thumbnails::default();
+        stale.restore(&storage, &ctx, &HashMap::new(), &[], &[changed]);
+        assert!(stale.entries.is_empty());
+        stale.restore(&storage, &ctx, &HashMap::new(), &[], &[]);
+        assert!(stale.entries.is_empty(), "deleted records must not restore previews");
+
+        doc.editor.rename("Unsaved content after capture".into());
+        stale.restore(&storage, &ctx, &HashMap::new(), &[doc], std::slice::from_ref(&entry));
+        assert!(
+            stale.entries.is_empty(),
+            "a saved preview must not stand in for a different restored draft"
+        );
+        restored.poll(&ctx, &[], &[]);
+        assert!(restored.entries.is_empty());
     }
 }

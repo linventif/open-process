@@ -3,9 +3,20 @@
 use super::*;
 use canvas::InlineOutcome;
 
-const CLIPBOARD: &str = "open_process_uml_clipboard";
-
 impl UmlEditor {
+    fn resize_at(&self, canvas: Rect, pointer: egui::Pos2) -> Option<(Id, canvas::resize::ResizeEdge)> {
+        if self.tool != Tool::Select || self.editing.is_some() || self.dnd.is_some() {
+            return None;
+        }
+        let nodes = self
+            .diagram
+            .nodes
+            .iter()
+            .filter(|n| n.kind == NodeKind::System)
+            .chain(self.diagram.nodes.iter().filter(|n| n.kind != NodeKind::System));
+        canvas::resize::target(self.view, canvas, pointer, nodes.map(|n| (n.id, n.rect())))
+    }
+
     pub(super) fn select_node(&mut self, id: Id, additive: bool) {
         if !additive {
             self.group.clear();
@@ -16,19 +27,6 @@ impl UmlEditor {
             self.group.insert(id);
         }
         self.selection = self.group.iter().next_back().copied().map(Selection::Node);
-    }
-
-    pub(super) fn paste(&mut self, fragment: &DiagramFragment) {
-        self.history.sync(&self.diagram, false);
-        self.paste_count += 1;
-        let offset = 30.0 * self.paste_count as f32;
-        let ids = self.diagram.paste(fragment, Pos::new(offset, offset));
-        if !ids.is_empty() {
-            self.group = ids;
-            self.selection = self.group.iter().next().copied().map(Selection::Node);
-            self.tool = Tool::Select;
-        }
-        self.history.sync(&self.diagram, false);
     }
 
     pub(super) fn align(&mut self, horizontal: bool, edge: i32) {
@@ -177,31 +175,11 @@ impl UmlEditor {
     }
 
     fn shortcuts(&mut self, ui: &Ui, response: &egui::Response) {
-        if self.editing.is_some() || !response.hovered() || ui.ctx().egui_wants_keyboard_input() {
+        if self.editing.is_some() || !response.hovered() || ui.ctx().egui_wants_keyboard_input() || egui::Popup::is_any_open(ui.ctx()) {
             return;
         }
         let command = ui.input(|i| i.modifiers.command);
         if command {
-            if ui.input(|i| i.key_pressed(Key::A)) {
-                self.group = self.diagram.nodes.iter().map(|n| n.id).collect();
-                self.selection = self.group.iter().next().copied().map(Selection::Node);
-            }
-            if ui.input(|i| i.key_pressed(Key::C)) && !self.group.is_empty() {
-                let fragment = self.diagram.fragment(&self.group);
-                ui.ctx().data_mut(|d| d.insert_temp(egui::Id::unique(CLIPBOARD), fragment));
-                self.paste_count = 0;
-            }
-            if ui.input(|i| i.key_pressed(Key::V)) {
-                let fragment = ui.ctx().data(|d| d.get_temp::<DiagramFragment>(egui::Id::unique(CLIPBOARD)));
-                if let Some(fragment) = fragment {
-                    self.paste(&fragment);
-                }
-            }
-            if ui.input(|i| i.key_pressed(Key::D)) {
-                let fragment = self.diagram.fragment(&self.group);
-                self.paste_count = 0;
-                self.paste(&fragment);
-            }
             return;
         }
         if ui.input(|i| i.key_pressed(Key::Escape)) {
@@ -258,31 +236,13 @@ impl UmlEditor {
         self.last_canvas = rect;
         self.update_routes();
         self.view.handle_navigation(ui, &response, rect);
+        self.clipboard_ui(ui, &response);
         self.shortcuts(ui, &response);
         if self.fit {
             self.fit = false;
-            let mut bounds: Vec<_> = self
-                .diagram
-                .nodes
-                .iter()
-                .flat_map(|n| {
-                    let r = n.rect();
-                    [Pos::new(r.x, r.y), Pos::new(r.right(), r.bottom())]
-                })
-                .collect();
-            bounds.extend(self.routes.values().flatten().copied());
-            if !bounds.is_empty() {
-                let min = Pos::new(
-                    bounds.iter().map(|p| p.x).fold(f32::INFINITY, f32::min),
-                    bounds.iter().map(|p| p.y).fold(f32::INFINITY, f32::min),
-                );
-                let max = Pos::new(
-                    bounds.iter().map(|p| p.x).fold(f32::NEG_INFINITY, f32::max),
-                    bounds.iter().map(|p| p.y).fold(f32::NEG_INFINITY, f32::max),
-                );
-                self.view.fit(rect, min, max);
-            } else {
-                self.view = View::default();
+            match self.content_bounds() {
+                Some((min, max)) => self.view.fit(rect, min, max),
+                None => self.view = View::default(),
             }
         }
         let pointer = ui.input(|i| i.pointer.interact_pos());
@@ -308,22 +268,18 @@ impl UmlEditor {
                         }
                     }
                     Tool::Select => {
-                        let resize = if let Some(Selection::Node(id)) = self.selection {
-                            self.diagram
-                                .node(id)
-                                .filter(|n| {
-                                    let r = self.view.rect_to_screen(rect, n.rect());
-                                    self.group.len() == 1 && r.right_bottom().distance(screen) < 12.0
-                                })
-                                .map(|n| n.id)
-                        } else {
-                            None
-                        };
-                        if let Some(id) = resize {
-                            self.drag = Some(Drag::Resize(id));
+                        if let Some((id, edge)) = self.resize_at(rect, screen).filter(|_| !ui.input(|i| i.modifiers.alt)) {
+                            self.select_node(id, false);
+                            self.drag = Some(Drag::Resize {
+                                id,
+                                gesture: canvas::resize::ResizeGesture::new(self.diagram.node(id).unwrap().rect(), edge, start),
+                            });
                         } else if let Some(Selection::Node(id)) = self.hit(start, screen) {
                             if !self.group.contains(&id) {
                                 self.select_node(id, shift);
+                            }
+                            if ui.input(|i| i.modifiers.alt) {
+                                self.duplicate_selection(Pos::default(), false);
                             }
                             let ids = self.diagram.selection_closure(&self.group);
                             let origins = self
@@ -360,11 +316,19 @@ impl UmlEditor {
                         }
                     }
                 }
-                Some(Drag::Resize(id)) => {
+                Some(Drag::Resize { id, gesture }) => {
                     if let Some(n) = self.diagram.nodes.iter_mut().find(|n| n.id == *id) {
-                        let p = if self.snap { world.snapped(10.0) } else { world };
-                        n.bounds.w = (p.x - n.bounds.x).clamp(80.0, 2000.0);
-                        n.bounds.h = (p.y - n.bounds.y).clamp(if n.kind == NodeKind::Actor { 130.0 } else { 60.0 }, 2000.0);
+                        let min = n.minimum_size();
+                        let bounds = gesture.apply(
+                            n.rect(),
+                            world,
+                            min,
+                            Pos::new(2000.0, 2000.0_f32.max(min.y)),
+                            self.snap.then_some(10.0),
+                        );
+                        if bounds != n.rect() {
+                            n.bounds = bounds;
+                        }
                     }
                 }
                 Some(Drag::Rubber { start, base }) => {
@@ -449,6 +413,8 @@ impl UmlEditor {
             }
         }
         response.context_menu(|ui| {
+            crate::theme::menu_style(ui.style_mut());
+            self.selection_menu(ui);
             if ui
                 .add_enabled(
                     self.selection.is_some() && self.group.len() <= 1,
@@ -460,15 +426,6 @@ impl UmlEditor {
                 ui.close();
             }
             if ui
-                .add_enabled(!self.group.is_empty(), egui::Button::new(tr("common.duplicate")))
-                .clicked()
-            {
-                let fragment = self.diagram.fragment(&self.group);
-                self.paste_count = 0;
-                self.paste(&fragment);
-                ui.close();
-            }
-            if ui
                 .add_enabled(self.selection.is_some(), egui::Button::new(tr("common.delete_selection")))
                 .clicked()
             {
@@ -476,6 +433,16 @@ impl UmlEditor {
                 ui.close();
             }
             ui.separator();
+            ui.add_enabled_ui(self.group.len() > 1, |ui| {
+                ui.menu_button(tr("bpmn.arrange"), |ui| self.arrange_actions(ui));
+            });
+            if !crate::editor::exam::active(ui.ctx())
+                && self.diagram.kind == DiagramKind::Class
+                && ui.button(tr("conversion.to_mermaid")).clicked()
+            {
+                self.convert_mermaid = true;
+                ui.close();
+            }
             if ui.button(tr("canvas.zoom_fit")).clicked() {
                 self.request_fit();
                 ui.close();
@@ -484,7 +451,11 @@ impl UmlEditor {
         self.update_routes();
         let pal = Palette::for_ui(ui);
         let painter = ui.painter().with_clip_rect(rect);
-        let exporting = std::mem::take(&mut self.export_png);
+        if std::mem::take(&mut self.export_png) {
+            let name = self.diagram.name.clone();
+            self.png_export = Some(canvas::export::ImageExport::start(self.content_bounds(), self.view, rect, name));
+        }
+        let exporting = canvas::export::frame(&mut self.png_export, &mut self.view, rect, ui.ctx());
         canvas::draw_background(&painter, rect, &self.view, &pal);
         for n in self.diagram.nodes.iter().filter(|n| n.kind == NodeKind::System) {
             self.draw_node(&painter, rect, n, &pal, exporting);
@@ -498,12 +469,28 @@ impl UmlEditor {
             self.draw_node(&painter, rect, n, &pal, exporting);
         }
         if !exporting {
+            let resize = match self.drag {
+                Some(Drag::Resize { id, gesture }) => Some((id, gesture.edge)),
+                None if response.hovered() && !ui.input(|i| i.key_down(Key::Space)) => pointer.and_then(|p| self.resize_at(rect, p)),
+                _ => None,
+            };
+            if let Some((id, edge)) = resize
+                && let Some(node) = self.diagram.node(id)
+            {
+                canvas::resize::feedback(ui, &painter, self.view, rect, node.rect(), edge, pal.select);
+            }
             self.draw_overlays(ui, &painter, rect, &pal);
             self.palette(ui, rect);
             self.inline_editor(ui, rect);
         } else {
-            crate::io::request_png_export(ui.ctx(), rect, format!("{}.png", self.diagram.name));
+            canvas::export::capture(&mut self.png_export, ui.ctx());
         }
+    }
+
+    /// World extents of every element and routed relation.
+    fn content_bounds(&self) -> Option<(Pos, Pos)> {
+        let points = self.routes.values().flatten().map(|p| op_core::geom::Rect::new(p.x, p.y, 0.0, 0.0));
+        canvas::export::bounds(self.diagram.nodes.iter().map(|n| n.rect()).chain(points))
     }
 
     fn inline_editor(&mut self, ui: &Ui, rect: Rect) {

@@ -40,12 +40,25 @@ flowchart TD
 | Decision tables and flow editors | [DMN](../crates/op-app/src/dmn_editor.rs), [EPC/activities](../crates/op-app/src/flow_editor.rs). |
 | Relational schemas and DDL | [Model](../crates/op-core/src/database.rs), [SQL generation](../crates/op-core/src/database/ddl.rs), [editor](../crates/op-app/src/database_editor.rs). |
 | Free drawing | [Model](../crates/op-core/src/whiteboard.rs), [editor](../crates/op-app/src/whiteboard_editor.rs), [session](../crates/op-app/src/whiteboard_editor/session.rs). |
-| Mermaid | [Model/SVG](../crates/op-core/src/mermaid.rs), [editor](../crates/op-app/src/mermaid_editor.rs), [preview job](../crates/op-app/src/mermaid_editor/preview.rs). |
+| Mermaid | [Model/SVG](../crates/op-core/src/mermaid.rs), [form operations](../crates/op-core/src/mermaid/builder.rs), [editor](../crates/op-app/src/mermaid_editor.rs), [preview job](../crates/op-app/src/mermaid_editor/preview.rs). |
 | UML class ↔ Mermaid conversion | [Typed conversion](../crates/op-core/src/mermaid/conversion.rs), commands owned by the UML and Mermaid editor adapters; [features and limits](mermaid.md#converting-uml-class-diagrams). |
 | Envelope and typed codecs | [document/envelope.rs](../crates/op-core/src/document/envelope.rs). |
 | Session restoration | [platform/persistence.rs](../crates/op-app/src/platform/persistence.rs). |
 | Automatic document library | [platform/autosave.rs](../crates/op-app/src/platform/autosave.rs), coordinated by [app/automatic.rs](../crates/op-app/src/app/automatic.rs). |
+| Desktop updates | [platform/updates.rs](../crates/op-app/src/platform/updates.rs) fetches and compares release metadata on a background thread; [app/updates.rs](../crates/op-app/src/app/updates.rs) owns the translated popup and manual check. |
 | Background execution | [Jobs](../crates/op-app/src/platform/jobs.rs), [Petri task](../crates/op-app/src/petri_editor/analysis_job.rs), [worker](../crates/op-app/analysis-worker.js). |
+
+## Desktop update checks
+
+Native release builds embed `OP_RELEASE_TAG` through
+[build.rs](../crates/op-app/build.rs). The
+[release workflow](../.github/workflows/release.yml) computes that tag once and
+shares it with compilation and publication. Native-only `ureq` provides HTTPS
+without a system command or async runtime, and `semver` provides semantic version
+comparison; the Cargo package version alone cannot distinguish automatic builds.
+This platform service is absent from WebAssembly and does not involve domain
+models or document storage. See [desktop updates](getting-started.md#desktop-updates)
+and [network behavior](data-and-storage.md#website-and-external-services).
 
 ## Documents and views
 
@@ -63,6 +76,8 @@ Each document card has an **Examples** button. `ExampleDescriptor::kind` filters
 its menu by canonical document type, and registry validation checks those
 references. Factories run only when an example is selected. Selection closes the
 picker and opens the example in the originating tab group, like a blank document.
+Editor content does not expose a second **Examples** menu. Process-discovery
+samples use the registered event-log examples on those same cards.
 
 Diagram and workflow descriptors provide an `icon` function. Modules choose
 symbols from `icons.rs`; cards do not infer a notation from its order. The same
@@ -76,7 +91,10 @@ captures actual rendered content at 320 × 180 pixels, preserving aspect ratio.
 to the displayed panel. Capture changes neither model nor camera. Only one
 capture is pending at a time; navigation, dialogs or geometry changes invalidate
 a delayed result. Revisions avoid capturing every frame. The preview cache
-restores separately; documents without a capture show a type icon.
+restores separately, including closed **Saved diagrams**: acknowledged captures
+use the automatic copy's stable UUID and saved revision rather than a tab's
+runtime UID. Reopening a saved diagram reuses its preview. Documents without a
+valid capture show a type icon until displayed again.
 
 `Session<E>` owns one editor/history with typed state per panel instance. Cameras,
 including the Petri graph camera, and inspectors persist separately from the
@@ -91,9 +109,9 @@ editor access through `Any` is restricted to UI probes under `cfg(test)`.
 ## Editor organization
 
 `bpmn_editor/` and `petri_editor/` separate interaction, rendering, inspector/panels
-and session adaptation. `uml_editor/` separates interaction, rendering, inspector
-and session. Mining results live in `mining_editor/results.rs`, with integration
-in `mining_editor/session.rs`. Historical module names remain; the target's
+and session adaptation. `uml_editor/` separates interaction, rendering, inspector,
+tools and session. Mining results live in `mining_editor/results.rs`, with
+integration in `mining_editor/session.rs`. Historical module names remain; the target's
 logical directory tree did not require renaming public paths.
 
 ## Shared graphical layout
@@ -101,13 +119,31 @@ logical directory tree did not require renaming public paths.
 The [annotated layout and vocabulary](interface.md) name navigation, document
 tabs, canvas, inspector and view configuration. Graphical editors use
 `DiagramLayout` for shared bar height, spacing, zoom, snapping, issue visibility
-where supported and notation-specific slots. UML relation/alignment actions use
-the business tools slot rather than a second configuration bar.
+where supported and notation-specific slots. UML has no horizontal business
+action bar: `uml_editor/tools.rs` supplies a hover/click relation picker in the
+floating palette, while alignment/distribution use the selection inspector and
+canvas context menu. Relation type is typed runtime view state, independent of
+the document/history; persisted camera/snap/inspector data keeps its format.
 
 The inspector sits on the right in wide views. Below 760 px it is hidden by
 default; opening it explicitly places a bounded panel above the canvas. Options
 move into a menu below 720 px; the inspector button also moves there below 360 px.
 BPMN and Petri share the inspector-tab component.
+
+BPMN pool/lane resize rules live in
+[bpmn/resize.rs](../crates/op-core/src/bpmn/resize.rs). The editor's
+[resize affordances](../crates/op-app/src/bpmn_editor/resize.rs) handle border
+hit testing, directional cursors and highlights. Pointer gestures retain their
+grab offset and use the typed history; internal lane separators redistribute
+adjacent heights, while minimum sizes and contained elements constrain shrinking.
+
+Resizable elements in BPMN, UML, EPC/activity, database and free drawing share
+[canvas/resize.rs](../crates/op-app/src/canvas/resize.rs) for pointer picking,
+grab offsets, cursors and feedback. [geom/resize.rs](../crates/op-core/src/geom/resize.rs)
+owns rectangular border/corner geometry, optional grid snapping and size limits.
+Notation editors supply their typed element IDs and minimum/maximum sizes;
+UML compartments and database columns determine their content-based minima.
+Pool/lane resizing reuses the visual affordances with its own domain constraints.
 
 Snapping, inspector visibility and issue visibility are view preferences, not
 `.opx` model content. Persisted drawing styles belong to models and are supplied
@@ -139,15 +175,86 @@ fallback endpoints. It reuses `DiagramLayout` and
 `canvas::floating`, registers its example and SVG export in composition, and
 keeps cameras/preferences per view. Geometry is semantic content for a drawing.
 
+The shared [selection controller](../crates/op-app/src/editor/clipboard.rs)
+provides default clipboard events, copy/cut/paste, duplicate/select-all commands,
+context actions and browser menu-paste fallback for graphical builders. BPMN,
+Petri, UML, EPC/activity, native flowcharts and database adapters implement
+`CanvasClipboard` with concrete fragment types. Domain extraction, validation,
+identity remapping and internal-link preservation stay in `op-core`. Alt-drag
+uses the same typed paste operation inside the movement's history transaction;
+Escape cancels both. BPMN pool gestures retain explicit copied node IDs so
+spatially overlapping originals cannot be moved with their copies. Selection and
+clipboard counters are transient per-view state, separate from `.opx` schemas.
+
+Portable drawing selections, fresh-ID paste and stable stacking order live in
+[whiteboard/editing.rs](../crates/op-core/src/whiteboard/editing.rs). The editor's
+[editing adapter](../crates/op-app/src/whiteboard_editor/editing.rs) handles
+system clipboard events through the shared event collector, an application-local
+clipboard fallback on the web,
+context actions and Alt-drag duplication. Clipboard fragments are transient,
+separate from the document/view schemas. The shell's Edit menu consumes extra
+`CommandGroup::Edit` descriptors from the active session; no notation-specific
+dispatch is needed. Focused text fields retain clipboard and undo shortcuts.
+
 `geom::Port` supplies preferred rectangle side midpoints and diamond vertices.
 BPMN, UML, EPC/activity, Petri transitions and free drawing reuse this geometry;
 round event/use-case shapes retain boundary-aware routing. Shared canvas port
 guides preview attachment positions without adding another editor catalogue.
 Database foreign keys retain their column-row attachments when tables move.
 
-[Mermaid](mermaid.md) registers a source document with asynchronous preview. It
-reuses the common inspector and configuration; grid snapping is optional and
-absent for this preview because its nodes cannot be dragged.
+[Mermaid](mermaid.md) registers a source document with form authoring and
+asynchronous preview. Its module owns 35 templates/basic form families, with
+27 local previews and eight explicitly unavailable previews. The builder patches
+selected source statements and preserves all other bytes; switching Source and
+Builder shares the same model/history. Unapplied fields/source guards are
+transient per-view interactions, separate from stored content. It reuses the
+common inspector and configuration; grid snapping is optional and absent because
+preview nodes cannot be dragged. Native BPMN, Petri, EPC, activity and UML
+adapters declare direct Mermaid conversion commands using their typed
+projections. The shared packaging helper opens the new document and reports
+loss notes. Reverse conversion covers UML classes and an initial flowchart subset.
+The [flowchart module](../crates/op-app/src/flowchart_editor.rs) owns the
+`flowchart.import` worker and registers its typed
+[model/conversion](../crates/op-core/src/flowchart.rs) and reuses FlowEditor;
+`Notation::to_mermaid` keeps its export semantics in that module. Complete native
+coverage of all Mermaid families remains unfinished.
+
+Typed Mermaid projections in `op-core/src/mermaid/export.rs` cover BPMN, Petri,
+EPC/activity and UML. Their adapters declare `.mmd` and `.mermaid.md` exports;
+`editor/mermaid_exports.rs` only packages the typed conversion results and notes.
+The Mermaid module owns single-block Markdown import. The event-log fallback
+excludes explicit Mermaid fences, including invalid drafts, to avoid ambiguous
+format detection or treating diagram code as trace data.
+
+## Examination preference
+
+The shell owns the application-wide exam toggle. It propagates it through
+`EditorSession::set_exam_mode` to existing and newly opened sessions; the shared
+[exam context](../crates/op-app/src/editor/exam.rs) lets notation UIs suppress
+assistance without changing their typed models or view preferences. Session
+adapters stop transient analysis/simulation work when needed.
+
+`Session<E>` blocks assistance commands and derived result views. Tool commands
+require assistance by default; modules can classify other commands through
+`command_requires_assistance` and generated-answer exports through
+`export_requires_assistance`, or `export_format_requires_assistance` for mixed
+format lists. Generated Mermaid projections are blocked without hiding the
+original diagram's native exports. Modules also guard their own inspector actions,
+canvas highlights and shortcuts. Mining's exam job returns activity headers
+instead of computed solutions. The preference is not serialized into `.opx` or
+workspace documents; legacy log fields remain readable and writable. See
+[the interface guide](interface.md#exam-mode) for the implemented behavior.
+
+## Classic appearance
+
+[theme.rs](../crates/op-app/src/theme.rs) owns the sole Classic appearance,
+including shared colors and geometry. Canvas primitives and home cards consume
+these constants; the shell keeps its existing light/dark controls. There is no
+family catalogue or theme-selection preference. The website has a mode-only
+preference and passes valid `mode` parameters when opening the web app. Retired
+family settings and `theme` URL parameters cannot reintroduce alternatives.
+Models, histories, cameras and `.opx` schemas are unchanged. See the
+[visual identity guide](identite-graphique.md).
 
 ## Interface languages
 
@@ -167,11 +274,18 @@ at `/fr/` and Spanish at `/es/`, with a language dropdown usable without JavaScr
 
 ## History, saving and analyses
 
-BPMN automatic layout lives in
-[bpmn/layout.rs](../crates/op-core/src/bpmn/layout.rs), independent of the UI.
-The module exposes `bpmn.auto-arrange` through a `DiagramLayout` option. It is one
-undoable history step, updating geometry while preserving pool/lane membership
-and domain properties/connections.
+Automatic layout shares one deterministic layered engine in
+[layout.rs](../crates/op-core/src/layout.rs), independent of the UI: Kahn
+layering with a stable cycle break, sources moved next to their first successor,
+barycenter ordering and order-preserving placement. Bands keep nodes in separate
+regions that share columns (BPMN lanes). Notation adapters stay in `op-core`:
+[bpmn/layout.rs](../crates/op-core/src/bpmn/layout.rs) (pools and lanes),
+[uml/layout.rs](../crates/op-core/src/uml/layout.rs) (systems as composite
+nodes), and `auto_arrange` on Petri nets, flow diagrams and database schemas.
+Petri sizes come from the editor because they depend on style and labels.
+Editors expose the shared `view.arrange` command and an `ArrangeControl` in
+`DiagramLayout::configuration`. Each run is one undoable history step, updating
+geometry while preserving memberships and domain properties/connections.
 
 Snapshot history groups gestures and can cancel them without adding a step. It
 also covers text and Mining answers. Semantic and graphical revisions are

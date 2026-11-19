@@ -47,15 +47,21 @@ pub fn show(ui: &mut Ui, docs: &[Document], saved: &[Document], registry: &crate
             action: Action::New(d.id),
         })
         .collect();
-    processes.extend(registry.workflows.iter().map(|w| Process {
-        order: w.home_order,
-        title: w.title,
-        description: w.description,
-        badge: w.badge,
-        color: w.color,
-        icon: w.icon,
-        action: Action::Example(w.example, w.command),
-    }));
+    processes.extend(
+        registry
+            .workflows
+            .iter()
+            .filter(|_| !crate::editor::exam::active(ui.ctx()))
+            .map(|w| Process {
+                order: w.home_order,
+                title: w.title,
+                description: w.description,
+                badge: w.badge,
+                color: w.color,
+                icon: w.icon,
+                action: Action::Example(w.example, w.command),
+            }),
+    );
     processes.sort_by_key(|p| p.order);
     let mut action = None;
     let scroll = egui::ScrollArea::vertical().id_salt("home_scroll").auto_shrink([false, true]);
@@ -72,7 +78,7 @@ pub fn show(ui: &mut Ui, docs: &[Document], saved: &[Document], registry: &crate
                 ui.label(
                     RichText::new(tr("workspace.workspace"))
                         .font(theme::semibold(10.5))
-                        .color(theme::accent(ui.visuals().dark_mode))
+                        .color(theme::accent(ui))
                         .extra_letter_spacing(1.5),
                 );
                 ui.add_space(6.0);
@@ -146,10 +152,11 @@ fn document_card(ui: &mut Ui, doc: &Document, width: f32) -> bool {
     if ui.is_rect_visible(rect) {
         let p = ui.painter().with_clip_rect(rect);
         let emphasized = response.hovered() || response.has_focus();
-        let accent = theme::accent(ui.visuals().dark_mode);
+        let accent = theme::accent(ui);
+        let radius = theme::CARD_RADIUS;
         p.rect_filled(
             rect,
-            12.0,
+            radius,
             if emphasized {
                 ui.visuals().selection.bg_fill.gamma_multiply(0.12)
             } else {
@@ -158,7 +165,7 @@ fn document_card(ui: &mut Ui, doc: &Document, width: f32) -> bool {
         );
         p.rect_stroke(
             rect,
-            12.0,
+            radius,
             if emphasized {
                 Stroke::new(1.5, accent)
             } else {
@@ -167,7 +174,7 @@ fn document_card(ui: &mut Ui, doc: &Document, width: f32) -> bool {
             StrokeKind::Inside,
         );
         let preview = Rect::from_min_size(rect.min + vec2(8.0, 8.0), vec2((width - 16.0).max(1.0), preview_height));
-        if let Some(texture) = doc.thumbnail {
+        if let Some(texture) = doc.thumbnail.filter(|_| !crate::editor::exam::active(ui.ctx())) {
             egui::Image::new((texture, preview.size())).corner_radius(6).paint_at(ui, preview);
         } else {
             p.rect_filled(preview, 6.0, doc.color.gamma_multiply(0.09));
@@ -271,7 +278,7 @@ fn process_grid(ui: &mut Ui, processes: &[Process], registry: &crate::editor::Di
                 let examples: Vec<_> = registry
                     .examples
                     .iter()
-                    .filter(|e| matches!(process.action, Action::New(kind) if kind == e.kind))
+                    .filter(|e| !crate::editor::exam::active(ui.ctx()) && matches!(process.action, Action::New(kind) if kind == e.kind))
                     .collect();
                 if let Some(action) = process_card(ui, process, card_width, &examples) {
                     chosen = Some(action);
@@ -291,10 +298,11 @@ fn process_card(ui: &mut Ui, process: &Process, width: f32, examples: &[&crate::
     if ui.is_rect_visible(rect) {
         let emphasized = response.hovered() || response.has_focus();
         let p = ui.painter().with_clip_rect(rect);
-        p.rect_filled(rect, 12.0, ui.visuals().window_fill);
+        let radius = theme::CARD_RADIUS;
+        p.rect_filled(rect, radius, ui.visuals().window_fill);
         p.rect_stroke(
             rect,
-            12.0,
+            radius,
             if emphasized {
                 Stroke::new(1.5, process.color)
             } else {
@@ -305,7 +313,7 @@ fn process_card(ui: &mut Ui, process: &Process, width: f32, examples: &[&crate::
         let icon = Rect::from_min_size(rect.min + vec2(18.0, 18.0), vec2(44.0, 40.0));
         p.rect_filled(
             icon,
-            9.0,
+            theme::CONTROL_RADIUS,
             process.color.gamma_multiply(if ui.visuals().dark_mode { 0.22 } else { 0.1 }),
         );
         (process.icon)(&p, icon.shrink(4.0), process.color);
@@ -370,12 +378,15 @@ fn process_card(ui: &mut Ui, process: &Process, width: f32, examples: &[&crate::
         );
         let examples_response = footer
             .menu_button(tr("menu.examples"), |ui| {
-                for example in examples {
-                    if ui.button(tr(example.label)).clicked() {
-                        chosen = Some(Action::Example(example.id, None));
-                        ui.close();
+                theme::menu_style(ui.style_mut());
+                egui::ScrollArea::vertical().max_height(ui.available_height()).show(ui, |ui| {
+                    for example in examples {
+                        if ui.button(tr(example.label)).clicked() {
+                            chosen = Some(Action::Example(example.id, None));
+                            ui.close();
+                        }
                     }
-                }
+                });
             })
             .response
             .on_hover_text(tr("workspace.start_example"));

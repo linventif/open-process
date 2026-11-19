@@ -39,6 +39,7 @@ impl BpmnEditor {
             self.connect_pending = None;
             self.selection = None;
             self.group.clear();
+            self.pool_group.clear();
         }
         if ui.input(|i| i.modifiers.command && i.key_pressed(Key::A)) {
             self.select_all();
@@ -88,35 +89,73 @@ impl BpmnEditor {
             && let Some(w) = press
             && on_pad(press_screen).is_none()
         {
-            let handle = self
-                .resize_handle(canvas)
-                .filter(|(r, _)| press_screen.is_some_and(|p| r.expand(3.0).contains(p)));
-            self.drag = if let Some((_, sel)) = handle {
-                match sel {
-                    Sel::Node(id) => Some(Drag::ResizeNode { node: id }),
-                    Sel::Pool(id) => Some(Drag::ResizePool { pool: id }),
-                    _ => None,
+            let handle = press_screen.and_then(|p| self.node_resize_at(canvas, p));
+            let pool_resize = press_screen.and_then(|p| self.pool_resize_at(canvas, p));
+            self.drag = if space {
+                Some(Drag::Pan)
+            } else if self.tool == Tool::Select
+                && ui.input(|i| i.modifiers.alt)
+                && matches!(self.hit(w), Some(Sel::Node(_) | Sel::Pool(_) | Sel::Lane(_, _)))
+            {
+                let hit = self.hit(w).unwrap();
+                if !matches!(hit, Sel::Node(id) if self.group.contains(&id)) {
+                    self.group.clear();
+                    self.pool_group.clear();
+                    self.selection = Some(hit);
                 }
+                self.duplicate_selection(Pos::default(), false);
+                match self.selection {
+                    Some(Sel::Pool(pool)) => Some(Drag::MovePool { pool, last: w }),
+                    Some(Sel::Node(node)) => Some(Drag::Move {
+                        node,
+                        grab: w - self.diagram.node(node).unwrap().pos,
+                    }),
+                    _ => Some(Drag::MoveGroup { last: w }),
+                }
+            } else if let Some((node, edge)) = handle {
+                self.group.clear();
+                self.pool_group.clear();
+                self.selection = Some(Sel::Node(node));
+                Some(Drag::ResizeNode {
+                    node,
+                    gesture: canvas::resize::ResizeGesture::new(self.diagram.node(node).unwrap().rect(), edge, w),
+                })
+            } else if let Some((pool, target)) = pool_resize {
+                self.group.clear();
+                self.pool_group.clear();
+                self.selection = Some(match target {
+                    PoolResize::LaneBoundary(i) => Sel::Lane(pool, i),
+                    _ => Sel::Pool(pool),
+                });
+                self.history.begin(&self.diagram);
+                target.anchor(self.diagram.pool(pool).unwrap()).map(|anchor| Drag::ResizePool {
+                    pool,
+                    target,
+                    grab: w - anchor,
+                })
             } else {
                 match self.tool {
-                    _ if space => Some(Drag::Pan),
                     Tool::Connect => self.hit_node(w).map(|n| Drag::Connect { from: n }).or(Some(Drag::Pan)),
                     _ => match self.hit(w) {
                         Some(Sel::Node(id)) if self.group.contains(&id) => Some(Drag::MoveGroup { last: w }),
                         Some(Sel::Node(id)) => {
                             self.group.clear();
+                            self.pool_group.clear();
                             self.selection = Some(Sel::Node(id));
                             let p = self.diagram.node(id).map(|n| n.pos).unwrap_or(w);
                             Some(Drag::Move { node: id, grab: w - p })
                         }
                         Some(Sel::Pool(id)) => {
+                            self.pool_move_nodes = self.diagram.fragment(&[], &[id]).nodes.iter().map(|n| n.id).collect();
                             self.group.clear();
+                            self.pool_group.clear();
                             self.selection = Some(Sel::Pool(id));
                             Some(Drag::MovePool { pool: id, last: w })
                         }
                         _ if self.tool == Tool::Select => {
                             if !shift {
                                 self.group.clear();
+                                self.pool_group.clear();
                                 self.selection = None;
                             }
                             Some(Drag::Rubber { start: w })
@@ -140,13 +179,9 @@ impl BpmnEditor {
                 }
                 Some(Drag::MovePool { pool, last }) => {
                     let delta = w - last;
-                    if let Some(p) = self.diagram.pool(pool) {
-                        let r = p.rect();
-                        let inside: Vec<Id> = self.diagram.nodes.iter().filter(|n| r.contains(n.pos)).map(|n| n.id).collect();
-                        for id in inside {
-                            if let Some(n) = self.diagram.node_mut(id) {
-                                n.pos = n.pos + delta;
-                            }
+                    for id in &self.pool_move_nodes {
+                        if let Some(node) = self.diagram.node_mut(*id) {
+                            node.pos = node.pos + delta;
                         }
                     }
                     if let Some(p) = self.diagram.pool_mut(pool) {
@@ -154,30 +189,33 @@ impl BpmnEditor {
                     }
                     self.drag = Some(Drag::MovePool { pool, last: w });
                 }
-                Some(Drag::ResizeNode { node }) => {
-                    let snapped = self.snap(w);
+                Some(Drag::ResizeNode { node, gesture }) => {
                     if let Some(n) = self.diagram.node_mut(node) {
-                        let left = n.pos.x - n.w / 2.0;
-                        let top = n.pos.y - n.h / 2.0;
-                        n.w = (snapped.x - left).max(40.0);
-                        n.h = (snapped.y - top).max(30.0);
-                        n.pos = Pos::new(left + n.w / 2.0, top + n.h / 2.0);
+                        let bounds = gesture.apply(
+                            n.rect(),
+                            w,
+                            Pos::new(40.0, 30.0),
+                            Pos::new(f32::INFINITY, f32::INFINITY),
+                            self.snap.then_some(GRID),
+                        );
+                        n.w = bounds.w;
+                        n.h = bounds.h;
+                        n.pos = bounds.center();
                     }
                 }
-                Some(Drag::ResizePool { pool }) => {
-                    let snapped = self.snap(w);
-                    if let Some(p) = self.diagram.pool_mut(pool) {
-                        p.width = (snapped.x - p.pos.x).max(200.0);
-                        let others: f32 = p.lanes[..p.lanes.len() - 1].iter().map(|l| l.height).sum();
-                        let last = p.lanes.last_mut().unwrap();
-                        last.height = (snapped.y - p.pos.y - others).max(60.0);
-                    }
+                Some(Drag::ResizePool { pool, target, grab }) => {
+                    self.diagram.resize_pool(pool, target, w - grab, self.snap.then_some(GRID));
                 }
                 Some(Drag::MoveGroup { last }) => {
                     let d = w - last;
                     for id in self.group.clone() {
                         if let Some(n) = self.diagram.node_mut(id) {
                             n.pos = n.pos + d;
+                        }
+                    }
+                    for pool in &self.pool_group {
+                        if let Some(pool) = self.diagram.pool_mut(*pool) {
+                            pool.pos = pool.pos + d;
                         }
                     }
                     self.drag = Some(Drag::MoveGroup { last: w });
@@ -240,6 +278,7 @@ impl BpmnEditor {
                             self.normalize_group();
                         } else {
                             self.group.clear();
+                            self.pool_group.clear();
                             self.selection = hit;
                         }
                     }
@@ -270,17 +309,35 @@ impl BpmnEditor {
             let hit = self.hit(w);
             if hit.is_some() && !matches!(hit, Some(Sel::Node(n)) if self.group.contains(&n)) {
                 self.group.clear();
+                self.pool_group.clear();
                 self.selection = hit;
             }
             self.ctx_target = (hit, w);
         }
         response.context_menu(|ui| self.context_menu(ui));
+
+        let cursor = match self.drag {
+            Some(Drag::ResizePool { target, .. }) => Some(resize::resize_cursor(target)),
+            Some(Drag::ResizeNode { gesture, .. }) => Some(canvas::resize::cursor(gesture.edge)),
+            None if response.hovered() && !space && on_pad(pointer).is_none() => pointer.and_then(|p| {
+                if let Some((_, edge)) = self.node_resize_at(canvas, p) {
+                    Some(canvas::resize::cursor(edge))
+                } else {
+                    self.pool_resize_at(canvas, p).map(|(_, target)| resize::resize_cursor(target))
+                }
+            }),
+            _ => None,
+        };
+        if let Some(cursor) = cursor {
+            ui.ctx().set_cursor_icon(cursor);
+        }
     }
 
     /// Creates the element of `tool` at world position `w` (click or drop).
     pub(super) fn create_at(&mut self, tool: Tool, w: Pos) {
         let pos = self.snap(w);
         self.group.clear();
+        self.pool_group.clear();
         match tool {
             Tool::Create(kind) => {
                 let id = self.diagram.add_node(kind, pos);
@@ -312,7 +369,11 @@ impl BpmnEditor {
 
     pub fn select_all(&mut self) {
         self.group = self.diagram.nodes.iter().map(|n| n.id).collect();
-        self.normalize_group();
+        self.pool_group = self.diagram.pools.iter().map(|p| p.id).collect();
+        self.selection = None;
+        if self.pool_group.is_empty() {
+            self.normalize_group();
+        }
     }
 
     /// Drag & drop from the palette: ghost while dragging, element on release.
@@ -419,6 +480,8 @@ impl BpmnEditor {
     }
 
     pub(super) fn context_menu(&mut self, ui: &mut Ui) {
+        crate::theme::menu_style(ui.style_mut());
+        self.selection_menu(ui);
         let (target, w) = self.ctx_target;
         match target {
             Some(Sel::Node(id)) => {
@@ -429,6 +492,7 @@ impl BpmnEditor {
                 let kind = self.diagram.node(id).map(|n| n.kind);
                 if let Some(NodeKind::Task(current)) = kind {
                     ui.menu_button((node_icon(NodeKind::Task(current)), tr("bpmn.task_type")), |ui| {
+                        crate::theme::menu_style(ui.style_mut());
                         for t in TaskType::ALL {
                             if node_option(ui, t.label(), NodeKind::Task(t), Some(t == current)).clicked() {
                                 if let Some(n) = self.diagram.node_mut(id) {
@@ -441,6 +505,7 @@ impl BpmnEditor {
                 }
                 if let Some(NodeKind::Gateway(current)) = kind {
                     ui.menu_button((node_icon(NodeKind::Gateway(current)), tr("bpmn.gateway_type")), |ui| {
+                        crate::theme::menu_style(ui.style_mut());
                         for g in GatewayType::ALL {
                             if node_option(ui, g.label(), NodeKind::Gateway(g), Some(g == current)).clicked() {
                                 if let Some(n) = self.diagram.node_mut(id) {

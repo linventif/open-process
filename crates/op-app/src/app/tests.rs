@@ -1,6 +1,17 @@
 use super::*;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
+use op_core::geom::Pos;
+
+mod appearance;
+mod image_export;
+mod arrange_and_tabs;
+mod mermaid_builder;
+mod newer_files;
+mod resize;
+mod selection_editing;
+mod uml_tools;
+mod whiteboard_editing;
 
 fn harness(dark: bool) -> Harness<'static, OpenProcessApp> {
     harness_sized(dark, [1400.0, 860.0])
@@ -189,6 +200,12 @@ fn uml_mermaid_conversion_buttons_open_independent_editable_documents() {
         let source_uid = h.state().docs[source_index].uid;
         let original = uml(&h).diagram.clone();
         let count = h.state().docs.len();
+        if width > 700.0 {
+            h.get_by_label("Tools").click();
+        } else {
+            uml_tools::right_click(&mut h, egui::pos2(150.0, 200.0));
+        }
+        h.run_steps(2);
         h.get_by_label("Convert to Mermaid").click();
         h.run_steps(6);
         assert_eq!(h.state().docs.len(), count + 1);
@@ -234,7 +251,7 @@ fn mermaid_conversion_commands_respect_source_kinds_and_fail_without_opening_par
     let mut h = harness(false);
     h.state_mut().open_example("uml.use-cases");
     h.run_steps(4);
-    assert!(!h.state().docs[h.state().active].editor.enabled("uml.convert-to-mermaid"));
+    assert!(h.state().docs[h.state().active].editor.enabled("uml.convert-to-mermaid"));
     assert!(h.query_by_label("Convert to Mermaid").is_none());
     h.state_mut().open_example("mermaid.flowchart");
     h.run_steps(4);
@@ -313,11 +330,7 @@ fn home_document_cards_capture_pngs_reflow_and_resume_the_same_document() {
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/screenshots");
     std::fs::create_dir_all(&dir).unwrap();
     for doc in &h.state().docs {
-        let png = h
-            .state()
-            .thumbnails
-            .png(doc.uid)
-            .expect("each displayed document has a generated PNG");
+        let png = h.state().thumbnails.png(doc).expect("each displayed document has a generated PNG");
         assert_eq!(&png[..8], b"\x89PNG\r\n\x1a\n");
         assert_eq!(image::load_from_memory(png).unwrap().into_rgba8().dimensions(), (320, 180));
         assert!(images.insert(png.to_vec()), "previews show the content of each document");
@@ -345,7 +358,7 @@ fn home_document_cards_capture_pngs_reflow_and_resume_the_same_document() {
     assert!(!h.state().show_home);
     assert_eq!(h.state().docs[h.state().active].uid, uids[0]);
     assert_eq!(h.state().docs.len(), uids.len(), "resuming must not duplicate a document");
-    let old = h.state().thumbnails.png(uids[0]).unwrap().to_vec();
+    let old = h.state().thumbnails.png(&h.state().docs[0]).unwrap().to_vec();
     h.state_mut().docs[0]
         .editor
         .as_any_mut()
@@ -355,10 +368,10 @@ fn home_document_cards_capture_pngs_reflow_and_resume_the_same_document() {
         .nodes[0]
         .name = "Changed thumbnail content".into();
     h.run_steps(8);
-    assert_ne!(h.state().thumbnails.png(uids[0]).unwrap(), old, "edits refresh the PNG");
+    assert_ne!(h.state().thumbnails.png(&h.state().docs[0]).unwrap(), old, "edits refresh the PNG");
 }
 
-fn shot(h: &mut Harness<'static, OpenProcessApp>, name: &str) {
+pub(super) fn shot(h: &mut Harness<'static, OpenProcessApp>, name: &str) {
     h.run_steps(if name.contains("animation") { 0 } else { 4 });
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/screenshots");
     std::fs::create_dir_all(&dir).unwrap();
@@ -582,6 +595,8 @@ fn uml_editors_by_mouse() {
         let b = uml(&h).node_screen_center(uml(&h).diagram.nodes[1].id);
         h.get_by_label("Connect").click();
         h.run_steps(2);
+        h.get_by_label("Association").click();
+        h.run_steps(2);
         click(&mut h, a);
         click(&mut h, b);
         assert_eq!(uml(&h).diagram.relations.len(), 1);
@@ -606,7 +621,7 @@ fn uml_editors_by_mouse() {
             h.get_by_label("Use case").click();
             h.run_steps(2);
             click(&mut h, egui::pos2(650.0, 550.0));
-            h.get_by_role(egui::accesskit::Role::ComboBox).click();
+            h.get_by_label("Connect").click();
             h.run_steps(2);
             h.get_by_label("Include").click();
             h.run_steps(2);
@@ -668,9 +683,19 @@ fn uml_group_gestures_clipboard_and_inline_rename() {
     assert_eq!(uml(&h).diagram.relations.len(), 1);
     h.key_press_modifiers(Modifiers::COMMAND, Key::A);
     h.run_steps(2);
-    h.key_press_modifiers(Modifiers::COMMAND, Key::C);
-    h.run_steps(2);
-    h.key_press_modifiers(Modifiers::COMMAND, Key::V);
+    h.event(egui::Event::Copy);
+    h.run_steps(1);
+    let copied = h
+        .output()
+        .platform_output
+        .commands
+        .iter()
+        .find_map(|command| match command {
+            egui::OutputCommand::CopyText(text) => Some(text.clone()),
+            _ => None,
+        })
+        .expect("copy writes the system clipboard");
+    h.event(egui::Event::Paste(copied));
     h.run_steps(3);
     assert_eq!(uml(&h).diagram.nodes.len(), 4, "clipboard preserves the group");
     assert_eq!(uml(&h).diagram.relations.len(), 2);
@@ -785,6 +810,210 @@ fn bpmn<'a>(h: &'a Harness<'static, OpenProcessApp>) -> &'a BpmnEditor {
         .as_any()
         .downcast_ref::<BpmnEditor>()
         .unwrap()
+}
+
+fn bpmn_resize_harness(dark: bool, zoom: f32) -> Harness<'static, OpenProcessApp> {
+    let mut diagram = BpmnDiagram::new("Pool resizing");
+    let pool = diagram.add_pool(Pos::new(100.0, 100.0));
+    diagram.add_lane(pool);
+    diagram.add_lane(pool);
+    let p = diagram.pool_mut(pool).unwrap();
+    p.width = 600.0;
+    for lane in &mut p.lanes {
+        lane.height = 160.0;
+    }
+    let a = diagram.add_node(op_core::bpmn::NodeKind::Task(op_core::bpmn::TaskType::User), Pos::new(300.0, 180.0));
+    let b = diagram.add_node(
+        op_core::bpmn::NodeKind::Task(op_core::bpmn::TaskType::Manual),
+        Pos::new(500.0, 350.0),
+    );
+    diagram.add_flow(a, b).unwrap();
+    let mut h = harness(dark);
+    h.state_mut().open_model(Model::Bpmn(diagram), None, true);
+    h.run_steps(5);
+    let active = h.state().active;
+    let camera = crate::canvas::View {
+        zoom,
+        offset: egui::vec2(160.0, 60.0),
+    };
+    let mut views: Vec<(u64, serde_json::Value)> = serde_json::from_value(h.state().docs[active].editor.workspace()).unwrap();
+    for (_, state) in &mut views {
+        state["camera"] = serde_json::to_value(camera).unwrap();
+    }
+    h.state_mut().docs[active]
+        .editor
+        .restore_workspace(&serde_json::to_value(views).unwrap());
+    h.run_steps(3);
+    assert_eq!(bpmn(&h).view.zoom, zoom);
+    h
+}
+
+fn bpmn_screen(h: &Harness<'static, OpenProcessApp>, position: Pos) -> egui::Pos2 {
+    let canvas = h.state().docs[h.state().active].editor.thumbnail_rect().unwrap();
+    bpmn(h).view.to_screen(canvas, position)
+}
+
+#[test]
+fn bpmn_pool_and_lane_resize_cursors_follow_borders_at_different_zooms() {
+    use egui::CursorIcon::*;
+    use op_core::bpmn::resize::PoolResize::*;
+    for dark in [false, true] {
+        for zoom in [0.5, 1.0, 1.1] {
+            let mut h = bpmn_resize_harness(dark, zoom);
+            let original = bpmn(&h).diagram.clone();
+            let pool = original.pools[0].clone();
+            for (target, cursor) in [
+                (Left, ResizeHorizontal),
+                (Right, ResizeHorizontal),
+                (Top, ResizeVertical),
+                (Bottom, ResizeVertical),
+                (TopLeft, ResizeNwSe),
+                (BottomRight, ResizeNwSe),
+                (TopRight, ResizeNeSw),
+                (BottomLeft, ResizeNeSw),
+                (LaneBoundary(0), ResizeVertical),
+                (LaneBoundary(1), ResizeVertical),
+            ] {
+                let p = bpmn_screen(&h, target.anchor(&pool).unwrap()) + egui::vec2(3.0, 2.0);
+                h.hover_at(p);
+                h.run_steps(3);
+                assert_eq!(h.output().platform_output.cursor_icon, cursor, "{target:?}, zoom {zoom}");
+                assert_eq!(bpmn(&h).diagram, original, "hover changes neither geometry nor history");
+            }
+            if zoom == 1.0 {
+                shot(
+                    &mut h,
+                    if dark {
+                        "bpmn_lane_resize_hover_dark"
+                    } else {
+                        "bpmn_lane_resize_hover_light"
+                    },
+                );
+            }
+            // Pool header interiors still move the pool; the border cursor stays local.
+            h.hover_at(bpmn_screen(&h, Pos::new(115.0, 180.0)));
+            h.run_steps(3);
+            assert_eq!(h.output().platform_output.cursor_icon, Default);
+        }
+    }
+}
+
+#[test]
+fn bpmn_pool_and_lane_resize_gestures_snap_undo_cancel_and_keep_elements_fixed() {
+    use op_core::bpmn::resize::PoolResize::*;
+    for dark in [false, true] {
+        let mut h = bpmn_resize_harness(dark, 1.0);
+        let original = h.state().docs[h.state().active].snapshot();
+        let diagram = bpmn(&h).diagram.clone();
+        let pool = diagram.pools[0].clone();
+        let revision = h.state().docs[h.state().active].editor.revisions();
+        for (target, delta) in [
+            (Left, Pos::new(-40.0, 0.0)),
+            (Right, Pos::new(40.0, 0.0)),
+            (Top, Pos::new(0.0, -30.0)),
+            (Bottom, Pos::new(0.0, 30.0)),
+            (TopLeft, Pos::new(-40.0, -30.0)),
+            (TopRight, Pos::new(40.0, -30.0)),
+            (BottomLeft, Pos::new(-40.0, 30.0)),
+            (BottomRight, Pos::new(40.0, 30.0)),
+            (LaneBoundary(0), Pos::new(0.0, 50.0)),
+        ] {
+            let anchor = target.anchor(&pool).unwrap();
+            // Grabbing a few screen pixels away from the border must not make it jump.
+            let offset = egui::vec2(3.0, 2.0);
+            let from = bpmn_screen(&h, anchor) + offset;
+            let to = bpmn_screen(&h, anchor + delta) + offset;
+            drag(&mut h, from, to);
+            let active = h.state().active;
+            let changed = h.state().docs[active].snapshot();
+            assert_ne!(changed, original, "{target:?}");
+            assert_eq!(bpmn(&h).diagram.nodes, diagram.nodes);
+            assert_eq!(bpmn(&h).diagram.flows, diagram.flows);
+            assert_eq!(h.state().docs[active].editor.revisions().semantic, revision.semantic);
+            let mut expected = diagram.clone();
+            expected.resize_pool(pool.id, target, anchor + delta, Some(10.0));
+            assert_eq!(bpmn(&h).diagram, expected, "{target:?}");
+            if target == BottomRight {
+                shot(
+                    &mut h,
+                    if dark {
+                        "bpmn_pool_resized_dark"
+                    } else {
+                        "bpmn_pool_resized_light"
+                    },
+                );
+            }
+            h.state_mut().docs[active].editor.execute(UNDO, 0.0);
+            h.run_steps(3);
+            assert_eq!(h.state().docs[active].snapshot(), original);
+            assert!(
+                !h.state().docs[active].editor.enabled(UNDO),
+                "one complete gesture is one undo step"
+            );
+            h.state_mut().docs[active].editor.execute(REDO, 0.0);
+            h.run_steps(3);
+            assert_eq!(h.state().docs[active].snapshot(), changed);
+            h.state_mut().docs[active].editor.execute(UNDO, 0.0);
+            h.run_steps(3);
+        }
+        let from = bpmn_screen(&h, Pos::new(400.0, 260.0));
+        let to = from + egui::vec2(0.0, -40.0);
+        h.hover_at(from);
+        h.run_steps(2);
+        press(&mut h, from, true);
+        h.hover_at(to);
+        h.run_steps(3);
+        assert_ne!(bpmn(&h).diagram, diagram);
+        key(&mut h, Key::Escape);
+        press(&mut h, to, false);
+        assert_eq!(bpmn(&h).diagram, diagram);
+        let active = h.state().active;
+        assert!(!h.state().docs[active].editor.enabled(UNDO));
+        assert!(h.state().docs[active].editor.enabled(REDO));
+        assert!(!h.state().docs[active].dirty());
+
+        h.get_by_label("Snap to grid").click();
+        h.run_steps(3);
+        assert_eq!(active_view_settings(&h)["snap"], false);
+        let from = bpmn_screen(&h, Pos::new(400.0, 260.0));
+        drag(&mut h, from, from + egui::vec2(0.0, 17.25));
+        assert!(
+            (bpmn(&h).diagram.pools[0].lanes[0].height - 177.25).abs() < 0.001,
+            "free resize: {:?}",
+            bpmn(&h).diagram.pools[0]
+        );
+        assert!((bpmn(&h).diagram.pools[0].height() - pool.height()).abs() < 0.001);
+        h.state_mut().docs[active].editor.execute(UNDO, 0.0);
+        h.run_steps(3);
+
+        // Space-drag over a corner keeps navigation available without resizing.
+        let from = bpmn_screen(&h, pool.pos);
+        let camera = bpmn(&h).view.offset;
+        h.key_down(Key::Space);
+        h.run_steps(2);
+        drag(&mut h, from, from + egui::vec2(30.0, 20.0));
+        h.key_up(Key::Space);
+        h.run_steps(2);
+        assert_eq!(bpmn(&h).diagram, diagram);
+        assert_ne!(bpmn(&h).view.offset, camera);
+
+        let border = bpmn_screen(&h, Pos::new(400.0, 260.0));
+        h.hover_at(border);
+        key(&mut h, Key::T);
+        assert_eq!(h.output().platform_output.cursor_icon, egui::CursorIcon::Default);
+        click(&mut h, border);
+        assert_eq!(
+            bpmn(&h).diagram.nodes.len(),
+            diagram.nodes.len() + 1,
+            "creation tools retain the border click"
+        );
+        assert_eq!(bpmn(&h).diagram.pools[0], pool);
+        assert_eq!(
+            h.output().platform_output.cursor_icon,
+            egui::CursorIcon::Default,
+            "nodes take precedence over lane borders"
+        );
+    }
 }
 
 #[test]
@@ -1055,7 +1284,7 @@ fn link_styles_and_sketch() {
 }
 
 #[test]
-fn manual_alpha_mode() {
+fn exam_mode_replaces_manual_alpha_without_losing_answers() {
     let mut h = harness_sized(false, [1400.0, 2600.0]);
     let mut answers = std::collections::BTreeMap::new();
     answers.insert("step:TI".to_string(), "{A}".to_string());
@@ -1075,26 +1304,143 @@ fn manual_alpha_mode() {
     );
     h.run_steps(4);
     wait_for_discovery(&mut h);
-    h.get_by_label("Check everything").click();
+    let original = h.state().docs.last().unwrap().snapshot();
+    toggle_exam(&mut h);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while h.query_by_label("step:TI").is_none() {
+        h.run_steps(2);
+        assert!(std::time::Instant::now() < deadline, "exam inputs timed out");
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+    assert!(h.state().exam_mode);
+    assert_eq!(
+        h.state().docs.last().unwrap().snapshot(),
+        original,
+        "toggling the mode does not edit the document"
+    );
+    for label in [
+        "Step by step (by hand)",
+        "Automatic",
+        "Check everything",
+        "Check",
+        "Fill for me",
+        "Copy ▾",
+        "Open Petri net",
+        "Deduce BPMN",
+        "Progress",
+        "Word check",
+        "Accepted formats",
+    ] {
+        assert!(h.query_by_label(label).is_none(), "exam leaked {label}");
+    }
+    assert!(h.state().docs.last().unwrap().editor.exports().is_empty());
+    assert!(h.state().docs.last().unwrap().editor.export().is_err());
+    assert!(h.state().docs.last().unwrap().editor.export_as("standard").is_err());
+    let matrix = h.get_by_label("Relation matrix (editable)").rect();
+    click(&mut h, matrix.min + egui::vec2(2.5 * 44.0, 1.5 * 36.0));
+    let Model::Log(log) = h.state().docs.last().unwrap().model() else {
+        panic!("expected log")
+    };
+    assert!(log.manual, "legacy preference survives saving");
+    assert_eq!(log.answers.get("step:TI").map(String::as_str), Some("{A}"));
+    assert_eq!(log.answers.get("m:A:B").map(String::as_str), Some("←"));
+    let snapshot = h.state().docs.last().unwrap().snapshot();
+    let StoredDocument::Editable(document) = &snapshot else {
+        panic!("expected editable document")
+    };
+    let reopened = crate::composition::registry().open(document).unwrap();
+    assert_eq!(reopened.snapshot(), snapshot, "answers round trip through the existing format");
+    h.state_mut().execute(UNDO, 0.0);
     h.run_steps(4);
-    shot(&mut h, "mining_manual");
-    let Some(e) = h
+    assert_eq!(h.state().docs.last().unwrap().snapshot(), original);
+    shot(&mut h, "mining_exam");
+    toggle_exam(&mut h);
+    wait_for_discovery(&mut h);
+    assert!(!h.state().exam_mode);
+    assert!(h.query_by_label("step:TI").is_none());
+    assert!(!h.state().docs.last().unwrap().editor.exports().is_empty());
+}
+
+fn toggle_exam(h: &mut Harness<'static, OpenProcessApp>) {
+    h.get_by_role_and_label(egui::accesskit::Role::Button, "Tools").click();
+    h.run_steps(3);
+    h.get_by_role_and_label(egui::accesskit::Role::CheckBox, "Exam mode").click();
+    h.run_steps(3);
+    key(h, Key::Escape);
+    h.run_steps(3);
+}
+
+#[test]
+fn exam_mode_blocks_existing_views_commands_and_new_documents() {
+    let mut h = harness(false);
+    h.state_mut().open_model(Model::Petri(examples::mutual_exclusion()), None, false);
+    h.run_steps(4);
+    h.state_mut().execute("petri.simulation", 0.0);
+    h.run_steps(4);
+    let uid = h.state().docs.last().unwrap().uid;
+    h.state_mut().open_beside(
+        Pane {
+            doc: uid,
+            view: View::Matrices,
+        },
+        false,
+    );
+    h.run_steps(4);
+    toggle_exam(&mut h);
+    assert!(h.query_by_label(tr("exam.assistance_disabled")).is_some());
+    let count = h.state().docs.len();
+    for command in [
+        "petri.simulation",
+        "petri.matrices",
+        "petri.analysis",
+        "petri.graph",
+        "petri.convert-to-bpmn",
+    ] {
+        assert!(!h.state().docs.last().unwrap().editor.enabled(command));
+        h.state_mut().execute(command, 0.0);
+    }
+    assert_eq!(h.state().docs.len(), count);
+    assert!(
+        h.query_by_label("Copy LaTeX").is_none(),
+        "the existing result pane must not show solutions"
+    );
+    assert!(
+        h.state().docs.last().unwrap().editor.export().is_ok(),
+        "the student's own net remains exportable"
+    );
+    let active = h.state().docs.len() - 1;
+    h.state_mut().set_active(active);
+    h.run_steps(4);
+    let petri = h
         .state()
         .docs
         .last()
         .unwrap()
         .editor
         .as_any()
-        .downcast_ref::<crate::mining_editor::MiningEditor>()
-    else {
-        unreachable!()
-    };
-    assert!(e.manual);
-    // the answers are saved with the document
-    let Model::Log(l) = h.state().docs.last().unwrap().model() else {
-        unreachable!()
-    };
-    assert_eq!(l.answers.get("step:TI").map(String::as_str), Some("{A}"));
+        .downcast_ref::<PetriEditor>()
+        .unwrap();
+    assert!(petri.sim.is_none());
+    key(&mut h, Key::S);
+    let petri = h
+        .state()
+        .docs
+        .last()
+        .unwrap()
+        .editor
+        .as_any()
+        .downcast_ref::<PetriEditor>()
+        .unwrap();
+    assert!(petri.sim.is_none(), "the simulation shortcut must respect exam mode");
+    h.state_mut().new_document("database.schema", None);
+    h.run_steps(4);
+    assert!(h.query_by_label("SQL / DDL").is_none());
+    assert!(h.query_by_label("Validation").is_none());
+    assert!(!h.state().docs.last().unwrap().editor.enabled("database.show-ddl"));
+    assert!(h.state().docs.last().unwrap().editor.export().is_err());
+    toggle_exam(&mut h);
+    assert!(h.state().docs.last().unwrap().editor.enabled("database.show-ddl"));
+    assert!(h.query_by_label("SQL / DDL").is_some());
 }
 
 #[test]
@@ -1848,13 +2194,29 @@ fn new_document_from_a_split_tab_bar_stays_in_that_group() {
 
 #[test]
 fn file_exports_are_grouped_and_follow_the_active_document() {
-    for (kind, formats, png) in [
+    for (kind, mut formats, png) in [
         ("bpmn", vec!["Export BPMN 2.0 XML (.bpmn)…"], true),
+        ("petri", vec!["Export PNML (.pnml)…"], true),
+        ("uml.class", vec!["Export PlantUML (.puml)…"], true),
+        ("uml.use-case", vec!["Export PlantUML (.puml)…"], true),
+        ("uml.activity", vec!["Export SVG (.svg)…", "Export Graphviz (.dot)…"], true),
+        (
+            "mermaid",
+            vec![
+                "Export Mermaid source (.mmd)…",
+                "Export Mermaid Markdown (.mermaid.md)…",
+                "Export Mermaid preview (.svg)…",
+            ],
+            false,
+        ),
         ("dmn.table", vec!["Export DMN XML (.dmn)…", "Export decision table (.csv)…"], false),
         ("epc", vec!["Export SVG (.svg)…", "Export Graphviz (.dot)…"], true),
         ("database.schema", vec!["Export SQL DDL (.sql)…"], true),
         ("whiteboard", vec!["Export SVG (.svg)…"], true),
     ] {
+        if ["bpmn", "petri", "uml.class", "uml.use-case", "uml.activity", "epc"].contains(&kind) {
+            formats.extend(["Export Mermaid source (.mmd)…", "Export Mermaid Markdown (.mermaid.md)…"]);
+        }
         let mut h = harness(false);
         h.state_mut().new_document(kind, None);
         h.run_steps(4);
@@ -2118,6 +2480,7 @@ fn new_graph_notations_create_connect_move_undo_and_reopen() {
     }
     exercise::<op_core::epc::EpcKind>("epc", "Event", "Function", false);
     exercise::<op_core::activity::ActivityKind>("uml.activity", "Initial node", "Action", true);
+    exercise::<op_core::flowchart::FlowchartKind>("flowchart", "Node", "Decision", false);
 }
 
 #[test]

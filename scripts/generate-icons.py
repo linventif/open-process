@@ -61,6 +61,7 @@ def main():
             shutil.copyfile(path, site_icons / path.name)
     shutil.copyfile(ICONS / "open-process.png", ROOT / "website/public/assets/logo.png")
     shutil.copyfile(ICONS / "open-process.svg", ROOT / "website/public/assets/logo.svg")
+    (ROOT / "website/public/assets/logo-light.svg").write_text(svg.replace("#1B2A41", "#F7F7F2"))
 
 
 if __name__ == "__main__":

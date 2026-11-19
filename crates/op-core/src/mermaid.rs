@@ -1,8 +1,10 @@
 //! Text-first Mermaid documents. Invalid drafts remain editable and serializable.
-use crate::i18n::key;
 use serde::{Deserialize, Serialize};
 
+pub mod builder;
 pub mod conversion;
+pub mod export;
+pub mod markdown;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Diagram {
@@ -10,39 +12,8 @@ pub struct Diagram {
     pub source: String,
 }
 
-pub struct Template {
-    pub id: &'static str,
-    pub label: &'static str,
-    pub source: &'static str,
-}
-
-pub const TEMPLATES: &[Template] = &[
-    Template {
-        id: "mermaid.flowchart",
-        label: key("mermaid.flowchart"),
-        source: "flowchart TD\n    A[Start] --> B{Approved?}\n    B -->|Yes| C[Process order]\n    B -->|No| D[Review]\n    D --> B\n    C --> E[End]\n",
-    },
-    Template {
-        id: "mermaid.sequence",
-        label: key("mermaid.sequence"),
-        source: "sequenceDiagram\n    participant User\n    participant App\n    participant Database\n    User->>App: Submit request\n    App->>Database: Save\n    Database-->>App: Confirmation\n    App-->>User: Done\n",
-    },
-    Template {
-        id: "mermaid.class",
-        label: key("mermaid.class"),
-        source: "classDiagram\n    class Order {\n        +int id\n        +confirm()\n    }\n    class Item {\n        +String name\n        +int quantity\n    }\n    Order \"1\" *-- \"many\" Item : contains\n",
-    },
-    Template {
-        id: "mermaid.state",
-        label: key("mermaid.state"),
-        source: "stateDiagram-v2\n    [*] --> Draft\n    Draft --> Review: Submit\n    Review --> Approved: Accept\n    Review --> Draft: Revise\n    Approved --> [*]\n",
-    },
-    Template {
-        id: "mermaid.er",
-        label: key("mermaid.er"),
-        source: "erDiagram\n    CUSTOMER ||--o{ ORDER : places\n    CUSTOMER {\n        int id PK\n        string name\n    }\n    ORDER {\n        int id PK\n        int customer_id FK\n    }\n",
-    },
-];
+mod catalogue;
+pub use catalogue::{TEMPLATES, Template};
 
 impl Diagram {
     pub fn new(name: impl Into<String>) -> Self {
@@ -55,31 +26,42 @@ impl Diagram {
 
 /// Content sniffing only: no parsing/layout on the UI thread or while importing.
 /// A recognized but invalid draft must open so its source can be corrected.
-fn header_token(source: &str) -> Option<&str> {
-    let source = source.trim_start_matches('\u{feff}').trim_start();
-    let mut lines = source.lines().map(str::trim).filter(|l| !l.is_empty());
-    // Mermaid YAML frontmatter is preserved verbatim.
-    if source.starts_with("---\n") || source.starts_with("---\r\n") {
-        lines.next();
-        for line in lines.by_ref() {
-            if line == "---" {
-                break;
-            }
-        }
-    }
+fn header_range(source: &str) -> Option<std::ops::Range<usize>> {
+    let trimmed = source.trim_start_matches('\u{feff}').trim_start();
+    let mut offset = source.len() - trimmed.len();
+    let mut frontmatter = trimmed.starts_with("---\n") || trimmed.starts_with("---\r\n");
+    let mut first = true;
     let mut directive = false;
-    let header = lines.find(|line| {
+    for line in trimmed.split_inclusive('\n') {
+        let text = line.trim();
+        let start = offset + line.len() - line.trim_start().len();
+        offset += line.len();
+        if frontmatter {
+            if !first && text == "---" {
+                frontmatter = false;
+            }
+            first = false;
+            continue;
+        }
         if directive {
-            directive = !line.contains("}%%");
-            return false;
+            directive = !text.contains("}%%");
+            continue;
         }
-        if line.starts_with("%%{") {
-            directive = !line.contains("}%%");
-            return false;
+        if text.starts_with("%%{") {
+            directive = !text.contains("}%%");
+            continue;
         }
-        !line.starts_with("%%")
-    })?;
-    header.split(|c: char| c.is_whitespace() || c == ';').next()
+        if text.is_empty() || text.starts_with("%%") {
+            continue;
+        }
+        let token = text.split(|c: char| c.is_whitespace() || c == ';').next()?;
+        return Some(start..start + token.len());
+    }
+    None
+}
+
+fn header_token(source: &str) -> Option<&str> {
+    header_range(source).map(|range| &source[range])
 }
 
 pub fn is_class_source(source: &str) -> bool {
@@ -87,52 +69,13 @@ pub fn is_class_source(source: &str) -> bool {
 }
 
 pub fn accepts(source: &str) -> bool {
-    let Some(token) = header_token(source) else {
-        return false;
-    };
-    matches!(
-        token.to_ascii_lowercase().as_str(),
-        "flowchart"
-            | "graph"
-            | "sequencediagram"
-            | "classdiagram"
-            | "classdiagram-v2"
-            | "statediagram"
-            | "statediagram-v2"
-            | "erdiagram"
-            | "pie"
-            | "xychart"
-            | "xychart-beta"
-            | "quadrantchart"
-            | "gantt"
-            | "timeline"
-            | "journey"
-            | "mindmap"
-            | "gitgraph"
-            | "sankey-beta"
-            | "sankey"
-            | "kanban"
-            | "block-beta"
-            | "block"
-            | "packet-beta"
-            | "packet"
-            | "architecture-beta"
-            | "architecture"
-            | "radar-beta"
-            | "radar"
-            | "treemap-beta"
-            | "treemap"
-            | "c4context"
-            | "c4container"
-            | "c4component"
-            | "c4dynamic"
-            | "c4deployment"
-            | "requirementdiagram"
-            | "zenuml"
-    )
+    builder::family(source).is_some()
 }
 
 pub fn render_svg(source: &str) -> Result<String, String> {
+    if builder::family(source).is_some_and(|template| !template.preview) {
+        return Err(crate::i18n::tr("mermaid.preview_unsupported").into());
+    }
     // Keep rendering deterministic and independent of OS clocks (unavailable in Wasm).
     // The source remains untouched; only the derived Gantt rendering omits today's marker.
     let diagram = mermaid_svg::parse(source).map_err(|e| e.to_string())?;
@@ -151,6 +94,10 @@ mod tests {
     fn templates_produce_svg() {
         for t in TEMPLATES {
             assert!(accepts(t.source), "{}", t.id);
+            if !t.preview {
+                assert!(render_svg(t.source).is_err(), "{} must report the missing renderer", t.id);
+                continue;
+            }
             let svg = render_svg(t.source).unwrap_or_else(|e| panic!("{}: {e}", t.id));
             assert!(svg.contains("<svg") && svg.contains("<text"), "{}", t.id);
         }

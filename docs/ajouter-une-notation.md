@@ -8,7 +8,9 @@ several related types or a canvas-free document such as a table.
 Define a typed model, invariants and operations independently of egui. Choose a
 stable identifier, such as `state-machine`, and a model version. `DocumentCodec<M>`
 defines encoding/decoding; `JsonCodec<M>` provides an initial JSON representation
-and rejects unknown model versions.
+and rejects unknown model versions. Any new kind, model version or optional field
+that older readers would drop also requires increasing `CONTENT_REVISION` (see
+[writer version](documents-et-compatibilite.md#writer-version)).
 
 Use a module-owned `JsonCodec::checked` (or a custom codec) to enforce storage
 invariants on load. Keep these distinct from business diagnostics so unfinished
@@ -50,8 +52,29 @@ may use `()` as view state and ignore canvas mechanisms.
 Graphical editors use `editor::layout::DiagramLayout` for the inspector,
 `inspector_tabs`, scrollable `inspector_body`, configuration and canvas. Supply
 `CanvasControls`, `FooterStatus` and notation-specific options. Bar heights,
-spacing, zoom and compact-menu thresholds stay in the common component. Extra
-business actions use the `tools` slot.
+spacing, zoom and compact-menu thresholds stay in the common component. Put
+authoring tools in the floating palette and group related variants in a picker,
+as UML does for relation types. Put selection actions in the inspector or canvas
+context menu. Reserve the optional `tools` slot for actions that need a dedicated
+row; omit it when the palette and contextual controls cover the editor's needs.
+
+Resizable canvas elements reuse `canvas::resize` for border/corner picking,
+pointer offsets, system cursors and highlights. Supply a typed target ID and
+notation-specific size limits to the shared `geom::ResizeEdge` operation in
+`op-core`. Keep special constraints (such as lane separators or content minima)
+in the domain model, and commit/cancel the gesture through the typed history.
+
+Graphical builders implement `editor::clipboard::CanvasClipboard` with their own
+serializable fragment type. Reuse `clipboard_ui` for keyboard/platform events and
+`selection_menu` for context actions. Include the shared command descriptors and
+delegate availability/execution to `selection_command_enabled` and
+`selection_command`. Keep `ClipboardState` in transient view state. Extract and
+paste typed selections in `op-core`, validating external data and remapping all
+identities and internal references. Alt-drag calls `duplicate_selection` with a
+zero offset and `commit = false` before moving the copied selection; keep the
+whole gesture in one cancelable history transaction. Focused text fields must
+retain their clipboard events. Tables and source editors keep normal text/cell
+editing rather than implementing artificial draggable selections.
 
 For home-screen previews, `EditorBackend::thumbnail_rect` may return the rendered
 canvas rectangle. The fallback is the whole panel, useful for text/table views.
@@ -65,6 +88,11 @@ values remain readable. Drawing styles already stored in models remain persisten
 Standard exports use `ExportData`. Override `exports()` and `export_as(id)` for
 multiple formats; the app builds buttons from descriptors. PNG is a canvas
 capture command when supported.
+
+Use `export_format_requires_assistance` when only some formats generate assistance,
+such as Mermaid projections alongside native XML. Its default delegates to
+`export_requires_assistance`, preserving modules whose whole export is derived.
+The shared session filters both descriptors and direct export calls in exam mode.
 
 ## 3. Registration
 

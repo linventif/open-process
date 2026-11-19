@@ -1,5 +1,8 @@
 //! Shared canvas utilities: view transform (pan/zoom), grid, palette and drawing helpers.
 
+pub mod export;
+pub mod resize;
+
 use egui::epaint::{CubicBezierShape, PathStroke};
 use egui::text::LayoutJob;
 use egui::{Align, Color32, FontId, Painter, Pos2, Rect, Response, Shape, Stroke, Ui, Vec2, pos2, vec2};
@@ -330,15 +333,16 @@ pub fn polyline_midpoint(pts: &[Pos2]) -> Pos2 {
 pub fn icon_button(ui: &mut Ui, selected: bool, tooltip: &str, paint: impl FnOnce(&Painter, Rect, Color32)) -> Response {
     let size = vec2(36.0, 36.0);
     let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click_and_drag());
-    let accent = crate::theme::accent(ui.visuals().dark_mode);
+    let accent = crate::theme::accent(ui);
     let enabled = ui.is_enabled();
     if selected {
-        ui.painter().rect_filled(rect, 8.0, accent);
+        ui.painter().rect_filled(rect, crate::theme::CONTROL_RADIUS, accent);
     } else if response.hovered() && enabled {
-        ui.painter().rect_filled(rect, 8.0, ui.visuals().widgets.hovered.bg_fill);
+        ui.painter()
+            .rect_filled(rect, crate::theme::CONTROL_RADIUS, ui.visuals().widgets.hovered.bg_fill);
     }
     let color = if selected {
-        Color32::WHITE
+        crate::theme::accent_text(ui)
     } else if enabled {
         ui.visuals().text_color()
     } else {
@@ -371,7 +375,7 @@ pub fn floating(ctx: &egui::Context, id: egui::Id, pos: Pos2, pivot: egui::Align
             egui::Frame::new()
                 .fill(v.window_fill)
                 .stroke(Stroke::new(1.0, v.widgets.noninteractive.bg_stroke.color))
-                .corner_radius(12.0)
+                .corner_radius(crate::theme::CARD_RADIUS)
                 .shadow(v.popup_shadow)
                 .inner_margin(6.0)
                 .show(ui, add);
@@ -671,6 +675,7 @@ pub fn sketch() -> bool {
 /// Status-bar menu to choose the link style and the sketch mode.
 pub fn style_menu(ui: &mut Ui, style: &mut op_core::style::DiagramStyle, petri: bool) {
     ui.menu_button(tr("canvas.style"), |ui| {
+        crate::theme::menu_style(ui.style_mut());
         if petri {
             use op_core::style::TransitionShape;
             crate::theme::section_title(ui, tr("canvas.transitions"));

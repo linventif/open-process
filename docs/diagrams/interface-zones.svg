@@ -73,11 +73,11 @@
       <text x="111" y="311" class="label">Business actions</text>
       <text x="270" y="311" class="small">optional</text>
       <rect x="385" y="292" width="104" height="29" rx="6" fill="#fffbf4" stroke="#e3d3b5"/>
-      <text x="398" y="311" class="ui">Relation type</text>
+      <text x="398" y="311" class="ui">Add input</text>
       <rect x="501" y="292" width="74" height="29" rx="6" fill="#fffbf4" stroke="#e3d3b5"/>
-      <text x="514" y="311" class="ui">Arrange</text>
+      <text x="508" y="311" class="ui">Add output</text>
       <rect x="587" y="292" width="80" height="29" rx="6" fill="#fffbf4" stroke="#e3d3b5"/>
-      <text x="598" y="311" class="ui">Duplicate</text>
+      <text x="598" y="311" class="ui">Add rule</text>
       <rect x="803" y="288" width="54" height="37" rx="6" fill="#263850"/>
       <text x="815" y="304" class="badge">Z03</text>
       <text x="811" y="318" font-size="10" fill="#fff" style="fill:#fff">VIEW</text>
@@ -200,7 +200,7 @@
     </g>
     <g transform="translate(1192 390)">
       <rect width="43" height="24" rx="6" fill="#a36b17"/><text x="7" y="16" class="badge">Z04</text>
-      <text x="55" y="11" class="label">Business action bar</text><text x="55" y="30" class="small">E.g. UML relations, alignment, duplication</text>
+      <text x="55" y="11" class="label">Optional business action bar</text><text x="55" y="30" class="small">E.g. table editing; omitted in UML builders</text>
     </g>
     <g transform="translate(1192 438)">
       <rect width="43" height="24" rx="6" fill="#a36b17"/><text x="7" y="16" class="badge">Z05</text>

@@ -811,3 +811,827 @@ Native and WebAssembly checks, strict Clippy, formatting, local Markdown targets
 and `git diff --check` pass. Document schemas and compatibility fixtures are
 unchanged. Release builds, browser runs, Windows/macOS and production deployment
 were not repeated for this change.
+
+## Presentation website refresh — 14 November 2026
+
+The English, French and Spanish presentation now covers the eleven document
+types and BPMN evaluation workflow in home-screen order, with links to the
+implemented-feature guides. Copy and search/social metadata include free
+drawing, database design, UML and Mermaid alongside BPMN/Petri/discovery.
+A local-saving section explains the desktop Documents/Open Process library,
+browser local storage and separate manual `.opx` copies.
+
+Eight WebP screenshots replace/extend the previous four, using actual application
+UI captures from checkout `cd389d3`. The first preview is drawing; its counter
+derives from the rendered tabs. Captions, alternative text, keyboard tabs and
+the enlargement dialog follow the selected image. The website README records
+asset provenance. The obsolete source-build README anchor was corrected.
+
+`bun run build` passes with Bun 1.4.4 and Node 26.13.1: Astro/TypeScript checks,
+localized static generation and the Trunk release application under `/app/`.
+All **nine Bun tests** pass. A local Chromium run under the shipped presentation
+CSP checks all three routes, twelve catalogue entries, eight previews/dialogs,
+keyboard navigation and six widths from 320 to 1440 px for each language.
+It also checks the static catalogue, initial screenshot and language navigation
+with JavaScript disabled. No local asset failures, horizontal/tab overflow,
+browser exceptions or CSP violations were observed. French desktop/mobile,
+catalogue and storage screenshots were visually inspected.
+
+Local Markdown/repository-guide targets and patch whitespace were checked.
+GitHub release responses in browser checks were mocked; live release services,
+production Cloudflare deployment, other browser engines and the remote CI matrix
+were not exercised. No Rust models or application behavior are part of this
+website change, and the Rust unit suite/native release matrix was not repeated.
+Parallel application/interface edits in the working tree remain outside this
+website change.
+
+## Menu content padding — 14 November 2026
+
+The shared popup style restores 10 px horizontal and 4 px vertical button
+padding, replacing egui's compact menu defaults. It applies to the language
+dropdown, main menus/submenus, editor and example menus, tab/canvas context
+menus and database relationship picker. Inspectors, cards, dialogs and form
+dropdowns already have their own content margins.
+
+All **188 workspace tests** pass sequentially. Generated language, light/dark
+BPMN context-menu, export submenu and compact-options screenshots were visually
+inspected. Native and WebAssembly `cargo check --locked -p op-app`, formatting,
+local links in `interface.md` and `git diff --check` pass. Release builds, browser
+runs, Windows/macOS and deployment were not repeated for this spacing change.
+
+## Saved diagram thumbnails — 14 November 2026
+
+Closed **Saved diagrams** now reuse the rendered PNG previews already used for
+open documents. The bounded preview cache associates acknowledged captures with
+the automatic copy's stable UUID and revision. It restores closed cards without
+an open workspace, retains compatibility with older UID-based cache entries and
+also flushes previews through the browser lifecycle save path. `.opx`, automatic
+document records and workspace schemas are unchanged. Missing or outdated images
+fall back to notation icons until the document is displayed again.
+
+All **194 workspace tests** pass with sequential execution. New coverage checks
+distinct images for same-named documents after closing, cache persistence,
+restart and reopening; it also rejects advanced/deleted library references and
+previews mismatching a restored draft. The generated
+`target/screenshots/automatic_library_thumbnails.png` was visually inspected.
+Native and WebAssembly `cargo check --locked -p op-app`, formatting, local links
+in the updated documentation and `git diff --check` pass. Release builds, actual
+browser lifecycle/storage runs, Windows/macOS and the remote CI matrix were not
+run for this change. Parallel BPMN/interface edits were preserved.
+
+## Language flag spacing — 14 November 2026
+
+The language button and its three options use the theme's horizontal item
+spacing (8 logical pixels) between flags and text. The generated
+`target/screenshots/language_dropdown.png` was visually inspected; the existing
+home-navigation test passes, including accessible names, selection and closure.
+
+Native and WebAssembly `cargo check --locked -p op-app` pass. The sequential
+workspace test command reports 87 passing application tests and one failure in
+`bpmn_pool_and_lane_resize_gestures_snap_undo_cancel_and_keep_elements_fixed`
+at `app/tests.rs:948` (the unsnapped lane-height assertion). That command stops
+before core tests; a separate `cargo test --locked -p op-core` passes all 108
+tests. The failing BPMN test was not changed as part of the spacing correction.
+UI-module formatting, local links in `traductions.md` and `git diff --check`
+pass. Browser runs, release builds and the remote CI matrix were not repeated.
+
+## BPMN pool and lane border resizing — 14 November 2026
+
+Pool borders and all four corners can be dragged without selecting the pool
+first. Directional system cursors and a highlighted border identify the target;
+hit tolerances stay constant in screen pixels. Internal separators redistribute
+two neighboring lane heights without changing total pool height or other lanes.
+The domain operation preserves element positions, limits shrinking against their
+bounds and normal minimum sizes, and honors optional grid snapping. Typed gesture
+history provides a single undo step and Escape cancellation. No document schema
+or dependencies changed.
+
+Four domain regressions and two UI gesture/cursor tests pass. They cover all
+edges/corners, single/multiple lanes, element constraints, fractional coordinates,
+invalid requests, three actual camera zooms, both themes, grab offsets,
+undo/redo/cancel, panning and creation-tool priority. The earlier unsnapped-height
+failure recorded above was corrected by setting the test camera through the
+saved view state, which otherwise overwrote the direct camera assignment.
+Light/dark hover and resized-pool screenshots were visually inspected.
+
+The complete `cargo test --locked -p op-core` passes **108 tests**. Native and
+WebAssembly checks, formatting of the edited Rust files, local documentation
+links and `git diff --check` pass. The sequential workspace run passed 87 of 88
+application tests, then failed its translation inventory during concurrent exam
+mode edits. Later application-test reruns could not compile because the existing
+`manual_alpha_mode` test still referenced the removed `MiningEditor.manual`
+field. These unrelated in-progress changes prevent claiming a full workspace
+pass. Release builds, browser runs, Windows/macOS and remote CI were not run.
+
+
+## Application-wide exam mode — 14 November 2026
+
+**Tools → Exam mode** replaces Mining's manual-mode selector. It turns off
+pedagogical assistance across open and newly created documents, while keeping
+authored content editable and saveable. The Mining job only parses activity
+headers in this mode; Alpha discovery and soundness are skipped. Answer fields
+and matrix cells contain no model answers, corrections, hints, scores or generated
+previews. The old log `manual` field and existing answers still round trip.
+
+Session guards block assistance commands and generated-answer exports, and open
+result panes show a disabled message. Notation UIs hide validation/evaluation,
+conversions, automatic layout and SQL generation. Petri simulation and background
+analysis are cancelled. Examples, templates and home preview images are hidden.
+Mode changes leave document snapshots and stored view preferences intact.
+
+Two UI regressions pass for menu activation/deactivation, answer preservation,
+matrix editing/undo, serialization, export guards, existing result panes,
+simulation shortcuts and documents created during an exam. A worker regression
+checks that exam output contains activity headers without solutions or soundness,
+and honours cancellation. The three application i18n checks pass after removing
+36 retired manual-mode messages from each catalogue. The first full application
+run passed 89 tests and failed only that retired-message inventory before the
+catalogues were cleaned up. The exam screenshot was visually inspected.
+
+The subsequent complete sequential workspace run passes **90 application tests**
+and **110 core tests** (101 unit tests, 7 document regressions and 2 untrusted-input
+checks). Native and WebAssembly compilation checks pass. The application test
+build reported an unused import in the concurrently edited whiteboard module;
+that warning was absent from the later native check. A minimal `f32` annotation
+was added to the concurrently edited UML minimum-size helper after the compiler
+reported an ambiguous float type. Local documentation links, formatting checks
+for the exam-related Rust files and `git diff --check` pass. These are local Linux
+checks; release builds, an actual browser session, Windows/macOS and remote CI
+were not run for this change.
+
+## Shared border/corner resizing — 14 November 2026
+
+Resizable BPMN objects, UML class/use-case elements, EPC/activity nodes, database
+tables and non-connector free-drawing elements share screen-space border picking,
+grab offsets, directional cursors and highlights. The geometry operation in
+`op-core::geom::ResizeEdge` keeps opposite edges fixed and applies the supplied
+size limits and snapping. Pool/lane constraints remain specific to BPMN. Class
+members and database columns determine minimum visible heights; free-drawing
+connectors retain their endpoint editing and attachments. Existing English,
+French and Spanish resize instructions now describe edge/corner gestures.
+No dependencies or serialized document/view fields were added.
+
+All **202 workspace tests** pass sequentially: 92 application tests, 101 core
+unit tests and nine core integration tests. New coverage exercises eight resize
+directions in all seven graphical editor types, both themes across the editor
+set, different zooms, hover without mutation, offset grabs, fixed opposite edges,
+minimum sizes, fractional resizing with snapping off, atomic undo/redo and Escape
+cancellation. Shared picking tests cover fixed screen tolerance and overlapping
+elements. Existing attached-connector and import/storage regressions pass.
+Representative class, use-case, database, EPC and free-drawing captures were
+visually inspected. The free-drawing test explicitly sets its snap preference
+before testing on/off behavior; its first run had incorrectly assumed snapping
+was enabled by default.
+
+`cargo test --locked -p op-core`, native and WebAssembly compilation checks,
+workspace formatting, local links in the updated documentation and
+`git diff --check` pass. The former exam-related global test failures recorded
+above are resolved in this checkout. Release builds, actual browser interaction,
+Windows/macOS and remote CI were not repeated.
+
+## Examples restricted to creation cards — 14 November 2026
+
+The process-discovery input header no longer shows its separate **Examples**
+dropdown. A source audit found no other editor-level **Examples** menus; home
+and the new-document picker retain their shared card menu and both registered
+sample logs. The two obsolete menu-only translation keys were removed from the
+English, French and Spanish catalogues.
+
+The updated process-discovery screenshot was visually inspected. Home/picker,
+example registry, discovery and translation inventory checks pass. The complete
+workspace command was interrupted by SIGTERM during the UML UI checks; the
+remaining UML, free-drawing and recovery UI tests were rerun successfully in
+short batches, followed by all 32 non-UI application checks and 110 core tests.
+Together the completed runs cover all 202 workspace test cases. Native and
+WebAssembly compilation, formatting, local documentation links and
+`git diff --check` pass. Browser runs, release builds, Windows/macOS and the
+remote CI matrix were not repeated.
+
+## Standard drawing editing — 14 November 2026
+
+Free drawing supports system clipboard copy/cut/paste across drawing documents,
+plain-text paste, Alt-drag duplication (including pressing Alt during a move),
+Shift-constrained movement/drawing, stacking order and F2/Enter text editing.
+The Edit menu consumes registered commands and the canvas has context actions.
+Focused text fields retain their own clipboard and undo. The shell consumes
+Ctrl/Cmd+Shift+Z before Ctrl/Cmd+Z, and Shift+S before S, so redo and Save as are
+not intercepted by the less specific shortcuts. Clipboard selections have a
+separate versioned JSON format; no dependencies or document/session schemas
+changed. Browser keyboard paste uses system clipboard events; browser menu paste
+uses the last application-copied drawing selection.
+
+Five new domain tests cover portable selections, fresh IDs, internal/external
+attachments, malformed/future/over-budget input, atomic rejection, stable stacking
+and constrained geometry. Four new egui interaction tests cover copy/cut/paste
+between documents, native menu-paste requests, styles/freehand/connectors,
+undo/redo, Alt/Shift dragging, cancellation and original selection restoration,
+text-field focus/undo, context/Edit menus, stacking keys, F2 and free pencil
+samples with snapping enabled. The clipboard, context menu and focused text
+screenshots were visually inspected. The full core command passes 115 tests
+(106 unit tests and nine integration tests). The complete sequential workspace
+command passes **211 tests**: 96 application tests and those 115 core tests.
+Native and WebAssembly compilation, workspace formatting, local documentation
+links and patch whitespace checks pass. These are local Linux checks and egui
+clipboard-event simulations; actual OS/browser clipboard integration, release
+builds, Windows/macOS and remote CI were not run for this change.
+
+## Combined pre-commit validation — 14 November 2026
+
+The complete sequential workspace command passes all **211 tests**: 96
+application tests and 115 core tests. The separate core test command, native and
+WebAssembly `cargo check --locked -p op-app`, workspace formatting and
+`git diff --check` also pass. All 110 local links in the changed Markdown files
+resolve to existing files.
+
+The full website `bun run build` passes, including Astro checks with no
+diagnostics and the Trunk WebAssembly release build. All nine Bun tests pass
+against that combined output. Generated HTML checks cover all six localized
+terms/privacy pages, their metadata, canonical/alternate URLs, sitemap entries,
+CSP routes, scripts, localized footer links and 198 local links/assets/anchors.
+No new browser session, native release build, Windows/macOS run, deployment or
+remote CI matrix was performed during this validation.
+
+
+## Shared Open Process visual identity — 14 November 2026
+
+The application and presentation site share a paper/graphite/vermilion identity,
+Inter typography, small frame corners and ruled controls. The home/creation grid
+uses neutral icons with a single action accent; small registry-color markers
+retain notation identification. Canvas surfaces and selection colors follow the
+shared theme, while authored drawing styles and semantic diagram colors remain
+unchanged. The O → P SVG, generated native/web icons, web loading colors and all
+eight real application captures in the website gallery were refreshed. The
+[identity guide](identite-graphique.md) documents tokens and maintenance.
+
+The complete sequential workspace suite passes **211 tests** (96 application and
+115 core tests). Four home tests were rerun successfully after the final card
+marker refinement. Eight existing gallery/UI tests were rerun after aligning the
+shared floating palettes and tool buttons with the small frame corners. Native
+and WebAssembly `cargo check --locked -p op-app` pass
+without warnings. Two existing packaging tests pass. Workspace formatting, local
+Markdown links and patch whitespace checks pass.
+
+The full website build passes with no Astro diagnostics, including the Trunk
+WebAssembly release build, followed by all nine Bun tests. Local Firefox checks
+cover the three home pages and six legal pages at actual viewport widths of
+320, 390, 768 and 1440 CSS pixels. They check horizontal overflow, loaded images,
+language switching, Escape/outside-click closure, legal footer/section links and
+gallery switching/enlargement. WebDriver BiDi set the smaller viewports because
+ordinary Firefox window resizing stopped at 500 px. The initial mobile header
+wrapping was corrected before the final browser run. Temporary browser profiles
+and loopback servers were shut down by the check.
+
+Desktop/mobile website captures, the catalogue, and light/dark application views
+were visually inspected. Seven principal text/button color pairs have calculated
+contrast ratios of at least 4.5:1; this is a palette check, not a complete
+accessibility audit. Native release builds, Windows/macOS display, deployment
+and the remote CI matrix were not run for this identity change.
+
+
+## Selectable appearance families — 14 November 2026
+
+Classic restores the previous default appearance. Cloud, Lilac, Blossom, Lagoon,
+Midnight, Graphite and Workshop offer alternatives with distinct colors, corners,
+shadows and website compositions. All families support light/dark colors. The
+website's sticky selector, swatches and Reset use translated EN/FR/ES labels and
+a browser-local preference. The app has a context-local typed selection and a
+separate persisted setting. Explicit website app links pass the family and mode
+to the local `/app/` route. Saved languages, documents, histories, cameras and
+`.opx` schemas retain their previous behavior.
+
+The complete sequential workspace command passes **215 tests**: 100 application
+tests and 115 core tests. New tests cover preference restoration and malformed
+values, isolated application contexts, explicit URL overrides, the real theme
+menu and preservation of document snapshots, view state, history revisions and
+language. The gallery test checks snapshots while generating 128 real captures
+across eight views, eight families and two modes. The exporter validates and
+converts all 128 images, updating the eight stable Classic fallback URLs.
+
+Native and WebAssembly `cargo check --locked -p op-app` pass without warnings.
+The full website build passes with no Astro diagnostics, including the Trunk
+WebAssembly release build. All **12 Bun tests** pass, including preference/query
+fallbacks, matching local app destinations, translated controls and the presence
+of all 128 gallery images. Two packaging tests pass. Workspace formatting,
+Markdown links and patch whitespace checks pass.
+
+Firefox checks under the shipped CSP cover all eight families in both modes at
+1440, 390 and 320 CSS pixels. They check actual gallery images, horizontal
+overflow, matching app-link parameters, reload/language persistence, Reset,
+explicit preview URLs, changing an existing preview URL, invalid browser storage
+and gallery enlargement. The compiled WebAssembly application also starts from
+an explicit Cloud/dark URL; its rendered palette matches the catalogue. Desktop,
+mobile and application captures were visually inspected after transitions
+settled. The existing Astro development server on `localhost:4321` was also
+checked: its shared catalogue, selector, real images and reload behavior work.
+That user-owned server was left running. Temporary test servers and browser
+profiles were closed afterwards.
+
+These are local Linux/Firefox checks. Native release builds, Windows/macOS
+rendering, Safari/Chromium, deployment and the remote CI matrix were not run.
+
+
+## Classic as the sole theme — 14 November 2026
+
+Classic is now the only application and website identity. The alternative
+families, palette catalogue, comparison bar, swatches, family preferences and
+alternative preview images have been removed. Shared application radii remain
+centralized in `theme.rs`. The existing application color-mode controls remain;
+the website has a compact translated sun/moon button. Its former preference
+migrates only the light/dark choice to a mode-only key. Retired `theme` parameters
+cannot restore another family. Documents, histories, language preferences and
+`.opx` schemas are unchanged.
+
+The complete sequential workspace command passes **213 tests**: 98 application
+and 115 core tests. A regression checks that old theme URLs leave Classic's
+palette intact while valid color-mode parameters still work. The Classic gallery
+test preserves document snapshots while rendering eight views in both modes.
+The exporter refreshes 16 real Classic images and the eight stable fallback URLs.
+Native and WebAssembly compilation checks, workspace formatting, local Markdown
+links and patch whitespace checks pass.
+
+The full website build passes with no Astro diagnostics, including the Trunk
+WebAssembly release build. All **12 Bun tests** pass. They cover retained color
+modes from old preference values, mode-only app links, ignored retired URL
+parameters, removal of theme controls from all nine localized pages and the 16
+remaining gallery images.
+
+Firefox checks under the shipped CSP pass on the nine presentation/legal pages
+in both modes at 1440, 390 and 320 CSS pixels. They cover overflow, header overlap,
+a single-line mobile app button, preference migration, reload/language retention,
+retired URL normalization, app links and gallery enlargement. The compiled web
+app renders Classic dark colors even when opened with an obsolete Cloud link.
+Desktop/mobile and application captures were visually inspected. The existing
+Astro server on `localhost:4321` also passes a live selector-removal, gallery and
+mode-persistence check, and was left running. Temporary test servers and browser
+profiles were closed. Native release builds, other operating systems/browsers,
+deployment and the remote CI matrix were not run.
+
+
+## UML relation tools and contextual actions — 14 November 2026
+
+Class and use-case builders no longer show a horizontal business action bar.
+The floating Connect tool opens a relation picker on hover, click or keyboard
+activation, with notation-specific types and matching UML symbols. The chosen
+type becomes the palette icon and remains available through C. Switching types
+clears an unfinished connection. Alignment/distribution moved to the selection
+inspector and canvas context menu. Duplication remains in the context menu and
+its shortcut; class-to-Mermaid conversion remains in Tools and is also available
+in the canvas context menu. Exam mode hides the conversion. Document formats,
+saved view preferences and domain relation rules are unchanged.
+
+The complete sequential workspace suite passes **216 tests**: 101 application
+and 115 core tests. Three new UI regressions cover all seven class relation types
+with click/drag creation and atomic undo/redo, tool selection without document
+edits, remembered types through C, valid use-case choices, keyboard activation,
+Escape, hover dismissal, pending-source cancellation and arrangement access.
+The existing mouse and independent-document conversion tests pass with the new
+controls, including conversion from a 420 px view's context menu.
+
+Native and WebAssembly compilation checks, workspace formatting, local Markdown
+links, the annotated SVG's XML syntax and patch whitespace checks pass. The full
+website build and all **12 Bun tests** pass. The Classic gallery test renders
+16 current views without changing document snapshots; the exporter refreshes
+the two UML images and their stable fallback.
+
+Firefox runs the compiled application under the shipped CSP with a temporary
+profile/server. Real pointer interactions open the relation picker, choose
+Generalization, create two classes and connect them. Captures at 1400 and 420 CSS
+pixels were visually inspected, alongside light/dark UI-test captures and the
+selection context menu. Temporary browser/server processes were closed. Native
+release builds, Windows/macOS display, other browsers, deployment and the remote
+CI matrix were not run.
+
+
+## Website system color mode — 15 November 2026
+
+Without an explicit choice, presentation and legal pages now read
+`prefers-color-scheme` on load and listen for changes while open. Automatic mode
+does not write a browser preference. A sun/moon button choice or valid `mode` URL
+remains an explicit override, stored under `open-process-color-mode-v2`.
+Ambiguous v1 color/appearance preferences are cleared, including old manual
+choices, because previous visits saved defaults as though they were explicit.
+Language preferences and application/document storage are unchanged.
+
+The full website build passes with no Astro diagnostics, including assembly of
+the unchanged WebAssembly app. All **18 Bun tests** pass. Six new tests execute
+the bundled browser event handlers and cover initial/live system modes without
+automatic persistence, old pinned defaults, explicit choices/reload, cross-tab
+updates/removal/clear, URL priority, malformed values and unavailable storage.
+
+Firefox checks under the shipped CSP use real changes to the browser's system
+color-scheme preference and confirm both initial dark and live light/dark modes
+on all nine EN/FR/ES presentation/legal pages. Logos, theme-color metadata, app
+links and the selected gallery view update together. Checks also pass for manual
+choice persistence across reload/language navigation, storage events between
+tabs, clearing an override and explicit URL modes. Desktop and 320 px mobile
+captures in both modes were visually inspected. The existing Astro server at
+`localhost:4321` passes the same checks and was left running. Temporary test
+profiles and servers were closed. Local documentation links and patch whitespace
+checks pass.
+
+Rust sources and models were not changed; the Rust test suites were not rerun.
+Other browsers/operating systems, deployment and the remote CI matrix were not
+run for this website correction.
+
+
+## Mermaid and Markdown exports — 15 November 2026
+
+File → Export now offers `.mmd` and `.mermaid.md` for BPMN, Petri, EPC, UML
+activities, classes and use cases, alongside existing formats. The Mermaid editor
+also exports Markdown without requiring a valid preview. Typed projections retain
+graph identities/connections and notation labels, with loss notes in both file
+forms; [the format guide](export-formats.md) describes exact limits. No toolbar,
+dependency, model version or document/session schema is added.
+
+The Mermaid module imports one complete fenced block, including invalid drafts.
+Multiple/unfinished Mermaid blocks produce a targeted error. The event-log
+fallback excludes explicit Mermaid fences, so Markdown is not mistaken for trace
+data. The session's per-format assistance hook hides generated projections in
+exam mode without removing native exports; authored Mermaid text remains exportable.
+
+`cargo test --locked -p op-core` and the complete sequential workspace suite pass.
+The workspace contains **225 passing tests**: 103 application and 122 core tests.
+Seven new core tests parse/render projections, check BPMN pool/lane membership
+and arrow kinds, initial Petri markings/capacities/inhibitors/weights, empty
+diagrams, escaping, deterministic output, exact Markdown source round trips and
+fence rejection. Two new adapter tests cover all six notation families, registry
+reopening, unchanged snapshots/revisions/views/native exports and exam filtering.
+The existing File/Export UI test now covers the new formats and all relevant types.
+
+Native and WebAssembly compilation checks pass without warnings. The full website
+build, including the Trunk release app, passes with no Astro diagnostics; all
+**18 Bun tests** pass. Formatting, local Markdown links and patch whitespace
+checks pass.
+
+Firefox runs the rebuilt app under the shipped CSP with an isolated profile and
+loopback server. It creates a three-node/two-flow BPMN, invokes both real export
+menu actions, and checks the generated Blob contents and `.mmd`/`.mermaid.md`
+download filenames. Native `.opx` snapshots before/after export are equal.
+Dropping the exported Markdown into the app opens a Mermaid document with the
+exact exported source; saving it confirms the registered document type. The
+export menu and rendered Mermaid preview were visually inspected. The test
+captures download bytes instead of writing through the browser's download UI.
+Temporary browser/server processes were closed and existing servers left running.
+
+Native save-dialog interaction, other operating systems/browsers, official
+JavaScript Mermaid rendering, deployment and the remote CI matrix were not run.
+
+
+## Strict Clippy CI correction — 15 November 2026
+
+The [reported Ubuntu job](https://github.com/linventif/open-process/actions/runs/43717166198/job/132821075395)
+completed its tests but failed `cargo clippy --locked --workspace --all-targets
+-- -D warnings` under Rust 1.100.0. `Footprint::pairs` now enumerates matrix rows
+and cells instead of indexing range loops. Its ordering, directed relations,
+single symmetric pairs, parallel self-loops and omitted independent diagonals
+retain their behavior. A new regression checks all four relations and empty logs.
+
+The full lint command also exposed an existing nested thumbnail-acknowledgement
+condition and the size imbalance between mining result variants. The condition
+uses a let chain, retaining its short-circuit behavior. The discovery variant
+boxes its `AlphaResult`; a worker transport regression confirms the JSON remains
+readable as the previous unboxed type. Documents and session schemas are unchanged.
+
+The exact strict Clippy command passes on Linux with **Rust 1.98.0 and 1.100.0**.
+The 1.100.0 compiler and build artifacts use temporary/ignored directories;
+the default Rust toolchain remains unchanged. Formatting checks pass under both
+versions. With the default Rust 1.98.0, core tests and the complete sequential
+workspace suite pass **226 tests**: 103 application and 123 core tests. Native
+and WebAssembly compilation checks also pass. Documentation links and patch
+whitespace checks pass.
+
+These are local checks. The failed GitHub run was inspected but not rerun;
+native release builds, the website build, other operating systems and the remote
+CI matrix were not rerun for this correction.
+
+## Integrated website documentation — 16 November 2026
+
+The website now publishes 40 maintained documentation sources under `/docs/`,
+with equivalent navigation routes under `/fr/docs/` and `/es/docs/`. The landing
+catalogue's twelve tool/workflow links open dedicated internal guides. Ten new
+English guides cover the previously missing tool workflows and troubleshooting;
+existing Markdown guides and project documents are rendered directly.
+
+The documentation includes grouped navigation, accent-insensitive title/summary/
+keyword filtering, section contents, group-local previous/next links and active
+page state. Language switching keeps the selected guide; French and Spanish
+navigation explicitly identifies the English article content. Relative guide
+links keep the route language; source links remain repository links. Interface
+artwork and SQL examples are available locally. Presentation CSP rules also
+cover the documentation routes, without inline scripts or syntax-highlighter
+styles.
+
+Local checks performed:
+
+- `bun run build:site`: Astro/TypeScript reports zero errors, warnings and hints;
+  the static build generates 133 HTML pages, including 123 documentation pages.
+- `bun test --test-name-pattern '^(?!the shared Cloudflare output|the standalone app)'`:
+  22 tests pass. The two output tests that require a freshly built Wasm application
+  are deliberately excluded from this presentation-only check.
+- Documentation tests cover every maintained `docs/*.md` source, all twelve tool
+  destinations, local guide/asset links and anchors, labelled heading targets,
+  language alternates, canonical URLs, sitemap entries and the documentation CSP.
+- A temporary headless Firefox harness exercises the built site's presentation
+  script/style restrictions. All 21 browser assertions pass: internal guide links, search
+  normalization/multiple terms/empty/reset states, article rendering, language
+  switching, desktop contents, saved color preference, compact menu interaction,
+  viewport resizing, local image loading and absence of page overflow on the
+  index/database/interface pages at 375 px.
+- Desktop index and mobile dark-mode BPMN screenshots were visually inspected.
+  Temporary Firefox profiles and the owned localhost server were closed.
+- `git diff --check` passes.
+
+The combined Rust/Wasm build, the full Rust suite, other browsers/operating
+systems, remote CI and production deployment were not run for this website work.
+
+## Mermaid catalogue, forms and initial native flowcharts — 16 November 2026
+
+**The request for complete native graphical editors for every Mermaid family is
+not complete.** Basic source forms/templates are not counted as dedicated native
+editors. The [Mermaid guide](mermaid.md#native-graphical-editor-work) identifies
+the implemented subset and remaining native work.
+
+The Mermaid module declares 35 templates covering the reviewed catalogue, with
+five C4 levels, and 75 basic statement forms. Twenty-seven templates have local
+Rust previews. Swimlane, Mermaid use case, event modeling, Venn, Ishikawa,
+Wardley, Cynefin and TreeView retain source/forms, storage and text exports, with
+an explicit unavailable-preview message. Switching Source/Builder alone retains
+all source bytes, saved state and revisions. Applied edits guard the selected
+statement and preserve surrounding unknown syntax. Builder input is bounded;
+statement source lines and virtualized rows avoid repeated prefix scans and
+drawing every row of a long source.
+
+An initial native `flowchart` module now registers its own typed model,
+descriptor and example through composition. It reuses FlowEditor and
+DiagramLayout for creation, movement, resizing, selection, properties, labelled
+connections, history and SVG/DOT/Mermaid exports. The five supported kinds are
+process, decision, terminator, circle connector and preparation. Basic native
+flowchart ↔ Mermaid conversion preserves these kinds, names and connections;
+layout is regenerated with a diagnostic. Rounded rectangles map to terminators
+with a presentation diagnostic. Groups, unsupported shapes, decorated/dashed
+links, self-links and parallel links fail without opening a partial destination.
+
+Native flowchart import runs in the existing native pool/Web Worker. Changed
+source/name/language and exam mode cancel pending imports; stale results cannot
+open a destination. The common flow storage validator indexes node kinds rather
+than repeatedly scanning nodes for each edge. Existing EPC/activity invariants
+and payloads retain their behavior. The new kind uses model version 1; existing
+document versions, .opx envelopes and dependencies are unchanged.
+
+Tools commands also open projections directly from the six existing BPMN, Petri,
+EPC, activity and UML builders. Source documents/histories/views stay unchanged;
+conversion notes accompany the new source as comments and a message.
+
+Local checks performed:
+
+- `cargo test --locked -p op-core` passes **130 tests**.
+- `cargo test --locked --workspace -- --test-threads=1` passes **241 tests**:
+  111 application and 130 core tests.
+- New regressions cover family forms/storage, rendering of preview-capable
+  patterns, delimiter-containing labels, guarded edits, atomic errors, bounds,
+  dates/packet ranges, Unicode, preambles, unknown syntax, original encodings and
+  CRLF. UI checks cover switching, apply/remove, undo/redo, reopening, all
+  templates, direct conversions, the last example in the scrollable home menu
+  and native graphical create/connect/move gestures. Worker tests cover stale
+  source and exam cancellation.
+- Native and `wasm32-unknown-unknown` compilation, strict workspace Clippy,
+  formatting and patch whitespace checks pass.
+- Local links in the Mermaid documentation updates were checked. Native
+  flowchart and builder-inspector captures at 1,400, 420 and 280 px were visually
+  inspected. The inspector captures show a rendering-in-progress state; SVG and
+  rasterizer behavior is covered by automated tests.
+
+The official JavaScript Mermaid parser was not executed: a temporary validation
+installation failed because npm registry DNS resolution was unavailable. Newer
+starter forms follow the official syntax documentation without claiming full
+grammar validation. Native release builds, the website/Trunk build, browser
+interaction, other operating systems and remote CI were not run for this Mermaid
+work. The separate website verification above describes independent website work.
+
+## Shared graphical selection editing (2026-11-16)
+
+BPMN, Petri, UML class/use-case, EPC, activity, native flowchart and database
+builders use the shared typed selection clipboard controller. It supplies
+copy/cut/paste, duplicate/select-all commands, canvas context actions and native
+paste requests/browser menu fallback. The drawing editor retains its existing
+portable format, plain-text paste and gestures and shares clipboard event
+ownership with the controller. No document or workspace storage schema changed.
+
+Domain regression tests cover BPMN pools/lanes, documentation and default flows;
+Petri markings, capacities, silent transitions and inhibitor weights; flow labels
+and omitted external edges; relational column/index/foreign-key remapping and
+SQL name uniqueness; and atomic rejection of malformed clipboard references.
+Four UI scenarios cover all eight newly connected builders' selection commands,
+copy/cut/paste across documents, text-field focus, Edit/context menus and Alt-drag
+with one-step undo/Escape cancellation, plus a fifth BPMN pool regression preserving
+original nodes while moving only the copy.
+
+Checks performed on the final checkout:
+
+- `cargo test --locked -p op-core`: passed (135 tests).
+- `cargo test --locked --workspace -- --test-threads=1`: passed (251 tests,
+  including 116 application tests).
+- `cargo check --locked -p op-app`: passed.
+- `cargo check --locked -p op-app --target wasm32-unknown-unknown`: passed.
+- Local links in the six affected documentation pages: 96 checked, none missing.
+- `git diff --check`: passed.
+
+UI coverage uses egui clipboard/pointer event simulations. Physical OS/browser
+clipboard integration, native release builds and the full three-OS CI matrix
+were not exercised by these local checks.
+
+## Combined commit preparation checks — 16 November 2026
+
+The remaining selection-editing and website documentation changes were checked
+together before committing them. The complete sequential workspace suite passed
+251 tests (116 application and 135 core). Native and WebAssembly checks passed.
+Four nested conditions flagged by strict Clippy were simplified without changing
+short-circuit behavior; the five selection-editing UI tests were rerun afterward,
+and strict Clippy plus formatting checks pass.
+
+The site and application builds were both run with `bun run build:site` and
+`bun run build:app`; the latter rebuilt the release WebAssembly application.
+The complete `bun test` suite passes all 24 tests, including the previously
+excluded output checks and the documentation link/anchor/CSP checks. No new
+interactive browser run or remote CI matrix was performed for commit preparation.
+
+## Simple drawing sizes — 17 November 2026
+
+Free drawing uses XS–XL presets for stroke width and font size. A collapsed
+Advanced section exposes exact stroke/font values and single-element dimensions.
+Two egui interaction tests cover preserving custom precision when opening or
+focusing fields, exact edits, undo, mixed selections and styles for new elements.
+The simple and advanced inspector screenshots were visually inspected.
+
+The complete sequential workspace suite passes **253 tests** (118 application
+and 135 core). Native and WebAssembly compilation, workspace formatting, the 12
+local links in the drawing guide and `git diff --check` pass. These are local
+Linux and egui checks; browser interaction, release builds and the remote CI
+matrix were not run for this change.
+
+## macOS application bundle signing — 17 November 2026
+
+The packaging script now ad-hoc signs the complete macOS `.app` after adding
+metadata, icons and licences, then requires strict signature verification before
+archiving. The release workflow also verifies the bundle extracted from each
+macOS distribution archive before uploading it. This does not provide Developer
+ID signing or Apple notarization, and does not establish the exact cause of a
+particular user's Gatekeeper alert.
+
+On Linux with Python 3.14.4, four packaging tests pass, covering archive contents,
+Linux installation, complete-bundle signing order and failure propagation. The
+fifth test is macOS-only and was skipped locally: it compiles a real executable,
+packages and extracts it, verifies and executes it, then checks that modifying a
+bundled resource invalidates the signature. Existing macOS CI will run that test;
+no remote CI result is claimed here.
+
+`bun run build:site` passes Astro checks and the static site build. Ten targeted
+Bun tests pass, including generated documentation links/anchors and release
+download selection (local Bun 1.4.0). Release workflow YAML, Bash syntax and
+embedded Python syntax checks pass, as does `git diff --check`.
+
+No Rust source changed, so workspace tests and native/WebAssembly builds were
+not repeated. No actual macOS signing, quarantined-download launch, full CI
+matrix, Developer ID/notarization operation or publication was performed locally.
+
+## Desktop release checks — 17 November 2026
+
+Official native builds embed the release tag computed once by the release
+workflow. A native platform service checks GitHub metadata on a background thread
+and the shell shows translated update, download and release-note links. Stable
+and automatic `main-*` builds use separate channels. Startup failures stay quiet;
+manual checks report the result. No document or workspace schema changed.
+
+The complete sequential workspace suite passed. The final nine focused updater
+tests also pass with `OP_RELEASE_TAG=main-123-abcdef0`, covering displayed build
+identity, semantic and automatic-build comparisons, identical commits, incomplete
+uploads, platform downloads, untrusted metadata URLs, malformed responses,
+nonblocking polling, popup dismissal, keyboard ownership, links and three
+interface languages. Tests inject metadata/results without making live update
+requests. The update popup screenshot was visually inspected.
+
+Native and WebAssembly `cargo check --locked -p op-app`, strict workspace Clippy,
+formatting and `git diff --check` pass. The site build and ten targeted Bun tests
+pass, including documentation links/anchors and release download selection.
+Release workflow YAML/script syntax, stable/preview/automatic release-tag cases,
+and the shared compilation/publication tag were checked locally.
+
+`cargo audit --no-fetch --no-yanked` passed against the locally available RustSec
+database, with four warnings about existing unmaintained transitive dependencies. The new HTTPS
+and semantic-version dependencies are native-only. These local Linux checks do
+not establish an actual GitHub-to-desktop download or Windows/macOS behavior.
+No native release build, combined site/WebAssembly release build, remote CI run,
+publication or deployment was performed for this change.
+
+## Website dependency advisory gate — 17 November 2026
+
+The [desktop update commit's website audit](https://github.com/linventif/open-process/actions/runs/44139862108/job/134239381062)
+failed on `picomatch` advisory `GHSA-fc5q-39xc-vjpf`. The same online audit was
+reproduced locally. The reviewed advisory lists no patched version; the npm
+registry reports 4.0.7 as latest. The dependency remains unpatched. A single-GHSA,
+time-limited exception for repository-controlled build globs is documented in
+[SECURITY.md](../SECURITY.md#dependency-audit-exception), with automatic expiry
+at 00:00 UTC on 1 December 2026. The complete advisory report remains in CI logs;
+other advisories and registry failures still block the gate.
+
+Online `bun run audit` passes with the exception banner and the unfiltered
+`picomatch` report. Running it without network access returns failure rather
+than a clean audit. Two policy tests pass, covering the exact advisory scope,
+UTC expiry boundary and invalid-date behavior. Frozen installation with ignored
+scripts passes without dependency or lockfile changes. Security workflow YAML
+and the website/Rust audit commands were checked.
+
+Astro checks and the static build pass; after permitting Cargo cache writes, the
+WebAssembly release build completes the combined output. All **26 Bun tests**
+pass, including output assets, documentation links/anchors and the new audit
+policy tests. Local checks used Bun 1.4.0; CI selects 1.4.4. Local documentation
+file links and `git diff --check` pass. No Rust source changed, so native builds
+and the Rust workspace suite were not repeated for this audit-policy change.
+
+## Writer version in `.opx` and multiple file opening — 19 November 2026
+
+Saved envelopes now carry an optional `generator` (application, release tag and
+`CONTENT_REVISION`); the envelope version is unchanged. Opening a native file
+from a higher revision, or one whose content this version would drop, shows a
+prompt listing unsupported items before anything opens. **File → Open** accepts
+several files on native and web.
+## Whole-diagram PNG export — 19 November 2026
+
+PNG export from the BPMN, Petri, UML, EPC/activity/flowchart, database and free
+drawing editors previously saved one screenshot of the visible canvas. It now
+visits the diagram's bounds tile by tile at a fixed scale, copies each capture
+into one image and restores the previous view (`canvas/export.rs`).
+
+`cargo fmt --check`, `cargo clippy --workspace --all-targets -D warnings`,
+native/WebAssembly checks and `git diff --check` pass; **266 tests passed**
+(131 app, 121 core, 14 integration), none ignored.
+
+Unit tests cover tile coverage, the size limits, and a simulated nine-tile
+export: every output pixel comes from the expected tile, the view is restored and
+the PNG reaches the save queue. A UI test zooms a BPMN view to 300% on one
+corner, exports and checks that the PNG is wider than the window and than twice
+the diagram width, that drawn content reaches both ends and that the view is
+restored. `bpmn_full_export.png` (2440 × 1000 px) was inspected: no seams and no
+selection. Native and web save dialogs were not exercised interactively.
+## Shared auto arrange, bulk tab closing and matrix headers — 19 November 2026
+
+Auto arrange now uses one layered engine for BPMN, Petri nets, EPC, UML activity,
+flowcharts, UML class/use-case diagrams and database schemas. BPMN loop flows in
+the orthogonal style are routed around intermediate elements. Tab context menus
+add left/right/all bulk closing, and relation-matrix headers fit activity names.
+
+```sh
+cargo fmt --all -- --check
+cargo clippy --locked --workspace --all-targets -- -D warnings
+cargo test --locked --workspace --no-fail-fast -- --test-threads=1
+cargo check --locked -p op-app
+cargo check --locked -p op-app --target wasm32-unknown-unknown
+git diff --check
+```
+
+**264 tests passed** (128 app, 121 core, 15 integration), none ignored; clippy
+and both compilation checks reported no warnings.
+
+An integration test checks that new files record the current writer, historical
+v1 fixtures have none, and a future envelope with unknown envelope and generator
+fields still reads. It also checks that dropped fields are listed once per path
+and that `null` placeholders are ignored. A UI test loads a future BPMN file with
+an extra node field: nothing opens until a choice is made, the prompt names
+`v9.0.0` and `nodes › halo`, **Cancel** opens nothing, two queued files open one
+after the other, and a current file opens directly. `newer_file_prompt.png` was
+inspected. The native multiple-selection dialog and the web reload were not
+exercised interactively; the web path was only compiled.
+**273 tests passed** (130 app, 129 core, 14 integration), none ignored; clippy
+and both compilation checks reported no warnings. Tests cover layering direction, crossing reduction, cycles, isolated nodes, grid
+alignment and invalid geometry; the existing BPMN layout tests pass unchanged.
+UML tests check parents above children and use cases kept in their systems.
+A UI test clicks **Auto arrange** for one example of each graph notation and
+checks a single undo/redo step with an unchanged semantic revision. Another
+opens four tabs, closes to the right, cancels an unsaved-changes prompt (the
+queue stops), then answers it (the queue resumes) and closes all tabs.
+
+The `auto_arranged_*.png` and `tab_close_menu.png` screenshots were inspected,
+as were renders of a discovered 8-activity takeaway log (BPMN, Petri net and both
+matrices, including an elided name). These local Linux checks do not replace the
+CI matrix; no browser run, release build or deployment occurred.
+## System language and theme — 19 November 2026
+
+Until a language is picked in the dropdown, the app now follows the first
+supported system or browser language, and English otherwise. The sun/moon button
+returns to **System** when it selects the system's own theme. On Linux, the
+desktop's light/dark preference is read from the freedesktop settings portal and
+followed live. `sys-locale` and `zbus` were already compiled through eframe and
+accessibility; declaring them adds no package to `Cargo.lock`.
+
+`cargo fmt --check` and `cargo clippy --workspace --all-targets -D warnings`
+(Rust 1.100, as in CI), native/WebAssembly checks and `git diff --check` pass;
+**265 tests passed** (130 app, 121 core, 14 integration), none ignored.
+
+Unit tests cover locale matching, an explicit choice outranking the system,
+older storages (a saved non-English language counts as a choice, a saved English
+does not), the explicit flag including an explicit English, portal value mapping
+(including the deprecated nested variant) and the theme toggle returning to
+**System**. Tests do not read the machine's locale, so English test labels stay
+stable. A temporary live check on this Linux (Wayland) desktop read the portal
+through the new thread and got light (value 0); following a live change was not
+exercised.

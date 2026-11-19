@@ -25,6 +25,14 @@ pub struct CanvasControls<'a> {
     pub snap: Option<&'a mut bool>,
     pub inspector: &'a mut Option<bool>,
     pub issues: Option<&'a mut bool>,
+    /// Automatic layout offered by graph notations; hidden during an exam.
+    pub arrange: Option<ArrangeControl<'a>>,
+}
+
+/// Sets `requested` when the user asks for the notation's automatic layout.
+pub struct ArrangeControl<'a> {
+    pub requested: &'a mut bool,
+    pub enabled: bool,
 }
 
 #[derive(Default)]
@@ -123,6 +131,7 @@ impl DiagramLayout {
                     });
                     if compact {
                         ui.menu_button(tr("common.options"), |ui| {
+                            theme::menu_style(ui.style_mut());
                             if inspector_in_menu {
                                 self.inspector_toggle(ui, controls.inspector);
                             }
@@ -189,8 +198,21 @@ fn view_options(ui: &mut Ui, controls: &mut CanvasControls<'_>, extra_options: i
     if let Some(snap) = controls.snap.as_deref_mut() {
         ui.checkbox(snap, tr("canvas.snap_grid"));
     }
-    if let Some(issues) = controls.issues.as_deref_mut() {
+    if !super::exam::active(ui.ctx())
+        && let Some(issues) = controls.issues.as_deref_mut()
+    {
         ui.checkbox(issues, tr("editor.show_issues"));
     }
     extra_options(ui);
+    if !super::exam::active(ui.ctx())
+        && let Some(arrange) = controls.arrange.as_mut()
+        && ui
+            .add_enabled(arrange.enabled, egui::Button::new(tr("canvas.auto_arrange")))
+            .clicked()
+    {
+        *arrange.requested = true;
+        if ui.stack().iter().any(|stack| stack.kind() == Some(egui::UiKind::Menu)) {
+            ui.close_kind(egui::UiKind::Menu);
+        }
+    }
 }

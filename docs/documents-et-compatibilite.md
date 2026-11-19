@@ -28,6 +28,11 @@ model represented by a `Model` enum variant. The open v2 envelope is:
 {
   "format": "open-process",
   "version": 2,
+  "generator": {
+    "application": "Open Process",
+    "version": "v0.4.0",
+    "revision": 1
+  },
   "document": {
     "kind": "uml.class",
     "model_version": 1,
@@ -61,6 +66,35 @@ non-path shapes; invalid, cyclic or missing references are rejected. See
 Codecs encode/decode concrete models. The shell handles the envelope/session
 without extracting domain fields. Generic JSON is limited to this boundary,
 not passed into domain algorithms.
+
+### Writer version
+
+Every saved envelope records its writer in an optional `generator` object:
+`version` is the release tag shown to people (`v…`, or `main-<run>-<commit>` for
+main builds, or the crate version for local builds), and `revision` is the
+`CONTENT_REVISION` constant from
+[document/envelope.rs](../crates/op-core/src/document/envelope.rs). Files written
+before this field have no `generator` and count as revision 0. Readers that
+predate it ignore unknown envelope fields, so the envelope version stays 2 and
+older applications still open new files.
+
+**Increase `CONTENT_REVISION`** whenever any notation can store content that older
+readers would not keep: a new optional field, kind or model version. Revisions
+are compared instead of release tags because web, local and main builds do not
+all carry an orderable tag.
+
+When a native file comes from a higher revision, or decoding then re-encoding it
+would drop content, opening it first shows **File from a newer version**. The
+dialog names both versions and lists what this version does not support: fields
+it would drop, as paths such as `nodes › attachment`, or the reason the document
+cannot be decoded. It then offers three choices:
+
+- **Check for updates** on desktop, or **Reload the latest version** on the web;
+- **Open anyway**, with a warning that saving from this version removes the
+  listed items;
+- **Cancel**.
+
+Several such files queue one prompt each. Files from this version open directly.
 
 ## Loading and migration
 
@@ -168,13 +202,18 @@ writer advanced their original record, preserving both versions on restoration.
 
 ## Home preview cache
 
-The optional `open-process-thumbnails-v1` key stores PNG previews of open documents,
-separately from sessions and `.opx`. Saving caps the cache at 64 entries and
-512 KiB of PNG data. Restoration remaps IDs; content fingerprints prevent previews
-being reused for a different document revision.
+The optional `open-process-thumbnails-v1` key stores PNG previews of open and
+closed saved documents, separately from sessions, automatic copies and `.opx`.
+Saving caps the combined cache at 64 entries and 512 KiB of PNG data. Open-document
+previews use remapped runtime UIDs and content fingerprints. An optional `archive`
+reference adds the automatic copy's stable UUID and acknowledged revision, so a
+closed library card can restore its image without an open tab. Older cache entries
+without this reference still restore for matching open documents. Changed or
+deleted automatic copies cannot inherit a stale saved preview.
 
 Missing, malformed, stale or invalid PNG entries are ignored. Image dimensions
-are checked before decoding. Cards show type icons until recaptured. These are
+are checked before decoding. Cards show type icons until the document is opened
+and recaptured, including older saved diagrams without a cached image. These are
 derived data: missing previews block neither restoration nor saving, and change
 neither the session schema nor `.opx` format.
 

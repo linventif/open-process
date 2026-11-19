@@ -11,6 +11,8 @@ use op_core::i18n::{tr, trf};
 mod automatic;
 mod new_document;
 mod thumbnails;
+#[cfg(not(target_arch = "wasm32"))]
+mod updates;
 
 #[cfg(test)]
 use crate::{bpmn_editor::BpmnEditor, petri_editor::PetriEditor, uml_editor::UmlEditor};
@@ -35,6 +37,7 @@ enum DockEvent {
     Activate(u64),
     Close(u64),
     ClosePane(u64, egui_tiles::TileId),
+    CloseTabs(egui_tiles::TileId, dock::CloseTabs),
     Host(u64, HostEvent),
     New(Option<egui_tiles::TileId>),
     Beside(Pane, bool),
@@ -48,8 +51,13 @@ pub struct OpenProcessApp {
     io: FileIo,
     message: Option<(String, bool)>,
     show_about: bool,
+    /// Files written by a newer Open Process, waiting for the person's choice.
+    newer_files: std::collections::VecDeque<NewerFile>,
     show_shortcuts: bool,
+    exam_mode: bool,
     confirm_close: Option<usize>,
+    /// Tabs of a bulk close still waiting for an unsaved-changes answer.
+    close_queue: std::collections::VecDeque<(u64, egui_tiles::TileId)>,
     show_home: bool,
     new_picker: Option<new_document::Picker>,
     thumbnails: thumbnails::Thumbnails,
@@ -57,11 +65,21 @@ pub struct OpenProcessApp {
     automatic: autosave::Library,
     automatic_error: Option<String>,
     automatic_attempts: std::collections::HashMap<u64, f64>,
+    #[cfg(not(target_arch = "wasm32"))]
+    updates: updates::Updates,
 }
 
 impl OpenProcessApp {
     pub fn new(cc: &eframe::CreationContext<'_>, files: Vec<String>, registry: &'static DiagramRegistry) -> Self {
+        let release = env!("OP_RELEASE_TAG");
+        op_core::document::set_writer_version(if release.is_empty() {
+            concat!("v", env!("CARGO_PKG_VERSION"))
+        } else {
+            release
+        });
         crate::theme::apply(&cc.egui_ctx);
+        #[cfg(target_arch = "wasm32")]
+        crate::theme::load_web_color_mode(&cc.egui_ctx);
         crate::i18n::load(cc.storage);
         // UI tests opt into an isolated library explicitly; they never write user folders.
         let automatic = if cfg!(test) {
@@ -81,8 +99,11 @@ impl OpenProcessApp {
             io: FileIo::default(),
             message: None,
             show_about: false,
+            newer_files: Default::default(),
             show_shortcuts: false,
+            exam_mode: false,
             confirm_close: None,
+            close_queue: Default::default(),
             show_home: true,
             new_picker: None,
             thumbnails: thumbnails::Thumbnails::default(),
@@ -90,8 +111,11 @@ impl OpenProcessApp {
             automatic,
             automatic_error,
             automatic_attempts: Default::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            updates: updates::Updates::default(),
         };
         if let Some(storage) = cc.storage {
+            let mut map = std::collections::HashMap::new();
             let restored = match persistence::load(storage) {
                 Ok(p) => p,
                 Err(e) => {
@@ -106,7 +130,6 @@ impl OpenProcessApp {
                     app.persistence_ready = false;
                 }
                 // Restore documents, then remap the pane ids of the saved layout.
-                let mut map = std::collections::HashMap::new();
                 for (old, m, path, views) in p.docs {
                     let mut d = Doc::new(m, path, false, registry);
                     if let Some(entry) = p.autosave.remove(&old) {
@@ -152,8 +175,9 @@ impl OpenProcessApp {
                     }
                 }
                 app.active = p.active;
-                app.thumbnails.restore(storage, &cc.egui_ctx, &map, &app.docs);
             }
+            app.thumbnails
+                .restore(storage, &cc.egui_ctx, &map, &app.docs, &app.automatic.entries);
         }
         for f in files {
             #[cfg(not(target_arch = "wasm32"))]
@@ -167,6 +191,14 @@ impl OpenProcessApp {
         app.active = app.active.min(app.docs.len().saturating_sub(1));
         app.set_active(app.active);
         app.show_home = true;
+        #[cfg(not(target_arch = "wasm32"))]
+        if !cfg!(test) {
+            app.updates.start(&cc.egui_ctx, false);
+        }
+        #[cfg(target_os = "linux")]
+        if !cfg!(test) {
+            crate::platform::system_theme::watch(cc.egui_ctx.clone());
+        }
         app
     }
 
@@ -193,7 +225,8 @@ impl OpenProcessApp {
     }
 
     fn open_stored(&mut self, state: StoredDocument, path: Option<String>, saved: bool, near: Option<egui_tiles::TileId>) {
-        let doc = Doc::new(state, path, saved, self.registry);
+        let mut doc = Doc::new(state, path, saved, self.registry);
+        doc.editor.set_exam_mode(self.exam_mode);
         dock::add_tab(
             &mut self.tree,
             Pane {
@@ -222,6 +255,9 @@ impl OpenProcessApp {
 
     /// Shows a view of the active document in a new pane beside the current one.
     fn open_beside(&mut self, pane: Pane, vertical: bool) {
+        if self.exam_mode && pane.view != View::Editor {
+            return;
+        }
         self.show_home = false;
         let near = self.docs.get(self.active).and_then(|d| {
             dock::find(
@@ -243,32 +279,121 @@ impl OpenProcessApp {
         let native = name.to_lowercase().ends_with(".opx")
             || name.to_lowercase().ends_with(".json")
             || serde_json::from_slice::<serde_json::Value>(bytes).is_ok_and(|v| v["format"] == "open-process");
+        let generator = op_core::document::Generator::of(bytes).filter(|_| native);
+        // Content of the file that this version cannot keep, or why it cannot open it.
+        let mut unsupported = Vec::new();
         let state = match self.registry.load(bytes) {
             Ok(d) => match self.registry.open(&d) {
                 Ok(mut editor) => {
                     if ["Imported process", "Imported net", "net1", "Imported log"].contains(&editor.name()) {
                         editor.rename(io::file_name(&name).rsplit_once('.').map(|x| x.0).unwrap_or(&name).into());
                     }
-                    editor.snapshot()
+                    let state = editor.snapshot();
+                    if let (Some(_), StoredDocument::Editable(kept)) = (&generator, &state) {
+                        unsupported = op_core::document::unsupported_content(&d.model, &kept.model);
+                    }
+                    state
                 }
-                Err(e) => StoredDocument::Original {
-                    bytes: bytes.to_vec(),
-                    reason: e.to_string(),
-                },
+                Err(e) => {
+                    unsupported.push(e.to_string());
+                    StoredDocument::Original {
+                        bytes: bytes.to_vec(),
+                        reason: e.to_string(),
+                    }
+                }
             },
             Err(e) => {
                 if !native {
                     self.message = Some((format!("{}: {e}", io::file_name(&name)), true));
                     return;
                 }
+                unsupported.push(e.to_string());
                 StoredDocument::Original {
                     bytes: bytes.to_vec(),
                     reason: e.to_string(),
                 }
             }
         };
+        let editable = matches!(state, StoredDocument::Editable(_));
+        if let Some(generator) = generator.filter(|g| g.is_newer() || (editable && !unsupported.is_empty())) {
+            self.newer_files.push_back(NewerFile {
+                name,
+                generator,
+                unsupported,
+                state,
+            });
+            return;
+        }
         self.open_stored(state, native.then_some(name.clone()), native, None);
         self.message = Some((trf("app.opened", &[&io::file_name(&name)]), false));
+    }
+
+    /// Asks how to open a file written by a newer version: update first, or open
+    /// it here while listing what this version cannot keep.
+    fn newer_file_dialog(&mut self, ctx: &egui::Context) {
+        let Some(file) = self.newer_files.front() else { return };
+        let mut choice = None;
+        egui::Window::new(tr("file.newer_title"))
+            .collapsible(false)
+            .resizable(false)
+            .show(ctx, |ui| {
+                let current = op_core::document::Generator::current();
+                ui.label(trf(
+                    "file.newer_body",
+                    &[&io::file_name(&file.name), &file.generator.version, &current.version],
+                ));
+                ui.add_space(4.0);
+                if file.unsupported.is_empty() {
+                    ui.label(tr("file.newer_nothing_detected"));
+                } else {
+                    ui.label(tr("file.newer_unsupported"));
+                    egui::ScrollArea::vertical().max_height(180.0).show(ui, |ui| {
+                        for item in &file.unsupported {
+                            ui.label(format!("• {item}"));
+                        }
+                    });
+                    if matches!(file.state, StoredDocument::Editable(_)) {
+                        ui.colored_label(ui.visuals().warn_fg_color, tr("file.newer_save_warning"));
+                    }
+                }
+                ui.add_space(4.0);
+                ui.horizontal(|ui| {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    let update = tr("updates.check");
+                    #[cfg(target_arch = "wasm32")]
+                    let update = tr("file.newer_reload");
+                    if ui.button(update).clicked() {
+                        choice = Some(NewerChoice::Update);
+                    }
+                    if ui.button(tr("file.newer_open")).clicked() {
+                        choice = Some(NewerChoice::Open);
+                    }
+                    if ui.button(tr("common.cancel")).clicked() {
+                        choice = Some(NewerChoice::Cancel);
+                    }
+                });
+            });
+        let Some(choice) = choice else { return };
+        let Some(file) = self.newer_files.pop_front() else { return };
+        match choice {
+            NewerChoice::Open => {
+                let name = file.name;
+                self.open_stored(file.state, Some(name.clone()), true, None);
+                self.message = Some((trf("app.opened", &[&io::file_name(&name)]), false));
+            }
+            NewerChoice::Update => {
+                #[cfg(not(target_arch = "wasm32"))]
+                self.updates.start(ctx, true);
+                #[cfg(target_arch = "wasm32")]
+                {
+                    self.flush_automatic_documents();
+                    if let Some(window) = web_sys::window() {
+                        let _ = window.location().reload();
+                    }
+                }
+            }
+            NewerChoice::Cancel => {}
+        }
     }
 
     fn save(&mut self, save_as: bool) -> bool {
@@ -362,6 +487,17 @@ impl OpenProcessApp {
         self.active = self.active.min(self.docs.len().saturating_sub(1));
     }
 
+    /// Closes queued tabs in order, pausing while an unsaved document asks for confirmation.
+    fn continue_closing(&mut self) {
+        while self.confirm_close.is_none()
+            && let Some((uid, tile)) = self.close_queue.pop_front()
+        {
+            if self.tree.tiles.get_pane(&tile).is_some_and(|pane| pane.doc == uid) {
+                self.handle_dock_event(DockEvent::ClosePane(uid, tile));
+            }
+        }
+    }
+
     fn request_close(&mut self, i: usize) {
         self.flush_automatic_document(i);
         let Some(doc) = self.docs.get(i) else {
@@ -388,7 +524,7 @@ impl OpenProcessApp {
                     color,
                     dirty: doc.dirty(),
                     icon: self.registry.find(doc.editor.kind()).map(|d| d.icon).unwrap_or(crate::icons::note),
-                    thumbnail: self.thumbnails.texture(doc.uid),
+                    thumbnail: self.thumbnails.texture(doc),
                 }
             })
             .collect::<Vec<_>>();
@@ -412,7 +548,7 @@ impl OpenProcessApp {
                     color: descriptor.map(|d| d.color).unwrap_or(egui::Color32::GRAY),
                     dirty: false,
                     icon: descriptor.map(|d| d.icon).unwrap_or(crate::icons::note),
-                    thumbnail: None,
+                    thumbnail: self.thumbnails.saved_texture(entry),
                 }
             })
             .collect::<Vec<_>>();
@@ -435,12 +571,26 @@ impl OpenProcessApp {
         }
     }
 
+    fn update_dialog_open(&self) -> bool {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.updates.is_open()
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            false
+        }
+    }
+
     fn thumbnail_capture_blocked(&self, ctx: &egui::Context) -> bool {
         self.show_home
             || self.new_picker.is_some()
             || self.show_about
             || self.show_shortcuts
+            || self.update_dialog_open()
             || self.confirm_close.is_some()
+            || !self.newer_files.is_empty()
+            || crate::canvas::export::active()
             || egui::Popup::is_any_open(ctx)
             || ctx.memory(|m| m.top_modal_layer().is_some())
             || ctx.input(|i| i.pointer.any_down())
@@ -459,6 +609,10 @@ impl OpenProcessApp {
                 } else {
                     self.handle_dock_event(DockEvent::Close(uid));
                 }
+            }
+            DockEvent::CloseTabs(tile, which) => {
+                self.close_queue.extend(dock::tabs_to_close(&self.tree.tiles, tile, which));
+                self.continue_closing();
             }
             DockEvent::Close(uid) => {
                 if let Some(i) = self.docs.iter().position(|d| d.uid == uid) {
@@ -486,19 +640,25 @@ impl OpenProcessApp {
     }
 
     fn shortcuts(&mut self, ui: &mut Ui) {
-        if self.new_picker.is_some() {
+        if self.new_picker.is_some() || self.update_dialog_open() {
             return;
         }
         let sc = |m: Modifiers, k: Key| KeyboardShortcut::new(m, k);
         let cmd = Modifiers::COMMAND;
         let cmd_shift = Modifiers::COMMAND | Modifiers::SHIFT;
+        let editing_text = ui.ctx().egui_wants_keyboard_input();
         let (undo, redo, redo2, save, save_as, open, new) = ui.ctx().input_mut(|i| {
+            // egui allows extra Shift modifiers, so consume the specific shortcuts first.
+            let redo = !editing_text && i.consume_shortcut(&sc(cmd_shift, Key::Z));
+            let undo = !editing_text && i.consume_shortcut(&sc(cmd, Key::Z));
+            let save_as = i.consume_shortcut(&sc(cmd_shift, Key::S));
+            let save = i.consume_shortcut(&sc(cmd, Key::S));
             (
-                i.consume_shortcut(&sc(cmd, Key::Z)),
-                i.consume_shortcut(&sc(cmd_shift, Key::Z)),
-                i.consume_shortcut(&sc(cmd, Key::Y)),
-                i.consume_shortcut(&sc(cmd, Key::S)),
-                i.consume_shortcut(&sc(cmd_shift, Key::S)),
+                undo,
+                redo,
+                !editing_text && i.consume_shortcut(&sc(cmd, Key::Y)),
+                save,
+                save_as,
                 i.consume_shortcut(&sc(cmd, Key::O)),
                 i.consume_shortcut(&sc(cmd, Key::N)),
             )
@@ -546,7 +706,8 @@ impl OpenProcessApp {
 
     fn menu_bar(&mut self, ui: &mut Ui) {
         let has_doc = !self.show_home && !self.docs.is_empty();
-        egui::MenuBar::new().style(theme::toolbar_style).ui(ui, |ui| {
+        let menu = egui::MenuBar::new().config(egui::containers::menu::MenuConfig::new().style(theme::menu_style));
+        menu.style(theme::toolbar_style).ui(ui, |ui| {
             crate::brand::show(ui, 26.0);
             ui.label(RichText::new("Open Process").font(theme::semibold(14.0)));
             ui.add_space(10.0);
@@ -659,6 +820,25 @@ impl OpenProcessApp {
                 {
                     self.execute(DELETE, 0.0);
                 }
+                let commands: Vec<_> = self
+                    .docs
+                    .get(self.active)
+                    .map(|d| d.editor.commands())
+                    .unwrap_or(&[])
+                    .iter()
+                    .filter(|c| c.group == CommandGroup::Edit && ![UNDO, REDO, DELETE].contains(&c.id))
+                    .map(|c| (c.id, c.label))
+                    .collect();
+                if !commands.is_empty() {
+                    ui.separator();
+                }
+                for (id, label) in commands {
+                    let enabled = has_doc && self.docs.get(self.active).is_some_and(|d| d.editor.enabled(id));
+                    if ui.add_enabled(enabled, egui::Button::new(tr(label))).clicked() {
+                        self.execute(id, 0.0);
+                        ui.close();
+                    }
+                }
             });
             ui.menu_button(tr("menu.view"), |ui| {
                 if ui
@@ -674,7 +854,7 @@ impl OpenProcessApp {
                 {
                     ui.menu_button(tr("app.open_beside"), |ui| {
                         for view in views {
-                            if ui.button(tr(view.label)).clicked() {
+                            if ui.add_enabled(!self.exam_mode, egui::Button::new(tr(view.label))).clicked() {
                                 self.open_beside(
                                     Pane {
                                         doc: uid,
@@ -715,6 +895,17 @@ impl OpenProcessApp {
                 egui::widgets::global_theme_preference_buttons(ui);
             });
             ui.menu_button(tr("menu.tools"), |ui| {
+                if ui.checkbox(&mut self.exam_mode, tr("exam.mode")).changed() {
+                    crate::editor::exam::set_active(ui.ctx(), self.exam_mode);
+                    for doc in &mut self.docs {
+                        doc.editor.set_exam_mode(self.exam_mode);
+                    }
+                    self.thumbnails.invalidate_scene();
+                }
+                if self.exam_mode {
+                    ui.label(tr("exam.assistance_disabled"));
+                }
+                ui.separator();
                 let commands = self.docs.get(self.active).map(|d| d.editor.commands()).unwrap_or(&[]);
                 for c in commands.iter().filter(|c| c.group == CommandGroup::Tools) {
                     let enabled = has_doc && self.docs.get(self.active).is_some_and(|d| d.editor.enabled(c.id));
@@ -734,17 +925,33 @@ impl OpenProcessApp {
                 if ui.button(tr("app.about_open_process")).clicked() {
                     self.show_about = true;
                 }
+                #[cfg(not(target_arch = "wasm32"))]
+                self.updates.menu(ui);
             });
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 theme_toggle(ui);
                 crate::i18n::language_menu(ui);
+                if self.exam_mode {
+                    ui.label(RichText::new(tr("exam.mode")).strong());
+                }
             });
         });
     }
 
     fn dialogs(&mut self, ui: &Ui) {
         let ctx = ui.ctx().clone();
+        #[cfg(not(target_arch = "wasm32"))]
+        let update_blocked = self.new_picker.is_some()
+            || self.confirm_close.is_some()
+            || !self.newer_files.is_empty()
+            || self.show_about
+            || self.show_shortcuts;
         self.new_document_dialog(&ctx);
+        self.newer_file_dialog(&ctx);
+        #[cfg(not(target_arch = "wasm32"))]
+        if !update_blocked {
+            self.updates.dialog(&ctx);
+        }
         if self.show_about {
             egui::Window::new(tr("app.about_open_process"))
                 .collapsible(false)
@@ -757,6 +964,10 @@ impl OpenProcessApp {
                     });
                     ui.label(trf("app.version", &[&(env!("CARGO_PKG_VERSION"))]));
                     ui.label(trf("app.build", &[&env!("OP_BUILD_ID")]));
+                    #[cfg(not(target_arch = "wasm32"))]
+                    if let Some(tag) = crate::platform::updates::installed_release() {
+                        ui.label(trf("updates.installed", &[&tag]));
+                    }
                     ui.label(tr("app.free_open_source_process_modelling_analysis_bpmn"));
                     ui.label(tr("app.written_rust_egui_runs_natively_windows_macos"));
                     ui.label(tr("app.license_mit_apache_2_0"));
@@ -779,6 +990,10 @@ impl OpenProcessApp {
                             (tr("app.double_click_f2"), tr("app.rename")),
                             ("BPMN: V C S I E T X + O", tr("app.select_connect_start_intermediate_end_task_xor")),
                             ("Petri: V P T A K", tr("app.select_place_transition_arc_tokens")),
+                            (tr("drawing.clipboard_keys"), tr("drawing.copy_cut_paste")),
+                            (tr("drawing.duplicate_drag_keys"), tr("drawing.duplicate_drag")),
+                            (tr("drawing.constrain_drag_keys"), tr("drawing.constrain_drag")),
+                            (tr("drawing.order_keys"), tr("drawing.order_selection")),
                             (tr("app.petri_s_space"), tr("app.token_game_random_step")),
                         ] {
                             ui.label(RichText::new(k).monospace());
@@ -810,11 +1025,13 @@ impl OpenProcessApp {
                         }
                         if ui.button(tr("common.cancel")).clicked() {
                             keep = false;
+                            self.close_queue.clear();
                         }
                     });
                 });
             if !keep {
                 self.confirm_close = None;
+                self.continue_closing();
             }
         }
     }
@@ -849,8 +1066,48 @@ fn theme_toggle(ui: &mut Ui) {
         tr("app.switch_dark_theme")
     });
     if resp.clicked() {
-        ui.ctx().set_theme(if dark { egui::Theme::Light } else { egui::Theme::Dark });
+        let target = if dark { egui::Theme::Light } else { egui::Theme::Dark };
+        ui.ctx().set_theme(toggled_preference(target, system_theme(ui.ctx())));
     }
+}
+
+/// The theme the system asks for: reported by the windowing system or, when it
+/// cannot (Linux X11), read from the desktop portal into egui's fallback theme.
+fn system_theme(ctx: &egui::Context) -> egui::Theme {
+    ctx.system_theme().unwrap_or_else(|| ctx.options(|o| o.fallback_theme))
+}
+
+/// Choosing the system's own theme returns to following the system, so a later
+/// system change applies again; only the other theme is kept as an override.
+fn toggled_preference(target: egui::Theme, system: egui::Theme) -> egui::ThemePreference {
+    if target == system {
+        egui::ThemePreference::System
+    } else {
+        target.into()
+    }
+}
+
+/// Keeps egui's fallback theme in step with the Linux desktop preference.
+#[cfg(target_os = "linux")]
+fn follow_desktop_theme(ctx: &egui::Context) {
+    if let Some(theme) = crate::platform::system_theme::current()
+        && ctx.options(|o| o.fallback_theme) != theme
+    {
+        ctx.options_mut(|o| o.fallback_theme = theme);
+    }
+}
+
+struct NewerFile {
+    name: String,
+    generator: op_core::document::Generator,
+    unsupported: Vec<String>,
+    state: StoredDocument,
+}
+
+enum NewerChoice {
+    Update,
+    Open,
+    Cancel,
 }
 
 /// Bridges the split-view tree and the documents.
@@ -859,6 +1116,7 @@ struct DockBehavior<'a> {
     active_uid: Option<u64>,
     events: Vec<DockEvent>,
     previews: Vec<thumbnails::Source>,
+    tab_slots: std::collections::HashMap<egui_tiles::TileId, (usize, usize)>,
 }
 
 impl DockBehavior<'_> {
@@ -984,8 +1242,8 @@ impl egui_tiles::Behavior<Pane> for DockBehavior<'_> {
             let p = ui.painter();
             let rect = rect.with_min_y(rect.top() + 3.0);
             let top_round = egui::CornerRadius {
-                nw: 9,
-                ne: 9,
+                nw: theme::CONTROL_RADIUS,
+                ne: theme::CONTROL_RADIUS,
                 sw: 0,
                 se: 0,
             };
@@ -1001,13 +1259,13 @@ impl egui_tiles::Behavior<Pane> for DockBehavior<'_> {
                 );
                 p.hline(rect.x_range(), rect.bottom(), egui::Stroke::new(2.0, v.window_fill));
             } else if hovered {
-                p.rect_filled(rect.shrink2(egui::vec2(0.0, 3.0)), 8.0, v.widgets.hovered.bg_fill);
+                p.rect_filled(rect.shrink2(egui::vec2(0.0, 3.0)), theme::CONTROL_RADIUS, v.widgets.hovered.bg_fill);
             }
             let cy = rect.center().y;
             let mut x = rect.left() + 12.0;
             if !kind.is_empty() {
                 let badge = egui::Rect::from_min_size(egui::pos2(x, cy - 8.0), egui::vec2(badge_w, 16.0));
-                p.rect_filled(badge, 5.0, color.gamma_multiply(if v.dark_mode { 0.28 } else { 0.14 }));
+                p.rect_filled(badge, 2.0, color.gamma_multiply(if v.dark_mode { 0.28 } else { 0.14 }));
                 p.galley(badge.center() - badge_g.size() / 2.0, badge_g, color);
                 x = badge.right() + 8.0;
             }
@@ -1035,6 +1293,7 @@ impl egui_tiles::Behavior<Pane> for DockBehavior<'_> {
                 self.events.push(DockEvent::ClosePane(p.doc, tile_id));
             }
             resp.context_menu(|ui| {
+                theme::menu_style(ui.style_mut());
                 if ui.button(tr("app.split_right")).clicked() {
                     self.events.push(DockEvent::Beside(p.clone(), false));
                     ui.close();
@@ -1048,7 +1307,10 @@ impl egui_tiles::Behavior<Pane> for DockBehavior<'_> {
                     ui.separator();
                     for view in views {
                         if ui
-                            .button(trf("app.open_document_beside", &[&tr(view.label).to_lowercase()]))
+                            .add_enabled(
+                                !crate::editor::exam::active(ui.ctx()),
+                                egui::Button::new(trf("app.open_document_beside", &[&tr(view.label).to_lowercase()])),
+                            )
                             .clicked()
                         {
                             self.events.push(DockEvent::Beside(
@@ -1066,6 +1328,21 @@ impl egui_tiles::Behavior<Pane> for DockBehavior<'_> {
                 if ui.button(tr("common.close")).clicked() {
                     self.events.push(DockEvent::ClosePane(p.doc, tile_id));
                     ui.close();
+                }
+                let (index, count) = self.tab_slots.get(&tile_id).copied().unwrap_or((0, 1));
+                for (which, label, any) in [
+                    (dock::CloseTabs::Left, op_core::i18n::key("app.close_tabs_left"), index > 0),
+                    (
+                        dock::CloseTabs::Right,
+                        op_core::i18n::key("app.close_tabs_right"),
+                        index + 1 < count,
+                    ),
+                    (dock::CloseTabs::All, op_core::i18n::key("app.close_all_tabs"), true),
+                ] {
+                    if ui.add_enabled(any, egui::Button::new(tr(label))).clicked() {
+                        self.events.push(DockEvent::CloseTabs(tile_id, which));
+                        ui.close();
+                    }
                 }
             });
         }
@@ -1097,8 +1374,13 @@ impl eframe::App for OpenProcessApp {
     }
 
     fn ui(&mut self, ui: &mut Ui, _frame: &mut eframe::Frame) {
+        #[cfg(not(target_arch = "wasm32"))]
+        self.updates.poll();
+        #[cfg(target_os = "linux")]
+        follow_desktop_theme(ui.ctx());
+        crate::editor::exam::set_active(ui.ctx(), self.exam_mode);
         self.automatic_status(ui);
-        self.thumbnails.poll(ui.ctx(), &self.docs);
+        self.thumbnails.poll(ui.ctx(), &self.docs, &self.automatic.entries);
         let preview_was_blocked = self.thumbnail_capture_blocked(ui.ctx());
         for (name, bytes) in self.io.poll() {
             self.load_bytes(name, &bytes);
@@ -1156,6 +1438,7 @@ impl eframe::App for OpenProcessApp {
             active_uid,
             events: Vec::new(),
             previews: Vec::new(),
+            tab_slots: dock::tab_slots(&self.tree),
         };
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(panel).inner_margin(egui::Margin {
@@ -1211,7 +1494,7 @@ impl eframe::App for OpenProcessApp {
         let p = self.workspace_snapshot();
         if self.persistence_ready {
             storage.set_string(persistence::KEY, serde_json::to_string(&p).expect("workspace is serializable"));
-            self.thumbnails.save(storage, &self.docs);
+            self.thumbnails.save(storage, &self.docs, &self.automatic.entries);
         }
         crate::i18n::save(storage);
     }

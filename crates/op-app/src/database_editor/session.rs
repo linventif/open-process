@@ -4,6 +4,11 @@ use op_core::i18n::key;
 use serde_json::Value;
 
 const COMMANDS: &[CommandDescriptor] = &[
+    clipboard::COPY_COMMAND,
+    clipboard::CUT_COMMAND,
+    clipboard::PASTE_COMMAND,
+    clipboard::DUPLICATE_COMMAND,
+    clipboard::SELECT_ALL_COMMAND,
     CommandDescriptor {
         id: UNDO,
         label: key("common.undo"),
@@ -23,6 +28,11 @@ const COMMANDS: &[CommandDescriptor] = &[
         id: FIT,
         label: key("canvas.zoom_fit"),
         group: CommandGroup::View,
+    },
+    CommandDescriptor {
+        id: ARRANGE,
+        label: key("canvas.auto_arrange"),
+        group: CommandGroup::Tools,
     },
     CommandDescriptor {
         id: "database.show-ddl",
@@ -103,6 +113,8 @@ impl EditorBackend for DatabaseEditor {
     }
     fn cancel_edit(&mut self) {
         self.history.cancel(&mut self.schema);
+        self.state.group.clear();
+        self.state.selected = None;
         self.state.drag = None;
         self.state.pending = None;
         self.state.connecting = false;
@@ -114,31 +126,46 @@ impl EditorBackend for DatabaseEditor {
     fn commands(&self) -> &'static [CommandDescriptor] {
         COMMANDS
     }
+    fn command_requires_assistance(&self, command: &str) -> bool {
+        command == "database.show-ddl"
+    }
     fn enabled(&self, c: &str) -> bool {
+        if let Some(enabled) = self.selection_command_enabled(c) {
+            return enabled;
+        }
         match c {
             UNDO => self.history.can_undo(),
             REDO => self.history.can_redo(),
             DELETE => !self.state.sql_view && self.state.selected.is_some_and(|id| self.schema.table(id).is_some()),
             FIT => true,
+            ARRANGE => !self.state.sql_view && !self.schema.tables.is_empty(),
             PNG => !self.state.sql_view,
             "database.show-ddl" => true,
             _ => false,
         }
     }
     fn execute(&mut self, c: &str, _: f64) -> Vec<HostEvent> {
+        if self.selection_command(c) {
+            return vec![];
+        }
         match c {
             UNDO => {
                 self.history.undo(&mut self.schema);
+                self.state.group.clear();
+                self.state.selected = None;
                 self.state.drag = None;
                 self.state.pending = None;
             }
             REDO => {
                 self.history.redo(&mut self.schema);
+                self.state.group.clear();
+                self.state.selected = None;
                 self.state.drag = None;
                 self.state.pending = None;
             }
             DELETE => self.delete_selected(),
             FIT => self.state.fit = true,
+            ARRANGE => self.auto_arrange(),
             PNG => self.state.export_png = true,
             "database.show-ddl" => return vec![HostEvent::OpenView(crate::dock::View::from("database.ddl"))],
             _ => {}
@@ -158,6 +185,9 @@ impl EditorBackend for DatabaseEditor {
     }
     fn export_label(&self) -> &'static str {
         key("database.export_sql_ddl_sql")
+    }
+    fn export_requires_assistance(&self) -> bool {
+        true
     }
 }
 pub(crate) fn register(registry: &mut DiagramRegistry) {

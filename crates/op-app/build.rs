@@ -3,7 +3,7 @@
 use std::{env, fs, path::PathBuf, process::Command};
 
 fn main() {
-    for name in ["OP_BUILD_ID", "GITHUB_SHA", "CF_PAGES_COMMIT_SHA"] {
+    for name in ["OP_BUILD_ID", "OP_RELEASE_TAG", "GITHUB_SHA", "CF_PAGES_COMMIT_SHA"] {
         println!("cargo:rerun-if-env-changed={name}");
     }
     let build = ["OP_BUILD_ID", "GITHUB_SHA", "CF_PAGES_COMMIT_SHA"]
@@ -12,6 +12,12 @@ fn main() {
         .find(|value| !value.is_empty() && value.len() <= 128 && value.bytes().all(|c| c.is_ascii_alphanumeric() || b"-._".contains(&c)))
         .unwrap_or_else(|| "local".into());
     println!("cargo:rustc-env=OP_BUILD_ID={build}");
+    let release = env::var("OP_RELEASE_TAG").unwrap_or_default();
+    assert!(
+        release.len() <= 128 && release.bytes().all(|c| c.is_ascii_alphanumeric() || b"-._+".contains(&c)),
+        "OP_RELEASE_TAG must be a release tag, at most 128 ASCII characters"
+    );
+    println!("cargo:rustc-env=OP_RELEASE_TAG={release}");
     println!("cargo:rerun-if-changed=assets/icons/open-process.ico");
     println!("cargo:rerun-if-changed=assets/windows.rc");
     println!("cargo:rerun-if-env-changed=RC");

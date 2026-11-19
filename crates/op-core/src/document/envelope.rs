@@ -11,10 +11,103 @@ pub struct Document {
     pub model: Value,
 }
 
+/// Open Process build that wrote a file. Older files have none; readers that
+/// predate this field ignore it, so it needs no new envelope version.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Generator {
+    pub application: String,
+    /// Shown to people: a release tag such as `v0.4.0` or `main-812-1a2b3c4`.
+    pub version: String,
+    /// Compared by readers: see [`CONTENT_REVISION`]. Missing means 0.
+    #[serde(default)]
+    pub revision: u32,
+}
+
+/// Increases whenever any notation can store content that older readers
+/// would not keep (a new optional field, kind or model version). A file with a
+/// higher revision comes from a newer Open Process.
+pub const CONTENT_REVISION: u32 = 1;
+
+static WRITER_VERSION: std::sync::OnceLock<&'static str> = std::sync::OnceLock::new();
+
+/// Called once at startup with the application's release tag.
+pub fn set_writer_version(version: &'static str) {
+    let _ = WRITER_VERSION.set(version);
+}
+
+impl Generator {
+    /// Identity of this build, written into every saved envelope.
+    pub fn current() -> Self {
+        Self {
+            application: "Open Process".into(),
+            version: WRITER_VERSION
+                .get()
+                .copied()
+                .unwrap_or(concat!("v", env!("CARGO_PKG_VERSION")))
+                .into(),
+            revision: CONTENT_REVISION,
+        }
+    }
+
+    /// Reads the writer of an `.opx` file without decoding its document.
+    pub fn of(bytes: &[u8]) -> Option<Self> {
+        if bytes.len() > super::MAX_DOCUMENT_BYTES {
+            return None;
+        }
+        let text = std::str::from_utf8(bytes).ok()?.trim_start_matches('\u{feff}').trim_start();
+        if !text.starts_with('{') {
+            return None;
+        }
+        let value: Value = serde_json::from_str(text).ok()?;
+        if value.get("format").and_then(Value::as_str) != Some("open-process") {
+            return None;
+        }
+        serde_json::from_value(value.get("generator")?.clone()).ok()
+    }
+
+    pub fn is_newer(&self) -> bool {
+        self.revision > CONTENT_REVISION
+    }
+}
+
+/// Fields present in `original` that this version dropped from `kept` (the same
+/// document decoded and encoded again), as readable paths such as
+/// `nodes › attachment`. Saving from this version would lose them.
+pub fn unsupported_content(original: &Value, kept: &Value) -> Vec<String> {
+    fn walk(original: &Value, kept: &Value, path: &mut Vec<String>, out: &mut std::collections::BTreeSet<String>) {
+        match (original, kept) {
+            (Value::Object(a), Value::Object(b)) => {
+                for (key, value) in a {
+                    path.push(key.clone());
+                    match b.get(key) {
+                        Some(other) => walk(value, other, path, out),
+                        None if !value.is_null() => {
+                            out.insert(path.join(" › "));
+                        }
+                        None => {}
+                    }
+                    path.pop();
+                }
+            }
+            (Value::Array(a), Value::Array(b)) => {
+                for (value, other) in a.iter().zip(b) {
+                    walk(value, other, path, out);
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut out = std::collections::BTreeSet::new();
+    walk(original, kept, &mut vec![], &mut out);
+    out.into_iter().collect()
+}
+
 #[derive(Serialize, Deserialize)]
 struct Envelope {
     format: String,
     version: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    generator: Option<Generator>,
     document: Document,
 }
 
@@ -39,6 +132,7 @@ impl Document {
         serde_json::to_string_pretty(&Envelope {
             format: "open-process".into(),
             version: 2,
+            generator: Some(Generator::current()),
             document: self.clone(),
         })
         .expect("JSON document is serializable")

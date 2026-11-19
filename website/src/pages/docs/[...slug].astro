@@ -1,0 +1,14 @@
+---
+import Documentation from "../../components/Documentation.astro";
+import { documentation, type DocEntry } from "../../lib/docs-catalogue";
+
+export function getStaticPaths() {
+  return [
+    { params: { slug: undefined } },
+    ...documentation.map(entry => ({ params: { slug: entry.slug }, props: { entry } })),
+  ];
+}
+interface Props { entry?: DocEntry }
+const { entry } = Astro.props;
+---
+<Documentation lang="en" entry={entry} />

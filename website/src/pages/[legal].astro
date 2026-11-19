@@ -1,0 +1,13 @@
+---
+import Legal from "../components/Legal.astro";
+import { legalPages } from "../lib/legal";
+import type { LegalPage } from "../lib/messages";
+
+export function getStaticPaths() {
+  return legalPages.map(page => ({ params: { legal: page }, props: { page } }));
+}
+
+interface Props { page: LegalPage }
+const { page } = Astro.props;
+---
+<Legal lang="en" page={page} />

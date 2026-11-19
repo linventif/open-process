@@ -4,6 +4,10 @@ use super::*;
 
 impl PetriEditor {
     pub(super) fn side_panel(&mut self, ui: &mut Ui) {
+        if crate::editor::exam::active(ui.ctx()) {
+            DiagramLayout::inspector_body(ui, |ui| self.properties(ui));
+            return;
+        }
         ui.add_space(4.0);
         DiagramLayout::inspector_tabs(
             ui,
@@ -104,6 +108,9 @@ impl PetriEditor {
                     .map(|a| weighted(self.net.node_name(a.to).unwrap_or("?"), a.weight))
                     .collect();
                 ui.add_space(6.0);
+                if crate::editor::exam::active(ui.ctx()) {
+                    return;
+                }
                 ui.label(format!("•t = {{{}}}", pre.join(", ")));
                 ui.label(format!("t• = {{{}}}", post.join(", ")));
             }
@@ -144,6 +151,9 @@ impl PetriEditor {
                     let lbl = ui.label(tr("common.name"));
                     ui.text_edit_singleline(&mut self.net.name).labelled_by(lbl.id);
                 });
+                if crate::editor::exam::active(ui.ctx()) {
+                    return;
+                }
                 ui.add_space(8.0);
                 crate::theme::section_title(ui, tr("bpmn.tips"));
                 ui.label(tr("petri.p_t_add_places_transitions_clicking"));

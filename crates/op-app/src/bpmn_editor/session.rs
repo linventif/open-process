@@ -4,9 +4,14 @@ use crate::editor::*;
 use op_core::document::{Document, DocumentCodec, JsonCodec};
 use op_core::i18n::key;
 
-view_state!(BpmnEditor, BpmnEditorView, uid: u64, view: View, last_canvas: Rect, snap: bool, show_issues: bool, fit_request: bool, show_inspector: Option<bool>, tab: SideTab, tool: Tool, drag: Option<Drag>, editing: Option<(Sel, String, bool)>, connect_pending: Option<Id>, dnd: Option<Tool>);
+view_state!(BpmnEditor, BpmnEditorView, uid: u64, clipboard: ClipboardState, group: Vec<Id>, pool_group: Vec<Id>, pool_move_nodes: Vec<Id>, selection: Option<Sel>, view: View, last_canvas: Rect, snap: bool, show_issues: bool, fit_request: bool, show_inspector: Option<bool>, tab: SideTab, tool: Tool, drag: Option<Drag>, editing: Option<(Sel, String, bool)>, connect_pending: Option<Id>, dnd: Option<Tool>);
 
 const COMMANDS: &[CommandDescriptor] = &[
+    clipboard::COPY_COMMAND,
+    clipboard::CUT_COMMAND,
+    clipboard::PASTE_COMMAND,
+    clipboard::DUPLICATE_COMMAND,
+    clipboard::SELECT_ALL_COMMAND,
     CommandDescriptor {
         id: UNDO,
         label: key("common.undo"),
@@ -33,14 +38,25 @@ const COMMANDS: &[CommandDescriptor] = &[
         group: CommandGroup::Tools,
     },
     CommandDescriptor {
-        id: "bpmn.auto-arrange",
-        label: key("bpmn.auto_arrange"),
+        id: ARRANGE,
+        label: key("canvas.auto_arrange"),
+        group: CommandGroup::Tools,
+    },
+    CommandDescriptor {
+        id: "bpmn.convert-to-mermaid",
+        label: key("conversion.to_mermaid"),
         group: CommandGroup::Tools,
     },
 ];
 const VIEWS: &[ViewDescriptor] = &[];
 
 impl EditorBackend for BpmnEditor {
+    fn set_exam_mode(&mut self, active: bool) {
+        if active {
+            self.evaluation_cache.invalidate();
+            self.action = None;
+        }
+    }
     fn thumbnail_rect(&self) -> Option<egui::Rect> {
         Some(self.last_canvas)
     }
@@ -56,6 +72,11 @@ impl EditorBackend for BpmnEditor {
         state.uid = canvas::next_uid();
         state.view = View::default();
         state.fit_request = true;
+        state.clipboard = ClipboardState::default();
+        state.group.clear();
+        state.pool_group.clear();
+        state.pool_move_nodes.clear();
+        state.selection = None;
         state.drag = None;
         state.editing = None;
         state.dnd = None;
@@ -153,28 +174,35 @@ impl EditorBackend for BpmnEditor {
         COMMANDS
     }
     fn enabled(&self, command: &str) -> bool {
+        if let Some(enabled) = self.selection_command_enabled(command) {
+            return enabled;
+        }
         match command {
             UNDO => self.can_undo(),
             REDO => self.can_redo(),
-            DELETE => self.selection.is_some() || !self.group.is_empty(),
+            DELETE => self.selection.is_some() || !self.group.is_empty() || !self.pool_group.is_empty(),
             FIT | PNG => true,
-            "bpmn.auto-arrange" => !self.diagram.nodes.is_empty() || !self.diagram.pools.is_empty(),
+            ARRANGE => !self.diagram.nodes.is_empty() || !self.diagram.pools.is_empty(),
             _ => COMMANDS.iter().any(|c| c.id == command),
         }
     }
     fn execute(&mut self, command: &str, time: f64) -> Vec<HostEvent> {
+        if self.selection_command(command) {
+            return vec![];
+        }
         let _ = time;
         let mut events = Vec::new();
         if !self.enabled(command) && command != "bpmn.evaluation" {
             return events;
         }
         match command {
+            "bpmn.convert-to-mermaid" => return mermaid_exports::open(op_core::mermaid::export::bpmn(&self.diagram)),
             UNDO => self.undo(),
             REDO => self.redo(),
             DELETE => self.delete_selection(),
             FIT => self.request_fit(),
             PNG => self.export_png = true,
-            "bpmn.auto-arrange" => self.auto_arrange(),
+            ARRANGE => self.auto_arrange(),
             "bpmn.convert-to-petri" => {
                 let c = op_core::convert::bpmn_to_petri(&self.diagram);
                 events.push(HostEvent::Open(JsonCodec::new("petri").encode(&c.net)));
@@ -200,6 +228,24 @@ impl EditorBackend for BpmnEditor {
     }
     fn export_label(&self) -> &'static str {
         key("bpmn.export_bpmn_2_0_xml_bpmn")
+    }
+    fn exports(&self) -> Vec<ExportDescriptor> {
+        let mut formats = vec![ExportDescriptor {
+            id: "standard",
+            label: self.export_label(),
+        }];
+        formats.extend(mermaid_exports::FORMATS);
+        formats
+    }
+    fn export_as(&self, format: &str) -> Result<ExportData, String> {
+        match format {
+            "standard" => self.export(),
+            "mermaid" | "mermaid-markdown" => mermaid_exports::data(format, op_core::mermaid::export::bpmn(&self.diagram)?),
+            _ => Err(format!("Unknown BPMN export: {format}")),
+        }
+    }
+    fn export_format_requires_assistance(&self, format: &str) -> bool {
+        mermaid_exports::is_projection(format)
     }
 }
 

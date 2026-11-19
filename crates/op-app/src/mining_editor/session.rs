@@ -3,6 +3,12 @@ use crate::editor::*;
 use op_core::document::{Document, DocumentCodec, JsonCodec, LogDocument};
 
 impl EditorBackend for MiningEditor {
+    fn set_exam_mode(&mut self, _: bool) {
+        self.pending = None;
+        self.computed = None;
+        self.preview = None;
+        self.action = None;
+    }
     fn thumbnail_rect(&self) -> Option<egui::Rect> {
         // A canvas-free document uses the pane once discovery is ready. Do not
         // persist a loading spinner as its only preview for an unchanged model.
@@ -37,7 +43,7 @@ impl EditorBackend for MiningEditor {
         JsonCodec::new("event-log").encode(&LogDocument {
             name: self.name.clone(),
             text: self.text.clone(),
-            manual: self.manual,
+            manual: self.legacy_manual,
             answers: self.answers.clone(),
         })
     }
@@ -92,11 +98,16 @@ impl EditorBackend for MiningEditor {
             .as_ref()
             .filter(|c| c.text == self.text && c.lang == op_core::i18n::lang())
             .ok_or_else(|| tr("mining.analysis_pending").to_string())?;
-        let (log, result) = computed.result.as_ref().map_err(Clone::clone)?;
+        let MiningOutput::Discovery(log, result) = computed.result.as_ref().map_err(Clone::clone)? else {
+            return Err(tr("exam.assistance_disabled").into());
+        };
         Ok(ExportData {
             suffix: "txt",
             bytes: result.report(log).into_bytes(),
         })
+    }
+    fn export_requires_assistance(&self) -> bool {
+        true
     }
     fn export_label(&self) -> &'static str {
         key("mining.export_alpha_write_up_txt")
@@ -149,7 +160,12 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
         },
         ImportDescriptor {
             extensions: &["csv", "txt"],
-            accepts: |s| !s.starts_with(['<', '{']) && !s.trim().is_empty() && !op_core::mermaid::accepts(s),
+            accepts: |s| {
+                !s.starts_with(['<', '{'])
+                    && !s.trim().is_empty()
+                    && !op_core::mermaid::accepts(s)
+                    && !op_core::mermaid::markdown::accepts(s)
+            },
             decode: |s| {
                 let log = op_core::mining::EventLog::parse(s)?;
                 if log.traces.is_empty() {

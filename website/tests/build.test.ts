@@ -6,7 +6,7 @@ const dist = fileURLToPath(new URL("../dist/", import.meta.url));
 const read = (path: string) => readFileSync(`${dist}${path}`, "utf8");
 
 test("all three languages are rendered with crawlable content and complete SEO metadata", () => {
-  for (const [file, lang, route, heading] of [["index.html", "en", "/", "Every process."], ["fr/index.html", "fr", "/fr/", "Vos processus."], ["es/index.html", "es", "/es/", "Tus procesos."]]) {
+  for (const [file, lang, route, heading] of [["index.html", "en", "/", "Your ideas."], ["fr/index.html", "fr", "/fr/", "Vos idées."], ["es/index.html", "es", "/es/", "Tus ideas."]]) {
     const html = read(file!);
     expect(html).toContain(`lang="${lang}"`);
     expect(html).toContain(heading!);

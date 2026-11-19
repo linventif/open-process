@@ -2,11 +2,13 @@
 //! events, tasks, gateways, sub-processes, data objects, annotations,
 //! sequence flows, message flows, pools and lanes.
 
+pub mod editing;
 use crate::geom::{Pos, Rect};
 use crate::i18n::{tr, trf};
 use serde::{Deserialize, Serialize};
 
 pub mod layout;
+pub mod resize;
 
 pub type Id = u32;
 
@@ -282,8 +284,10 @@ pub struct Pool {
     pub lanes: Vec<Lane>,
 }
 
-/// Width of the vertical title band of pools and lanes.
+/// Width of a pool's vertical title band.
 pub const POOL_HEADER: f32 = 30.0;
+/// Width of a lane's vertical title band when several lanes are shown.
+pub const LANE_HEADER: f32 = 26.0;
 
 impl Pool {
     pub fn height(&self) -> f32 {
@@ -721,6 +725,10 @@ pub fn route_orthogonal(diagram: &BpmnDiagram, f: &Flow) -> Vec<Pos> {
     let (ra, rb) = (a.rect(), b.rect());
     let (dx, dy) = (b.pos.x - a.pos.x, b.pos.y - a.pos.y);
 
+    // Backward flow (a loop) → around the elements in between, not through them
+    if rb.right() < ra.x - 10.0 {
+        return route_loop(diagram, a, b);
+    }
     // Aligned → straight line
     if dy.abs() < 4.0 || dx.abs() < 4.0 {
         return vec![boundary_point(a, b.pos), boundary_point(b, a.pos)];
@@ -760,6 +768,33 @@ pub fn route_orthogonal(diagram: &BpmnDiagram, f: &Flow) -> Vec<Pos> {
         ];
     }
     vec![boundary_point(a, b.pos), boundary_point(b, a.pos)]
+}
+
+/// Loop-back route: leaves `a` and enters `b` by the top (or bottom) and runs
+/// beyond every element spanning the gap, on the side with the shorter detour.
+fn route_loop(diagram: &BpmnDiagram, a: &Node, b: &Node) -> Vec<Pos> {
+    const CLEARANCE: f32 = 30.0;
+    let (ra, rb) = (a.rect(), b.rect());
+    let between = diagram
+        .nodes
+        .iter()
+        .map(Node::rect)
+        .filter(|r| r.right() >= rb.x && r.x <= ra.right());
+    let (top, bottom) = between.fold((ra.y.min(rb.y), ra.bottom().max(rb.bottom())), |(t, b), r| {
+        (t.min(r.y), b.max(r.bottom()))
+    });
+    let (top, bottom) = (top - CLEARANCE, bottom + CLEARANCE);
+    let (y, from, to) = if (ra.y - top) + (rb.y - top) <= (bottom - ra.bottom()) + (bottom - rb.bottom()) {
+        (top, ra.y, rb.y)
+    } else {
+        (bottom, ra.bottom(), rb.bottom())
+    };
+    vec![
+        Pos::new(a.pos.x, from),
+        Pos::new(a.pos.x, y),
+        Pos::new(b.pos.x, y),
+        Pos::new(b.pos.x, to),
+    ]
 }
 
 #[cfg(test)]

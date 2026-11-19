@@ -4,6 +4,7 @@ use crate::geom::{Pos, Rect};
 use crate::i18n::{key, tr, trf};
 use serde::{Deserialize, Serialize};
 
+pub mod layout;
 pub mod routing;
 
 pub type Id = u64;
@@ -83,16 +84,28 @@ pub struct Node {
 }
 
 impl Node {
+    pub fn minimum_size(&self) -> Pos {
+        let height: f32 = if self.kind == NodeKind::Actor { 130.0 } else { 60.0 };
+        Pos::new(
+            80.0,
+            if self.kind.is_classifier() {
+                height.max(
+                    46.0 + self.attributes.lines().count().max(1) as f32 * 20.0
+                        + self.operations.lines().count().max(1) as f32 * 20.0
+                        + 16.0,
+                )
+            } else {
+                height
+            },
+        )
+    }
+
     /// Grow class compartments to keep every member visible.
     pub fn rect(&self) -> Rect {
         let mut r = self.bounds;
-        r.w = r.w.max(80.0);
-        r.h = r.h.max(if self.kind == NodeKind::Actor { 130.0 } else { 60.0 });
-        if self.kind.is_classifier() {
-            r.h = r.h.max(
-                46.0 + self.attributes.lines().count().max(1) as f32 * 20.0 + self.operations.lines().count().max(1) as f32 * 20.0 + 16.0,
-            );
-        }
+        let minimum = self.minimum_size();
+        r.w = r.w.max(minimum.x);
+        r.h = r.h.max(minimum.y);
         r
     }
 
@@ -188,12 +201,24 @@ pub struct UmlDiagram {
     pub relations: Vec<Relation>,
 }
 
-/// An internal clipboard preserves members, sizes, labels and incident relations.
-#[derive(Clone, Debug)]
+/// A portable selection preserves members, sizes, labels and internal relations.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DiagramFragment {
     pub kind: DiagramKind,
     pub nodes: Vec<Node>,
     pub relations: Vec<Relation>,
+}
+
+impl DiagramFragment {
+    pub fn check_storage(&self) -> Result<(), String> {
+        UmlDiagram {
+            name: String::new(),
+            kind: self.kind,
+            nodes: self.nodes.clone(),
+            relations: self.relations.clone(),
+        }
+        .check_storage_kind(self.kind)
+    }
 }
 
 impl UmlDiagram {
@@ -436,28 +461,33 @@ impl UmlDiagram {
 
     /// Paste with fresh node and relation ids; external links never point back to the original.
     pub fn paste(&mut self, fragment: &DiagramFragment, delta: Pos) -> std::collections::BTreeSet<Id> {
-        if fragment.kind != self.kind {
+        if fragment.kind != self.kind || fragment.check_storage().is_err() {
             return Default::default();
         }
+        let mut result = self.clone();
         let mut remap = std::collections::HashMap::new();
         for old in &fragment.nodes {
-            let id = self.next_id();
+            let id = result.next_id();
             let mut node = old.clone();
             node.id = id;
             node.bounds.x += delta.x;
             node.bounds.y += delta.y;
             remap.insert(old.id, id);
-            self.nodes.push(node);
+            result.nodes.push(node);
         }
         for old in &fragment.relations {
             if let (Some(&from), Some(&to)) = (remap.get(&old.from), remap.get(&old.to)) {
                 let mut relation = old.clone();
-                relation.id = self.next_id();
+                relation.id = result.next_id();
                 relation.from = from;
                 relation.to = to;
-                self.relations.push(relation);
+                result.relations.push(relation);
             }
         }
+        if result.check_storage().is_err() {
+            return Default::default();
+        }
+        *self = result;
         remap.into_values().collect()
     }
 

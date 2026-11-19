@@ -1,0 +1,15 @@
+---
+import Legal from "../../components/Legal.astro";
+import { legalPages } from "../../lib/legal";
+import { languages, type Language, type LegalPage } from "../../lib/messages";
+
+export function getStaticPaths() {
+  return languages.filter(lang => lang !== "en").flatMap(lang =>
+    legalPages.map(page => ({ params: { lang, legal: page }, props: { lang, page } }))
+  );
+}
+
+interface Props { lang: Language; page: LegalPage }
+const { lang, page } = Astro.props;
+---
+<Legal lang={lang} page={page} />

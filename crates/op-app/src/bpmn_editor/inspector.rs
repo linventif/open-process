@@ -4,6 +4,10 @@ use super::*;
 
 impl BpmnEditor {
     pub(super) fn side_panel(&mut self, ui: &mut Ui) {
+        if crate::editor::exam::active(ui.ctx()) {
+            DiagramLayout::inspector_body(ui, |ui| self.properties(ui));
+            return;
+        }
         ui.add_space(4.0);
         let n_issues = self.diagram.validate().len();
         let vlabel = if n_issues == 0 {
@@ -390,7 +394,7 @@ impl BpmnEditor {
                     ui.text_edit_singleline(&mut p.name).labelled_by(lbl.id);
                     ui.end_row();
                     ui.label(tr("common.width"));
-                    ui.add(egui::DragValue::new(&mut p.width).range(200.0..=5000.0));
+                    ui.add(egui::DragValue::new(&mut p.width).range(MIN_POOL_WIDTH..=5000.0));
                     ui.end_row();
                 });
                 ui.add_space(6.0);
@@ -402,7 +406,7 @@ impl BpmnEditor {
                         let lbl = ui.label(format!("{}.", i + 1));
                         ui.add(egui::TextEdit::singleline(&mut l.name).desired_width(120.0))
                             .labelled_by(lbl.id);
-                        ui.add(egui::DragValue::new(&mut l.height).range(60.0..=2000.0).prefix("h "));
+                        ui.add(egui::DragValue::new(&mut l.height).range(MIN_LANE_HEIGHT..=2000.0).prefix("h "));
                         if many && ui.small_button("✖").on_hover_text(tr("bpmn.remove_lane")).clicked() {
                             remove = Some(i);
                         }
@@ -425,7 +429,7 @@ impl BpmnEditor {
                     ui.text_edit_singleline(&mut l.name).labelled_by(lbl.id);
                     ui.end_row();
                     ui.label(tr("common.height"));
-                    ui.add(egui::DragValue::new(&mut l.height).range(60.0..=2000.0));
+                    ui.add(egui::DragValue::new(&mut l.height).range(MIN_LANE_HEIGHT..=2000.0));
                     ui.end_row();
                 });
             }
@@ -435,6 +439,9 @@ impl BpmnEditor {
                     let lbl = ui.label(tr("common.name"));
                     ui.text_edit_singleline(&mut self.diagram.name).labelled_by(lbl.id);
                 });
+                if crate::editor::exam::active(ui.ctx()) {
+                    return;
+                }
                 ui.add_space(8.0);
                 if ui
                     .button(tr("bpmn.convert_petri_net"))

@@ -36,7 +36,7 @@ python3 scripts/generate-icons.py
 
 The script renders the SVG transparently, writes PNG/ICO/ICNS under
 `crates/op-app/assets/icons/` and synchronizes website copies. It also produces
-light strokes for egui dark mode; it does not run AI generation. Generated assets
+light strokes for egui dark mode and the website header; it does not run AI generation. Generated assets
 are committed, so conversion tools are unnecessary for normal Rust/site CI builds.
 No additional Rust dependency was introduced for the icon.
 
@@ -57,6 +57,20 @@ Standalone executables remain available alongside Linux/macOS archives. The
 website prefers archives with fallbacks for old releases. On macOS, extract and
 move `Open Process.app` into Applications; `cargo run` alone does not create a
 Finder bundle.
+
+macOS packaging must run on macOS with Apple's `codesign` available. Once the
+executable, metadata, icon and licences are in place, the script ad-hoc signs
+the complete `.app` and runs strict signature verification before archiving it.
+The release workflow also extracts each macOS archive and verifies the resulting
+bundle before uploading it. A signing or verification failure stops the build.
+
+An ad-hoc signature seals the bundle but does not identify an Apple Developer ID
+or provide notarization. The workflow does not currently sign with Developer ID
+or submit builds to Apple's notary service. Downloaded builds may still need an
+explicit security exception; see [macOS troubleshooting](troubleshooting.md#macos-blocks-the-application).
+An installation without these warnings would require Developer ID signing and
+notarization with Apple credentials, as described in
+[Apple's distribution guide](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution).
 
 On Linux, extract and run `sh install.sh`. The binary goes in `~/.local/bin`, the
 launcher in `~/.local/share/applications`, and SVG/PNG assets in the user's icon

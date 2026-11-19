@@ -1,11 +1,13 @@
 //! Relational schema editor. UI chrome is shared; database rules and DDL live in op-core.
+mod editing;
 mod inspector;
 mod render;
 mod session;
 pub(crate) use session::register;
 
 use crate::canvas::{self, View};
-use crate::editor::layout::{CanvasControls, DiagramLayout, FooterStatus};
+use crate::editor::clipboard::{CanvasClipboard, ClipboardState};
+use crate::editor::layout::{ArrangeControl, CanvasControls, DiagramLayout, FooterStatus};
 use crate::editor::*;
 use crate::history::History;
 use egui::{Rect, Ui};
@@ -16,8 +18,9 @@ use std::hash::{Hash, Hasher};
 
 #[derive(Clone)]
 enum Drag {
-    Move { table: Id, start: Pos, origin: Pos },
-    Resize(Id),
+    Move { start: Pos, origins: Vec<(Id, Pos)> },
+    Resize { id: Id, gesture: canvas::resize::ResizeGesture },
+    Pan,
     Connect(Id),
 }
 #[derive(Clone)]
@@ -29,10 +32,12 @@ pub struct DatabaseView {
     snap: bool,
     inspector: Option<bool>,
     selected: Option<Id>,
+    group: std::collections::BTreeSet<Id>,
     validation: bool,
     connecting: bool,
     pending: Option<Id>,
     drag: Option<Drag>,
+    clipboard: ClipboardState,
     status: String,
     export_png: bool,
     sql_view: bool,
@@ -47,10 +52,12 @@ impl Default for DatabaseView {
             snap: true,
             inspector: None,
             selected: None,
+            group: Default::default(),
             validation: false,
             connecting: false,
             pending: None,
             drag: None,
+            clipboard: ClipboardState::default(),
             status: String::new(),
             export_png: false,
             sql_view: false,
@@ -63,6 +70,7 @@ pub struct DatabaseEditor {
     state: DatabaseView,
     sql_cache: Option<(u64, Result<String, Vec<Diagnostic>>)>,
     events: Vec<HostEvent>,
+    png_export: Option<canvas::export::ImageExport>,
 }
 impl DatabaseEditor {
     pub fn new(schema: Schema) -> Self {
@@ -72,6 +80,7 @@ impl DatabaseEditor {
             state: Default::default(),
             sql_cache: None,
             events: vec![],
+            png_export: None,
         }
     }
     fn sql(&mut self) -> &Result<String, Vec<Diagnostic>> {
@@ -98,8 +107,23 @@ impl DatabaseEditor {
         self.history.sync(&self.schema, false);
         let id = self.schema.add_table(pos);
         self.state.selected = Some(id);
+        self.state.group.clear();
         self.state.status.clear();
         self.history.sync(&self.schema, false);
+    }
+    /// One undoable layout step: referenced tables precede referencing ones.
+    fn auto_arrange(&mut self) {
+        self.history.sync(&self.schema, false);
+        match self.schema.auto_arrange(self.state.snap.then_some(10.0)) {
+            Ok(()) => {
+                self.state.drag = None;
+                self.state.pending = None;
+                self.state.fit = true;
+                self.state.status.clear();
+                self.history.sync(&self.schema, false);
+            }
+            Err(e) => self.state.status = e,
+        }
     }
     fn link(&mut self, from: Id, to: Id) {
         self.history.sync(&self.schema, false);
@@ -114,9 +138,13 @@ impl DatabaseEditor {
         self.history.sync(&self.schema, false);
     }
     fn delete_selected(&mut self) {
-        if let Some(id) = self.state.selected.take() {
+        let mut selected = std::mem::take(&mut self.state.group);
+        selected.extend(self.state.selected.take());
+        if !selected.is_empty() {
             self.history.sync(&self.schema, false);
-            self.schema.delete_table(id);
+            for id in selected {
+                self.schema.delete_table(id);
+            }
             self.state.pending = None;
             self.history.sync(&self.schema, false);
         }
@@ -153,7 +181,7 @@ impl DatabaseEditor {
             self.schema.add_column(selected.unwrap());
         }
         let relationship_button = ui.add_enabled(selected.is_some(), egui::Button::new(tr("database.add_foreign_key")));
-        egui::Popup::menu(&relationship_button).show(|ui| {
+        egui::Popup::menu(&relationship_button).style(crate::theme::menu_style).show(|ui| {
             let tables: Vec<_> = self.schema.tables.iter().map(|t| (t.id, t.name.clone())).collect();
             for (id, name) in tables {
                 if ui.button(name).clicked()
@@ -164,7 +192,7 @@ impl DatabaseEditor {
                 }
             }
         });
-        if ui.button(tr("database.sql_ddl")).clicked() {
+        if !crate::editor::exam::active(ui.ctx()) && ui.button(tr("database.sql_ddl")).clicked() {
             self.events.push(HostEvent::OpenView(crate::dock::View::from("database.ddl")));
         }
     }
@@ -195,6 +223,8 @@ impl DatabaseEditor {
             });
         } else {
             layout.inspector(ui, |ui| self.properties(ui));
+            let mut arrange = false;
+            let can_arrange = !self.schema.tables.is_empty();
             layout.configuration(
                 ui,
                 CanvasControls {
@@ -204,6 +234,10 @@ impl DatabaseEditor {
                     snap: Some(&mut self.state.snap),
                     inspector: &mut self.state.inspector,
                     issues: None,
+                    arrange: Some(ArrangeControl {
+                        requested: &mut arrange,
+                        enabled: can_arrange,
+                    }),
                 },
                 FooterStatus {
                     summary: trf(
@@ -215,6 +249,9 @@ impl DatabaseEditor {
                 },
                 |_| {},
             );
+            if arrange {
+                self.auto_arrange();
+            }
             layout.canvas(ui, |ui| self.canvas(ui));
         }
         self.history.sync(

@@ -5,6 +5,7 @@
   "type": "module",
   "packageManager": "bun@1.4.4",
   "scripts": {
+    "audit": "bun run scripts/audit.ts",
     "dev": "astro dev --host 0.0.0.0",
     "check": "astro sync && tsc --noEmit && bun run scripts/astro-check.ts",
     "build": "bun run build:site && bun run build:app",

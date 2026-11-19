@@ -158,3 +158,37 @@ fn imported_counters_near_exhaustion_allocate_unused_identities() {
         "a pool and its lane need distinct reserved identities"
     );
 }
+
+#[test]
+fn files_record_their_writer_and_newer_content_is_detected() {
+    use op_core::document::{CONTENT_REVISION, Generator, unsupported_content};
+    let encoded = JsonCodec::<Vec<String>>::new("generator.test").encode(&vec!["a".into()]).to_json();
+    let generator = Generator::of(encoded.as_bytes()).unwrap();
+    assert_eq!(generator, Generator::current());
+    assert_eq!(
+        (generator.application.as_str(), generator.revision),
+        ("Open Process", CONTENT_REVISION)
+    );
+    assert!(!generator.is_newer());
+    // Historical files have no writer.
+    for (_, fixture) in FIXTURES {
+        assert_eq!(Generator::of(fixture.as_bytes()), None);
+    }
+    // A newer writer is recognised; unknown envelope and generator fields stay readable.
+    let future = r#"{"format":"open-process","version":2,"generator":{"application":"Open Process","version":"v9.0.0","revision":999,"channel":"beta"},"extra":true,"document":{"kind":"bpmn","model_version":1,"model":{}}}"#;
+    let newer = Generator::of(future.as_bytes()).unwrap();
+    assert!(newer.is_newer());
+    assert_eq!(newer.version, "v9.0.0");
+    assert_eq!(Document::read(future.as_bytes()).unwrap().kind, "bpmn");
+    assert_eq!(Generator::of(b"not json"), None);
+    // Content this version drops is listed once per path; null placeholders are not content.
+    let original = serde_json::json!({
+        "name": "n",
+        "nodes": [{"id": 1, "halo": {"r": 2}}, {"id": 2, "halo": null, "glow": 1}],
+        "lanes": {"x": 1},
+        "hint": null
+    });
+    let kept = serde_json::json!({"name": "n", "nodes": [{"id": 1}, {"id": 2}], "lanes": {}});
+    assert_eq!(unsupported_content(&original, &kept), ["lanes › x", "nodes › glow", "nodes › halo"]);
+    assert!(unsupported_content(&kept, &kept).is_empty());
+}

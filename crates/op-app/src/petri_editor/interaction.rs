@@ -35,7 +35,7 @@ impl PetriEditor {
                 self.arc_pending = None;
             }
         }
-        if keys[5] {
+        if keys[5] && !crate::editor::exam::active(ui.ctx()) {
             self.toggle_simulation(ui.input(|i| i.time));
         }
         if keys[6] {
@@ -80,6 +80,20 @@ impl PetriEditor {
             let hit = self.hit_node(w);
             self.drag = match (self.tool, hit) {
                 _ if space => Some(Drag::Pan),
+                (Tool::Select | Tool::Token, Some(n)) if ui.input(|i| i.modifiers.alt) => {
+                    if !self.group.contains(&n) {
+                        self.group.clear();
+                        self.selection = Some(Sel::Node(n));
+                    }
+                    self.duplicate_selection(Pos::default(), false);
+                    match self.selection {
+                        Some(Sel::Node(node)) => Some(Drag::Move {
+                            node,
+                            grab: w - self.net.node_pos(node).unwrap(),
+                        }),
+                        _ => Some(Drag::MoveGroup { last: w }),
+                    }
+                }
                 (Tool::Select | Tool::Token, Some(n)) if self.group.contains(&n) => Some(Drag::MoveGroup { last: w }),
                 (Tool::Select | Tool::Token, Some(n)) => {
                     self.group.clear();
@@ -332,6 +346,8 @@ impl PetriEditor {
     }
 
     pub(super) fn context_menu(&mut self, ui: &mut Ui) {
+        crate::theme::menu_style(ui.style_mut());
+        self.selection_menu(ui);
         let (target, w) = self.ctx_target;
         match target {
             Some(Sel::Node(NodeRef::Place(id))) => {

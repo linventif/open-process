@@ -1,0 +1,222 @@
+//! Mermaid source families. Preview capability is explicit and independently tested.
+use crate::i18n::key;
+
+pub struct Template {
+    pub id: &'static str,
+    pub label: &'static str,
+    pub source: &'static str,
+    pub preview: bool,
+}
+
+pub const TEMPLATES: &[Template] = &[
+    Template {
+        preview: true,
+        id: "mermaid.flowchart",
+        label: key("mermaid.flowchart"),
+        source: "flowchart TD\n    A[Start] --> B{Approved?}\n    B -->|Yes| C[Process order]\n    B -->|No| D[Review]\n    D --> B\n    C --> E[End]\n",
+    },
+    Template {
+        preview: true,
+        id: "mermaid.sequence",
+        label: key("mermaid.sequence"),
+        source: "sequenceDiagram\n    participant User\n    participant App\n    participant Database\n    User->>App: Submit request\n    App->>Database: Save\n    Database-->>App: Confirmation\n    App-->>User: Done\n",
+    },
+    Template {
+        preview: true,
+        id: "mermaid.class",
+        label: key("mermaid.class"),
+        source: "classDiagram\n    class Order {\n        +int id\n        +confirm()\n    }\n    class Item {\n        +String name\n        +int quantity\n    }\n    Order \"1\" *-- \"many\" Item : contains\n",
+    },
+    Template {
+        preview: true,
+        id: "mermaid.state",
+        label: key("mermaid.state"),
+        source: "stateDiagram-v2\n    [*] --> Draft\n    Draft --> Review: Submit\n    Review --> Approved: Accept\n    Review --> Draft: Revise\n    Approved --> [*]\n",
+    },
+    Template {
+        preview: true,
+        id: "mermaid.er",
+        label: key("mermaid.er"),
+        source: "erDiagram\n    CUSTOMER ||--o{ ORDER : places\n    CUSTOMER {\n        int id PK\n        string name\n    }\n    ORDER {\n        int id PK\n        int customer_id FK\n    }\n",
+    },
+    Template {
+        preview: true,
+        id: "mermaid.pie",
+        label: key("mermaid.pie"),
+        source: "pie\n    title Work\n    \"Design\" : 3\n    \"Build\" : 7\n",
+    },
+    Template {
+        preview: true,
+        id: "mermaid.gantt",
+        label: key("mermaid.gantt"),
+        source: "gantt\n    dateFormat YYYY-MM-DD\n    section Delivery\n    Design :design, 2026-01-01, 3d\n    Build :build, after design, 5d\n",
+    },
+    Template {
+        preview: true,
+        id: "mermaid.journey",
+        label: key("mermaid.journey"),
+        source: "journey\n    title Order journey\n    section Shopping\n    Choose: 5: Customer\n    Pay: 3: Customer\n",
+    },
+    Template {
+        preview: true,
+        id: "mermaid.timeline",
+        label: key("mermaid.timeline"),
+        source: "timeline\n    title Delivery\n    2026 : Design\n    2027 : Build\n",
+    },
+    Template {
+        preview: true,
+        id: "mermaid.sankey",
+        label: key("mermaid.sankey"),
+        source: "sankey-beta\n\nSource,Design,3\nSource,Build,7\n",
+    },
+    Template {
+        preview: true,
+        id: "mermaid.quadrant",
+        label: key("mermaid.quadrant"),
+        source: "quadrantChart\n    title Priorities\n    x-axis Low effort --> High effort\n    y-axis Low impact --> High impact\n    Design: [0.3, 0.7]\n    Build: [0.7, 0.8]\n",
+    },
+    Template {
+        preview: true,
+        id: "mermaid.xy",
+        label: key("mermaid.xy"),
+        source: "xychart-beta\n    title \"Delivery\"\n    x-axis [1, 2, 3]\n    y-axis \"Hours\" 0 --> 10\n    bar [3, 7, 5]\n    line [2, 5, 8]\n",
+    },
+    Template {
+        preview: true,
+        id: "mermaid.radar",
+        label: key("mermaid.radar"),
+        source: "radar-beta\n    title \"Skills\"\n    axis a[\"Design\"], b[\"Build\"], c[\"Test\"]\n    curve team[\"Team\"]{8, 7, 9}\n    max 10\n",
+    },
+    Template {
+        preview: true,
+        id: "mermaid.packet",
+        label: key("mermaid.packet"),
+        source: "packet-beta\n    0-7: \"Header\"\n    8-31: \"Payload\"\n",
+    },
+    Template {
+        preview: true,
+        id: "mermaid.mindmap",
+        label: key("mermaid.mindmap"),
+        source: "mindmap\n  root((Delivery))\n    Design\n    Build\n    Test\n",
+    },
+    Template {
+        preview: true,
+        id: "mermaid.git",
+        label: key("mermaid.git"),
+        source: "gitGraph\n    commit\n    branch develop\n    checkout develop\n    commit\n    checkout main\n    merge develop\n",
+    },
+    Template {
+        preview: true,
+        id: "mermaid.requirement",
+        label: key("mermaid.requirement"),
+        source: "requirementDiagram\n    requirement delivery {\n        id: 1\n        text: Deliver the order\n        risk: low\n        verifymethod: test\n    }\n    element test {\n        type: test\n    }\n    test - verifies -> delivery\n",
+    },
+    Template {
+        preview: true,
+        id: "mermaid.c4_context",
+        label: key("mermaid.c4_context"),
+        source: "C4Context\n    Person(user, \"Customer\", \"Orders products\")\n    System(shop, \"Shop\", \"Handles orders\")\n    Rel(user, shop, \"Uses\")\n",
+    },
+    Template {
+        preview: true,
+        id: "mermaid.c4_container",
+        label: key("mermaid.c4_container"),
+        source: "C4Container\n    Container(app, \"Application\", \"Rust\", \"Handles orders\")\n    ContainerDb(db, \"Database\", \"PostgreSQL\", \"Stores orders\")\n    Rel(app, db, \"Stores\")\n",
+    },
+    Template {
+        preview: true,
+        id: "mermaid.c4_component",
+        label: key("mermaid.c4_component"),
+        source: "C4Component\n    Component(api, \"API\", \"HTTP\", \"Receives requests\")\n    Component(service, \"Orders\", \"Rust\", \"Processes orders\")\n    Rel(api, service, \"Calls\")\n",
+    },
+    Template {
+        preview: true,
+        id: "mermaid.c4_dynamic",
+        label: key("mermaid.c4_dynamic"),
+        source: "C4Dynamic\n    Container(app, \"Application\", \"Rust\", \"Handles orders\")\n    ContainerDb(db, \"Database\", \"SQL\", \"Stores orders\")\n    Rel(app, db, \"Saves order\")\n",
+    },
+    Template {
+        preview: true,
+        id: "mermaid.c4_deployment",
+        label: key("mermaid.c4_deployment"),
+        source: "C4Deployment\n    Deployment_Node(server, \"Server\", \"Linux\") {\n        Container(app, \"Application\", \"Rust\", \"Handles orders\")\n    }\n",
+    },
+    Template {
+        preview: true,
+        id: "mermaid.block",
+        label: key("mermaid.block"),
+        source: "block-beta\n    columns 2\n    app[\"Application\"] db[\"Database\"]\n    app --> db\n",
+    },
+    Template {
+        preview: true,
+        id: "mermaid.architecture",
+        label: key("mermaid.architecture"),
+        source: "architecture-beta\n    group api(cloud)[API]\n    service app(server)[Application] in api\n    service db(database)[Database] in api\n    app:R -- L:db\n",
+    },
+    Template {
+        preview: true,
+        id: "mermaid.kanban",
+        label: key("mermaid.kanban"),
+        source: "kanban\n    todo[Todo]\n        design[Design]\n    doing[In progress]\n        build[Build]\n    done[Done]\n",
+    },
+    Template {
+        preview: true,
+        id: "mermaid.treemap",
+        label: key("mermaid.treemap"),
+        source: "treemap-beta\n    \"Delivery\"\n        \"Design\": 3\n        \"Build\": 7\n",
+    },
+    Template {
+        preview: true,
+        id: "mermaid.zenuml",
+        label: key("mermaid.zenuml"),
+        source: "zenuml\n    @Actor Customer\n    @Boundary Shop\n    Customer -> Shop.order()\n",
+    },
+    Template {
+        preview: false,
+        id: "mermaid.swimlane",
+        label: key("mermaid.swimlane"),
+        source: "swimlane-beta LR\n    subgraph Customer\n        choose[\"Choose\"]\n    end\n    subgraph Shop\n        deliver[\"Deliver\"]\n    end\n    choose --> deliver\n",
+    },
+    Template {
+        preview: false,
+        id: "mermaid.usecase",
+        label: key("mermaid.usecase"),
+        source: "usecase-beta\n    direction LR\n    actor Customer\n    Checkout(\"Place order\")\n    Customer --> Checkout\n",
+    },
+    Template {
+        preview: false,
+        id: "mermaid.eventmodeling",
+        label: key("mermaid.eventmodeling"),
+        source: "eventmodeling\n    tf 01 ui CartUI\n    tf 02 cmd AddItem\n    tf 03 evt ItemAdded\n",
+    },
+    Template {
+        preview: false,
+        id: "mermaid.venn",
+        label: key("mermaid.venn"),
+        source: "venn-beta\n    set Design\n    set Build\n    union Design,Build[\"Delivery\"]\n",
+    },
+    Template {
+        preview: false,
+        id: "mermaid.ishikawa",
+        label: key("mermaid.ishikawa"),
+        source: "ishikawa-beta\n    Late delivery\n    Process\n        Missing review\n    Resources\n        Limited capacity\n",
+    },
+    Template {
+        preview: false,
+        id: "mermaid.wardley",
+        label: key("mermaid.wardley"),
+        source: "wardley-beta\n    title Delivery\n    anchor Customer [0.95, 0.6]\n    component Shop [0.7, 0.5]\n    Customer -> Shop\n",
+    },
+    Template {
+        preview: false,
+        id: "mermaid.cynefin",
+        label: key("mermaid.cynefin"),
+        source: "cynefin-beta\n    title Delivery\n    clear\n        \"Repeatable task\"\n    complex\n        \"Explore options\"\n    complex --> clear : \"Learn\"\n",
+    },
+    Template {
+        preview: false,
+        id: "mermaid.treeview",
+        label: key("mermaid.treeview"),
+        source: "treeView-beta\n    project/\n        src/\n            main.rs\n        README.md\n",
+    },
+];

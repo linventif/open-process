@@ -9,6 +9,7 @@ pub fn registry() -> &'static DiagramRegistry {
         crate::petri_editor::register(&mut registry);
         crate::uml_editor::register(&mut registry);
         crate::flow_editor::register(&mut registry);
+        crate::flowchart_editor::register(&mut registry);
         crate::dmn_editor::register(&mut registry);
         crate::database_editor::register(&mut registry);
         crate::whiteboard_editor::register(&mut registry);
@@ -29,6 +30,7 @@ pub fn run_background_job(input: &str) -> Result<String, String> {
     let result = match task["task"].as_str() {
         Some("bpmn.evaluation") => crate::bpmn_editor::evaluation_job::compute_json(input.into(), stop),
         Some("mining.discovery") => crate::mining_editor::analysis_job::compute_json(input.into(), stop),
+        Some("flowchart.import") => crate::flowchart_editor::import_json(input.into(), stop),
         Some("mermaid.preview") => crate::mermaid_editor::preview::compute_json(input.into(), stop),
         None | Some("petri.analysis") => crate::petri_editor::analysis_job::compute_json(input.into(), stop),
         Some(_) => return Err("Unknown background task".into()),

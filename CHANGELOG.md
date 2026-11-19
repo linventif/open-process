@@ -9,6 +9,16 @@ does not distinguish the automatic `main-*` releases.
 
 ### Dependencies and CI
 
+- Keep website audits blocking while temporarily excepting the reviewed,
+  unpatched `picomatch` advisory for repository-controlled build globs. Retain the
+  full report and automatically expire the exception on 1 December 2026 UTC.
+- Embed the published release identifier in native binaries and check for updates
+  in the background at startup. Show a translated popup with the matching system
+  download and release notes, plus a manual check in Help; keep stable and
+  automatic `main-*` channels separate and startup network failures silent.
+- Ad-hoc sign complete macOS application bundles, verify their signatures before
+  archiving and after release extraction, and document the local workaround for
+  older builds reported as damaged. Apple notarization remains unavailable.
 - Upgrade resvg/usvg to 0.50 and the wgpu/naga stack to 30.0.2; refresh the Rust
   lockfile and remove the obsolete rustybuzz dependency.
 - Update Astro to 7.4.12, sitemap to 3.7.5 and website transitive dependencies.
@@ -18,6 +28,23 @@ does not distinguish the automatic `main-*` releases.
   explicitly and enable weekly Bun dependency updates.
 
 ### Editing
+
+- Share graphical selection clipboard actions across BPMN, Petri, UML, EPC,
+  activities, native flowcharts and database builders: copy/cut/paste across
+  same-notation documents, duplicate, select-all and Alt-drag duplication.
+  Preserve internal links with fresh IDs, keep text-field shortcuts, and undo
+  or cancel duplication and movement as one gesture. Drawing retains its
+  established clipboard and shares event ownership with other canvases.
+
+- Add Mermaid form authoring with explicit apply/remove actions, source-preserving
+  tab switching and shared undo/redo. Expand the catalogue to 35 templates:
+  27 have local previews; eight newer families retain source/forms and text
+  exports with an explicit unavailable-preview message. Add direct Tools
+  conversions from BPMN, Petri, EPC, activities and both UML builders; reverse
+  conversion covers UML classes and an initial native flowchart subset.
+- Add a typed native flowchart editor with draggable/resizable shapes, labelled
+  connections, shared history and `.opx`/SVG/DOT/Mermaid formats. Advanced Mermaid
+  flowchart syntax and the remaining dedicated graphical editors are unfinished.
 
 - Make BPMN auto arrange respect grid snapping and align mixed-shape centers,
   keeping flows attached to the placed shapes and preserving lane membership.
@@ -51,6 +78,8 @@ does not distinguish the automatic `main-*` releases.
 
 ### Documentation and community
 
+- Refresh the presentation website in English, French and Spanish with the
+  current diagram catalogue, eight application captures and local-saving guidance.
 - Rewrote the README around registered editors, current formats and known limits.
 - Made English the default project documentation language, translated the
   architecture/notation/website guides and interface diagram, and documented

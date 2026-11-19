@@ -5,24 +5,27 @@ mod render;
 
 mod inspector;
 
+mod editing;
 mod interaction;
+mod resize;
 
 mod session;
 pub(crate) use session::register;
 
-use crate::editor::layout::{CanvasControls, DiagramLayout, FooterStatus};
+use crate::editor::layout::{ArrangeControl, CanvasControls, DiagramLayout, FooterStatus};
 
 use crate::canvas::{self, InlineOutcome, Palette, View, to_pos2};
+use crate::editor::clipboard::{CanvasClipboard, ClipboardState};
 use crate::history::History;
 use egui::{
     Color32, CornerRadius, FontId, Key, Painter, PointerButton, Pos2, Rect, RichText, Sense, Shape, Stroke, StrokeKind, Ui, pos2, vec2,
 };
+use op_core::bpmn::resize::{MIN_LANE_HEIGHT, MIN_POOL_WIDTH, PoolResize};
 use op_core::bpmn::*;
 use op_core::geom::{Pos, dist_to_polyline};
 use op_core::i18n::{key, tr, trf};
 
 const GRID: f32 = 10.0;
-const LANE_HEADER: f32 = 26.0;
 const PAD_BTN: f32 = 26.0;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -45,8 +48,8 @@ pub enum Sel {
 enum Drag {
     Move { node: Id, grab: Pos },
     MovePool { pool: Id, last: Pos },
-    ResizeNode { node: Id },
-    ResizePool { pool: Id },
+    ResizeNode { node: Id, gesture: canvas::resize::ResizeGesture },
+    ResizePool { pool: Id, target: PoolResize, grab: Pos },
     Connect { from: Id },
     MoveGroup { last: Pos },
     Rubber { start: Pos },
@@ -76,8 +79,11 @@ pub struct BpmnEditor {
     pub uid: u64,
     /// Export the canvas as PNG on the next frame (without palette and selection).
     pub export_png: bool,
+    png_export: Option<canvas::export::ImageExport>,
     /// Multi-selection of nodes (rubber band, Shift+click, Ctrl+A).
     group: Vec<Id>,
+    pool_group: Vec<Id>,
+    pool_move_nodes: Vec<Id>,
     dnd: Option<Tool>,
     toolbar_rect: Rect,
     /// None = automatic (hidden when the pane is narrow).
@@ -89,6 +95,7 @@ pub struct BpmnEditor {
     selection: Option<Sel>,
     drag: Option<Drag>,
     connect_pending: Option<Id>,
+    clipboard: ClipboardState,
     history: History<BpmnDiagram>,
     pub status: String,
     snap: bool,
@@ -165,7 +172,10 @@ impl BpmnEditor {
         Self {
             uid: canvas::next_uid(),
             export_png: false,
+            png_export: None,
             group: Vec::new(),
+            pool_group: Vec::new(),
+            pool_move_nodes: Vec::new(),
             dnd: None,
             toolbar_rect: Rect::NOTHING,
             show_inspector: None,
@@ -176,6 +186,7 @@ impl BpmnEditor {
             selection: None,
             drag: None,
             connect_pending: None,
+            clipboard: ClipboardState::default(),
             history,
             status: String::new(),
             snap: true,
@@ -192,11 +203,15 @@ impl BpmnEditor {
     pub fn undo(&mut self) {
         self.history.undo(&mut self.diagram);
         self.selection = None;
+        self.group.clear();
+        self.pool_group.clear();
     }
 
     pub fn redo(&mut self) {
         self.history.redo(&mut self.diagram);
         self.selection = None;
+        self.group.clear();
+        self.pool_group.clear();
     }
 
     pub fn can_undo(&self) -> bool {
@@ -217,6 +232,9 @@ impl BpmnEditor {
     }
 
     pub fn delete_selection(&mut self) {
+        for id in std::mem::take(&mut self.pool_group) {
+            self.diagram.remove_pool(id);
+        }
         for id in std::mem::take(&mut self.group) {
             self.diagram.remove_node(id);
         }
@@ -345,22 +363,22 @@ impl BpmnEditor {
         out
     }
 
+    /// World extents of every element, with room for labels below events.
+    fn content_bounds(&self) -> Option<(Pos, Pos)> {
+        let rects = self
+            .diagram
+            .nodes
+            .iter()
+            .map(|n| n.rect())
+            .chain(self.diagram.pools.iter().map(|p| p.rect()));
+        canvas::export::bounds(rects).map(|(min, max)| (min, Pos::new(max.x, max.y + 20.0)))
+    }
+
     fn fit(&mut self, canvas: Rect) {
-        let mut rects: Vec<op_core::geom::Rect> = self.diagram.nodes.iter().map(|n| n.rect()).collect();
-        rects.extend(self.diagram.pools.iter().map(|p| p.rect()));
-        if rects.is_empty() {
-            self.view = View::default();
-            return;
+        match self.content_bounds() {
+            Some((min, max)) => self.view.fit(canvas, min, max),
+            None => self.view = View::default(),
         }
-        let min = Pos::new(
-            rects.iter().map(|r| r.x).fold(f32::MAX, f32::min),
-            rects.iter().map(|r| r.y).fold(f32::MAX, f32::min),
-        );
-        let max = Pos::new(
-            rects.iter().map(|r| r.right()).fold(f32::MIN, f32::max),
-            rects.iter().map(|r| r.bottom()).fold(f32::MIN, f32::max) + 20.0,
-        );
-        self.view.fit(canvas, min, max);
     }
 
     // ------------------------------------------------------------------
@@ -417,23 +435,13 @@ impl BpmnEditor {
                 snap: Some(&mut self.snap),
                 inspector: &mut self.show_inspector,
                 issues: Some(&mut self.show_issues),
+                arrange: Some(ArrangeControl {
+                    requested: &mut arrange,
+                    enabled: !self.diagram.nodes.is_empty() || !self.diagram.pools.is_empty(),
+                }),
             },
             status,
-            |ui| {
-                canvas::style_menu(ui, &mut self.diagram.style, false);
-                if ui
-                    .add_enabled(
-                        !self.diagram.nodes.is_empty() || !self.diagram.pools.is_empty(),
-                        egui::Button::new(tr("bpmn.auto_arrange")),
-                    )
-                    .clicked()
-                {
-                    arrange = true;
-                    if ui.stack().iter().any(|stack| stack.kind() == Some(egui::UiKind::Menu)) {
-                        ui.close_kind(egui::UiKind::Menu);
-                    }
-                }
-            },
+            |ui| canvas::style_menu(ui, &mut self.diagram.style, false),
         );
         if arrange {
             self.auto_arrange();
@@ -470,14 +478,30 @@ impl BpmnEditor {
         let pointer = response.hover_pos().or(response.interact_pointer_pos());
         let wp = pointer.map(|p| self.view.to_world(canvas, p));
 
+        self.clipboard_ui(ui, &response);
         self.interaction(ui, &response, canvas, pointer, wp);
         if response.hovered() && !ui.ctx().egui_wants_keyboard_input() {
             self.shortcuts(ui);
         }
 
-        // Image export: render this frame without selection, hover and palette.
-        let exporting = std::mem::take(&mut self.export_png);
-        let saved = exporting.then(|| (self.selection.take(), std::mem::take(&mut self.group)));
+        // Image export: tiles are rendered without selection, hover and palette.
+        if std::mem::take(&mut self.export_png) {
+            let name: String = self
+                .diagram
+                .name
+                .chars()
+                .map(|c| if c.is_alphanumeric() { c } else { '_' })
+                .collect();
+            self.png_export = Some(canvas::export::ImageExport::start(self.content_bounds(), self.view, canvas, name));
+        }
+        let exporting = canvas::export::frame(&mut self.png_export, &mut self.view, canvas, ui.ctx());
+        let saved = exporting.then(|| {
+            (
+                self.selection.take(),
+                std::mem::take(&mut self.group),
+                std::mem::take(&mut self.pool_group),
+            )
+        });
         canvas::draw_background(&painter, canvas, &self.view, &pal);
         self.draw(
             &painter,
@@ -486,21 +510,11 @@ impl BpmnEditor {
             if exporting { None } else { wp },
             if exporting { None } else { pointer },
         );
-        if let Some((sel, group)) = saved {
+        if let Some((sel, group, pools)) = saved {
             self.selection = sel;
             self.group = group;
-            crate::io::request_png_export(
-                ui.ctx(),
-                canvas,
-                format!(
-                    "{}.png",
-                    self.diagram
-                        .name
-                        .chars()
-                        .map(|c| if c.is_alphanumeric() { c } else { '_' })
-                        .collect::<String>()
-                ),
-            );
+            self.pool_group = pools;
+            canvas::export::capture(&mut self.png_export, ui.ctx());
         }
         if let (Some(Drag::Rubber { start }), Some(p)) = (self.drag, pointer) {
             let r = Rect::from_two_pos(self.view.to_screen(canvas, start), p);

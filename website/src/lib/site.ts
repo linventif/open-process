@@ -1,6 +1,11 @@
 export const repository = "https://github.com/linventif/open-process";
 export const cloudApp = "https://open-process.linv.dev/app/";
 export const presentationSite = "https://open-process.linv.dev";
+export const publisher = {
+  name: "Linventif",
+  email: "contact@open-process.linv.dev",
+  url: "https://github.com/linventif",
+} as const;
 
 /** Keep canonicals on the production origin, including on preview deployments. */
 export function getSiteUrl(value: string | undefined): string {

@@ -1,7 +1,11 @@
 ---
-import { messages, languages, languageNames, languagePaths, type Language } from "../lib/messages";
-import LanguageFlag from "./LanguageFlag.astro";
+import { messages, type Language } from "../lib/messages";
+import LanguageMenu from "./LanguageMenu.astro";
+import ColorModeToggle from "./ColorModeToggle.astro";
+import SiteFooter from "./SiteFooter.astro";
 import { cloudApp } from "../lib/site";
+import { docsPath, toolGuides } from "../lib/docs-catalogue";
+import { docsMessages } from "../lib/docs-messages";
 interface Props { lang: Language }
 const { lang } = Astro.props;
 const t = messages[lang];
@@ -10,6 +14,31 @@ const releaseCopy = {
   initial: t.releaseInitial, none: t.releaseNone, error: t.releaseError,
   available: t.releaseAvailable, download: t.download, viewReleases: t.viewReleases,
 };
+const previews = [
+  { id: "draw", label: t.drawTab, caption: t.drawCaption, alt: t.drawAlt, symbol: "✎" },
+  { id: "database", label: t.databaseTab, caption: t.databaseCaption, alt: t.databaseAlt, symbol: "▤" },
+  { id: "uml", label: t.umlTab, caption: t.umlCaption, alt: t.umlAlt, symbol: "▥" },
+  { id: "bpmn", label: "BPMN", caption: t.bpmnCaption, alt: t.bpmnAlt, symbol: "◇" },
+  { id: "petri", label: t.petriTab, caption: t.petriCaption, alt: t.petriAlt, symbol: "⊙" },
+  { id: "mining", label: t.miningTab, caption: t.miningCaption, alt: t.miningAlt, symbol: "⌁" },
+  { id: "mermaid", label: t.mermaidTab, caption: t.mermaidCaption, alt: t.mermaidAlt, symbol: "⌘" },
+  { id: "split", label: t.splitTab, caption: t.splitCaption, alt: t.splitAlt, symbol: "▥" },
+];
+const firstPreview = previews[0]!;
+const catalogue = [
+  { id: "whiteboard", badge: "DRAW", title: t.drawTitle, body: t.drawBody },
+  { id: "database.schema", badge: "DATABASE", title: t.databaseTitle, body: t.databaseBody },
+  { id: "uml.class", badge: "UML · CLASS", title: t.umlTitle, body: t.umlBody },
+  { id: "bpmn", badge: "BPMN 2.0", title: t.bpmnTitle, body: t.bpmnBody },
+  { id: "uml.use-case", badge: "UML · USE CASE", title: t.usecaseTitle, body: t.usecaseBody },
+  { id: "petri", badge: "PETRI", title: t.petriTitle, body: t.petriBody },
+  { id: "event-log", badge: "ALPHA", title: t.miningTitle, body: t.miningBody },
+  { id: "bpmn.evaluation", badge: "BPMN · CA / TA", title: t.evaluationTitle, body: t.evaluationBody },
+  { id: "dmn.table", badge: "DMN", title: t.dmnTitle, body: t.dmnBody },
+  { id: "epc", badge: "EPC", title: t.epcTitle, body: t.epcBody },
+  { id: "uml.activity", badge: "UML · ACTIVITY", title: t.activityTitle, body: t.activityBody },
+  { id: "mermaid", badge: "MERMAID", title: t.mermaidTitle, body: t.mermaidBody },
+];
 ---
   <a class="skip-link" href="#main">{t.skip}</a>
   <header class="site-header">
@@ -17,16 +46,12 @@ const releaseCopy = {
       <a class="brand" href="#" aria-label="Open Process"><img src="/assets/logo.svg" width="45" height="45" alt=""><span>Open Process<span class="brand-dot">.</span></span></a>
       <nav aria-label={t.navLabel}>
         <a href="#explore">{t.navExplore}</a>
-        <a href="#learn">{t.navLearn}</a>
+        <a href={docsPath(lang)}>{docsMessages[lang].title}</a>
         <a href="https://github.com/linventif/open-process" class="nav-github">GitHub <span aria-hidden="true">↗</span></a>
       </nav>
       <div class="header-actions">
-        <details class="language-dropdown" id="language-dropdown">
-          <summary class="language-toggle" aria-label={t.language}><LanguageFlag lang={lang} /><span>{lang.toUpperCase()}</span><span class="language-chevron" aria-hidden="true">▾</span></summary>
-          <ul class="language-options">
-            {languages.map(language => <li><a href={languagePaths[language]} hreflang={language} lang={language} aria-current={language === lang ? "page" : undefined}><span class="language-option-name"><LanguageFlag lang={language} /><span>{languageNames[language]}</span></span>{language === lang && <span aria-hidden="true">✓</span>}</a></li>)}
-          </ul>
-        </details>
+        <ColorModeToggle lang={lang} />
+        <LanguageMenu lang={lang} />
         <a class="button button-small button-dark" href={appPath}><span>{t.getApp}</span><span aria-hidden="true">↗</span></a>
       </div>
     </div>
@@ -37,7 +62,7 @@ const releaseCopy = {
       <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span><span>{t.heroEyebrow}</span></p>
       <div class="hero-layout">
         <div>
-          <h1 id="hero-title"><span>{t.heroLine1}</span><br><span>{t.heroLine2}</span><span class="accent">.</span></h1>
+          <h1 id="hero-title"><span>{t.heroLine1}</span><br><span class="hero-title-line">{t.heroLine2}</span><span class="accent">.</span></h1>
           <p class="hero-description">{t.heroDescription}</p>
           <div class="hero-actions"><a class="button button-dark" href={appPath}><span>{t.openWeb}</span><span aria-hidden="true">↗</span></a><a class="text-link" href="#download"><span>{t.download}</span><span aria-hidden="true">↓</span></a></div>
           <p class="platform-note">{t.platformNote}</p>
@@ -54,26 +79,30 @@ const releaseCopy = {
             <path d="M37 107v12h221v-12" stroke="currentColor" stroke-opacity=".22" stroke-dasharray="3 4"/>
           </svg>
           <p><span>{t.noteLine1}</span><br><span>{t.noteLine2}</span></p>
-          <span class="mono">BPMN ↔ PETRI ↔ ANALYSIS</span>
+          <span class="mono">{t.workspaceKinds}</span>
         </aside>
       </div>
-      <div class="hero-bottom"><span>{t.builtFor}</span><span class="mono">RUST / NATIVE + WASM</span></div>
+      <div class="hero-bottom"><span>{t.builtFor}</span><span class="mono">{t.platformBadge}</span></div>
     </section>
 
     <section class="showcase container" id="explore" aria-label={t.exploreLabel}>
       <div class="showcase-toolbar">
         <div class="preview-tabs" role="tablist" aria-label={t.viewsLabel}>
-          <button id="tab-bpmn" role="tab" aria-selected="true" aria-controls="preview-panel" tabindex="0" data-view="bpmn" data-caption={t.bpmnCaption} data-alt={t.bpmnAlt}><span class="tab-symbol" aria-hidden="true">◇</span>BPMN</button>
-          <button id="tab-petri" role="tab" aria-selected="false" aria-controls="preview-panel" tabindex="-1" data-view="petri" data-caption={t.petriCaption} data-alt={t.petriAlt}><span class="tab-symbol" aria-hidden="true">⊙</span><span>{t.petriTab}</span></button>
-          <button id="tab-mining" role="tab" aria-selected="false" aria-controls="preview-panel" tabindex="-1" data-view="mining" data-caption={t.miningCaption} data-alt={t.miningAlt}><span class="tab-symbol" aria-hidden="true">⌁</span><span>{t.miningTab}</span></button>
-          <button id="tab-split" role="tab" aria-selected="false" aria-controls="preview-panel" tabindex="-1" data-view="split" data-caption={t.splitCaption} data-alt={t.splitAlt}><span class="tab-symbol" aria-hidden="true">▥</span><span>{t.splitTab}</span></button>
+          {previews.map((preview, index) => <button id={`tab-${preview.id}`} role="tab" aria-selected={index === 0 ? "true" : "false"} aria-controls="preview-panel" tabindex={index === 0 ? "0" : "-1"} data-view={preview.id} data-caption={preview.caption} data-alt={preview.alt}><span class="tab-symbol" aria-hidden="true">{preview.symbol}</span><span>{preview.label}</span></button>)}
         </div>
         <span class="preview-label"><span class="status-dot" aria-hidden="true"></span><span>{t.realApp}</span></span>
       </div>
-      <div id="preview-panel" role="tabpanel" aria-labelledby="tab-bpmn" tabindex="0">
-        <button id="expand-preview" class="screenshot-button" type="button" aria-label={t.expandLabel}><img id="preview-image" src="/assets/bpmn.webp" width="1400" height="860" fetchpriority="high" alt={t.bpmnAlt}><span class="expand-hint"><span aria-hidden="true">⤢</span><span>{t.enlarge}</span></span></button>
+      <div id="preview-panel" role="tabpanel" aria-labelledby={`tab-${firstPreview.id}`} tabindex="0">
+        <button id="expand-preview" class="screenshot-button" type="button" aria-label={t.expandLabel}><img id="preview-image" src={`/assets/${firstPreview.id}.webp`} width="1400" height="860" fetchpriority="high" alt={firstPreview.alt}><span class="expand-hint"><span aria-hidden="true">⤢</span><span>{t.enlarge}</span></span></button>
       </div>
-      <div class="showcase-caption"><p id="preview-caption">{t.bpmnCaption}</p><span class="mono" id="preview-number">01 / 04</span></div>
+      <div class="showcase-caption"><p id="preview-caption">{firstPreview.caption}</p><span class="mono" id="preview-number">01 / {String(previews.length).padStart(2, "0")}</span></div>
+    </section>
+
+    <section class="catalogue container" id="catalogue" aria-labelledby="catalogue-title">
+      <div class="section-heading"><p class="eyebrow">{t.catalogueEyebrow}</p><h2 id="catalogue-title">{t.catalogueTitle}</h2><p>{t.catalogueIntro}</p></div>
+      <div class="catalogue-grid">
+        {catalogue.map(item => <article class="catalogue-card" data-diagram={item.id}><span class="mono catalogue-badge">{item.badge}</span><h3>{item.title}</h3><p>{item.body}</p><a class="text-link" href={docsPath(lang, toolGuides[item.id])} aria-label={`${t.guideLink} · ${item.title}`}><span>{t.guideLink}</span><span aria-hidden="true">→</span></a></article>)}
+      </div>
     </section>
 
     <section class="features container" aria-labelledby="features-title">
@@ -85,12 +114,14 @@ const releaseCopy = {
       </div>
     </section>
 
-    <section class="learning" id="learn" aria-labelledby="learn-title">
-      <div class="container learning-layout">
-        <div class="learning-copy"><p class="eyebrow"><span class="status-dot" aria-hidden="true"></span><span>{t.learnEyebrow}</span></p><h2 id="learn-title"><span>{t.learnLine1}</span><br><span>{t.learnLine2}</span><span class="accent">.</span></h2><p>{t.learnIntro}</p><a class="text-link light-link" href="https://github.com/linventif/open-process#process-discovery-event-logs"><span>{t.learnLink}</span><span aria-hidden="true">↗</span></a></div>
-        <ol class="learning-steps"><li><span class="step-marker mono">01</span><div><h3>{t.step1Title}</h3><p>{t.step1Body}</p></div></li><li><span class="step-marker mono">02</span><div><h3>{t.step2Title}</h3><p>{t.step2Body}</p></div></li><li><span class="step-marker mono">03</span><div><h3>{t.step3Title}</h3><p>{t.step3Body}</p></div></li></ol>
+    <section class="storage container" id="workspace" aria-labelledby="storage-title">
+      <div class="section-heading"><p class="eyebrow">{t.storageEyebrow}</p><h2 id="storage-title">{t.storageTitle}</h2><p>{t.storageIntro}</p></div>
+      <div class="storage-grid">
+        <article><span class="mono">01</span><h3>{t.nativeSaveTitle}</h3><p>{t.nativeSaveBody}</p></article>
+        <article><span class="mono">02</span><h3>{t.browserSaveTitle}</h3><p>{t.browserSaveBody}</p></article>
+        <article><span class="mono">03</span><h3>{t.manualSaveTitle}</h3><p>{t.manualSaveBody}</p></article>
       </div>
-      <div class="container learning-footer"><span class="mono">M′ = M + C · σ</span><span>{t.learnFooter}</span></div>
+      <p class="workspace-note">{t.workspaceNote}</p>
     </section>
 
     <section class="downloads container" id="download" aria-labelledby="download-title">
@@ -107,9 +138,9 @@ const releaseCopy = {
     <section class="open-source container" aria-labelledby="source-title"><div><p class="eyebrow">{t.sourceEyebrow}</p><h2 id="source-title">{t.sourceTitle}</h2><p>{t.sourceBody}</p><div class="source-links"><a class="text-link" href="https://github.com/linventif/open-process"><span>{t.sourceLink}</span><span aria-hidden="true">↗</span></a><a class="text-link muted" href="https://github.com/linventif/open-process/issues"><span>{t.issueLink}</span><span aria-hidden="true">↗</span></a></div></div><div class="terminal"><div class="terminal-heading"><span class="terminal-dot" aria-hidden="true"></span><span>{t.terminalTitle}</span></div><pre><code><span class="code-comment"># <span>{t.terminalComment}</span></span>
 git clone https://github.com/linventif/open-process.git
 cd open-process
-<span class="code-accent">cargo run --release</span></code></pre><a href="https://github.com/linventif/open-process#running">{t.buildInstructions}</a></div></section>
+<span class="code-accent">cargo run --release</span></code></pre><a href="https://github.com/linventif/open-process#build-and-run">{t.buildInstructions}</a></div></section>
   </main>
-  <footer class="container site-footer"><a class="brand" href="#"><img src="/assets/logo.svg" width="35" height="35" alt=""><span>Open Process<span class="brand-dot">.</span></span></a><p>{t.footerText}</p><a href="https://github.com/linventif/open-process" class="mono">GITHUB ↗</a><span class="mono">MIT / APACHE 2.0</span></footer>
+  <SiteFooter lang={lang} />
 
-  <dialog id="preview-dialog" aria-labelledby="dialog-caption"><div class="dialog-toolbar"><p id="dialog-caption"></p><button id="close-preview" type="button" aria-label={t.closeLabel}>×</button></div><img id="dialog-image" src="/assets/bpmn.webp" width="1400" height="860" alt={t.bpmnAlt} loading="lazy"></dialog>
+  <dialog id="preview-dialog" aria-labelledby="dialog-caption"><div class="dialog-toolbar"><p id="dialog-caption">{firstPreview.caption}</p><button id="close-preview" type="button" aria-label={t.closeLabel}>×</button></div><img id="dialog-image" src={`/assets/${firstPreview.id}.webp`} width="1400" height="860" alt={firstPreview.alt} loading="lazy"></dialog>
 <script>import "../scripts/site";</script>

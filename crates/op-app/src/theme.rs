@@ -9,6 +9,10 @@ pub const SEMIBOLD: &str = "semibold";
 pub const MEDIUM: &str = "medium";
 pub const HAND: &str = "hand";
 
+pub const CONTROL_RADIUS: u8 = 7;
+pub const CARD_RADIUS: u8 = 12;
+pub const BUTTON_RADIUS: u8 = 8;
+
 /// Brand accent.
 pub const ACCENT: Color32 = Color32::from_rgb(76, 110, 245);
 pub const ACCENT_DARK: Color32 = Color32::from_rgb(120, 146, 255);
@@ -31,8 +35,16 @@ pub fn medium(size: f32) -> FontId {
     FontId::new(size, FontFamily::Name(MEDIUM.into()))
 }
 
-pub fn accent(dark: bool) -> Color32 {
-    if dark { ACCENT_DARK } else { ACCENT }
+pub fn accent(ui: &egui::Ui) -> Color32 {
+    if ui.visuals().dark_mode { ACCENT_DARK } else { ACCENT }
+}
+
+pub fn accent_text(ui: &egui::Ui) -> Color32 {
+    if ui.visuals().dark_mode {
+        Color32::from_rgb(20, 22, 26)
+    } else {
+        Color32::WHITE
+    }
 }
 
 pub fn setup_fonts(ctx: &egui::Context) {
@@ -82,14 +94,15 @@ pub fn apply(ctx: &egui::Context) {
             sp.window_margin = Margin::same(12);
             sp.indent = 16.0;
             sp.combo_width = 140.0;
-            visuals(&mut style.visuals, theme == Theme::Dark);
+            let dark = theme == Theme::Dark;
+            visuals(&mut style.visuals, dark);
         });
     }
 }
 
 fn visuals(v: &mut Visuals, dark: bool) {
     let c = |r, g, b| Color32::from_rgb(r, g, b);
-    let accent = accent(dark);
+    let accent = if dark { ACCENT_DARK } else { ACCENT };
     let (panel, window, extreme, border, text, weak, inactive, hovered, active) = if dark {
         (
             c(28, 30, 35),
@@ -182,23 +195,21 @@ fn visuals(v: &mut Visuals, dark: bool) {
     w.open.corner_radius = r;
 }
 
+/// Shared popup appearance, retaining readable padding inside menu rows.
+pub fn menu_style(style: &mut egui::Style) {
+    egui::containers::menu::menu_style(style);
+    style.spacing.button_padding = vec2(10.0, 4.0);
+}
+
 /// Shared quiet buttons for navigation, view configuration and inspector tabs.
 /// Keep the strong background for checkboxes and the accent outline for keyboard focus.
 pub fn toolbar_style(style: &mut egui::Style) {
-    let dark = style.visuals.dark_mode;
-    let hover = if dark {
-        Color32::from_rgb(46, 50, 59)
-    } else {
-        Color32::from_rgb(230, 234, 241)
-    };
-    let selected = if dark {
-        Color32::from_rgb(46, 59, 94)
-    } else {
-        Color32::from_rgb(225, 232, 255)
-    };
+    let hover = style.visuals.widgets.hovered.bg_fill;
+    let selected = style.visuals.selection.bg_fill;
+    let accent = style.visuals.selection.stroke.color;
     style.spacing.button_padding = vec2(6.0, 4.0);
     style.visuals.selection.bg_fill = selected;
-    style.visuals.selection.stroke = Stroke::new(1.0, accent(dark));
+    style.visuals.selection.stroke = Stroke::new(1.0, accent);
     let widgets = &mut style.visuals.widgets;
     widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
     widgets.inactive.bg_stroke = Stroke::NONE;
@@ -207,8 +218,9 @@ pub fn toolbar_style(style: &mut egui::Style) {
         state.weak_bg_fill = hover;
         state.bg_stroke = Stroke::NONE;
     }
+    let radius = widgets.noninteractive.corner_radius;
     for state in [&mut widgets.inactive, &mut widgets.hovered, &mut widgets.active, &mut widgets.open] {
-        state.corner_radius = CornerRadius::same(6);
+        state.corner_radius = radius;
         state.fg_stroke.width = 1.0;
         state.expansion = 0.0;
     }
@@ -231,7 +243,7 @@ pub fn card(ui: &egui::Ui) -> egui::Frame {
     egui::Frame::new()
         .fill(ui.visuals().window_fill)
         .stroke(ui.visuals().widgets.noninteractive.bg_stroke)
-        .corner_radius(CornerRadius::same(12))
+        .corner_radius(CornerRadius::same(CARD_RADIUS))
         .inner_margin(Margin::same(16))
 }
 
@@ -241,7 +253,7 @@ pub fn segmented<T: PartialEq + Copy>(ui: &mut egui::Ui, value: &mut T, options:
     let dark = ui.visuals().dark_mode;
     egui::Frame::new()
         .fill(ui.visuals().widgets.inactive.bg_fill)
-        .corner_radius(CornerRadius::same(9))
+        .corner_radius(CornerRadius::same(CONTROL_RADIUS))
         .inner_margin(Margin::same(3))
         .show(ui, |ui| {
             ui.spacing_mut().item_spacing.x = 2.0;
@@ -252,7 +264,7 @@ pub fn segmented<T: PartialEq + Copy>(ui: &mut egui::Ui, value: &mut T, options:
                     let fill = if selected { ui.visuals().window_fill } else { Color32::TRANSPARENT };
                     let btn = egui::Button::new(text)
                         .fill(fill)
-                        .corner_radius(CornerRadius::same(7))
+                        .corner_radius(CornerRadius::same(CONTROL_RADIUS))
                         .stroke(if selected {
                             Stroke::new(1.0, ui.visuals().widgets.noninteractive.bg_stroke.color)
                         } else {
@@ -280,8 +292,47 @@ pub fn segmented<T: PartialEq + Copy>(ui: &mut egui::Ui, value: &mut T, options:
 
 /// Filled accent button for primary actions.
 pub fn primary_button<'a>(ui: &egui::Ui, text: &str) -> egui::Button<'a> {
-    egui::Button::new(egui::RichText::new(text.to_owned()).font(semibold(13.0)).color(Color32::WHITE))
-        .fill(accent(ui.visuals().dark_mode))
-        .corner_radius(CornerRadius::same(8))
+    egui::Button::new(egui::RichText::new(text.to_owned()).font(semibold(13.0)).color(accent_text(ui)))
+        .fill(accent(ui))
+        .corner_radius(CornerRadius::same(BUTTON_RADIUS))
         .min_size(vec2(0.0, 30.0))
+}
+
+/// Explicit web links can select a color mode; retired theme names are ignored.
+#[cfg(any(target_arch = "wasm32", test))]
+pub fn apply_color_mode_query(ctx: &egui::Context, search: &str) {
+    for entry in search.trim_start_matches('?').split('&') {
+        match entry.split_once('=') {
+            Some(("mode", "dark")) => ctx.set_theme(Theme::Dark),
+            Some(("mode", "light")) => ctx.set_theme(Theme::Light),
+            _ => {}
+        }
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn load_web_color_mode(ctx: &egui::Context) {
+    if let Some(search) = web_sys::window().and_then(|w| w.location().search().ok()) {
+        apply_color_mode_query(ctx, &search);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn retired_theme_links_cannot_change_classic_or_override_the_color_mode() {
+        let ctx = egui::Context::default();
+        super::apply(&ctx);
+        let light = ctx.style_of(egui::Theme::Light).visuals.clone();
+        let dark = ctx.style_of(egui::Theme::Dark).visuals.clone();
+        super::apply_color_mode_query(&ctx, "?theme=cloud&mode=dark");
+        assert_eq!(ctx.options(|o| o.theme_preference), egui::ThemePreference::Dark);
+        super::apply_color_mode_query(&ctx, "?theme=workshop&mode=unknown");
+        assert_eq!(ctx.options(|o| o.theme_preference), egui::ThemePreference::Dark);
+        super::apply_color_mode_query(&ctx, "?theme=midnight&mode=light");
+        assert_eq!(ctx.options(|o| o.theme_preference), egui::ThemePreference::Light);
+        assert_eq!(ctx.style_of(egui::Theme::Light).visuals.panel_fill, light.panel_fill);
+        assert_eq!(ctx.style_of(egui::Theme::Dark).visuals.panel_fill, dark.panel_fill);
+        assert_eq!(ctx.style_of(egui::Theme::Light).visuals.selection.stroke, light.selection.stroke);
+    }
 }

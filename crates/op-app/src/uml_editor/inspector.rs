@@ -4,9 +4,10 @@ use super::*;
 
 impl UmlEditor {
     pub(super) fn properties(&mut self, ui: &mut Ui) {
+        let exam = crate::editor::exam::active(ui.ctx());
         ui.label(tr("document.name"));
         ui.text_edit_singleline(&mut self.diagram.name);
-        let issues = self.diagram.validate();
+        let issues = if exam { vec![] } else { self.diagram.validate() };
         if !issues.is_empty() {
             egui::CollapsingHeader::new(trf("uml.model_issues", &[&issues.len()])).show(ui, |ui| {
                 for (id, message) in &issues {
@@ -28,6 +29,7 @@ impl UmlEditor {
             Some(Selection::Node(_)) if self.group.len() > 1 => {
                 ui.heading(trf("uml.elements_selected", &[&self.group.len()]));
                 ui.weak(tr("uml.use_arrange_align_distribute_selection"));
+                ui.menu_button(tr("bpmn.arrange"), |ui| self.arrange_actions(ui));
                 if ui.button(tr("common.delete_selection")).clicked() {
                     self.delete_selection();
                 }
@@ -54,7 +56,7 @@ impl UmlEditor {
                         egui::TextEdit::multiline(&mut n.attributes)
                             .desired_rows(5)
                             .desired_width(f32::INFINITY)
-                            .hint_text("- name: String"),
+                            .hint_text(if exam { "" } else { "- name: String" }),
                     );
                     content_changed |= attributes_edit.changed();
                     ui.label(tr("uml.operations"));
@@ -62,7 +64,7 @@ impl UmlEditor {
                         egui::TextEdit::multiline(&mut n.operations)
                             .desired_rows(5)
                             .desired_width(f32::INFINITY)
-                            .hint_text("+ submit(): bool"),
+                            .hint_text(if exam { "" } else { "+ submit(): bool" }),
                     );
                     content_changed |= operations_edit.changed();
                     ui.weak(tr("uml.one_member_per_line_visibility_public_private"));

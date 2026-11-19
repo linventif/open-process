@@ -15,7 +15,12 @@ impl WhiteboardEditor {
         self.shortcuts(ui, &response);
         let world = ui.input(|i| i.pointer.interact_pos()).map(|p| self.state.camera.to_world(rect, p));
         self.interact(ui, &response, world);
-        let exporting = std::mem::take(&mut self.state.export_png);
+        if std::mem::take(&mut self.state.export_png) {
+            let bounds = self.board.bounds().map(|b| (Pos::new(b.x, b.y), Pos::new(b.right(), b.bottom())));
+            let name = self.board.name.clone();
+            self.png_export = Some(canvas::export::ImageExport::start(bounds, self.state.camera, rect, name));
+        }
+        let exporting = canvas::export::frame(&mut self.png_export, &mut self.state.camera, rect, ui.ctx());
         let pal = canvas::Palette::for_ui(ui);
         let p = ui.painter().with_clip_rect(rect);
         if self.state.grid {
@@ -28,6 +33,41 @@ impl WhiteboardEditor {
             self.draw(&p, e, &geometry, pal.dark);
         }
         if !exporting {
+            match self.state.drag {
+                Some(Drag::Move {
+                    original_selection: Some(_),
+                    ..
+                }) => ui.ctx().set_cursor_icon(egui::CursorIcon::Copy),
+                Some(Drag::Move { .. }) | Some(Drag::Pan) => ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing),
+                _ => {}
+            }
+            let pointer = ui.input(|i| i.pointer.interact_pos());
+            let resize = match self.state.drag {
+                Some(Drag::Resize { id, gesture }) => Some((id, gesture.edge)),
+                None if response.hovered() && !ui.input(|i| i.key_down(egui::Key::Space)) => pointer.and_then(|p| self.resize_at(p)),
+                _ => None,
+            };
+            let endpoint = self.state.tool == Tool::Select
+                && self.state.selection.len() == 1
+                && self
+                    .state
+                    .selection
+                    .first()
+                    .and_then(|id| self.board.element(*id))
+                    .filter(|e| e.kind.is_connector())
+                    .is_some_and(|e| {
+                        geometry
+                            .points(e)
+                            .iter()
+                            .any(|point| pointer.is_some_and(|p| self.state.camera.to_screen(rect, *point).distance(p) < 12.0))
+                    });
+            if matches!(self.state.drag, Some(Drag::Endpoint { .. })) || endpoint && response.hovered() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::Crosshair);
+            } else if let Some((id, edge)) = resize
+                && let Some(element) = self.board.element(id)
+            {
+                canvas::resize::feedback(ui, &p, self.state.camera, rect, element.bounds, edge, pal.select);
+            }
             if let Some(e) = self.preview() {
                 self.draw(&p, &e, &geometry, pal.dark);
             }
@@ -88,7 +128,7 @@ impl WhiteboardEditor {
                 response.on_hover_cursor(egui::CursorIcon::Grab);
             }
         } else {
-            crate::io::request_png_export(ui.ctx(), rect, self.board.name.clone());
+            canvas::export::capture(&mut self.png_export, ui.ctx());
         }
     }
     fn draw(&self, p: &egui::Painter, e: &Element, geometry: &op_core::whiteboard::Geometry<'_>, dark: bool) {

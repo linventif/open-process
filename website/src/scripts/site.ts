@@ -1,3 +1,4 @@
+import { galleryImage } from "../lib/color-mode";
 import { downloadUrl, parseRelease, releasesUrl, type Platform, type Release } from "../lib/releases";
 
 function element<T extends HTMLElement>(selector: string): T {
@@ -10,29 +11,17 @@ const tabs = [...document.querySelectorAll<HTMLButtonElement>("[data-view]")];
 const image = element<HTMLImageElement>("#preview-image");
 const dialog = element<HTMLDialogElement>("#preview-dialog");
 const macArchitecture = element<HTMLSelectElement>("#mac-architecture");
-const languageDropdown = element<HTMLDetailsElement>("#language-dropdown");
-document.addEventListener("click", (event) => {
-  if (event.target instanceof Node && !languageDropdown.contains(event.target)) {
-    languageDropdown.open = false;
-  }
-});
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && languageDropdown.open) {
-    languageDropdown.open = false;
-    languageDropdown.querySelector("summary")?.focus();
-  }
-});
 let view = 0;
 
 function updatePreview() {
   const tab = tabs[view]!;
-  const src = `/assets/${tab.dataset.view}.webp`;
+  const src = galleryImage(tab.dataset.view ?? "draw", document.documentElement.dataset.mode === "dark" ? "dark" : "light");
   const caption = tab.dataset.caption ?? "";
   const alt = tab.dataset.alt ?? "";
   image.src = src;
   image.alt = alt;
   element("#preview-caption").textContent = caption;
-  element("#preview-number").textContent = `0${view + 1} / 04`;
+  element("#preview-number").textContent = `${String(view + 1).padStart(2, "0")} / ${String(tabs.length).padStart(2, "0")}`;
   element("#preview-panel").setAttribute("aria-labelledby", tab.id);
   element<HTMLImageElement>("#dialog-image").src = src;
   element<HTMLImageElement>("#dialog-image").alt = alt;
@@ -54,6 +43,8 @@ tabs.forEach((tab, index) => {
     tabs[view]!.focus();
   });
 });
+
+document.addEventListener("open-process-color-mode", updatePreview);
 
 element("#expand-preview").addEventListener("click", () => dialog.showModal());
 element("#close-preview").addEventListener("click", () => dialog.close());

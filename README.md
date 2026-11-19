@@ -26,7 +26,7 @@ French and Spanish are also available.
 | **DMN decision tables** | Typed inputs/outputs, rules, UNIQUE/FIRST/ANY/COLLECT policies, evaluation, DMN XML and CSV exports, single-table XML import. | A limited FEEL test subset; no full FEEL interpreter or decision requirements graph. [Details](docs/notations-ajoutees.md). |
 | **Relational databases** | Tables, columns, primary/foreign keys, indexes, validation, shared SQL preview and DDL export for PostgreSQL, MySQL/MariaDB and SQLite. | Physical schema design; Merise conceptual/logical transformations and SQL reverse engineering remain planned. [Details](docs/base-de-donnees-ddl.md). |
 | **Free drawing** | Shapes, attached lines/arrows, endpoint snapping, sticky notes, text, freehand strokes, colors, sketch mode, SVG export. | A native/web whiteboard; no Excalidraw format exchange or network collaboration. [Details](docs/dessin-libre.md). |
-| **Mermaid** | Source editor, live preview, flow/sequence/class/state/ER templates, source import/export and SVG export. | Uses a Rust renderer with its own syntax coverage, rather than the official JavaScript engine. [Details](docs/mermaid.md). |
+| **Mermaid** | Source editor, live preview, flow/sequence/class/state/ER templates, source/Markdown import/export and SVG export. | Uses a Rust renderer with its own syntax coverage, rather than the official JavaScript engine. [Details](docs/mermaid.md). |
 
 Graphical editors share navigation, grid and zoom controls, an inspector and
 responsive layout. Documents support undo/redo, automatic local saving, editable
@@ -34,6 +34,8 @@ responsive layout. Documents support undo/redo, automatic local saving, editable
 and **File → New…** provide searchable document cards and examples by type.
 **File → Export** lists the active document's formats, including PNG capture
 where available. PNG captures the visible diagram region.
+BPMN, Petri, EPC and UML also export Mermaid source and Mermaid Markdown files.
+See the [format catalogue](docs/export-formats.md) for supported mappings and limits.
 
 The project is under active development. It does not claim complete standards
 conformance or feature parity with other modelling products. Check each guide's
@@ -76,6 +78,12 @@ Desktop distributions include:
 
 Standalone Linux/macOS binaries are also published. See the
 [icon and packaging guide](docs/icone.md) for package details.
+macOS bundles are ad-hoc signed, without Apple notarization, so downloaded builds
+may require a security exception. If macOS reports the app as damaged or blocks
+opening it, see [macOS troubleshooting](docs/troubleshooting.md#macos-blocks-the-application).
+Official desktop builds check for updates at startup and offer platform download
+and release-note links. **Help → Check for updates…** retries manually; see
+[desktop updates](docs/getting-started.md#desktop-updates) for channels and installation.
 
 Desktop versions automatically create **Documents/Open Process** and keep editable
 copies there. The web app automatically keeps diagrams in the browser's local

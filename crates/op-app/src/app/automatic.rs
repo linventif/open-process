@@ -33,7 +33,8 @@ impl OpenProcessApp {
                 .map_err(|error| format!("{error:?}"))?
                 .ok_or("Local storage is unavailable")?;
             let raw = serde_json::to_string(&self.workspace_snapshot()).map_err(|error| error.to_string())?;
-            storage.set_item(persistence::KEY, &raw).map_err(|error| format!("{error:?}"))
+            storage.set_item(persistence::KEY, &raw).map_err(|error| format!("{error:?}"))?;
+            self.thumbnails.save_browser(&storage, &self.docs, &self.automatic.entries)
         })();
         if let Err(error) = result {
             self.automatic_error = Some(error);
@@ -50,6 +51,8 @@ impl OpenProcessApp {
                         .iter_mut()
                         .find(|doc| doc.archive.as_ref().is_some_and(|entry| entry.id == *id))
                     {
+                        self.thumbnails
+                            .acknowledge(doc.uid, &completion.record.entry, &completion.record.state);
                         doc.mark_saved(completion.record.state);
                         doc.autosaved_revision = Some(completion.revisions);
                         doc.archive = Some(completion.record.entry.clone());

@@ -4,9 +4,14 @@ use crate::editor::*;
 use op_core::document::{Document, DocumentCodec, JsonCodec, ReadError};
 use op_core::i18n::key;
 
-view_state!(UmlEditor, UmlEditorView, uid: u64, view: View, last_canvas: Rect, snap: bool, fit: bool, show_inspector: Option<bool>, tool: Tool, drag: Option<Drag>, editing: Option<(Selection, String, bool)>, pending: Option<Id>, dnd: Option<NodeKind>);
+view_state!(UmlEditor, UmlEditorView, uid: u64, clipboard: ClipboardState, group: BTreeSet<Id>, selection: Option<Selection>, view: View, last_canvas: Rect, snap: bool, fit: bool, show_inspector: Option<bool>, tool: Tool, relation_kind: RelationKind, drag: Option<Drag>, editing: Option<(Selection, String, bool)>, pending: Option<Id>, dnd: Option<NodeKind>);
 
 const COMMANDS: &[CommandDescriptor] = &[
+    clipboard::COPY_COMMAND,
+    clipboard::CUT_COMMAND,
+    clipboard::PASTE_COMMAND,
+    clipboard::DUPLICATE_COMMAND,
+    clipboard::SELECT_ALL_COMMAND,
     CommandDescriptor {
         id: UNDO,
         label: key("common.undo"),
@@ -26,6 +31,11 @@ const COMMANDS: &[CommandDescriptor] = &[
         id: FIT,
         label: key("canvas.zoom_fit"),
         group: CommandGroup::View,
+    },
+    CommandDescriptor {
+        id: ARRANGE,
+        label: key("canvas.auto_arrange"),
+        group: CommandGroup::Tools,
     },
     CommandDescriptor {
         id: "uml.convert-to-mermaid",
@@ -51,6 +61,9 @@ impl EditorBackend for UmlEditor {
         state.uid = canvas::next_uid();
         state.view = View::default();
         state.fit = true;
+        state.clipboard = ClipboardState::default();
+        state.group.clear();
+        state.selection = None;
         state.drag = None;
         state.editing = None;
         state.dnd = None;
@@ -130,41 +143,35 @@ impl EditorBackend for UmlEditor {
         COMMANDS
     }
     fn enabled(&self, command: &str) -> bool {
+        if let Some(enabled) = self.selection_command_enabled(command) {
+            return enabled;
+        }
         match command {
             UNDO => self.can_undo(),
             REDO => self.can_redo(),
             DELETE => self.selection.is_some() || !self.group.is_empty(),
             FIT | PNG => true,
-            "uml.convert-to-mermaid" => self.diagram.kind == DiagramKind::Class,
+            ARRANGE => !self.diagram.nodes.is_empty(),
+            "uml.convert-to-mermaid" => true,
             _ => COMMANDS.iter().any(|c| c.id == command),
         }
     }
     fn execute(&mut self, command: &str, time: f64) -> Vec<HostEvent> {
+        if self.selection_command(command) {
+            return vec![];
+        }
         let _ = time;
         let events = Vec::new();
         if !self.enabled(command) && command != "bpmn.evaluation" {
             return events;
         }
         match command {
-            "uml.convert-to-mermaid" => {
-                return match op_core::mermaid::conversion::from_uml(&self.diagram) {
-                    Ok(converted) => {
-                        let mut events = vec![HostEvent::Open(JsonCodec::new("mermaid").encode(&converted.diagram))];
-                        if !converted.warnings.is_empty() {
-                            events.push(HostEvent::Message(trf(
-                                "conversion.mermaid_warnings",
-                                &[&converted.warnings.join(" · ")],
-                            )));
-                        }
-                        events
-                    }
-                    Err(error) => vec![HostEvent::Message(error)],
-                };
-            }
+            "uml.convert-to-mermaid" => return mermaid_exports::open(op_core::mermaid::export::uml(&self.diagram)),
             UNDO => self.undo(),
             REDO => self.redo(),
             DELETE => self.delete_selection(),
             FIT => self.request_fit(),
+            ARRANGE => self.auto_arrange(),
             PNG => self.export_png = true,
 
             _ => {}
@@ -182,6 +189,24 @@ impl EditorBackend for UmlEditor {
     }
     fn export_label(&self) -> &'static str {
         key("uml.export_plantuml_puml")
+    }
+    fn exports(&self) -> Vec<ExportDescriptor> {
+        let mut formats = vec![ExportDescriptor {
+            id: "standard",
+            label: self.export_label(),
+        }];
+        formats.extend(mermaid_exports::FORMATS);
+        formats
+    }
+    fn export_as(&self, format: &str) -> Result<ExportData, String> {
+        match format {
+            "standard" => self.export(),
+            "mermaid" | "mermaid-markdown" => mermaid_exports::data(format, op_core::mermaid::export::uml(&self.diagram)?),
+            _ => Err(format!("Unknown UML export: {format}")),
+        }
+    }
+    fn export_format_requires_assistance(&self, format: &str) -> bool {
+        mermaid_exports::is_projection(format)
     }
 }
 

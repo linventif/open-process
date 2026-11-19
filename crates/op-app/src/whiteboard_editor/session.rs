@@ -27,7 +27,27 @@ const COMMANDS: &[CommandDescriptor] = &[
     CommandDescriptor {
         id: "whiteboard.duplicate",
         label: key("common.duplicate_selection"),
-        group: CommandGroup::Tools,
+        group: CommandGroup::Edit,
+    },
+    CommandDescriptor {
+        id: "whiteboard.copy",
+        label: key("common.copy"),
+        group: CommandGroup::Edit,
+    },
+    CommandDescriptor {
+        id: "whiteboard.cut",
+        label: key("common.cut"),
+        group: CommandGroup::Edit,
+    },
+    CommandDescriptor {
+        id: "whiteboard.paste",
+        label: key("common.paste"),
+        group: CommandGroup::Edit,
+    },
+    CommandDescriptor {
+        id: "whiteboard.select-all",
+        label: key("common.select_all"),
+        group: CommandGroup::Edit,
     },
 ];
 impl EditorBackend for WhiteboardEditor {
@@ -99,8 +119,14 @@ impl EditorBackend for WhiteboardEditor {
         serde_json::to_value(&self.board.elements).unwrap()
     }
     fn cancel_edit(&mut self) {
+        if let Some(Drag::Move {
+            original_selection: Some(ids),
+            ..
+        }) = self.state.drag.take()
+        {
+            self.state.selection = ids;
+        }
         self.history.cancel(&mut self.board);
-        self.state.drag = None;
         self.state.tool = Tool::Select;
         self.state.selection.retain(|id| self.board.element(*id).is_some());
     }
@@ -115,7 +141,9 @@ impl EditorBackend for WhiteboardEditor {
         match command {
             UNDO => self.history.can_undo(),
             REDO => self.history.can_redo(),
-            DELETE | "whiteboard.duplicate" => !self.state.selection.is_empty(),
+            DELETE | "whiteboard.duplicate" | "whiteboard.copy" | "whiteboard.cut" => !self.state.selection.is_empty(),
+            "whiteboard.paste" => true,
+            "whiteboard.select-all" => !self.board.elements.is_empty(),
             FIT | PNG => true,
             _ => false,
         }
@@ -132,6 +160,13 @@ impl EditorBackend for WhiteboardEditor {
             }
             DELETE => self.delete(),
             "whiteboard.duplicate" => self.duplicate(),
+            "whiteboard.copy" => self.state.pending_clipboard = Some(ClipboardAction::Copy),
+            "whiteboard.cut" => self.state.pending_clipboard = Some(ClipboardAction::Cut),
+            "whiteboard.paste" => self.state.pending_clipboard = Some(ClipboardAction::Paste),
+            "whiteboard.select-all" => {
+                self.state.selection = self.board.elements.iter().map(|e| e.id).collect();
+                self.state.tool = Tool::Select;
+            }
             FIT => self.state.fit = true,
             PNG => self.state.export_png = true,
             _ => {}

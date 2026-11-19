@@ -245,12 +245,12 @@ fn split_visibility(line: &str) -> (&str, &str) {
 }
 
 /// Mermaid entity codes keep user text from becoming declarations or HTML markup.
-fn encode(text: &str) -> String {
+pub(crate) fn encode(text: &str) -> String {
     let mut out = String::new();
     for c in text.chars() {
         if matches!(
             c,
-            '#' | '%' | '"' | '\'' | '{' | '}' | '[' | ']' | '<' | '>' | '&' | '`' | '\n' | '\r' | ';'
+            '#' | '%' | '"' | '\'' | '{' | '}' | '[' | ']' | '<' | '>' | '&' | '`' | '\\' | '|' | '\n' | '\r' | ';'
         ) {
             write!(out, "#{};", c as u32).unwrap();
         } else {
@@ -260,7 +260,7 @@ fn encode(text: &str) -> String {
     out
 }
 
-fn decode(text: &str) -> String {
+pub(crate) fn decode(text: &str) -> String {
     let mut out = String::new();
     let mut rest = text;
     while !rest.is_empty() {

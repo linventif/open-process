@@ -1,0 +1,86 @@
+---
+import Page from "../layouts/Page.astro";
+import LanguageMenu from "./LanguageMenu.astro";
+import ColorModeToggle from "./ColorModeToggle.astro";
+import SiteFooter from "./SiteFooter.astro";
+import { messages, localizedPath, type Language, type LegalPage } from "../lib/messages";
+import { legalMessages, legalUpdated } from "../lib/legal";
+import { cloudApp, publisher } from "../lib/site";
+
+interface Props { lang: Language; page: LegalPage }
+const { lang, page } = Astro.props;
+const t = legalMessages[lang];
+const document = t[page];
+const updated = new Intl.DateTimeFormat(lang, { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${legalUpdated}T00:00:00Z`));
+---
+<Page lang={lang} page={page} title={`${document.title} — Open Process`} description={document.description}>
+  <a class="skip-link" href="#main">{messages[lang].skip}</a>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href={localizedPath(lang)} aria-label="Open Process"><img src="/assets/logo.svg" width="45" height="45" alt=""><span>Open Process<span class="brand-dot">.</span></span></a>
+      <div class="header-actions">
+        <ColorModeToggle lang={lang} />
+        <LanguageMenu lang={lang} page={page} />
+        <a class="button button-small button-dark" href={new URL(cloudApp).pathname}><span>{messages[lang].getApp}</span><span aria-hidden="true">↗</span></a>
+      </div>
+    </div>
+  </header>
+  <main id="main" class="container legal-page">
+    <div class="legal-heading">
+      <a class="text-link muted" href={localizedPath(lang)}><span aria-hidden="true">←</span><span>{t.home}</span></a>
+      <p class="eyebrow">{t.eyebrow}</p>
+      <h1>{document.title}<span class="accent">.</span></h1>
+      <p class="legal-intro">{document.intro}</p>
+      <p class="legal-updated">{t.updated}: <time datetime={legalUpdated}>{updated}</time></p>
+    </div>
+    <div class="legal-layout">
+      <aside class="legal-sidebar">
+        <nav aria-label={t.contents}>
+          <p class="mono">{t.contents}</p>
+          <ol>{document.sections.map(section => <li><a href={`#${section.id}`}>{section.title}</a></li>)}</ol>
+        </nav>
+        <div class="legal-contact"><p class="mono">{t.contact}</p><a href={publisher.url}>{publisher.name}</a><a href={`mailto:${publisher.email}`}>{publisher.email}</a></div>
+      </aside>
+      <article class="legal-content" aria-label={document.title}>
+        {document.sections.map(section => <section id={section.id} aria-labelledby={`${section.id}-title`}>
+          <h2 id={`${section.id}-title`}>{section.title}</h2>
+          {section.paragraphs.map(paragraph => <p>{paragraph}</p>)}
+          {section.links && <ul class="legal-references">{section.links.map(link => <li><a href={link.href}>{link.label}<span aria-hidden="true"> ↗</span></a></li>)}</ul>}
+        </section>)}
+      </article>
+    </div>
+  </main>
+  <SiteFooter lang={lang} page={page} />
+</Page>
+
+<style>
+  .legal-page { padding-block: 54px 80px; }
+  .legal-heading { max-width: 800px; }
+  .legal-heading > .text-link { font-size: 12px; }
+  .legal-heading > .eyebrow { margin-top: 42px; color: var(--muted); }
+  .legal-heading h1 { font-size: clamp(36px, 5.5vw, 66px); margin-top: 19px; }
+  .legal-intro { font-size: 16px; line-height: 1.9; color: var(--muted); margin-top: 24px; max-width: 690px; }
+  .legal-updated { font-size: 12px; color: var(--muted); margin-top: 20px; }
+  .legal-layout { display: grid; grid-template-columns: minmax(0, 245px) minmax(0, 1fr); gap: 70px; margin-top: 42px; border-top: 1px solid var(--line); padding-top: 32px; }
+  .legal-sidebar { align-self: start; }
+  .legal-sidebar .mono { font-size: 10px; color: var(--muted); }
+  .legal-sidebar ol { list-style: decimal-leading-zero; padding-left: 26px; margin-top: 17px; }
+  .legal-sidebar li { font-size: 12px; line-height: 1.6; padding: 6px 0 6px 4px; }
+  .legal-sidebar li::marker { color: var(--muted); font-family: var(--mono); font-size: 10px; }
+  .legal-sidebar a:hover { text-decoration: underline; text-underline-offset: 4px; }
+  .legal-contact { display: grid; gap: 10px; margin-top: 28px; border-top: 1px solid var(--line); padding-top: 22px; font-size: 12px; overflow-wrap: anywhere; }
+  .legal-content { max-width: 720px; min-width: 0; }
+  .legal-content section + section { margin-top: 34px; border-top: 1px solid var(--line); padding-top: 28px; }
+  .legal-content h2 { font-size: 23px; line-height: 1.35; letter-spacing: -.035em; }
+  .legal-content p { font-size: 14px; line-height: 1.95; margin-top: 15px; color: var(--muted); overflow-wrap: anywhere; }
+  .legal-references { display: flex; flex-wrap: wrap; gap: 10px 24px; list-style: none; padding: 0; margin-top: 17px; font-size: 12px; }
+  .legal-references a { text-decoration: underline; text-underline-offset: 4px; }
+  @media (max-width: 760px) {
+    .legal-page { padding-block: 30px 50px; }
+    .legal-heading > .eyebrow { margin-top: 32px; font-size: 9px; }
+    .legal-intro { font-size: 14px; }
+    .legal-layout { grid-template-columns: minmax(0, 1fr); gap: 32px; margin-top: 30px; }
+    .legal-content h2 { font-size: 22px; }
+    .legal-content p { font-size: 13px; }
+  }
+</style>

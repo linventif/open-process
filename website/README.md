@@ -75,6 +75,27 @@ use **Direct Upload** with `dist/` after `bun run build`.
 References: [Astro on Cloudflare](https://docs.astro.build/en/guides/deploy/cloudflare/)
 and [Pages build configuration](https://developers.cloudflare.com/pages/configuration/build-configuration/).
 
+## Classic appearance
+
+Classic is the only theme. The comparison bar, family dropdown and swatches have
+been removed. The English, French and Spanish presentation and legal pages follow
+the system's light/dark preference, including changes while a page is open.
+Automatic mode does not save an override. A choice made with the compact sun/moon
+button or a valid `mode` URL takes priority, survives reloads and language
+navigation, and synchronizes between tabs. Language preferences remain independent.
+
+The [visual identity guide](../docs/identite-graphique.md) describes the shared
+Classic identity. Static styling lives in `src/styles/global.css` and
+`src/styles/color-mode.css`; only explicit color choices are saved under
+`open-process-color-mode-v2`. The old color-mode and appearance v1 settings are
+reset once because they also recorded automatic defaults. Old manual choices can
+be selected again. App links retain the local `/app/` destination and pass only
+the current color mode. The original O → P assets and light logo remain.
+
+The gallery loads 16 real app images from `public/assets/classic/<mode>/`.
+Regenerate them with the gallery UI test and exporter documented in the guide.
+Alternative families, their palette catalogue and preview images are removed.
+
 ## SEO and content
 
 - Build-generated English/French/Spanish HTML: titles, descriptions, content and
@@ -97,8 +118,106 @@ in `src/scripts/site.ts`. `public/assets/` contains the logo, screenshots and fo
 licenses. `_headers` separates presentation-site policy from the app's WebAssembly
 and generated scripts.
 
+### Terms and privacy
+
+The shared footer links to `/terms/` and `/privacy/`, with French and Spanish
+versions under `/fr/` and `/es/`. Each page has its own canonical URL, translated
+alternates, `WebPage` metadata and sitemap entry. The shared language menu keeps
+the current legal page when changing languages, and works without JavaScript.
+Legal pages use the presentation CSP and do not load the home page's release
+lookup or screenshot scripts.
+
+Publisher details are centralized in `src/lib/site.ts`: **Linventif**,
+<contact@open-process.linv.dev> and the public GitHub profile. No personal name,
+company registration or postal address has been supplied or inferred.
+`src/lib/legal.ts` contains the typed English/French/Spanish content and its
+explicit revision date. Update all three translations when practices change.
+
+The terms preserve the MIT/Apache software licenses. Privacy content follows the
+[implemented storage and network behavior](../docs/data-and-storage.md), covers
+local deletion, Cloudflare hosting, GitHub release requests, correspondence and
+data protection rights, and links to provider policies. Hosting logs, optional
+hosting analytics, retention settings and transfer configuration have not been
+audited; the page does not claim they are absent or invent a retention period.
+The [CNIL information guidance](https://www.cnil.fr/fr/conformite-rgpd-information-des-personnes-et-transparence)
+was consulted for the notice structure. These pages do not establish an audit or
+certification of the production service's legal compliance.
+
+Validation history and the scope of the current Classic-only checks are recorded
+in [the verification record](../docs/verification.md). Earlier legal-page checks
+covered metadata, alternate URLs, sitemap entries, CSP routes, scripts, local
+links and section anchors. Current checks also cover retired preference/URL
+handling and retained light/dark behavior.
+
+The presentation covers the main document types and the BPMN cost/duration
+workflow, in home-screen order. Cards link to the corresponding internal guides. Keep feature descriptions within the implemented scope in
+those guides; translations share the English message keys. The local-saving
+section distinguishes desktop Documents/Open Process, browser local storage and
+manual `.opx` copies. Clearing browser storage removes its automatic copies.
+The learning callout and its navigation link have been removed from all three
+language versions; the feature cards still describe Petri analysis and Alpha
+discovery.
+
+The gallery has eight actual application views, with drawing first. Its counter
+derives from the rendered tabs. Classic has light/dark 1400 × 860 WebP
+captures, exported at quality 90 from ignored `target/screenshots/classic/`:
+
+| Website view | Capture scene |
+| --- | --- |
+| `draw` | Registered free-drawing example. |
+| `database` | Registered relational schema example. |
+| `uml` | Registered UML class example. |
+| `bpmn` | Order handling process. |
+| `petri` | Mutual-exclusion net with matrices. |
+| `mining` | Registered second Alpha event log. |
+| `mermaid` | Registered sequence diagram. |
+| `split` | BPMN and Petri matrices in split views. |
+
+The Classic gallery UI test generates these sources while checking that color-mode
+changes leave document snapshots untouched. `scripts/export-theme-previews.py`
+validates the complete set before exporting it. Root asset URLs remain as
+Classic fallbacks for initial HTML, metadata and the no-JavaScript page.
+
 The transparent logo and favicons in `public/icons/` derive from shared native/web
 vector artwork. See [the icon guide](../docs/icone.md) to regenerate formats.
+
+## Integrated documentation
+
+`/docs/` is the documentation home; `/fr/docs/` and `/es/docs/` provide localized
+navigation. Every catalogue card now opens the corresponding internal tool
+guide. The header and shared footer also link to documentation.
+
+The site renders the maintained Markdown in `../docs/` directly, along with the
+project overview, contribution/community pages and this README. There is no
+second copy of their prose. New practical guides cover BPMN, Petri, UML classes
+and use cases, discovery, BPMN evaluation, DMN, EPC, UML activities and
+troubleshooting. General guides cover the interface, saving, formats and
+compatibility; project documents and historical/proposed work have their own
+navigation groups. The English guide content is marked `lang="en"`; French and
+Spanish pages explicitly identify this fallback.
+
+`src/lib/docs-catalogue.ts` declares source paths, stable public slugs, groups,
+descriptions, search keywords and the tool-to-guide mapping. Add a catalogue
+entry when adding a maintained Markdown guide. `src/lib/docs.ts` imports Astro's
+Markdown modules and resolves relative guide links for the current route
+language. Code/source links retain their repository destination; the annotated
+interface SVG and SQL examples are also served locally under `/docs-assets/`.
+
+`Documentation.astro` shares branding, color preferences, language switching and
+page metadata with the rest of the site. Guides have a section table of contents,
+active navigation and previous/next links within their group. On smaller screens,
+the guide menu and section contents use native expandable controls. Every guide,
+navigation link and table of contents is readable without JavaScript. JavaScript
+adds accent-insensitive filtering by guide title, description and keywords, with
+a result count and an empty state; it makes no network request.
+
+Documentation routes use the presentation CSP without inline styles or scripts.
+Markdown code blocks are plain text styled by the shared documentation stylesheet.
+Astro generates canonical URLs, matching language alternates and sitemap entries.
+Documentation tests verify source coverage, all tool destinations, rendered
+metadata, local links/anchors, assets and language-preserving navigation. Run
+`bun run build:site` before output-dependent documentation tests. A full
+`bun run build` remains necessary before tests that inspect the shipped Wasm app.
 
 ## Downloads and CI/CD
 
@@ -124,6 +243,14 @@ tests and four target builds succeed; `v*` tags are supported too. `main-*` buil
 and prerelease tags remain prereleases; only `vMAJOR.MINOR.PATCH` becomes latest
 stable. Release assets include `SHA256SUMS`. Dependency audits and executable
 SQLite checks are part of CI; action versions are pinned to commits.
+
+Use `bun run audit` to run the website dependency gate used in CI. It audits the
+complete lockfile and retains the full JSON advisory report. A temporary exception
+for the unpatched build-tool advisory `GHSA-fc5q-39xc-vjpf` expires automatically
+on 1 December 2026 at 00:00 UTC; other advisories and network failures still block
+CI. Raw `bun audit` reports the exception too. See the
+[review and removal criteria](../SECURITY.md#dependency-audit-exception).
+
 Cloudflare Pages is the deployment target and builds/deploys through its Git
 integration. The GitHub Actions website job only validates the build and uploads
 an artifact; it does not publish a site.
@@ -142,8 +269,9 @@ downloads and mobile layout. Spanish and EN/FR/ES links were checked by builds/H
 tests, without an additional interactive browser validation for that addition.
 See [the verification record](../docs/verification.md) for historical check scope.
 
-After a complete build, an installed Firefox can run all four Wasm job types,
-cancellation and error handling against the shipped app CSP:
+After a complete build, an installed Firefox can exercise the Petri, discovery,
+BPMN evaluation and Mermaid preview jobs, cancellation and error handling against
+the shipped app CSP:
 
 ```sh
 python3 ../scripts/check-web-worker.py

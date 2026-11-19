@@ -6,8 +6,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
 mod connections;
+mod editing;
 pub mod svg;
 pub use connections::{Attachment, Geometry, WhiteboardCodec};
+pub use editing::{Fragment, StackOrder};
 pub type Id = u64;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -22,6 +24,24 @@ pub enum Kind {
     Note,
 }
 impl Kind {
+    /// Equal-sided shapes and 45-degree line directions for constrained drawing.
+    pub fn constrained_endpoint(self, start: Pos, end: Pos) -> Pos {
+        let delta = end - start;
+        let delta = match self {
+            Self::Line | Self::Arrow => {
+                let angle = (delta.y.atan2(delta.x) / std::f32::consts::FRAC_PI_4).round() * std::f32::consts::FRAC_PI_4;
+                let length = delta.x.hypot(delta.y);
+                Pos::new(angle.cos() * length, angle.sin() * length)
+            }
+            Self::Rectangle | Self::Ellipse | Self::Diamond | Self::Note => {
+                let side = delta.x.abs().max(delta.y.abs());
+                Pos::new(if delta.x < 0.0 { -side } else { side }, if delta.y < 0.0 { -side } else { side })
+            }
+            _ => delta,
+        };
+        start + delta
+    }
+
     pub const ALL: [Self; 8] = [
         Self::Rectangle,
         Self::Ellipse,
@@ -234,43 +254,7 @@ impl Board {
         self.elements.retain(|e| !ids.contains(&e.id));
     }
     pub fn duplicate(&mut self, ids: &BTreeSet<Id>) -> BTreeSet<Id> {
-        let geometry = self.geometry();
-        let copies: Vec<_> = self
-            .elements
-            .iter()
-            .filter(|e| ids.contains(&e.id))
-            .map(|e| {
-                let mut copy = e.clone();
-                if e.kind.is_connector() {
-                    let points = geometry.points(e);
-                    copy.set_endpoints(points[0], points[1]);
-                }
-                copy
-            })
-            .collect();
-        let mut remap = std::collections::HashMap::new();
-        let mut used = self.elements.iter().map(|e| e.id).collect();
-        for mut e in copies {
-            let original = e.id;
-            e.bounds.x += 20.0;
-            e.bounds.y += 20.0;
-            let id = self.allocate_id(&mut used);
-            e.id = id;
-            self.elements.push(e);
-            remap.insert(original, id);
-        }
-        let copied: BTreeSet<_> = remap.values().copied().collect();
-        for e in self.elements.iter_mut().filter(|e| copied.contains(&e.id)) {
-            for attachment in [&mut e.start_attachment, &mut e.end_attachment] {
-                *attachment = attachment.and_then(|a| {
-                    remap.get(&a.element).map(|element| Attachment {
-                        element: *element,
-                        port: a.port,
-                    })
-                });
-            }
-        }
-        copied
+        self.paste(&self.fragment(ids), Pos::new(20.0, 20.0)).unwrap_or_default()
     }
     pub fn bounds(&self) -> Option<Rect> {
         self.geometry().bounds()
