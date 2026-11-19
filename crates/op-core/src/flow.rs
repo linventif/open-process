@@ -88,6 +88,24 @@ impl<K: FlowKind> Node<K> {
 }
 
 impl<K: FlowKind> Diagram<K> {
+    /// Arranges nodes left to right along their flows. Loops return leftward;
+    /// identities, kinds, names, sizes and flows are unchanged.
+    pub fn auto_arrange(&mut self, grid: Option<f32>) -> Result<(), String> {
+        let index: std::collections::HashMap<Id, usize> = self.nodes.iter().enumerate().map(|(i, n)| (n.id, i)).collect();
+        let sizes: Vec<_> = self.nodes.iter().map(|n| (n.bounds.w, n.bounds.h)).collect();
+        let edges: Vec<_> = self
+            .flows
+            .iter()
+            .filter_map(|f| Some((*index.get(&f.from)?, *index.get(&f.to)?)))
+            .collect();
+        let options = crate::layout::Options::new(crate::layout::Direction::LeftToRight, grid);
+        let centers = crate::layout::layered(&sizes, &edges, options).map_err(|e| e.to_string())?;
+        for (n, c) in self.nodes.iter_mut().zip(centers) {
+            n.bounds = Rect::from_center(c, n.bounds.w, n.bounds.h);
+        }
+        Ok(())
+    }
+
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),

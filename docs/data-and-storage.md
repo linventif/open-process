@@ -63,7 +63,13 @@ documents the file and session schemas.
 
 Classic is the only theme. The application's existing eframe preferences retain
 its light/dark choice; the retired `open-process-appearance-v1` family setting is
-no longer read or written. The website follows the system's light/dark preference
+no longer read or written. **View → Theme** offers System, Light and Dark. The
+sun/moon button switches theme; picking the system's own theme returns to
+**System**, so later system changes apply again, while the other theme stays an
+explicit override. On Linux, where winit reports no system theme (X11 or Wayland), the app
+reads `org.freedesktop.appearance color-scheme` from the settings portal over
+D-Bus and follows its changes while running (no preference counts as light).
+Without a portal, egui's dark fallback still applies. The website follows the system's light/dark preference
 on load and during live changes unless a visitor chooses a mode explicitly.
 Only a button choice or valid `mode` URL stores `light` or `dark` in
 `open-process-color-mode-v2`. Reloads and language navigation retain that choice;

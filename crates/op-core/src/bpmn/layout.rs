@@ -1,7 +1,9 @@
-//! Deterministic left-to-right layout. Only presentation changes: all node/flow
-//! identities, properties and original pool/lane memberships are preserved.
+//! Deterministic left-to-right layout built on [`crate::layout`]. Only
+//! presentation changes: all node/flow identities, properties and original
+//! pool/lane memberships are preserved.
 use super::*;
-use std::collections::{BTreeMap, BTreeSet};
+use crate::layout;
+use std::collections::BTreeMap;
 
 const PAD: f32 = 40.0;
 const COLUMN_GAP: f32 = 80.0;
@@ -36,113 +38,72 @@ pub fn auto_arrange(diagram: &mut BpmnDiagram, grid: Option<f32>) -> Result<(), 
     {
         return Err(tr("bpmn.move_elements_out_pool_headers_separate_overlapping").into());
     }
-    let info: BTreeMap<_, _> = diagram.nodes.iter().map(|n| (n.id, n)).collect();
-    if info.len() != diagram.nodes.len()
+    let index: BTreeMap<_, _> = diagram.nodes.iter().enumerate().map(|(i, n)| (n.id, i)).collect();
+    if index.len() != diagram.nodes.len()
         || diagram
             .flows
             .iter()
-            .any(|f| !info.contains_key(&f.from) || !info.contains_key(&f.to))
+            .any(|f| !index.contains_key(&f.from) || !index.contains_key(&f.to))
     {
         return Err(tr("bpmn.cannot_arrange_diagram_invalid_element_references").into());
     }
-    let mut ranks = flow_ranks(diagram);
-    let orphan_rank = ranks.values().copied().max().map_or(0, |rank| rank + 1);
-    for n in diagram.nodes.iter().filter(|n| !n.kind.is_flow_node()) {
-        let rank = diagram
-            .flows
-            .iter()
-            .filter(|f| f.kind == FlowKind::Association)
-            .filter_map(|f| {
-                let other = if f.from == n.id {
-                    f.to
-                } else if f.to == n.id {
-                    f.from
-                } else {
-                    return None;
-                };
-                info.get(&other)
-                    .filter(|n| n.kind.is_flow_node())
-                    .and_then(|_| ranks.get(&other))
-                    .copied()
-            })
-            .min()
-            .unwrap_or(orphan_rank);
-        ranks.insert(n.id, rank);
-    }
-    let columns = ranks.values().copied().max().map_or(0, |rank| rank + 1);
-    let mut widths = vec![0.0f32; columns];
-    for n in &diagram.nodes {
-        widths[ranks[&n.id]] = widths[ranks[&n.id]].max(n.w);
-    }
+    // One band per lane, then one for elements outside pools. Every flow kind
+    // orders columns: messages follow the exchange between pools and artifacts
+    // sit next to the element they document.
+    let lanes: Vec<(Id, Id)> = diagram
+        .pools
+        .iter()
+        .flat_map(|p| p.lanes.iter().map(move |l| (p.id, l.id)))
+        .collect();
+    let bands: Vec<usize> = diagram
+        .nodes
+        .iter()
+        .map(|n| {
+            owners[&n.id]
+                .1
+                .and_then(|lane| lanes.iter().position(|&l| l == lane))
+                .unwrap_or(lanes.len())
+        })
+        .collect();
+    let sizes: Vec<_> = diagram.nodes.iter().map(|n| (n.w, n.h)).collect();
+    let edges: Vec<_> = diagram.flows.iter().map(|f| (index[&f.from], index[&f.to])).collect();
+    let options = layout::Options {
+        margin: PAD,
+        layer_gap: COLUMN_GAP,
+        node_gap: ROW_GAP,
+        ..layout::Options::new(layout::Direction::LeftToRight, grid)
+    };
+    let arranged = layout::layered_bands(&sizes, &edges, &bands, options)
+        .map_err(|_| tr("bpmn.cannot_arrange_diagram_invalid_geometry").to_string())?;
+    let body_width = diagram
+        .nodes
+        .iter()
+        .zip(&arranged.centers)
+        .map(|(n, c)| c.x + n.w / 2.0 + PAD)
+        .fold(2.0 * PAD, f32::max);
     // Round outward so snapping cannot consume the spacing around a shape.
     let align = |value: f32| grid.map_or(value, |step| (value / step).ceil() * step);
-    let mut centers = vec![];
-    let mut x = PAD;
-    for width in widths {
-        let center = align(x + width / 2.0);
-        centers.push(center);
-        x = center + width / 2.0 + COLUMN_GAP;
-    }
-    let body_width = if columns == 0 { 2.0 * PAD } else { x - COLUMN_GAP + PAD };
-    let group_columns = |ids: Vec<Id>| {
-        let mut groups: BTreeMap<usize, Vec<Id>> = BTreeMap::new();
-        for id in ids {
-            groups.entry(ranks[&id]).or_default().push(id);
-        }
-        for ids in groups.values_mut() {
-            ids.sort_unstable();
-        }
-        groups
-    };
-    let place_rows = |groups: &BTreeMap<usize, Vec<Id>>, origin: Pos, positions: &mut BTreeMap<Id, Pos>| {
-        let mut heights = vec![0.0f32; groups.values().map(Vec::len).max().unwrap_or(0)];
-        for ids in groups.values() {
-            for (row, id) in ids.iter().enumerate() {
-                heights[row] = heights[row].max(info[id].h);
-            }
-        }
-        let mut rows = Vec::with_capacity(heights.len());
-        let mut bottom = origin.y;
-        let mut y = origin.y + PAD;
-        for height in heights {
-            let center = align(y + height / 2.0);
-            rows.push(center);
-            bottom = center + height / 2.0;
-            y = bottom + ROW_GAP;
-        }
-        for (&rank, ids) in groups {
-            for (row, &id) in ids.iter().enumerate() {
-                positions.insert(id, Pos::new(origin.x + centers[rank], rows[row]));
-            }
-        }
-        align((bottom + PAD - origin.y).max(140.0))
-    };
-    let mut positions = BTreeMap::new();
+    let required = |band: usize| align(arranged.extents.get(band).copied().unwrap_or(0.0).max(140.0));
+    let mut origins = vec![Pos::default(); lanes.len() + 1];
     let mut next = diagram.clone();
     let mut pool_y = PAD;
+    let mut band = 0;
     for pool in &mut next.pools {
         pool.pos = Pos::new(align(PAD), align(pool_y));
         let body_x = align(pool.pos.x + POOL_HEADER);
         pool.width = align(pool.width.max(body_x - pool.pos.x + body_width));
         let mut lane_y = pool.pos.y;
         for lane in &mut pool.lanes {
-            let groups = group_columns(
-                owners
-                    .iter()
-                    .filter(|(_, (_, owner))| *owner == Some((pool.id, lane.id)))
-                    .map(|(&id, _)| id)
-                    .collect(),
-            );
-            let required = place_rows(&groups, Pos::new(body_x, lane_y), &mut positions);
-            lane.height = align(lane.height.max(required));
+            origins[band] = Pos::new(body_x, lane_y);
+            lane.height = align(lane.height.max(required(band)));
             lane_y += lane.height;
+            band += 1;
         }
         pool_y = lane_y + 2.0 * PAD;
     }
-    let unpooled = group_columns(owners.iter().filter(|(_, owner)| owner.0.is_none()).map(|(&id, _)| id).collect());
-    place_rows(&unpooled, Pos::new(align(PAD), align(pool_y)), &mut positions);
-    for n in &mut next.nodes {
-        n.pos = positions[&n.id];
+    origins[lanes.len()] = Pos::new(align(PAD), align(pool_y));
+    for ((n, c), &band) in next.nodes.iter_mut().zip(&arranged.centers).zip(&bands) {
+        n.pos = origins[band] + *c;
     }
     if next.nodes.iter().any(|n| !n.pos.x.is_finite() || !n.pos.y.is_finite())
         || next
@@ -157,37 +118,6 @@ pub fn auto_arrange(diagram: &mut BpmnDiagram, grid: Option<f32>) -> Result<(), 
     }
     *diagram = next;
     Ok(())
-}
-
-/// Kahn layering, with a stable break when only a cyclic component remains.
-/// Back edges stay valid and return to an earlier column; layout always terminates.
-fn flow_ranks(d: &BpmnDiagram) -> BTreeMap<Id, usize> {
-    let mut remaining: BTreeSet<_> = d.nodes.iter().filter(|n| n.kind.is_flow_node()).map(|n| n.id).collect();
-    let mut incoming: BTreeMap<_, _> = remaining.iter().map(|&id| (id, 0usize)).collect();
-    let mut outgoing: BTreeMap<Id, Vec<Id>> = BTreeMap::new();
-    for f in d.flows.iter().filter(|f| f.kind == FlowKind::Sequence) {
-        if remaining.contains(&f.from) && remaining.contains(&f.to) {
-            *incoming.get_mut(&f.to).unwrap() += 1;
-            outgoing.entry(f.from).or_default().push(f.to);
-        }
-    }
-    let mut ready: BTreeSet<_> = incoming.iter().filter(|(_, count)| **count == 0).map(|(&id, _)| id).collect();
-    let mut ranks: BTreeMap<_, _> = remaining.iter().map(|&id| (id, 0)).collect();
-    while !remaining.is_empty() {
-        let id = ready.pop_first().unwrap_or_else(|| *remaining.first().unwrap());
-        remaining.remove(&id);
-        for &to in outgoing.get(&id).into_iter().flatten() {
-            if remaining.contains(&to) {
-                ranks.insert(to, ranks[&to].max(ranks[&id] + 1));
-                let count = incoming.get_mut(&to).unwrap();
-                *count = count.saturating_sub(1);
-                if *count == 0 {
-                    ready.insert(to);
-                }
-            }
-        }
-    }
-    ranks
 }
 
 #[cfg(test)]

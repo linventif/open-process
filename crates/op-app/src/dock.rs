@@ -189,6 +189,50 @@ pub fn add_beside(tree: &mut Tree<Pane>, pane: Pane, near: Option<TileId>, verti
     tile
 }
 
+/// Which tabs of a tab bar a bulk close targets, relative to the clicked tab.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CloseTabs {
+    All,
+    Left,
+    Right,
+}
+
+/// `(document, tile)` of each tab targeted by a bulk close, in tab order.
+/// Only the tab bar holding `tile` is affected; other split groups stay open.
+pub fn tabs_to_close(tiles: &Tiles<Pane>, tile: TileId, which: CloseTabs) -> Vec<(u64, TileId)> {
+    let siblings = match tabs_parent(tiles, tile).and_then(|parent| tiles.get(parent)) {
+        Some(Tile::Container(Container::Tabs(tabs))) => tabs.children.clone(),
+        _ => vec![tile],
+    };
+    let Some(at) = siblings.iter().position(|&id| id == tile) else {
+        return vec![];
+    };
+    siblings
+        .into_iter()
+        .enumerate()
+        .filter(|&(i, _)| match which {
+            CloseTabs::All => true,
+            CloseTabs::Left => i < at,
+            CloseTabs::Right => i > at,
+        })
+        .filter_map(|(_, id)| tiles.get_pane(&id).map(|pane| (pane.doc, id)))
+        .collect()
+}
+
+/// `(index, count)` of every pane in its tab bar. Tab menus read this snapshot
+/// because egui_tiles detaches the tab bar being drawn from the tree.
+pub fn tab_slots(tree: &Tree<Pane>) -> std::collections::HashMap<TileId, (usize, usize)> {
+    let mut slots = std::collections::HashMap::new();
+    for (_, tile) in tree.tiles.iter() {
+        if let Tile::Container(Container::Tabs(tabs)) = tile {
+            for (i, &child) in tabs.children.iter().enumerate() {
+                slots.insert(child, (i, tabs.children.len()));
+            }
+        }
+    }
+    slots
+}
+
 /// Makes the tab holding `tile` visible.
 pub fn activate(tree: &mut Tree<Pane>, tile: TileId) {
     tree.make_active(|id, _| id == tile);
@@ -235,5 +279,23 @@ mod tests {
         remove_doc(&mut t, 2);
         assert!(panes_of(&t, 2).is_empty());
         assert!(t.tiles.get(c).is_none());
+    }
+
+    #[test]
+    fn bulk_close_targets_only_the_clicked_tab_bar() {
+        let mut t = new_tree();
+        let pane = |doc| Pane { doc, view: View::Editor };
+        let a = add_tab(&mut t, pane(1), None);
+        let b = add_tab(&mut t, pane(2), Some(a));
+        let c = add_tab(&mut t, pane(3), Some(a));
+        let side = add_beside(&mut t, pane(4), Some(a), false);
+        assert_eq!(tabs_to_close(&t.tiles, b, CloseTabs::Left), vec![(1, a)]);
+        assert_eq!(tabs_to_close(&t.tiles, b, CloseTabs::Right), vec![(3, c)]);
+        assert_eq!(tabs_to_close(&t.tiles, b, CloseTabs::All), vec![(1, a), (2, b), (3, c)]);
+        assert!(tabs_to_close(&t.tiles, a, CloseTabs::Left).is_empty());
+        assert!(tabs_to_close(&t.tiles, c, CloseTabs::Right).is_empty());
+        assert_eq!(tabs_to_close(&t.tiles, side, CloseTabs::All), vec![(4, side)]);
+        let slots = tab_slots(&t);
+        assert_eq!((slots[&a], slots[&b], slots[&c], slots[&side]), ((0, 3), (1, 3), (2, 3), (0, 1)));
     }
 }

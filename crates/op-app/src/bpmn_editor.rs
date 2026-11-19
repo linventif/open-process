@@ -12,7 +12,7 @@ mod resize;
 mod session;
 pub(crate) use session::register;
 
-use crate::editor::layout::{CanvasControls, DiagramLayout, FooterStatus};
+use crate::editor::layout::{ArrangeControl, CanvasControls, DiagramLayout, FooterStatus};
 
 use crate::canvas::{self, InlineOutcome, Palette, View, to_pos2};
 use crate::editor::clipboard::{CanvasClipboard, ClipboardState};
@@ -435,26 +435,13 @@ impl BpmnEditor {
                 snap: Some(&mut self.snap),
                 inspector: &mut self.show_inspector,
                 issues: Some(&mut self.show_issues),
+                arrange: Some(ArrangeControl {
+                    requested: &mut arrange,
+                    enabled: !self.diagram.nodes.is_empty() || !self.diagram.pools.is_empty(),
+                }),
             },
             status,
-            |ui| {
-                canvas::style_menu(ui, &mut self.diagram.style, false);
-                if crate::editor::exam::active(ui.ctx()) {
-                    return;
-                }
-                if ui
-                    .add_enabled(
-                        !self.diagram.nodes.is_empty() || !self.diagram.pools.is_empty(),
-                        egui::Button::new(tr("bpmn.auto_arrange")),
-                    )
-                    .clicked()
-                {
-                    arrange = true;
-                    if ui.stack().iter().any(|stack| stack.kind() == Some(egui::UiKind::Menu)) {
-                        ui.close_kind(egui::UiKind::Menu);
-                    }
-                }
-            },
+            |ui| canvas::style_menu(ui, &mut self.diagram.style, false),
         );
         if arrange {
             self.auto_arrange();

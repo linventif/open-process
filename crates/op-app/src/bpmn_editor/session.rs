@@ -38,8 +38,8 @@ const COMMANDS: &[CommandDescriptor] = &[
         group: CommandGroup::Tools,
     },
     CommandDescriptor {
-        id: "bpmn.auto-arrange",
-        label: key("bpmn.auto_arrange"),
+        id: ARRANGE,
+        label: key("canvas.auto_arrange"),
         group: CommandGroup::Tools,
     },
     CommandDescriptor {
@@ -182,7 +182,7 @@ impl EditorBackend for BpmnEditor {
             REDO => self.can_redo(),
             DELETE => self.selection.is_some() || !self.group.is_empty() || !self.pool_group.is_empty(),
             FIT | PNG => true,
-            "bpmn.auto-arrange" => !self.diagram.nodes.is_empty() || !self.diagram.pools.is_empty(),
+            ARRANGE => !self.diagram.nodes.is_empty() || !self.diagram.pools.is_empty(),
             _ => COMMANDS.iter().any(|c| c.id == command),
         }
     }
@@ -202,7 +202,7 @@ impl EditorBackend for BpmnEditor {
             DELETE => self.delete_selection(),
             FIT => self.request_fit(),
             PNG => self.export_png = true,
-            "bpmn.auto-arrange" => self.auto_arrange(),
+            ARRANGE => self.auto_arrange(),
             "bpmn.convert-to-petri" => {
                 let c = op_core::convert::bpmn_to_petri(&self.diagram);
                 events.push(HostEvent::Open(JsonCodec::new("petri").encode(&c.net)));

@@ -1566,3 +1566,53 @@ corner, exports and checks that the PNG is wider than the window and than twice
 the diagram width, that drawn content reaches both ends and that the view is
 restored. `bpmn_full_export.png` (2440 × 1000 px) was inspected: no seams and no
 selection. Native and web save dialogs were not exercised interactively.
+## Shared auto arrange, bulk tab closing and matrix headers — 19 November 2026
+
+Auto arrange now uses one layered engine for BPMN, Petri nets, EPC, UML activity,
+flowcharts, UML class/use-case diagrams and database schemas. BPMN loop flows in
+the orthogonal style are routed around intermediate elements. Tab context menus
+add left/right/all bulk closing, and relation-matrix headers fit activity names.
+
+```sh
+cargo fmt --all -- --check
+cargo clippy --locked --workspace --all-targets -- -D warnings
+cargo test --locked --workspace --no-fail-fast -- --test-threads=1
+cargo check --locked -p op-app
+cargo check --locked -p op-app --target wasm32-unknown-unknown
+git diff --check
+```
+
+**273 tests passed** (130 app, 129 core, 14 integration), none ignored; clippy
+and both compilation checks reported no warnings. Tests cover layering direction, crossing reduction, cycles, isolated nodes, grid
+alignment and invalid geometry; the existing BPMN layout tests pass unchanged.
+UML tests check parents above children and use cases kept in their systems.
+A UI test clicks **Auto arrange** for one example of each graph notation and
+checks a single undo/redo step with an unchanged semantic revision. Another
+opens four tabs, closes to the right, cancels an unsaved-changes prompt (the
+queue stops), then answers it (the queue resumes) and closes all tabs.
+
+The `auto_arranged_*.png` and `tab_close_menu.png` screenshots were inspected,
+as were renders of a discovered 8-activity takeaway log (BPMN, Petri net and both
+matrices, including an elided name). These local Linux checks do not replace the
+CI matrix; no browser run, release build or deployment occurred.
+## System language and theme — 19 November 2026
+
+Until a language is picked in the dropdown, the app now follows the first
+supported system or browser language, and English otherwise. The sun/moon button
+returns to **System** when it selects the system's own theme. On Linux, the
+desktop's light/dark preference is read from the freedesktop settings portal and
+followed live. `sys-locale` and `zbus` were already compiled through eframe and
+accessibility; declaring them adds no package to `Cargo.lock`.
+
+`cargo fmt --check` and `cargo clippy --workspace --all-targets -D warnings`
+(Rust 1.100, as in CI), native/WebAssembly checks and `git diff --check` pass;
+**265 tests passed** (130 app, 121 core, 14 integration), none ignored.
+
+Unit tests cover locale matching, an explicit choice outranking the system,
+older storages (a saved non-English language counts as a choice, a saved English
+does not), the explicit flag including an explicit English, portal value mapping
+(including the deprecated nested variant) and the theme toggle returning to
+**System**. Tests do not read the machine's locale, so English test labels stay
+stable. A temporary live check on this Linux (Wayland) desktop read the portal
+through the new thread and got light (value 0); following a live change was not
+exercised.

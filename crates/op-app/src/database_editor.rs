@@ -7,7 +7,7 @@ pub(crate) use session::register;
 
 use crate::canvas::{self, View};
 use crate::editor::clipboard::{CanvasClipboard, ClipboardState};
-use crate::editor::layout::{CanvasControls, DiagramLayout, FooterStatus};
+use crate::editor::layout::{ArrangeControl, CanvasControls, DiagramLayout, FooterStatus};
 use crate::editor::*;
 use crate::history::History;
 use egui::{Rect, Ui};
@@ -111,6 +111,20 @@ impl DatabaseEditor {
         self.state.status.clear();
         self.history.sync(&self.schema, false);
     }
+    /// One undoable layout step: referenced tables precede referencing ones.
+    fn auto_arrange(&mut self) {
+        self.history.sync(&self.schema, false);
+        match self.schema.auto_arrange(self.state.snap.then_some(10.0)) {
+            Ok(()) => {
+                self.state.drag = None;
+                self.state.pending = None;
+                self.state.fit = true;
+                self.state.status.clear();
+                self.history.sync(&self.schema, false);
+            }
+            Err(e) => self.state.status = e,
+        }
+    }
     fn link(&mut self, from: Id, to: Id) {
         self.history.sync(&self.schema, false);
         match self.schema.add_foreign_key(from, to) {
@@ -209,6 +223,8 @@ impl DatabaseEditor {
             });
         } else {
             layout.inspector(ui, |ui| self.properties(ui));
+            let mut arrange = false;
+            let can_arrange = !self.schema.tables.is_empty();
             layout.configuration(
                 ui,
                 CanvasControls {
@@ -218,6 +234,10 @@ impl DatabaseEditor {
                     snap: Some(&mut self.state.snap),
                     inspector: &mut self.state.inspector,
                     issues: None,
+                    arrange: Some(ArrangeControl {
+                        requested: &mut arrange,
+                        enabled: can_arrange,
+                    }),
                 },
                 FooterStatus {
                     summary: trf(
@@ -229,6 +249,9 @@ impl DatabaseEditor {
                 },
                 |_| {},
             );
+            if arrange {
+                self.auto_arrange();
+            }
             layout.canvas(ui, |ui| self.canvas(ui));
         }
         self.history.sync(

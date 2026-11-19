@@ -33,6 +33,11 @@ const COMMANDS: &[CommandDescriptor] = &[
         group: CommandGroup::View,
     },
     CommandDescriptor {
+        id: ARRANGE,
+        label: key("canvas.auto_arrange"),
+        group: CommandGroup::Tools,
+    },
+    CommandDescriptor {
         id: "petri.simulation",
         label: key("petri.start_stop_token_game"),
         group: CommandGroup::Tools,
@@ -207,6 +212,7 @@ impl EditorBackend for PetriEditor {
             REDO => self.sim.is_none() && self.can_redo(),
             DELETE => self.sim.is_none() && (self.selection.is_some() || !self.group.is_empty()),
             FIT | PNG => true,
+            ARRANGE => self.can_arrange(),
             _ => COMMANDS.iter().any(|c| c.id == command),
         }
     }
@@ -225,6 +231,7 @@ impl EditorBackend for PetriEditor {
             REDO => self.redo(),
             DELETE => self.delete_selection(),
             FIT => self.request_fit(),
+            ARRANGE => self.auto_arrange(),
             PNG => self.export_png = true,
             "petri.simulation" => self.toggle_simulation(time),
             "petri.matrices" => self.show_matrices(),
