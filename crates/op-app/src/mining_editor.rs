@@ -390,11 +390,12 @@ impl MatrixGrid {
         let p = ui.painter();
         let border = ui.visuals().widgets.noninteractive.bg_stroke.color;
         let r = self.rect;
-        for k in 1..=self.n() {
+        // Inner boundaries: one below each header row and right of each header column.
+        for (k, &dx) in (1..).zip(&self.xs[1..=self.n()]) {
             let s = egui::Stroke::new(if k == 1 { 1.4 } else { 1.0 }, border);
             let y = r.top() + MATRIX_CELL.y * k as f32;
             p.line_segment([egui::pos2(r.left(), y), egui::pos2(r.right(), y)], s);
-            let x = r.left() + self.xs[k];
+            let x = r.left() + dx;
             p.line_segment([egui::pos2(x, r.top()), egui::pos2(x, r.bottom())], s);
         }
         p.rect_stroke(r, 8.0, egui::Stroke::new(1.0, border), egui::StrokeKind::Inside);
