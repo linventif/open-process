@@ -51,6 +51,8 @@ pub struct OpenProcessApp {
     io: FileIo,
     message: Option<(String, bool)>,
     show_about: bool,
+    /// Files written by a newer Open Process, waiting for the person's choice.
+    newer_files: std::collections::VecDeque<NewerFile>,
     show_shortcuts: bool,
     exam_mode: bool,
     confirm_close: Option<usize>,
@@ -69,6 +71,12 @@ pub struct OpenProcessApp {
 
 impl OpenProcessApp {
     pub fn new(cc: &eframe::CreationContext<'_>, files: Vec<String>, registry: &'static DiagramRegistry) -> Self {
+        let release = env!("OP_RELEASE_TAG");
+        op_core::document::set_writer_version(if release.is_empty() {
+            concat!("v", env!("CARGO_PKG_VERSION"))
+        } else {
+            release
+        });
         crate::theme::apply(&cc.egui_ctx);
         #[cfg(target_arch = "wasm32")]
         crate::theme::load_web_color_mode(&cc.egui_ctx);
@@ -91,6 +99,7 @@ impl OpenProcessApp {
             io: FileIo::default(),
             message: None,
             show_about: false,
+            newer_files: Default::default(),
             show_shortcuts: false,
             exam_mode: false,
             confirm_close: None,
@@ -270,32 +279,121 @@ impl OpenProcessApp {
         let native = name.to_lowercase().ends_with(".opx")
             || name.to_lowercase().ends_with(".json")
             || serde_json::from_slice::<serde_json::Value>(bytes).is_ok_and(|v| v["format"] == "open-process");
+        let generator = op_core::document::Generator::of(bytes).filter(|_| native);
+        // Content of the file that this version cannot keep, or why it cannot open it.
+        let mut unsupported = Vec::new();
         let state = match self.registry.load(bytes) {
             Ok(d) => match self.registry.open(&d) {
                 Ok(mut editor) => {
                     if ["Imported process", "Imported net", "net1", "Imported log"].contains(&editor.name()) {
                         editor.rename(io::file_name(&name).rsplit_once('.').map(|x| x.0).unwrap_or(&name).into());
                     }
-                    editor.snapshot()
+                    let state = editor.snapshot();
+                    if let (Some(_), StoredDocument::Editable(kept)) = (&generator, &state) {
+                        unsupported = op_core::document::unsupported_content(&d.model, &kept.model);
+                    }
+                    state
                 }
-                Err(e) => StoredDocument::Original {
-                    bytes: bytes.to_vec(),
-                    reason: e.to_string(),
-                },
+                Err(e) => {
+                    unsupported.push(e.to_string());
+                    StoredDocument::Original {
+                        bytes: bytes.to_vec(),
+                        reason: e.to_string(),
+                    }
+                }
             },
             Err(e) => {
                 if !native {
                     self.message = Some((format!("{}: {e}", io::file_name(&name)), true));
                     return;
                 }
+                unsupported.push(e.to_string());
                 StoredDocument::Original {
                     bytes: bytes.to_vec(),
                     reason: e.to_string(),
                 }
             }
         };
+        let editable = matches!(state, StoredDocument::Editable(_));
+        if let Some(generator) = generator.filter(|g| g.is_newer() || (editable && !unsupported.is_empty())) {
+            self.newer_files.push_back(NewerFile {
+                name,
+                generator,
+                unsupported,
+                state,
+            });
+            return;
+        }
         self.open_stored(state, native.then_some(name.clone()), native, None);
         self.message = Some((trf("app.opened", &[&io::file_name(&name)]), false));
+    }
+
+    /// Asks how to open a file written by a newer version: update first, or open
+    /// it here while listing what this version cannot keep.
+    fn newer_file_dialog(&mut self, ctx: &egui::Context) {
+        let Some(file) = self.newer_files.front() else { return };
+        let mut choice = None;
+        egui::Window::new(tr("file.newer_title"))
+            .collapsible(false)
+            .resizable(false)
+            .show(ctx, |ui| {
+                let current = op_core::document::Generator::current();
+                ui.label(trf(
+                    "file.newer_body",
+                    &[&io::file_name(&file.name), &file.generator.version, &current.version],
+                ));
+                ui.add_space(4.0);
+                if file.unsupported.is_empty() {
+                    ui.label(tr("file.newer_nothing_detected"));
+                } else {
+                    ui.label(tr("file.newer_unsupported"));
+                    egui::ScrollArea::vertical().max_height(180.0).show(ui, |ui| {
+                        for item in &file.unsupported {
+                            ui.label(format!("• {item}"));
+                        }
+                    });
+                    if matches!(file.state, StoredDocument::Editable(_)) {
+                        ui.colored_label(ui.visuals().warn_fg_color, tr("file.newer_save_warning"));
+                    }
+                }
+                ui.add_space(4.0);
+                ui.horizontal(|ui| {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    let update = tr("updates.check");
+                    #[cfg(target_arch = "wasm32")]
+                    let update = tr("file.newer_reload");
+                    if ui.button(update).clicked() {
+                        choice = Some(NewerChoice::Update);
+                    }
+                    if ui.button(tr("file.newer_open")).clicked() {
+                        choice = Some(NewerChoice::Open);
+                    }
+                    if ui.button(tr("common.cancel")).clicked() {
+                        choice = Some(NewerChoice::Cancel);
+                    }
+                });
+            });
+        let Some(choice) = choice else { return };
+        let Some(file) = self.newer_files.pop_front() else { return };
+        match choice {
+            NewerChoice::Open => {
+                let name = file.name;
+                self.open_stored(file.state, Some(name.clone()), true, None);
+                self.message = Some((trf("app.opened", &[&io::file_name(&name)]), false));
+            }
+            NewerChoice::Update => {
+                #[cfg(not(target_arch = "wasm32"))]
+                self.updates.start(ctx, true);
+                #[cfg(target_arch = "wasm32")]
+                {
+                    self.flush_automatic_documents();
+                    if let Some(window) = web_sys::window() {
+                        let _ = window.location().reload();
+                    }
+                }
+            }
+            NewerChoice::Cancel => {}
+        }
     }
 
     fn save(&mut self, save_as: bool) -> bool {
@@ -491,6 +589,7 @@ impl OpenProcessApp {
             || self.show_shortcuts
             || self.update_dialog_open()
             || self.confirm_close.is_some()
+            || !self.newer_files.is_empty()
             || crate::canvas::export::active()
             || egui::Popup::is_any_open(ctx)
             || ctx.memory(|m| m.top_modal_layer().is_some())
@@ -842,8 +941,13 @@ impl OpenProcessApp {
     fn dialogs(&mut self, ui: &Ui) {
         let ctx = ui.ctx().clone();
         #[cfg(not(target_arch = "wasm32"))]
-        let update_blocked = self.new_picker.is_some() || self.confirm_close.is_some() || self.show_about || self.show_shortcuts;
+        let update_blocked = self.new_picker.is_some()
+            || self.confirm_close.is_some()
+            || !self.newer_files.is_empty()
+            || self.show_about
+            || self.show_shortcuts;
         self.new_document_dialog(&ctx);
+        self.newer_file_dialog(&ctx);
         #[cfg(not(target_arch = "wasm32"))]
         if !update_blocked {
             self.updates.dialog(&ctx);
@@ -991,6 +1095,19 @@ fn follow_desktop_theme(ctx: &egui::Context) {
     {
         ctx.options_mut(|o| o.fallback_theme = theme);
     }
+}
+
+struct NewerFile {
+    name: String,
+    generator: op_core::document::Generator,
+    unsupported: Vec<String>,
+    state: StoredDocument,
+}
+
+enum NewerChoice {
+    Update,
+    Open,
+    Cancel,
 }
 
 /// Bridges the split-view tree and the documents.

@@ -8,7 +8,9 @@ several related types or a canvas-free document such as a table.
 Define a typed model, invariants and operations independently of egui. Choose a
 stable identifier, such as `state-machine`, and a model version. `DocumentCodec<M>`
 defines encoding/decoding; `JsonCodec<M>` provides an initial JSON representation
-and rejects unknown model versions.
+and rejects unknown model versions. Any new kind, model version or optional field
+that older readers would drop also requires increasing `CONTENT_REVISION` (see
+[writer version](documents-et-compatibilite.md#writer-version)).
 
 Use a module-owned `JsonCodec::checked` (or a custom codec) to enforce storage
 invariants on load. Keep these distinct from business diagnostics so unfinished

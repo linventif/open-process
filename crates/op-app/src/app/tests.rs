@@ -7,6 +7,7 @@ mod appearance;
 mod image_export;
 mod arrange_and_tabs;
 mod mermaid_builder;
+mod newer_files;
 mod resize;
 mod selection_editing;
 mod uml_tools;

@@ -79,7 +79,10 @@ document finishes its automatic save first. If saving fails, its content stays
 open with a save confirmation and an error; a manual copy can then be saved.
 
 Use **File → Open** or **Ctrl/Cmd+O** to reopen a saved file or import one of the
-supported formats. Files can also be dragged onto the application.
+supported formats. Select several files at once to open each in its own tab.
+Files can also be dragged onto the application. A file saved by a newer Open
+Process asks whether to update first or open it anyway, listing what this
+version does not support.
 
 The application also restores open tabs and layout. Keep manual `.opx` copies of
 work you need to move to another device or retain independently of browser data.
