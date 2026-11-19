@@ -186,6 +186,10 @@ impl OpenProcessApp {
         if !cfg!(test) {
             app.updates.start(&cc.egui_ctx, false);
         }
+        #[cfg(target_os = "linux")]
+        if !cfg!(test) {
+            crate::platform::system_theme::watch(cc.egui_ctx.clone());
+        }
         app
     }
 
@@ -957,7 +961,34 @@ fn theme_toggle(ui: &mut Ui) {
         tr("app.switch_dark_theme")
     });
     if resp.clicked() {
-        ui.ctx().set_theme(if dark { egui::Theme::Light } else { egui::Theme::Dark });
+        let target = if dark { egui::Theme::Light } else { egui::Theme::Dark };
+        ui.ctx().set_theme(toggled_preference(target, system_theme(ui.ctx())));
+    }
+}
+
+/// The theme the system asks for: reported by the windowing system or, when it
+/// cannot (Linux X11), read from the desktop portal into egui's fallback theme.
+fn system_theme(ctx: &egui::Context) -> egui::Theme {
+    ctx.system_theme().unwrap_or_else(|| ctx.options(|o| o.fallback_theme))
+}
+
+/// Choosing the system's own theme returns to following the system, so a later
+/// system change applies again; only the other theme is kept as an override.
+fn toggled_preference(target: egui::Theme, system: egui::Theme) -> egui::ThemePreference {
+    if target == system {
+        egui::ThemePreference::System
+    } else {
+        target.into()
+    }
+}
+
+/// Keeps egui's fallback theme in step with the Linux desktop preference.
+#[cfg(target_os = "linux")]
+fn follow_desktop_theme(ctx: &egui::Context) {
+    if let Some(theme) = crate::platform::system_theme::current()
+        && ctx.options(|o| o.fallback_theme) != theme
+    {
+        ctx.options_mut(|o| o.fallback_theme = theme);
     }
 }
 
@@ -1227,6 +1258,8 @@ impl eframe::App for OpenProcessApp {
     fn ui(&mut self, ui: &mut Ui, _frame: &mut eframe::Frame) {
         #[cfg(not(target_arch = "wasm32"))]
         self.updates.poll();
+        #[cfg(target_os = "linux")]
+        follow_desktop_theme(ui.ctx());
         crate::editor::exam::set_active(ui.ctx(), self.exam_mode);
         self.automatic_status(ui);
         self.thumbnails.poll(ui.ctx(), &self.docs, &self.automatic.entries);

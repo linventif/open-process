@@ -1577,3 +1577,24 @@ The `auto_arranged_*.png` and `tab_close_menu.png` screenshots were inspected,
 as were renders of a discovered 8-activity takeaway log (BPMN, Petri net and both
 matrices, including an elided name). These local Linux checks do not replace the
 CI matrix; no browser run, release build or deployment occurred.
+## System language and theme — 19 November 2026
+
+Until a language is picked in the dropdown, the app now follows the first
+supported system or browser language, and English otherwise. The sun/moon button
+returns to **System** when it selects the system's own theme. On Linux, the
+desktop's light/dark preference is read from the freedesktop settings portal and
+followed live. `sys-locale` and `zbus` were already compiled through eframe and
+accessibility; declaring them adds no package to `Cargo.lock`.
+
+`cargo fmt --check` and `cargo clippy --workspace --all-targets -D warnings`
+(Rust 1.100, as in CI), native/WebAssembly checks and `git diff --check` pass;
+**265 tests passed** (130 app, 121 core, 14 integration), none ignored.
+
+Unit tests cover locale matching, an explicit choice outranking the system,
+older storages (a saved non-English language counts as a choice, a saved English
+does not), the explicit flag including an explicit English, portal value mapping
+(including the deprecated nested variant) and the theme toggle returning to
+**System**. Tests do not read the machine's locale, so English test labels stay
+stable. A temporary live check on this Linux (Wayland) desktop read the portal
+through the new thread and got light (value 0); following a live change was not
+exercised.
