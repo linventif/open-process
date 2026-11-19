@@ -1547,3 +1547,33 @@ pass, including output assets, documentation links/anchors and the new audit
 policy tests. Local checks used Bun 1.4.0; CI selects 1.4.4. Local documentation
 file links and `git diff --check` pass. No Rust source changed, so native builds
 and the Rust workspace suite were not repeated for this audit-policy change.
+
+## Writer version in `.opx` and multiple file opening — 19 November 2026
+
+Saved envelopes now carry an optional `generator` (application, release tag and
+`CONTENT_REVISION`); the envelope version is unchanged. Opening a native file
+from a higher revision, or one whose content this version would drop, shows a
+prompt listing unsupported items before anything opens. **File → Open** accepts
+several files on native and web.
+
+```sh
+cargo fmt --all -- --check
+cargo clippy --locked --workspace --all-targets -- -D warnings
+cargo test --locked --workspace --no-fail-fast -- --test-threads=1
+cargo check --locked -p op-app
+cargo check --locked -p op-app --target wasm32-unknown-unknown
+git diff --check
+```
+
+**264 tests passed** (128 app, 121 core, 15 integration), none ignored; clippy
+and both compilation checks reported no warnings.
+
+An integration test checks that new files record the current writer, historical
+v1 fixtures have none, and a future envelope with unknown envelope and generator
+fields still reads. It also checks that dropped fields are listed once per path
+and that `null` placeholders are ignored. A UI test loads a future BPMN file with
+an extra node field: nothing opens until a choice is made, the prompt names
+`v9.0.0` and `nodes › halo`, **Cancel** opens nothing, two queued files open one
+after the other, and a current file opens directly. `newer_file_prompt.png` was
+inspected. The native multiple-selection dialog and the web reload were not
+exercised interactively; the web path was only compiled.

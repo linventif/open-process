@@ -67,12 +67,14 @@ impl FileIo {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    /// Several files can be selected; each opens in its own tab.
     pub fn open_dialog(&self, _ctx: &egui::Context, extensions: Vec<&'static str>) {
-        if let Some(path) = rfd::FileDialog::new()
+        let paths = rfd::FileDialog::new()
             .add_filter(tr(FILTER_NAME), &extensions)
             .add_filter(tr("file.all_files"), &["*"])
-            .pick_file()
-        {
+            .pick_files()
+            .unwrap_or_default();
+        for path in paths {
             match read_file(&path) {
                 Ok(bytes) => self.push((path.display().to_string(), bytes)),
                 Err(e) => self.errors.lock().unwrap().push(trf("file.open_failed", &[&path.display(), &e])),
@@ -86,21 +88,23 @@ impl FileIo {
         let errors = self.errors.clone();
         let ctx = ctx.clone();
         wasm_bindgen_futures::spawn_local(async move {
-            if let Some(file) = rfd::AsyncFileDialog::new()
+            let files = rfd::AsyncFileDialog::new()
                 .add_filter(tr(FILTER_NAME), &extensions)
-                .pick_file()
+                .pick_files()
                 .await
-            {
+                .unwrap_or_default();
+            // Each file is checked and read on its own; one oversized file does
+            // not prevent the others from opening.
+            for file in files {
                 if file.inner().size() > op_core::document::MAX_DOCUMENT_BYTES as f64 {
                     errors
                         .lock()
                         .unwrap()
                         .push(trf("file.open_failed", &[&file.file_name(), &tr("file.input_limit")]));
-                    ctx.request_repaint();
-                    return;
+                } else {
+                    let data = file.read().await;
+                    inbox.lock().unwrap().push((file.file_name(), data));
                 }
-                let data = file.read().await;
-                inbox.lock().unwrap().push((file.file_name(), data));
                 ctx.request_repaint();
             }
         });

@@ -5,6 +5,7 @@ use op_core::geom::Pos;
 
 mod appearance;
 mod mermaid_builder;
+mod newer_files;
 mod resize;
 mod selection_editing;
 mod uml_tools;

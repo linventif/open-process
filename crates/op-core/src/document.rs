@@ -5,7 +5,7 @@ use crate::petri::PetriNet;
 use serde::{Deserialize, Serialize};
 
 mod envelope;
-pub use envelope::{Document, DocumentCodec, JsonCodec, ReadError};
+pub use envelope::{CONTENT_REVISION, Document, DocumentCodec, Generator, JsonCodec, ReadError, set_writer_version, unsupported_content};
 
 pub const EXTENSION: &str = "opx";
 pub const MAX_DOCUMENT_BYTES: usize = 32 * 1024 * 1024;
