@@ -23,8 +23,10 @@
 
 - English is the default language for documentation, new source comments and
   original interface text. Write new documentation and updates in English.
-- English is also the application's first-run and fallback language and the
-  website's root language. Preserve explicit saved language preferences.
+- Until a language is chosen in the app, it follows the system or browser
+  language when it is English, French or Spanish; English is the fallback
+  language and the website's root language. Preserve explicit saved language
+  preferences.
 - Keep French and Spanish translations and localized website routes. Use the
   existing translation mechanisms rather than hardcoding interface text.
 - Community issues and pull requests may also be written in French.

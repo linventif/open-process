@@ -67,6 +67,11 @@ choose a file on desktop or download an `.opx` file in the browser. Later native
 folder. Browser downloads create independent files and must finish before they
 are available outside the browser.
 
+A tab's context menu also offers **Close tabs to the left**, **Close tabs to the
+right** and **Close all tabs** for its tab group; other split groups stay open.
+Tabs close in order, and each document with unsaved changes asks for confirmation
+first. **Cancel** stops the remaining closures.
+
 Empty documents close directly from their tab or **File → Close tab**, even if
 they were renamed or all their elements were deleted. A blank source/log or a
 default decision table without rules also closes directly. Closing a nonempty
@@ -88,7 +93,7 @@ See [data and storage](data-and-storage.md) for timing, limits and deletion.
 **File → Export** lists the formats supported by the active document. Image
 exports are useful for sharing; save `.opx` as well to retain editable content.
 An export or conversion may not preserve every feature of the original notation.
-PNG export captures the visible diagram region.
+PNG export contains the whole diagram, not only the visible region.
 
 BPMN, Petri, EPC and UML diagrams also export Mermaid source (`.mmd`) or a
 Markdown document with a Mermaid block (`.mermaid.md`). Reopening these files

@@ -283,67 +283,141 @@ fn chip(ui: &mut Ui, text: &str, color: Color32) -> egui::Response {
         .response
 }
 
+/// Relation matrix geometry. Header widths follow the activity names, so long
+/// names never overlap; names wider than [`MATRIX_LABEL_MAX`] are elided.
+struct MatrixGrid {
+    rect: egui::Rect,
+    /// Column boundaries from the left edge; column 0 holds the row headers.
+    xs: Vec<f32>,
+    labels: Vec<std::sync::Arc<egui::Galley>>,
+}
+
+const MATRIX_CELL: egui::Vec2 = egui::vec2(44.0, 36.0);
+const MATRIX_LABEL_PAD: f32 = 10.0;
+const MATRIX_LABEL_MAX: f32 = 180.0;
+
+impl MatrixGrid {
+    fn allocate(ui: &mut Ui, activities: &[String], color: Color32, sense: egui::Sense) -> (Self, egui::Response) {
+        let labels: Vec<_> = activities
+            .iter()
+            .map(|name| {
+                let mut job = egui::text::LayoutJob::simple_singleline(name.clone(), theme::semibold(14.0), color);
+                job.wrap = egui::text::TextWrapping::truncate_at_width(MATRIX_LABEL_MAX);
+                ui.painter().layout_job(job)
+            })
+            .collect();
+        let fit = |label: &std::sync::Arc<egui::Galley>| (label.size().x + 2.0 * MATRIX_LABEL_PAD).max(MATRIX_CELL.x);
+        let mut xs = vec![0.0, labels.iter().map(fit).fold(MATRIX_CELL.x, f32::max)];
+        for label in &labels {
+            xs.push(xs[xs.len() - 1] + fit(label));
+        }
+        let size = egui::vec2(xs[xs.len() - 1], MATRIX_CELL.y * (labels.len() + 1) as f32);
+        let (rect, resp) = ui.allocate_exact_size(size, sense);
+        (Self { rect, xs, labels }, resp)
+    }
+
+    fn n(&self) -> usize {
+        self.labels.len()
+    }
+
+    /// Cell `(row, column)`; index 0 is the header row or column.
+    fn at(&self, i: usize, j: usize) -> egui::Rect {
+        egui::Rect::from_min_max(
+            self.rect.min + egui::vec2(self.xs[j], MATRIX_CELL.y * i as f32),
+            self.rect.min + egui::vec2(self.xs[j + 1], MATRIX_CELL.y * (i + 1) as f32),
+        )
+    }
+
+    fn hit(&self, pos: egui::Pos2) -> Option<(usize, usize)> {
+        if !self.rect.contains(pos) {
+            return None;
+        }
+        let k = pos - self.rect.min;
+        let i = ((k.y / MATRIX_CELL.y) as usize).min(self.n());
+        let j = self.xs.partition_point(|&x| x <= k.x).saturating_sub(1).min(self.n());
+        Some((i, j))
+    }
+
+    /// Full activity name of an elided header cell.
+    fn elided_header(&self, (i, j): (usize, usize), activities: &[String]) -> Option<String> {
+        let k = match (i, j) {
+            (0, k) | (k, 0) if k >= 1 => k - 1,
+            _ => return None,
+        };
+        self.labels[k].elided.then(|| activities[k].clone())
+    }
+
+    fn paint_background(&self, ui: &Ui) {
+        let p = ui.painter();
+        let header_bg = ui.visuals().faint_bg_color;
+        let r = self.rect;
+        p.rect_filled(r, 8.0, ui.visuals().window_fill);
+        p.rect_filled(
+            egui::Rect::from_min_max(r.min, egui::pos2(r.right(), r.top() + MATRIX_CELL.y)),
+            egui::CornerRadius {
+                nw: 8,
+                ne: 8,
+                sw: 0,
+                se: 0,
+            },
+            header_bg,
+        );
+        p.rect_filled(
+            egui::Rect::from_min_max(
+                egui::pos2(r.left(), r.top() + MATRIX_CELL.y),
+                egui::pos2(r.left() + self.xs[1], r.bottom()),
+            ),
+            egui::CornerRadius {
+                nw: 0,
+                ne: 0,
+                sw: 8,
+                se: 0,
+            },
+            header_bg,
+        );
+    }
+
+    fn paint_labels(&self, ui: &Ui, color: Color32) {
+        let p = ui.painter();
+        for (k, label) in self.labels.iter().enumerate() {
+            for cell in [self.at(0, k + 1), self.at(k + 1, 0)] {
+                p.galley(cell.center() - label.size() / 2.0, label.clone(), color);
+            }
+        }
+    }
+
+    fn paint_grid(&self, ui: &Ui) {
+        let p = ui.painter();
+        let border = ui.visuals().widgets.noninteractive.bg_stroke.color;
+        let r = self.rect;
+        // Inner boundaries: one below each header row and right of each header column.
+        for (k, &dx) in (1..).zip(&self.xs[1..=self.n()]) {
+            let s = egui::Stroke::new(if k == 1 { 1.4 } else { 1.0 }, border);
+            let y = r.top() + MATRIX_CELL.y * k as f32;
+            p.line_segment([egui::pos2(r.left(), y), egui::pos2(r.right(), y)], s);
+            let x = r.left() + dx;
+            p.line_segment([egui::pos2(x, r.top()), egui::pos2(x, r.bottom())], s);
+        }
+        p.rect_stroke(r, 8.0, egui::Stroke::new(1.0, border), egui::StrokeKind::Inside);
+    }
+}
+
 /// The relation matrix drawn as a bordered table, as in the course slides.
 fn relation_table(ui: &mut Ui, f: &op_core::mining::Footprint, pal: &Palette) -> egui::Rect {
     let n = f.len();
-    let cell = egui::vec2(44.0, 36.0);
-    let size = egui::vec2(cell.x * (n + 1) as f32, cell.y * (n + 1) as f32);
-    let (rect, resp) = ui.allocate_exact_size(size, egui::Sense::hover());
+    let (grid, resp) = MatrixGrid::allocate(ui, &f.activities, pal.text, egui::Sense::hover());
+    grid.paint_background(ui);
+    let hover = resp.hover_pos().and_then(|h| grid.hit(h));
     let p = ui.painter();
-    let border = ui.visuals().widgets.noninteractive.bg_stroke.color;
-    let header_bg = ui.visuals().faint_bg_color;
-    p.rect_filled(rect, 8.0, ui.visuals().window_fill);
-    p.rect_filled(
-        egui::Rect::from_min_size(rect.min, egui::vec2(size.x, cell.y)),
-        egui::CornerRadius {
-            nw: 8,
-            ne: 8,
-            sw: 0,
-            se: 0,
-        },
-        header_bg,
-    );
-    p.rect_filled(
-        egui::Rect::from_min_size(rect.min + egui::vec2(0.0, cell.y), egui::vec2(cell.x, size.y - cell.y)),
-        egui::CornerRadius {
-            nw: 0,
-            ne: 0,
-            sw: 8,
-            se: 0,
-        },
-        header_bg,
-    );
-    let at = |i: usize, j: usize| egui::Rect::from_min_size(rect.min + egui::vec2(cell.x * j as f32, cell.y * i as f32), cell);
-    let hover = resp.hover_pos().map(|h| {
-        let k = h - rect.min;
-        ((k.y / cell.y) as usize, (k.x / cell.x) as usize)
-    });
     if let Some((i, j)) = hover
-        && i >= 1
-        && j >= 1
-        && i <= n
-        && j <= n
+        && (1..=n).contains(&i)
+        && (1..=n).contains(&j)
     {
-        p.rect_filled(at(i, 0), 0.0, pal.select.gamma_multiply(0.12));
-        p.rect_filled(at(0, j), 0.0, pal.select.gamma_multiply(0.12));
-        p.rect_filled(at(i, j), 0.0, pal.select.gamma_multiply(0.12));
+        p.rect_filled(grid.at(i, 0), 0.0, pal.select.gamma_multiply(0.12));
+        p.rect_filled(grid.at(0, j), 0.0, pal.select.gamma_multiply(0.12));
+        p.rect_filled(grid.at(i, j), 0.0, pal.select.gamma_multiply(0.12));
     }
-    for k in 1..=n {
-        p.text(
-            at(0, k).center(),
-            egui::Align2::CENTER_CENTER,
-            &f.activities[k - 1],
-            theme::semibold(14.0),
-            pal.text,
-        );
-        p.text(
-            at(k, 0).center(),
-            egui::Align2::CENTER_CENTER,
-            &f.activities[k - 1],
-            theme::semibold(14.0),
-            pal.text,
-        );
-    }
+    grid.paint_labels(ui, pal.text);
     for a in 0..n {
         for b in 0..n {
             let color = match f.rel[a][b] {
@@ -353,7 +427,7 @@ fn relation_table(ui: &mut Ui, f: &op_core::mining::Footprint, pal: &Palette) ->
                 Relation::Independent => pal.muted,
             };
             p.text(
-                at(a + 1, b + 1).center(),
+                grid.at(a + 1, b + 1).center(),
                 egui::Align2::CENTER_CENTER,
                 f.cell(a, b),
                 theme::semibold(18.0),
@@ -361,24 +435,7 @@ fn relation_table(ui: &mut Ui, f: &op_core::mining::Footprint, pal: &Palette) ->
             );
         }
     }
-    for k in 1..=n {
-        let s = egui::Stroke::new(if k == 1 { 1.4 } else { 1.0 }, border);
-        p.line_segment(
-            [
-                rect.left_top() + egui::vec2(0.0, cell.y * k as f32),
-                rect.right_top() + egui::vec2(0.0, cell.y * k as f32),
-            ],
-            s,
-        );
-        p.line_segment(
-            [
-                rect.left_top() + egui::vec2(cell.x * k as f32, 0.0),
-                rect.left_bottom() + egui::vec2(cell.x * k as f32, 0.0),
-            ],
-            s,
-        );
-    }
-    p.rect_stroke(rect, 8.0, egui::Stroke::new(1.0, border), egui::StrokeKind::Inside);
+    grid.paint_grid(ui);
     if let Some((i, j)) = hover
         && (1..=n).contains(&i)
         && (1..=n).contains(&j)
@@ -392,8 +449,10 @@ fn relation_table(ui: &mut Ui, f: &op_core::mining::Footprint, pal: &Palette) ->
             Relation::Independent => trf("mining.relation.independence_reason", &[&x, &y, &x, &y, &y, &x]),
         };
         resp.on_hover_text_at_pointer(hint);
+    } else if let Some(name) = hover.and_then(|cell| grid.elided_header(cell, &f.activities)) {
+        resp.on_hover_text_at_pointer(name);
     }
-    rect
+    grid.rect
 }
 
 // ---------------------------------------------------------------------------
@@ -469,14 +528,8 @@ const CYCLE: [&str; 5] = ["", "→", "←", "||", "#"];
 /// Relation matrix filled by clicking, without access to expected relations.
 fn editable_relation_table(ui: &mut Ui, activities: &[String], answers: &mut BTreeMap<String, String>, pal: &Palette) {
     let n = activities.len();
-    let cell = egui::vec2(44.0, 36.0);
-    let size = egui::vec2(cell.x * (n + 1) as f32, cell.y * (n + 1) as f32);
-    let (rect, resp) = ui.allocate_exact_size(size, egui::Sense::click());
-    let at = |i: usize, j: usize| egui::Rect::from_min_size(rect.min + egui::vec2(cell.x * j as f32, cell.y * i as f32), cell);
-    let hover = resp.hover_pos().map(|h| {
-        let k = h - rect.min;
-        ((k.y / cell.y) as usize, (k.x / cell.x) as usize)
-    });
+    let (grid, resp) = MatrixGrid::allocate(ui, activities, pal.text, egui::Sense::click());
+    let hover = resp.hover_pos().and_then(|h| grid.hit(h));
     let key = |a: usize, b: usize| format!("m:{}:{}", activities[a], activities[b]);
     if let Some((i, j)) = hover
         && (1..=n).contains(&i)
@@ -497,74 +550,24 @@ fn editable_relation_table(ui: &mut Ui, activities: &[String], answers: &mut BTr
             answers.insert(k, next.to_string());
         }
     }
+    grid.paint_background(ui);
+    grid.paint_labels(ui, pal.text);
     let p = ui.painter();
-    let border = ui.visuals().widgets.noninteractive.bg_stroke.color;
-    let header_bg = ui.visuals().faint_bg_color;
-    p.rect_filled(rect, 8.0, ui.visuals().window_fill);
-    p.rect_filled(
-        egui::Rect::from_min_size(rect.min, egui::vec2(size.x, cell.y)),
-        egui::CornerRadius {
-            nw: 8,
-            ne: 8,
-            sw: 0,
-            se: 0,
-        },
-        header_bg,
-    );
-    p.rect_filled(
-        egui::Rect::from_min_size(rect.min + egui::vec2(0.0, cell.y), egui::vec2(cell.x, size.y - cell.y)),
-        egui::CornerRadius {
-            nw: 0,
-            ne: 0,
-            sw: 8,
-            se: 0,
-        },
-        header_bg,
-    );
-    for k in 1..=n {
-        p.text(
-            at(0, k).center(),
-            egui::Align2::CENTER_CENTER,
-            &activities[k - 1],
-            theme::semibold(14.0),
-            pal.text,
-        );
-        p.text(
-            at(k, 0).center(),
-            egui::Align2::CENTER_CENTER,
-            &activities[k - 1],
-            theme::semibold(14.0),
-            pal.text,
-        );
-    }
     for a in 0..n {
         for b in 0..n {
             let v = answers.get(&key(a, b)).map(String::as_str).unwrap_or("");
-            let r = at(a + 1, b + 1);
+            let r = grid.at(a + 1, b + 1);
             if hover == Some((a + 1, b + 1)) {
                 p.rect_filled(r.shrink(1.0), 0.0, pal.select.gamma_multiply(0.15));
             }
             p.text(r.center(), egui::Align2::CENTER_CENTER, v, theme::semibold(18.0), pal.text);
         }
     }
-    for k in 1..=n {
-        let s = egui::Stroke::new(if k == 1 { 1.4 } else { 1.0 }, border);
-        p.line_segment(
-            [
-                rect.left_top() + egui::vec2(0.0, cell.y * k as f32),
-                rect.right_top() + egui::vec2(0.0, cell.y * k as f32),
-            ],
-            s,
-        );
-        p.line_segment(
-            [
-                rect.left_top() + egui::vec2(cell.x * k as f32, 0.0),
-                rect.left_bottom() + egui::vec2(cell.x * k as f32, 0.0),
-            ],
-            s,
-        );
-    }
-    p.rect_stroke(rect, 8.0, egui::Stroke::new(1.0, border), egui::StrokeKind::Inside);
+    grid.paint_grid(ui);
     resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Grid, true, tr("mining.relation_matrix_editable")));
-    resp.on_hover_cursor(egui::CursorIcon::PointingHand);
+    let name = hover.and_then(|cell| grid.elided_header(cell, activities));
+    let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
+    if let Some(name) = name {
+        resp.on_hover_text_at_pointer(name);
+    }
 }

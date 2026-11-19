@@ -11,7 +11,7 @@ mod session;
 pub(crate) use session::register;
 pub(crate) mod analysis_job;
 
-use crate::editor::layout::{CanvasControls, DiagramLayout, FooterStatus};
+use crate::editor::layout::{ArrangeControl, CanvasControls, DiagramLayout, FooterStatus};
 
 use crate::canvas::{self, InlineOutcome, Palette, Rng, View};
 use crate::editor::clipboard::{CanvasClipboard, ClipboardState};
@@ -107,6 +107,7 @@ pub struct PetriEditor {
     pub uid: u64,
     /// Export the canvas as PNG on the next frame (without palette and selection).
     pub export_png: bool,
+    png_export: Option<canvas::export::ImageExport>,
     /// Hand-filled matrices (exercise mode): Pre, Post, C.
     exercise: Option<[Vec<Vec<String>>; 3]>,
     exercise_checked: bool,
@@ -154,6 +155,7 @@ impl PetriEditor {
         Self {
             uid: canvas::next_uid(),
             export_png: false,
+            png_export: None,
             exercise: None,
             exercise_checked: false,
             group: Vec::new(),
@@ -442,7 +444,8 @@ impl PetriEditor {
         if self.snap { p.snapped(GRID) } else { p }
     }
 
-    fn fit(&mut self, canvas: Rect) {
+    /// World extents of the net, with room for names below shapes.
+    fn content_bounds(&self) -> Option<(Pos, Pos)> {
         let pts: Vec<Pos> = self
             .net
             .places
@@ -450,20 +453,28 @@ impl PetriEditor {
             .map(|p| p.pos)
             .chain(self.net.transitions.iter().map(|t| t.pos))
             .collect();
-        if pts.is_empty() {
-            self.view = View::default();
-            self.view.offset = canvas.size() / 2.0;
-            return;
+        (!pts.is_empty()).then(|| {
+            (
+                Pos::new(
+                    pts.iter().map(|p| p.x).fold(f32::MAX, f32::min) - 40.0,
+                    pts.iter().map(|p| p.y).fold(f32::MAX, f32::min) - 40.0,
+                ),
+                Pos::new(
+                    pts.iter().map(|p| p.x).fold(f32::MIN, f32::max) + 40.0,
+                    pts.iter().map(|p| p.y).fold(f32::MIN, f32::max) + 50.0,
+                ),
+            )
+        })
+    }
+
+    fn fit(&mut self, canvas: Rect) {
+        match self.content_bounds() {
+            Some((min, max)) => self.view.fit(canvas, min, max),
+            None => {
+                self.view = View::default();
+                self.view.offset = canvas.size() / 2.0;
+            }
         }
-        let min = Pos::new(
-            pts.iter().map(|p| p.x).fold(f32::MAX, f32::min) - 40.0,
-            pts.iter().map(|p| p.y).fold(f32::MAX, f32::min) - 40.0,
-        );
-        let max = Pos::new(
-            pts.iter().map(|p| p.x).fold(f32::MIN, f32::max) + 40.0,
-            pts.iter().map(|p| p.y).fold(f32::MIN, f32::max) + 50.0,
-        );
-        self.view.fit(canvas, min, max);
     }
 
     /// Marking currently displayed (simulation or initial marking).
@@ -635,6 +646,8 @@ impl PetriEditor {
             indicator: self.sim.as_ref().map(|_| (tr("petri.simulation").into(), Palette::for_ui(ui).ok)),
             ..Default::default()
         };
+        let mut arrange = false;
+        let can_arrange = self.can_arrange();
         layout.configuration(
             ui,
             CanvasControls {
@@ -644,10 +657,58 @@ impl PetriEditor {
                 snap: Some(&mut self.snap),
                 inspector: &mut self.show_inspector,
                 issues: None,
+                arrange: Some(ArrangeControl {
+                    requested: &mut arrange,
+                    enabled: can_arrange,
+                }),
             },
             status,
             |ui| canvas::style_menu(ui, &mut self.net.style, true),
         );
+        if arrange {
+            self.auto_arrange();
+        }
+    }
+
+    /// Positions are frozen while a simulation runs.
+    pub(crate) fn can_arrange(&self) -> bool {
+        self.sim.is_none() && (!self.net.places.is_empty() || !self.net.transitions.is_empty())
+    }
+
+    /// One undoable layout step; names below shapes are given room.
+    pub(crate) fn auto_arrange(&mut self) {
+        if !self.can_arrange() {
+            return;
+        }
+        let label = |name: &str| {
+            let width = name.chars().count() as f32 * 7.0;
+            let lines = (width / 150.0).ceil();
+            (width.min(150.0), if name.is_empty() { 0.0 } else { lines * 14.0 + 4.0 })
+        };
+        let boxed = self.net.style.transitions == op_core::style::TransitionShape::Box;
+        let mut sizes = std::collections::HashMap::new();
+        for p in &self.net.places {
+            let (w, h) = label(&p.name);
+            sizes.insert(NodeRef::Place(p.id), ((2.0 * PLACE_R).max(w), 2.0 * PLACE_R + 2.0 * h));
+        }
+        for t in &self.net.transitions {
+            let (tw, th) = self.trans_size(&t.name);
+            let (w, h) = if boxed { (0.0, 0.0) } else { label(&t.name) };
+            sizes.insert(NodeRef::Transition(t.id), (tw.max(w), th + 2.0 * h));
+        }
+        self.history.sync(&self.net, false);
+        match self.net.auto_arrange(|n| sizes[&n], self.snap.then_some(GRID)) {
+            Ok(()) => {
+                self.drag = None;
+                self.editing = None;
+                self.arc_pending = None;
+                self.dnd = None;
+                self.fit_request = true;
+                self.status.clear();
+                self.history.sync(&self.net, false);
+            }
+            Err(e) => self.status = e,
+        }
     }
 
     // ------------------------------------------------------------------
@@ -728,15 +789,19 @@ impl PetriEditor {
             self.shortcuts(ui);
         }
 
-        // Image export: render this frame without selection, hover and palette.
-        let exporting = std::mem::take(&mut self.export_png);
+        // Image export: tiles are rendered without selection, hover and palette.
+        if std::mem::take(&mut self.export_png) {
+            let name = self.file_stem();
+            self.png_export = Some(canvas::export::ImageExport::start(self.content_bounds(), self.view, canvas, name));
+        }
+        let exporting = canvas::export::frame(&mut self.png_export, &mut self.view, canvas, ui.ctx());
         let saved = exporting.then(|| (self.selection.take(), std::mem::take(&mut self.group)));
         canvas::draw_background(&painter, canvas, &self.view, &pal);
         self.draw_net(&painter, canvas, &pal, if exporting { None } else { wp });
         if let Some((sel, group)) = saved {
             self.selection = sel;
             self.group = group;
-            crate::io::request_png_export(ui.ctx(), canvas, format!("{}.png", self.file_stem()));
+            canvas::export::capture(&mut self.png_export, ui.ctx());
         }
 
         // Rubber-band selection

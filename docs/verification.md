@@ -1555,6 +1555,30 @@ Saved envelopes now carry an optional `generator` (application, release tag and
 from a higher revision, or one whose content this version would drop, shows a
 prompt listing unsupported items before anything opens. **File → Open** accepts
 several files on native and web.
+## Whole-diagram PNG export — 19 November 2026
+
+PNG export from the BPMN, Petri, UML, EPC/activity/flowchart, database and free
+drawing editors previously saved one screenshot of the visible canvas. It now
+visits the diagram's bounds tile by tile at a fixed scale, copies each capture
+into one image and restores the previous view (`canvas/export.rs`).
+
+`cargo fmt --check`, `cargo clippy --workspace --all-targets -D warnings`,
+native/WebAssembly checks and `git diff --check` pass; **266 tests passed**
+(131 app, 121 core, 14 integration), none ignored.
+
+Unit tests cover tile coverage, the size limits, and a simulated nine-tile
+export: every output pixel comes from the expected tile, the view is restored and
+the PNG reaches the save queue. A UI test zooms a BPMN view to 300% on one
+corner, exports and checks that the PNG is wider than the window and than twice
+the diagram width, that drawn content reaches both ends and that the view is
+restored. `bpmn_full_export.png` (2440 × 1000 px) was inspected: no seams and no
+selection. Native and web save dialogs were not exercised interactively.
+## Shared auto arrange, bulk tab closing and matrix headers — 19 November 2026
+
+Auto arrange now uses one layered engine for BPMN, Petri nets, EPC, UML activity,
+flowcharts, UML class/use-case diagrams and database schemas. BPMN loop flows in
+the orthogonal style are routed around intermediate elements. Tab context menus
+add left/right/all bulk closing, and relation-matrix headers fit activity names.
 
 ```sh
 cargo fmt --all -- --check
@@ -1577,3 +1601,37 @@ an extra node field: nothing opens until a choice is made, the prompt names
 after the other, and a current file opens directly. `newer_file_prompt.png` was
 inspected. The native multiple-selection dialog and the web reload were not
 exercised interactively; the web path was only compiled.
+**273 tests passed** (130 app, 129 core, 14 integration), none ignored; clippy
+and both compilation checks reported no warnings. Tests cover layering direction, crossing reduction, cycles, isolated nodes, grid
+alignment and invalid geometry; the existing BPMN layout tests pass unchanged.
+UML tests check parents above children and use cases kept in their systems.
+A UI test clicks **Auto arrange** for one example of each graph notation and
+checks a single undo/redo step with an unchanged semantic revision. Another
+opens four tabs, closes to the right, cancels an unsaved-changes prompt (the
+queue stops), then answers it (the queue resumes) and closes all tabs.
+
+The `auto_arranged_*.png` and `tab_close_menu.png` screenshots were inspected,
+as were renders of a discovered 8-activity takeaway log (BPMN, Petri net and both
+matrices, including an elided name). These local Linux checks do not replace the
+CI matrix; no browser run, release build or deployment occurred.
+## System language and theme — 19 November 2026
+
+Until a language is picked in the dropdown, the app now follows the first
+supported system or browser language, and English otherwise. The sun/moon button
+returns to **System** when it selects the system's own theme. On Linux, the
+desktop's light/dark preference is read from the freedesktop settings portal and
+followed live. `sys-locale` and `zbus` were already compiled through eframe and
+accessibility; declaring them adds no package to `Cargo.lock`.
+
+`cargo fmt --check` and `cargo clippy --workspace --all-targets -D warnings`
+(Rust 1.100, as in CI), native/WebAssembly checks and `git diff --check` pass;
+**265 tests passed** (130 app, 121 core, 14 integration), none ignored.
+
+Unit tests cover locale matching, an explicit choice outranking the system,
+older storages (a saved non-English language counts as a choice, a saved English
+does not), the explicit flag including an explicit English, portal value mapping
+(including the deprecated nested variant) and the theme toggle returning to
+**System**. Tests do not read the machine's locale, so English test labels stay
+stable. A temporary live check on this Linux (Wayland) desktop read the portal
+through the new thread and got light (value 0); following a live change was not
+exercised.

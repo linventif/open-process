@@ -30,6 +30,11 @@ const COMMANDS: &[CommandDescriptor] = &[
         group: CommandGroup::View,
     },
     CommandDescriptor {
+        id: ARRANGE,
+        label: key("canvas.auto_arrange"),
+        group: CommandGroup::Tools,
+    },
+    CommandDescriptor {
         id: "database.show-ddl",
         label: key("database.sql_ddl"),
         group: CommandGroup::View,
@@ -133,6 +138,7 @@ impl EditorBackend for DatabaseEditor {
             REDO => self.history.can_redo(),
             DELETE => !self.state.sql_view && self.state.selected.is_some_and(|id| self.schema.table(id).is_some()),
             FIT => true,
+            ARRANGE => !self.state.sql_view && !self.schema.tables.is_empty(),
             PNG => !self.state.sql_view,
             "database.show-ddl" => true,
             _ => false,
@@ -159,6 +165,7 @@ impl EditorBackend for DatabaseEditor {
             }
             DELETE => self.delete_selected(),
             FIT => self.state.fit = true,
+            ARRANGE => self.auto_arrange(),
             PNG => self.state.export_png = true,
             "database.show-ddl" => return vec![HostEvent::OpenView(crate::dock::View::from("database.ddl"))],
             _ => {}

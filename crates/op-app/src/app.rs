@@ -37,6 +37,7 @@ enum DockEvent {
     Activate(u64),
     Close(u64),
     ClosePane(u64, egui_tiles::TileId),
+    CloseTabs(egui_tiles::TileId, dock::CloseTabs),
     Host(u64, HostEvent),
     New(Option<egui_tiles::TileId>),
     Beside(Pane, bool),
@@ -55,6 +56,8 @@ pub struct OpenProcessApp {
     show_shortcuts: bool,
     exam_mode: bool,
     confirm_close: Option<usize>,
+    /// Tabs of a bulk close still waiting for an unsaved-changes answer.
+    close_queue: std::collections::VecDeque<(u64, egui_tiles::TileId)>,
     show_home: bool,
     new_picker: Option<new_document::Picker>,
     thumbnails: thumbnails::Thumbnails,
@@ -100,6 +103,7 @@ impl OpenProcessApp {
             show_shortcuts: false,
             exam_mode: false,
             confirm_close: None,
+            close_queue: Default::default(),
             show_home: true,
             new_picker: None,
             thumbnails: thumbnails::Thumbnails::default(),
@@ -190,6 +194,10 @@ impl OpenProcessApp {
         #[cfg(not(target_arch = "wasm32"))]
         if !cfg!(test) {
             app.updates.start(&cc.egui_ctx, false);
+        }
+        #[cfg(target_os = "linux")]
+        if !cfg!(test) {
+            crate::platform::system_theme::watch(cc.egui_ctx.clone());
         }
         app
     }
@@ -479,6 +487,17 @@ impl OpenProcessApp {
         self.active = self.active.min(self.docs.len().saturating_sub(1));
     }
 
+    /// Closes queued tabs in order, pausing while an unsaved document asks for confirmation.
+    fn continue_closing(&mut self) {
+        while self.confirm_close.is_none()
+            && let Some((uid, tile)) = self.close_queue.pop_front()
+        {
+            if self.tree.tiles.get_pane(&tile).is_some_and(|pane| pane.doc == uid) {
+                self.handle_dock_event(DockEvent::ClosePane(uid, tile));
+            }
+        }
+    }
+
     fn request_close(&mut self, i: usize) {
         self.flush_automatic_document(i);
         let Some(doc) = self.docs.get(i) else {
@@ -571,6 +590,7 @@ impl OpenProcessApp {
             || self.update_dialog_open()
             || self.confirm_close.is_some()
             || !self.newer_files.is_empty()
+            || crate::canvas::export::active()
             || egui::Popup::is_any_open(ctx)
             || ctx.memory(|m| m.top_modal_layer().is_some())
             || ctx.input(|i| i.pointer.any_down())
@@ -589,6 +609,10 @@ impl OpenProcessApp {
                 } else {
                     self.handle_dock_event(DockEvent::Close(uid));
                 }
+            }
+            DockEvent::CloseTabs(tile, which) => {
+                self.close_queue.extend(dock::tabs_to_close(&self.tree.tiles, tile, which));
+                self.continue_closing();
             }
             DockEvent::Close(uid) => {
                 if let Some(i) = self.docs.iter().position(|d| d.uid == uid) {
@@ -1001,11 +1025,13 @@ impl OpenProcessApp {
                         }
                         if ui.button(tr("common.cancel")).clicked() {
                             keep = false;
+                            self.close_queue.clear();
                         }
                     });
                 });
             if !keep {
                 self.confirm_close = None;
+                self.continue_closing();
             }
         }
     }
@@ -1040,7 +1066,34 @@ fn theme_toggle(ui: &mut Ui) {
         tr("app.switch_dark_theme")
     });
     if resp.clicked() {
-        ui.ctx().set_theme(if dark { egui::Theme::Light } else { egui::Theme::Dark });
+        let target = if dark { egui::Theme::Light } else { egui::Theme::Dark };
+        ui.ctx().set_theme(toggled_preference(target, system_theme(ui.ctx())));
+    }
+}
+
+/// The theme the system asks for: reported by the windowing system or, when it
+/// cannot (Linux X11), read from the desktop portal into egui's fallback theme.
+fn system_theme(ctx: &egui::Context) -> egui::Theme {
+    ctx.system_theme().unwrap_or_else(|| ctx.options(|o| o.fallback_theme))
+}
+
+/// Choosing the system's own theme returns to following the system, so a later
+/// system change applies again; only the other theme is kept as an override.
+fn toggled_preference(target: egui::Theme, system: egui::Theme) -> egui::ThemePreference {
+    if target == system {
+        egui::ThemePreference::System
+    } else {
+        target.into()
+    }
+}
+
+/// Keeps egui's fallback theme in step with the Linux desktop preference.
+#[cfg(target_os = "linux")]
+fn follow_desktop_theme(ctx: &egui::Context) {
+    if let Some(theme) = crate::platform::system_theme::current()
+        && ctx.options(|o| o.fallback_theme) != theme
+    {
+        ctx.options_mut(|o| o.fallback_theme = theme);
     }
 }
 
@@ -1063,6 +1116,7 @@ struct DockBehavior<'a> {
     active_uid: Option<u64>,
     events: Vec<DockEvent>,
     previews: Vec<thumbnails::Source>,
+    tab_slots: std::collections::HashMap<egui_tiles::TileId, (usize, usize)>,
 }
 
 impl DockBehavior<'_> {
@@ -1275,6 +1329,21 @@ impl egui_tiles::Behavior<Pane> for DockBehavior<'_> {
                     self.events.push(DockEvent::ClosePane(p.doc, tile_id));
                     ui.close();
                 }
+                let (index, count) = self.tab_slots.get(&tile_id).copied().unwrap_or((0, 1));
+                for (which, label, any) in [
+                    (dock::CloseTabs::Left, op_core::i18n::key("app.close_tabs_left"), index > 0),
+                    (
+                        dock::CloseTabs::Right,
+                        op_core::i18n::key("app.close_tabs_right"),
+                        index + 1 < count,
+                    ),
+                    (dock::CloseTabs::All, op_core::i18n::key("app.close_all_tabs"), true),
+                ] {
+                    if ui.add_enabled(any, egui::Button::new(tr(label))).clicked() {
+                        self.events.push(DockEvent::CloseTabs(tile_id, which));
+                        ui.close();
+                    }
+                }
             });
         }
         let hint = if dirty {
@@ -1307,6 +1376,8 @@ impl eframe::App for OpenProcessApp {
     fn ui(&mut self, ui: &mut Ui, _frame: &mut eframe::Frame) {
         #[cfg(not(target_arch = "wasm32"))]
         self.updates.poll();
+        #[cfg(target_os = "linux")]
+        follow_desktop_theme(ui.ctx());
         crate::editor::exam::set_active(ui.ctx(), self.exam_mode);
         self.automatic_status(ui);
         self.thumbnails.poll(ui.ctx(), &self.docs, &self.automatic.entries);
@@ -1367,6 +1438,7 @@ impl eframe::App for OpenProcessApp {
             active_uid,
             events: Vec::new(),
             previews: Vec::new(),
+            tab_slots: dock::tab_slots(&self.tree),
         };
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(panel).inner_margin(egui::Margin {

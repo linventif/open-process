@@ -76,6 +76,31 @@ pub struct PetriNet {
 }
 
 impl PetriNet {
+    /// Arranges places and transitions left to right along the arcs. `size`
+    /// gives the space each node needs, labels included, centered on its
+    /// position. Markings, arcs and names are unchanged.
+    pub fn auto_arrange(&mut self, size: impl Fn(NodeRef) -> (f32, f32), grid: Option<f32>) -> Result<(), String> {
+        let nodes: Vec<NodeRef> = self
+            .places
+            .iter()
+            .map(|p| NodeRef::Place(p.id))
+            .chain(self.transitions.iter().map(|t| NodeRef::Transition(t.id)))
+            .collect();
+        let index: std::collections::HashMap<NodeRef, usize> = nodes.iter().enumerate().map(|(i, &n)| (n, i)).collect();
+        let sizes: Vec<_> = nodes.iter().map(|&n| size(n)).collect();
+        let edges: Vec<_> = self
+            .arcs
+            .iter()
+            .filter_map(|a| Some((*index.get(&a.from)?, *index.get(&a.to)?)))
+            .collect();
+        let options = crate::layout::Options::new(crate::layout::Direction::LeftToRight, grid);
+        let centers = crate::layout::layered(&sizes, &edges, options).map_err(|e| e.to_string())?;
+        for (&n, c) in nodes.iter().zip(centers) {
+            self.set_node_pos(n, c);
+        }
+        Ok(())
+    }
+
     pub const CODEC: crate::document::JsonCodec<Self> = crate::document::JsonCodec::checked("petri", Self::check_storage);
 
     pub fn check_storage(&self) -> Result<(), String> {

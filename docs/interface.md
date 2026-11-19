@@ -88,10 +88,20 @@ Markdown. These [exports](export-formats.md) add no canvas toolbar buttons.
 Their **Tools → Convert to Mermaid** command opens a separate Mermaid document
 with the same projection and conversion notes.
 
-For BPMN, Z10 offers **Auto arrange** alongside style; it moves into Z12 in compact
-views and is also available under Tools. It lays out left to right, preserves
-pool/lane membership and fits the active view. Rows align node centers across
-different shape sizes. When **Snap to grid** is enabled, those centers and the
+Graph notations (BPMN, Petri nets, EPC, UML activity, flowcharts, UML class and
+use-case diagrams, database schemas) offer **Auto arrange** in Z10; it moves into
+Z12 in compact views, is hidden in exam mode and is also available under Tools.
+Free drawing, Mermaid, DMN and event logs do not offer it. Processes, Petri nets
+and schemas grow left to right: forward flows go right, only loops return left,
+and branches are stacked only where they occur. Class diagrams place parents
+above children. Use cases stay inside their system boundary, which is resized
+around them; actors come first. The layout is deterministic and is one undoable
+step that fits the active view.
+
+For BPMN, the layout also preserves pool/lane membership; message flows and
+associations order columns across pools and next to documented elements. Loop
+flows in the orthogonal style go around the elements in between, above or below,
+instead of crossing them. Rows align node centers across different shape sizes. When **Snap to grid** is enabled, those centers and the
 pool/lane geometry use the editor's 10-unit grid; disabling it keeps free
 coordinates. Node sizes are preserved. Flow endpoints are recalculated from the
 placed shapes: side midpoints on rectangles, vertices on gateways and the

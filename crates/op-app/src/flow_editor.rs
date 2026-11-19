@@ -2,7 +2,7 @@
 //! Models and rules stay in op-core; all graphical chrome stays in DiagramLayout.
 use crate::canvas::{self, Palette, View};
 use crate::editor::clipboard::{CanvasClipboard, ClipboardState};
-use crate::editor::layout::{CanvasControls, DiagramLayout, FooterStatus};
+use crate::editor::layout::{ArrangeControl, CanvasControls, DiagramLayout, FooterStatus};
 use crate::editor::*;
 use crate::history::History;
 use egui::{Align2, Color32, FontId, Key, PointerButton, Rect, Sense, Stroke, StrokeKind, Ui, pos2, vec2};
@@ -116,6 +116,7 @@ pub struct FlowEditor<K: Notation> {
     pub diagram: Diagram<K>,
     history: History<Diagram<K>>,
     state: FlowView<K>,
+    png_export: Option<canvas::export::ImageExport>,
 }
 impl<K: Notation> FlowEditor<K> {
     pub fn new(diagram: Diagram<K>) -> Self {
@@ -123,6 +124,7 @@ impl<K: Notation> FlowEditor<K> {
             history: History::new(&diagram),
             diagram,
             state: Default::default(),
+            png_export: None,
         }
     }
     fn clear_selection(&mut self) {
@@ -130,6 +132,21 @@ impl<K: Notation> FlowEditor<K> {
         self.state.flow = None;
         self.state.pending = None;
         self.state.drag = None;
+    }
+    /// One undoable layout step along the flows.
+    fn auto_arrange(&mut self) {
+        self.history.sync(&self.diagram, false);
+        match self.diagram.auto_arrange(self.state.snap.then_some(10.0)) {
+            Ok(()) => {
+                self.state.drag = None;
+                self.state.pending = None;
+                self.state.connecting = false;
+                self.state.fit = true;
+                self.state.status.clear();
+                self.history.sync(&self.diagram, false);
+            }
+            Err(e) => self.state.status = e,
+        }
     }
     fn delete(&mut self) {
         self.history.sync(&self.diagram, false);
@@ -390,7 +407,16 @@ impl<K: Notation> FlowEditor<K> {
             crate::theme::menu_style(ui.style_mut());
             self.selection_menu(ui);
         });
-        let exporting = std::mem::take(&mut self.state.export_png);
+        if std::mem::take(&mut self.state.export_png) {
+            let name = self.diagram.name.clone();
+            self.png_export = Some(canvas::export::ImageExport::start(
+                self.diagram.bounds(),
+                self.state.camera,
+                rect,
+                name,
+            ));
+        }
+        let exporting = canvas::export::frame(&mut self.png_export, &mut self.state.camera, rect, ui.ctx());
         canvas::draw_background(&p, rect, &self.state.camera, &pal);
         for f in &self.diagram.flows {
             if let Some((a, b)) = self.diagram.points(f) {
@@ -472,7 +498,7 @@ impl<K: Notation> FlowEditor<K> {
             }
             self.palette(ui, rect);
         } else {
-            crate::io::request_png_export(ui.ctx(), rect, self.diagram.name.clone());
+            canvas::export::capture(&mut self.png_export, ui.ctx());
         }
     }
     fn palette(&mut self, ui: &Ui, rect: Rect) {
@@ -633,6 +659,11 @@ const COMMANDS: &[CommandDescriptor] = &[
         group: CommandGroup::View,
     },
     CommandDescriptor {
+        id: ARRANGE,
+        label: key("canvas.auto_arrange"),
+        group: CommandGroup::Tools,
+    },
+    CommandDescriptor {
         id: "flow.convert-to-mermaid",
         label: key("conversion.to_mermaid"),
         group: CommandGroup::Tools,
@@ -712,6 +743,7 @@ impl<K: Notation> EditorBackend for FlowEditor<K> {
     fn ui(&mut self, ui: &mut Ui, _: &str) -> Vec<HostEvent> {
         let layout = DiagramLayout::new(ui, self.state.uid, self.state.inspector);
         layout.inspector(ui, |ui| self.properties(ui));
+        let mut arrange = false;
         layout.configuration(
             ui,
             CanvasControls {
@@ -721,6 +753,10 @@ impl<K: Notation> EditorBackend for FlowEditor<K> {
                 snap: Some(&mut self.state.snap),
                 inspector: &mut self.state.inspector,
                 issues: None,
+                arrange: Some(ArrangeControl {
+                    requested: &mut arrange,
+                    enabled: !self.diagram.nodes.is_empty(),
+                }),
             },
             FooterStatus {
                 summary: trf("common.element_count", &[&self.diagram.nodes.len()]),
@@ -729,6 +765,9 @@ impl<K: Notation> EditorBackend for FlowEditor<K> {
             },
             |_| {},
         );
+        if arrange {
+            self.auto_arrange();
+        }
         layout.canvas(ui, |ui| self.canvas(ui));
         self.history.sync(
             &self.diagram,
@@ -748,6 +787,7 @@ impl<K: Notation> EditorBackend for FlowEditor<K> {
             REDO => self.history.can_redo(),
             DELETE => !self.state.selected.is_empty() || self.state.flow.is_some(),
             FIT | PNG | "flow.convert-to-mermaid" => true,
+            ARRANGE => !self.diagram.nodes.is_empty(),
             _ => false,
         }
     }
@@ -767,6 +807,7 @@ impl<K: Notation> EditorBackend for FlowEditor<K> {
             }
             DELETE => self.delete(),
             FIT => self.state.fit = true,
+            ARRANGE => self.auto_arrange(),
             PNG => self.state.export_png = true,
             _ => {}
         }

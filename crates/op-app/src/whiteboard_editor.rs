@@ -151,6 +151,7 @@ pub struct WhiteboardEditor {
     pub board: Board,
     history: History<Board>,
     state: BoardView,
+    png_export: Option<canvas::export::ImageExport>,
 }
 impl WhiteboardEditor {
     pub fn new(board: Board) -> Self {
@@ -158,6 +159,7 @@ impl WhiteboardEditor {
             history: History::new(&board),
             board,
             state: Default::default(),
+            png_export: None,
         }
     }
     fn drawing_element(&self, kind: Kind, start: Pos, end: Pos) -> Element {
@@ -386,6 +388,7 @@ impl WhiteboardEditor {
                 snap: Some(&mut self.state.snap),
                 inspector: &mut self.state.inspector,
                 issues: None,
+                arrange: None,
             },
             FooterStatus {
                 summary: trf(

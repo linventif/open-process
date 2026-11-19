@@ -274,11 +274,18 @@ at `/fr/` and Spanish at `/es/`, with a language dropdown usable without JavaScr
 
 ## History, saving and analyses
 
-BPMN automatic layout lives in
-[bpmn/layout.rs](../crates/op-core/src/bpmn/layout.rs), independent of the UI.
-The module exposes `bpmn.auto-arrange` through a `DiagramLayout` option. It is one
-undoable history step, updating geometry while preserving pool/lane membership
-and domain properties/connections.
+Automatic layout shares one deterministic layered engine in
+[layout.rs](../crates/op-core/src/layout.rs), independent of the UI: Kahn
+layering with a stable cycle break, sources moved next to their first successor,
+barycenter ordering and order-preserving placement. Bands keep nodes in separate
+regions that share columns (BPMN lanes). Notation adapters stay in `op-core`:
+[bpmn/layout.rs](../crates/op-core/src/bpmn/layout.rs) (pools and lanes),
+[uml/layout.rs](../crates/op-core/src/uml/layout.rs) (systems as composite
+nodes), and `auto_arrange` on Petri nets, flow diagrams and database schemas.
+Petri sizes come from the editor because they depend on style and labels.
+Editors expose the shared `view.arrange` command and an `ArrangeControl` in
+`DiagramLayout::configuration`. Each run is one undoable history step, updating
+geometry while preserving memberships and domain properties/connections.
 
 Snapshot history groups gestures and can cancel them without adding a step. It
 also covers text and Mining answers. Semantic and graphical revisions are

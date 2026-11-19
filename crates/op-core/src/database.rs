@@ -213,6 +213,28 @@ pub struct Schema {
     pub tables: Vec<Table>,
     pub foreign_keys: Vec<ForeignKey>,
 }
+impl Schema {
+    /// Arranges tables left to right: a referenced table precedes the tables
+    /// whose foreign keys point to it. Columns, keys and sizes are unchanged.
+    pub fn auto_arrange(&mut self, grid: Option<f32>) -> Result<(), String> {
+        let index: std::collections::HashMap<Id, usize> = self.tables.iter().enumerate().map(|(i, t)| (t.id, i)).collect();
+        let sizes: Vec<_> = self.tables.iter().map(|t| (t.rect().w, t.rect().h)).collect();
+        let edges: Vec<_> = self
+            .foreign_keys
+            .iter()
+            .filter_map(|fk| Some((*index.get(&fk.referenced_table)?, *index.get(&fk.table)?)))
+            .collect();
+        let options = crate::layout::Options::new(crate::layout::Direction::LeftToRight, grid);
+        let centers = crate::layout::layered(&sizes, &edges, options).map_err(|e| e.to_string())?;
+        for (t, c) in self.tables.iter_mut().zip(centers) {
+            let r = t.rect();
+            t.bounds.x = c.x - r.w / 2.0;
+            t.bounds.y = c.y - r.h / 2.0;
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Diagnostic {
     pub element: Id,

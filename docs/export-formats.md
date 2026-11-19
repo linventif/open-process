@@ -5,7 +5,7 @@
 The active document supplies its formats. **Save** and **Save as** still produce
 editable `.opx` documents; exports make separate files and do not change the
 document, saved state, history or camera. Desktop opens a save dialog; the browser
-starts a download. PNG captures the visible diagram where supported.
+starts a download. PNG contains the whole diagram, whatever the current zoom or scroll position.
 
 | Document | File exports |
 | --- | --- |
@@ -81,3 +81,14 @@ Each notation declares its export descriptors and generates its own projection;
 the shell only writes the returned bytes. There are no new dependencies or
 document/session schema changes. See [verification](verification.md) for checks
 actually run.
+
+## Image (PNG) export
+
+Graphical editors export the **whole diagram**, with a 40-unit margin, at about
+2 pixels per diagram unit. Very large diagrams are scaled down to stay within
+8,192 pixels per side and 40 megapixels. Because egui can only capture what is
+on screen, the canvas briefly moves across the diagram tile by tile while the
+image is assembled, then returns to the previous view. Selection, hover effects
+and floating tool palettes are left out. If the window is resized during the
+export, it stops with a message; start it again. Table views such as the
+relation matrix and Petri matrices still export the visible table.
