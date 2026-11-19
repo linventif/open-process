@@ -11,7 +11,7 @@ mod session;
 pub(crate) use session::register;
 pub(crate) mod analysis_job;
 
-use crate::editor::layout::{CanvasControls, DiagramLayout, FooterStatus};
+use crate::editor::layout::{ArrangeControl, CanvasControls, DiagramLayout, FooterStatus};
 
 use crate::canvas::{self, InlineOutcome, Palette, Rng, View};
 use crate::editor::clipboard::{CanvasClipboard, ClipboardState};
@@ -635,6 +635,8 @@ impl PetriEditor {
             indicator: self.sim.as_ref().map(|_| (tr("petri.simulation").into(), Palette::for_ui(ui).ok)),
             ..Default::default()
         };
+        let mut arrange = false;
+        let can_arrange = self.can_arrange();
         layout.configuration(
             ui,
             CanvasControls {
@@ -644,10 +646,58 @@ impl PetriEditor {
                 snap: Some(&mut self.snap),
                 inspector: &mut self.show_inspector,
                 issues: None,
+                arrange: Some(ArrangeControl {
+                    requested: &mut arrange,
+                    enabled: can_arrange,
+                }),
             },
             status,
             |ui| canvas::style_menu(ui, &mut self.net.style, true),
         );
+        if arrange {
+            self.auto_arrange();
+        }
+    }
+
+    /// Positions are frozen while a simulation runs.
+    pub(crate) fn can_arrange(&self) -> bool {
+        self.sim.is_none() && (!self.net.places.is_empty() || !self.net.transitions.is_empty())
+    }
+
+    /// One undoable layout step; names below shapes are given room.
+    pub(crate) fn auto_arrange(&mut self) {
+        if !self.can_arrange() {
+            return;
+        }
+        let label = |name: &str| {
+            let width = name.chars().count() as f32 * 7.0;
+            let lines = (width / 150.0).ceil();
+            (width.min(150.0), if name.is_empty() { 0.0 } else { lines * 14.0 + 4.0 })
+        };
+        let boxed = self.net.style.transitions == op_core::style::TransitionShape::Box;
+        let mut sizes = std::collections::HashMap::new();
+        for p in &self.net.places {
+            let (w, h) = label(&p.name);
+            sizes.insert(NodeRef::Place(p.id), ((2.0 * PLACE_R).max(w), 2.0 * PLACE_R + 2.0 * h));
+        }
+        for t in &self.net.transitions {
+            let (tw, th) = self.trans_size(&t.name);
+            let (w, h) = if boxed { (0.0, 0.0) } else { label(&t.name) };
+            sizes.insert(NodeRef::Transition(t.id), (tw.max(w), th + 2.0 * h));
+        }
+        self.history.sync(&self.net, false);
+        match self.net.auto_arrange(|n| sizes[&n], self.snap.then_some(GRID)) {
+            Ok(()) => {
+                self.drag = None;
+                self.editing = None;
+                self.arc_pending = None;
+                self.dnd = None;
+                self.fit_request = true;
+                self.status.clear();
+                self.history.sync(&self.net, false);
+            }
+            Err(e) => self.status = e,
+        }
     }
 
     // ------------------------------------------------------------------

@@ -286,6 +286,7 @@ impl MermaidEditor {
                 snap: None,
                 inspector: &mut self.state.inspector,
                 issues: None,
+                arrange: None,
             },
             FooterStatus {
                 summary: status.into(),

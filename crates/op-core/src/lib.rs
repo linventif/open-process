@@ -19,6 +19,7 @@ pub mod flow;
 pub mod flowchart;
 pub mod geom;
 pub mod i18n;
+pub mod layout;
 pub mod mermaid;
 pub mod mining;
 pub mod petri;

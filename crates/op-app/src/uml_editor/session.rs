@@ -33,6 +33,11 @@ const COMMANDS: &[CommandDescriptor] = &[
         group: CommandGroup::View,
     },
     CommandDescriptor {
+        id: ARRANGE,
+        label: key("canvas.auto_arrange"),
+        group: CommandGroup::Tools,
+    },
+    CommandDescriptor {
         id: "uml.convert-to-mermaid",
         label: key("conversion.to_mermaid"),
         group: CommandGroup::Tools,
@@ -146,6 +151,7 @@ impl EditorBackend for UmlEditor {
             REDO => self.can_redo(),
             DELETE => self.selection.is_some() || !self.group.is_empty(),
             FIT | PNG => true,
+            ARRANGE => !self.diagram.nodes.is_empty(),
             "uml.convert-to-mermaid" => true,
             _ => COMMANDS.iter().any(|c| c.id == command),
         }
@@ -165,6 +171,7 @@ impl EditorBackend for UmlEditor {
             REDO => self.redo(),
             DELETE => self.delete_selection(),
             FIT => self.request_fit(),
+            ARRANGE => self.auto_arrange(),
             PNG => self.export_png = true,
 
             _ => {}

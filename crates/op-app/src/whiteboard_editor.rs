@@ -386,6 +386,7 @@ impl WhiteboardEditor {
                 snap: Some(&mut self.state.snap),
                 inspector: &mut self.state.inspector,
                 issues: None,
+                arrange: None,
             },
             FooterStatus {
                 summary: trf(

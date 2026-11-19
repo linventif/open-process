@@ -4,6 +4,7 @@ use crate::geom::{Pos, Rect};
 use crate::i18n::{key, tr, trf};
 use serde::{Deserialize, Serialize};
 
+pub mod layout;
 pub mod routing;
 
 pub type Id = u64;
