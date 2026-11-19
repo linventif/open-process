@@ -87,10 +87,14 @@ impl OpenProcessApp {
         } else {
             autosave::Library::open(cc.egui_ctx.clone())
         };
-        let (automatic, automatic_error) = match automatic {
+        let (mut automatic, mut automatic_error) = match automatic {
             Ok(library) => (library, None),
             Err(error) => (autosave::Library::disabled(), Some(error)),
         };
+        // Copies left in the trash for the full retention period are erased.
+        if let Err(error) = automatic.purge(autosave::now()) {
+            automatic_error = Some(error);
+        }
         let mut app = Self {
             registry,
             docs: Vec::new(),
@@ -534,10 +538,11 @@ impl OpenProcessApp {
             .iter()
             .enumerate()
             .filter(|(_, entry)| {
-                !self
-                    .docs
-                    .iter()
-                    .any(|doc| doc.archive.as_ref().is_some_and(|open| open.id == entry.id))
+                entry.trashed_at.is_none()
+                    && !self
+                        .docs
+                        .iter()
+                        .any(|doc| doc.archive.as_ref().is_some_and(|open| open.id == entry.id))
             })
             .map(|(index, entry)| {
                 let descriptor = self.registry.find(&entry.kind);
@@ -552,7 +557,24 @@ impl OpenProcessApp {
                 }
             })
             .collect::<Vec<_>>();
-        match home::show(ui, &docs, &saved, self.registry) {
+        let now = autosave::now();
+        let trashed = self
+            .automatic
+            .entries
+            .iter()
+            .enumerate()
+            .filter_map(|(index, entry)| {
+                let descriptor = self.registry.find(&entry.kind);
+                Some(home::Trashed {
+                    index,
+                    name: entry.name.clone(),
+                    kind: descriptor.map(|d| d.badge).unwrap_or("?").into(),
+                    color: descriptor.map(|d| d.color).unwrap_or(egui::Color32::GRAY),
+                    days_left: entry.days_left(now)?,
+                })
+            })
+            .collect::<Vec<_>>();
+        match home::show(ui, &docs, &saved, &trashed, self.registry) {
             Some(Action::New(kind)) => self.new_document(kind, None),
             Some(Action::Example(id, command)) => {
                 self.open_example(id);
@@ -567,6 +589,9 @@ impl OpenProcessApp {
                 }
             }
             Some(Action::Saved(index)) => self.open_automatic_document(index),
+            Some(Action::Trash(index)) => self.trash_automatic_document(index, Some(now)),
+            Some(Action::Restore(index)) => self.trash_automatic_document(index, None),
+            Some(Action::Erase(index)) => self.erase_automatic_document(index),
             None => {}
         }
     }

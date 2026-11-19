@@ -1635,3 +1635,26 @@ does not), the explicit flag including an explicit English, portal value mapping
 stable. A temporary live check on this Linux (Wayland) desktop read the portal
 through the new thread and got light (value 0); following a live change was not
 exercised.
+
+## Trash for saved diagrams — 19 November 2026
+
+Saved-diagram cards on the home screen get a bin button and a **Move to trash**
+context-menu entry. A **Trash** section lists trashed copies with the days left,
+**Restore** and **Delete permanently**. Copies trashed 15 days ago or more are
+erased when the library opens. Only the entry metadata changes when trashing,
+after pending automatic writes have completed.
+
+`cargo fmt --check`, `cargo clippy --workspace --all-targets -D warnings` (Rust
+1.100), native/WebAssembly checks and `git diff --check` pass; **284 tests passed**
+(140 app, 129 core, 15 integration), none ignored.
+
+A native library test writes two copies to a temporary folder. It then checks
+that trashing survives a reopening, that the content stays loadable, the
+day count (15 → 1 → 0), that restoring persists, that the purge keeps a copy
+one second before the deadline and erases both files at the deadline without
+touching the other copy, plus permanent deletion and errors for unknown copies.
+A UI test, with an isolated library injected into the app, trashes a card
+without opening it, then checks the notice and day count, restoring and
+permanent deletion of the files. `saved_diagram_card_trash_button.png` and
+`saved_diagram_trash.png` were inspected. The browser storage path was
+compiled only.
