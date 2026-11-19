@@ -778,6 +778,10 @@ pub const TABLE: &[(&str, &str)] = &[
     ("file.export", "Export"),
     ("file.export_failed", "Export failed: {}"),
     ("file.image_export_failed", "Image export failed: {}"),
+    (
+        "file.image_export_resized",
+        "The canvas changed size during the image export. Try again.",
+    ),
     ("file.new", "New…"),
     ("file.new_document", "New document"),
     ("file.open", "Open…"),

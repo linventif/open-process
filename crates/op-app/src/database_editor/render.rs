@@ -23,23 +23,7 @@ impl DatabaseEditor {
         self.state.canvas = rect;
         self.state.camera.handle_navigation(ui, &response, rect);
         if self.state.fit {
-            if !self.schema.tables.is_empty() {
-                let min = Pos::new(
-                    self.schema.tables.iter().map(|t| t.rect().x).fold(f32::INFINITY, f32::min),
-                    self.schema.tables.iter().map(|t| t.rect().y).fold(f32::INFINITY, f32::min),
-                );
-                let max = Pos::new(
-                    self.schema
-                        .tables
-                        .iter()
-                        .map(|t| t.rect().right())
-                        .fold(f32::NEG_INFINITY, f32::max),
-                    self.schema
-                        .tables
-                        .iter()
-                        .map(|t| t.rect().bottom())
-                        .fold(f32::NEG_INFINITY, f32::max),
-                );
+            if let Some((min, max)) = canvas::export::bounds(self.schema.tables.iter().map(|t| t.rect())) {
                 self.state.camera.fit(rect, min, max);
             }
             self.state.fit = false;
@@ -191,7 +175,12 @@ impl DatabaseEditor {
             crate::theme::menu_style(ui.style_mut());
             self.selection_menu(ui);
         });
-        let exporting = std::mem::take(&mut self.state.export_png);
+        if std::mem::take(&mut self.state.export_png) {
+            let bounds = canvas::export::bounds(self.schema.tables.iter().map(|t| t.rect()));
+            let name = self.schema.name.clone();
+            self.png_export = Some(canvas::export::ImageExport::start(bounds, self.state.camera, rect, name));
+        }
+        let exporting = canvas::export::frame(&mut self.png_export, &mut self.state.camera, rect, ui.ctx());
         let pal = Palette::for_ui(ui);
         let painter = ui.painter().with_clip_rect(rect);
         canvas::draw_background(&painter, rect, &self.state.camera, &pal);
@@ -202,7 +191,7 @@ impl DatabaseEditor {
             self.draw_table(&painter, rect, t, &pal, exporting);
         }
         if exporting {
-            crate::io::request_png_export(ui.ctx(), rect, self.schema.name.clone());
+            canvas::export::capture(&mut self.png_export, ui.ctx());
         } else {
             let resize = match self.state.drag {
                 Some(Drag::Resize { id, gesture }) => Some((id, gesture.edge)),

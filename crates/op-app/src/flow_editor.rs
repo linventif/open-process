@@ -116,6 +116,7 @@ pub struct FlowEditor<K: Notation> {
     pub diagram: Diagram<K>,
     history: History<Diagram<K>>,
     state: FlowView<K>,
+    png_export: Option<canvas::export::ImageExport>,
 }
 impl<K: Notation> FlowEditor<K> {
     pub fn new(diagram: Diagram<K>) -> Self {
@@ -123,6 +124,7 @@ impl<K: Notation> FlowEditor<K> {
             history: History::new(&diagram),
             diagram,
             state: Default::default(),
+            png_export: None,
         }
     }
     fn clear_selection(&mut self) {
@@ -405,7 +407,16 @@ impl<K: Notation> FlowEditor<K> {
             crate::theme::menu_style(ui.style_mut());
             self.selection_menu(ui);
         });
-        let exporting = std::mem::take(&mut self.state.export_png);
+        if std::mem::take(&mut self.state.export_png) {
+            let name = self.diagram.name.clone();
+            self.png_export = Some(canvas::export::ImageExport::start(
+                self.diagram.bounds(),
+                self.state.camera,
+                rect,
+                name,
+            ));
+        }
+        let exporting = canvas::export::frame(&mut self.png_export, &mut self.state.camera, rect, ui.ctx());
         canvas::draw_background(&p, rect, &self.state.camera, &pal);
         for f in &self.diagram.flows {
             if let Some((a, b)) = self.diagram.points(f) {
@@ -487,7 +498,7 @@ impl<K: Notation> FlowEditor<K> {
             }
             self.palette(ui, rect);
         } else {
-            crate::io::request_png_export(ui.ctx(), rect, self.diagram.name.clone());
+            canvas::export::capture(&mut self.png_export, ui.ctx());
         }
     }
     fn palette(&mut self, ui: &Ui, rect: Rect) {

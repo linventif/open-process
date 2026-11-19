@@ -79,6 +79,7 @@ pub struct BpmnEditor {
     pub uid: u64,
     /// Export the canvas as PNG on the next frame (without palette and selection).
     pub export_png: bool,
+    png_export: Option<canvas::export::ImageExport>,
     /// Multi-selection of nodes (rubber band, Shift+click, Ctrl+A).
     group: Vec<Id>,
     pool_group: Vec<Id>,
@@ -171,6 +172,7 @@ impl BpmnEditor {
         Self {
             uid: canvas::next_uid(),
             export_png: false,
+            png_export: None,
             group: Vec::new(),
             pool_group: Vec::new(),
             pool_move_nodes: Vec::new(),
@@ -361,22 +363,22 @@ impl BpmnEditor {
         out
     }
 
+    /// World extents of every element, with room for labels below events.
+    fn content_bounds(&self) -> Option<(Pos, Pos)> {
+        let rects = self
+            .diagram
+            .nodes
+            .iter()
+            .map(|n| n.rect())
+            .chain(self.diagram.pools.iter().map(|p| p.rect()));
+        canvas::export::bounds(rects).map(|(min, max)| (min, Pos::new(max.x, max.y + 20.0)))
+    }
+
     fn fit(&mut self, canvas: Rect) {
-        let mut rects: Vec<op_core::geom::Rect> = self.diagram.nodes.iter().map(|n| n.rect()).collect();
-        rects.extend(self.diagram.pools.iter().map(|p| p.rect()));
-        if rects.is_empty() {
-            self.view = View::default();
-            return;
+        match self.content_bounds() {
+            Some((min, max)) => self.view.fit(canvas, min, max),
+            None => self.view = View::default(),
         }
-        let min = Pos::new(
-            rects.iter().map(|r| r.x).fold(f32::MAX, f32::min),
-            rects.iter().map(|r| r.y).fold(f32::MAX, f32::min),
-        );
-        let max = Pos::new(
-            rects.iter().map(|r| r.right()).fold(f32::MIN, f32::max),
-            rects.iter().map(|r| r.bottom()).fold(f32::MIN, f32::max) + 20.0,
-        );
-        self.view.fit(canvas, min, max);
     }
 
     // ------------------------------------------------------------------
@@ -482,8 +484,17 @@ impl BpmnEditor {
             self.shortcuts(ui);
         }
 
-        // Image export: render this frame without selection, hover and palette.
-        let exporting = std::mem::take(&mut self.export_png);
+        // Image export: tiles are rendered without selection, hover and palette.
+        if std::mem::take(&mut self.export_png) {
+            let name: String = self
+                .diagram
+                .name
+                .chars()
+                .map(|c| if c.is_alphanumeric() { c } else { '_' })
+                .collect();
+            self.png_export = Some(canvas::export::ImageExport::start(self.content_bounds(), self.view, canvas, name));
+        }
+        let exporting = canvas::export::frame(&mut self.png_export, &mut self.view, canvas, ui.ctx());
         let saved = exporting.then(|| {
             (
                 self.selection.take(),
@@ -503,18 +514,7 @@ impl BpmnEditor {
             self.selection = sel;
             self.group = group;
             self.pool_group = pools;
-            crate::io::request_png_export(
-                ui.ctx(),
-                canvas,
-                format!(
-                    "{}.png",
-                    self.diagram
-                        .name
-                        .chars()
-                        .map(|c| if c.is_alphanumeric() { c } else { '_' })
-                        .collect::<String>()
-                ),
-            );
+            canvas::export::capture(&mut self.png_export, ui.ctx());
         }
         if let (Some(Drag::Rubber { start }), Some(p)) = (self.drag, pointer) {
             let r = Rect::from_two_pos(self.view.to_screen(canvas, start), p);

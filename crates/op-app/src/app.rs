@@ -491,6 +491,7 @@ impl OpenProcessApp {
             || self.show_shortcuts
             || self.update_dialog_open()
             || self.confirm_close.is_some()
+            || crate::canvas::export::active()
             || egui::Popup::is_any_open(ctx)
             || ctx.memory(|m| m.top_modal_layer().is_some())
             || ctx.input(|i| i.pointer.any_down())

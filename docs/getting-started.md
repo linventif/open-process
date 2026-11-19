@@ -90,7 +90,7 @@ See [data and storage](data-and-storage.md) for timing, limits and deletion.
 **File → Export** lists the formats supported by the active document. Image
 exports are useful for sharing; save `.opx` as well to retain editable content.
 An export or conversion may not preserve every feature of the original notation.
-PNG export captures the visible diagram region.
+PNG export contains the whole diagram, not only the visible region.
 
 BPMN, Petri, EPC and UML diagrams also export Mermaid source (`.mmd`) or a
 Markdown document with a Mermaid block (`.mermaid.md`). Reopening these files
