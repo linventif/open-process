@@ -1635,3 +1635,28 @@ does not), the explicit flag including an explicit English, portal value mapping
 stable. A temporary live check on this Linux (Wayland) desktop read the portal
 through the new thread and got light (value 0); following a live change was not
 exercised.
+
+## Moving connection ends and merging flows on deletion — 19 November 2026
+
+Selected arrows show end handles in the BPMN, Petri, EPC/activity/flowchart and
+UML editors; dragging one calls the notation's `reconnect` in `op-core`.
+Deleting BPMN or flow-diagram elements merges the flows around each deleted
+block through the shared `flow::bridges` helper.
+
+Integration tests (`op-core/tests/connections.rs`) cover:
+
+- BPMN: merging a single in/out pair while keeping the name and flow order;
+  no merge with two incoming flows or when the merge would duplicate a flow;
+  block merges (A→B→C→D without B and C).
+- BPMN reconnect: refused start-event targets and self connections leave the
+  flow unchanged; moving across pools turns it into a message flow without
+  the default marker, and back into a sequence flow.
+- EPC: event → event merges are refused, while a function plus the next event
+  merge as a block; reconnect follows the same rules.
+- Petri: bipartite arcs, inhibitors leaving places and duplicate arcs.
+- UML: inheritance cycles are refused.
+
+UI tests drag a selected BPMN flow's end onto another task (one undo step) and
+delete a middle task with the Delete key, which leaves a single merged flow. They
+also drag a Petri arc's end onto a place (refused, with a status message) and
+then onto a transition. `reconnect_handles.png` was inspected.

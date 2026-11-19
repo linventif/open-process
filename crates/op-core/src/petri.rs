@@ -244,6 +244,29 @@ impl PetriNet {
         Ok(id)
     }
 
+    /// Moves one end of an arc to `node`. Arcs keep alternating between places
+    /// and transitions, inhibitor arcs keep leaving a place, and an arc that
+    /// would duplicate another is refused. Weight and kind stay.
+    pub fn reconnect_arc(&mut self, id: Id, end: crate::geom::Endpoint, node: NodeRef) -> Result<(), &'static str> {
+        let arc = self.arcs.iter().find(|a| a.id == id).ok_or(tr("petri.unknown_node"))?;
+        let (from, to) = end.moved((arc.from, arc.to), node);
+        match (from, to) {
+            (NodeRef::Place(_), NodeRef::Transition(_)) => {}
+            (NodeRef::Transition(_), NodeRef::Place(_)) if arc.kind == ArcKind::Normal => {}
+            _ => return Err(tr("petri.arc_must_connect_place_transition")),
+        }
+        if !self.contains(from) || !self.contains(to) {
+            return Err(tr("petri.unknown_node"));
+        }
+        if self.arcs.iter().any(|a| a.id != id && a.from == from && a.to == to) {
+            return Err(tr("canvas.cannot_reconnect"));
+        }
+        if let Some(arc) = self.arcs.iter_mut().find(|a| a.id == id) {
+            (arc.from, arc.to) = (from, to);
+        }
+        Ok(())
+    }
+
     pub fn contains(&self, n: NodeRef) -> bool {
         match n {
             NodeRef::Place(id) => self.places.iter().any(|p| p.id == id),

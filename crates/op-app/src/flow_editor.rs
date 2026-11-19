@@ -64,11 +64,25 @@ impl Notation for ActivityKind {
 
 #[derive(Clone)]
 enum Drag {
-    Move { start: Pos, origins: Vec<(Id, Pos)> },
-    Resize { id: Id, gesture: canvas::resize::ResizeGesture },
+    Move {
+        start: Pos,
+        origins: Vec<(Id, Pos)>,
+    },
+    Resize {
+        id: Id,
+        gesture: canvas::resize::ResizeGesture,
+    },
     Pan,
     Connect(Id),
-    Rubber { start: Pos, base: BTreeSet<Id> },
+    /// Moves one end of the selected flow to another node.
+    Reconnect {
+        flow: Id,
+        end: op_core::geom::Endpoint,
+    },
+    Rubber {
+        start: Pos,
+        base: BTreeSet<Id>,
+    },
 }
 
 #[derive(Clone)]
@@ -148,9 +162,19 @@ impl<K: Notation> FlowEditor<K> {
             Err(e) => self.state.status = e,
         }
     }
+    /// Screen ends of the selected flow, which can be dragged to other nodes.
+    fn selected_flow_path(&self, rect: Rect) -> Option<(Id, Vec<egui::Pos2>)> {
+        let flow = self.diagram.flows.iter().find(|f| Some(f.id) == self.state.flow)?;
+        let (a, b) = self.diagram.points(flow)?;
+        Some((
+            flow.id,
+            vec![self.state.camera.to_screen(rect, a), self.state.camera.to_screen(rect, b)],
+        ))
+    }
     fn delete(&mut self) {
         self.history.sync(&self.diagram, false);
-        self.diagram.delete(&self.state.selected, self.state.flow);
+        // Flows around removed nodes merge where the notation allows it.
+        self.diagram.delete_bridging(&self.state.selected, self.state.flow);
         self.clear_selection();
         self.history.sync(&self.diagram, false);
     }
@@ -256,6 +280,11 @@ impl<K: Notation> FlowEditor<K> {
             self.history.sync(&self.diagram, false);
             if ui.input(|i| i.key_down(Key::Space)) {
                 self.state.drag = Some(Drag::Pan);
+            } else if let Some((flow, end)) = self
+                .selected_flow_path(rect)
+                .and_then(|(flow, path)| Some((flow, canvas::end_at(&path, screen)?)))
+            {
+                self.state.drag = Some(Drag::Reconnect { flow, end });
             } else if let Some((id, edge)) = self.resize_at(screen).filter(|_| !ui.input(|i| i.modifiers.alt)) {
                 self.state.selected.clear();
                 self.state.selected.insert(id);
@@ -338,14 +367,24 @@ impl<K: Notation> FlowEditor<K> {
             }
         }
         if ui.input(|i| i.pointer.primary_released()) {
-            if let Some(Drag::Connect(from)) = self.state.drag.take() {
-                if let Some(to) = world.and_then(|p| self.hit(p)) {
-                    self.connect(from, to);
-                } else {
-                    self.state.pending = None;
+            match self.state.drag.take() {
+                Some(Drag::Connect(from)) => {
+                    if let Some(to) = world.and_then(|p| self.hit(p)) {
+                        self.connect(from, to);
+                    } else {
+                        self.state.pending = None;
+                    }
                 }
-            } else {
-                self.state.drag = None;
+                Some(Drag::Reconnect { flow, end }) => {
+                    if let Some(node) = world.and_then(|p| self.hit(p)) {
+                        self.state.status = if self.diagram.reconnect(flow, end, node) {
+                            String::new()
+                        } else {
+                            tr("canvas.cannot_reconnect").into()
+                        };
+                    }
+                }
+                _ => {}
             }
         }
         if response.clicked_by(PointerButton::Primary)
@@ -484,6 +523,24 @@ impl<K: Notation> FlowEditor<K> {
                 canvas::connection_ports(&p, self.state.camera.rect_to_screen(rect, from.bounds), Some(to), pal.select);
                 if let Some(target) = target {
                     canvas::connection_ports(&p, self.state.camera.rect_to_screen(rect, target.bounds), Some(to), pal.select);
+                }
+            }
+            // Ends of the selected flow: handles, or the dragged end following the pointer.
+            if let Some((_, path)) = self.selected_flow_path(rect) {
+                match (&self.state.drag, pointer) {
+                    (Some(Drag::Reconnect { end, .. }), Some(to)) => {
+                        let fixed = if *end == op_core::geom::Endpoint::Target {
+                            path[0]
+                        } else {
+                            path[1]
+                        };
+                        canvas::reconnect_preview(&p, fixed, to, pal.select);
+                        let world = self.state.camera.to_world(rect, to);
+                        if let Some(target) = self.diagram.nodes.iter().rev().find(|node| node.contains(world)) {
+                            canvas::connection_ports(&p, self.state.camera.rect_to_screen(rect, target.bounds), Some(to), pal.select);
+                        }
+                    }
+                    _ => canvas::end_handles(&p, &path, pal.select, pal.task_fill),
                 }
             }
             if let Some(Drag::Rubber { start, .. }) = &self.state.drag

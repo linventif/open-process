@@ -59,6 +59,11 @@ enum Drag {
     Arc {
         from: NodeRef,
     },
+    /// Moves one end of the selected arc to another node.
+    Reconnect {
+        arc: Id,
+        end: op_core::geom::Endpoint,
+    },
     Pan,
 }
 
@@ -306,6 +311,14 @@ impl PetriEditor {
                 op_core::geom::Port::toward(rect, center + Pos::new(dir.0, dir.1)).point(rect)
             }
         }
+    }
+
+    /// Screen path of the selected arc, whose ends can be dragged while editing.
+    pub(crate) fn selected_arc_path(&self, canvas: Rect) -> Option<(Id, Vec<egui::Pos2>)> {
+        let Some(Sel::Arc(id)) = self.selection else { return None };
+        let arc = self.net.arc(id).filter(|_| self.sim.is_none())?;
+        let path = self.arc_path(arc.from, arc.to)?;
+        Some((id, path.into_iter().map(|p| self.view.to_screen(canvas, p)).collect()))
     }
 
     /// World-space path of an arc, following the link style of the net.
@@ -832,6 +845,22 @@ impl PetriEditor {
                 6.0,
                 4.0,
             );
+        }
+        // Ends of the selected arc: handles, or the dragged end following the pointer.
+        if !exporting && let Some((_, path)) = self.selected_arc_path(canvas) {
+            match (self.drag, pointer) {
+                (Some(Drag::Reconnect { end, .. }), Some(p)) => {
+                    let fixed = if end == op_core::geom::Endpoint::Target {
+                        path.first()
+                    } else {
+                        path.last()
+                    };
+                    if let Some(&fixed) = fixed {
+                        canvas::reconnect_preview(&painter, fixed, p, pal.select);
+                    }
+                }
+                _ => canvas::end_handles(&painter, &path, pal.select, pal.fill),
+            }
         }
 
         if self.net.places.is_empty() && self.net.transitions.is_empty() {

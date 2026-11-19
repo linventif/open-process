@@ -211,6 +211,20 @@ impl UmlEditor {
 }
 
 impl UmlEditor {
+    /// Screen path of the selected relation, whose ends can be dragged.
+    pub(super) fn selected_relation_path(&self, rect: Rect) -> Option<(Id, Vec<egui::Pos2>)> {
+        let Some(Selection::Relation(id)) = self.selection else {
+            return None;
+        };
+        let relation = self.diagram.relations.iter().find(|r| r.id == id)?;
+        let path: Vec<_> = self
+            .relation_points(relation)
+            .iter()
+            .map(|p| self.view.to_screen(rect, *p))
+            .collect();
+        (path.len() >= 2).then_some((id, path))
+    }
+
     pub(super) fn draw_overlays(&self, ui: &Ui, p: &Painter, rect: Rect, pal: &Palette) {
         if self.diagram.nodes.is_empty() {
             p.text(
@@ -243,6 +257,22 @@ impl UmlEditor {
                 Stroke::new(1.0, pal.select),
                 StrokeKind::Inside,
             );
+        }
+        // Ends of the selected relation: handles, or the dragged end following the pointer.
+        if let Some((_, path)) = self.selected_relation_path(rect) {
+            match (&self.drag, ui.input(|i| i.pointer.hover_pos())) {
+                (Some(Drag::Reconnect { end, .. }), Some(to)) => {
+                    let fixed = if *end == op_core::geom::Endpoint::Target {
+                        path.first()
+                    } else {
+                        path.last()
+                    };
+                    if let Some(&fixed) = fixed {
+                        canvas::reconnect_preview(p, fixed, to, pal.select);
+                    }
+                }
+                _ => canvas::end_handles(p, &path, pal.select, pal.fill),
+            }
         }
         if let Some(id) = self.pending
             && let Some(n) = self.diagram.node(id)
