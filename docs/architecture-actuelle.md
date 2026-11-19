@@ -79,6 +79,26 @@ picker and opens the example in the originating tab group, like a blank document
 Editor content does not expose a second **Examples** menu. Process-discovery
 samples use the registered event-log examples on those same cards.
 
+The registry also accepts module-owned `BinaryImportDescriptor` declarations,
+checked before text decoding. The sales module owns workbook dispatch: a sales
+table opens a `process.sales` document; an event-only workbook falls back to
+event-log import. Positive sales CSV probes also precede teaching-log fallback.
+Named byte decoders receive optional source filenames through `load_named`;
+existing text importers retain their contract. Spreadsheet parsing lives in
+`op-core/src/mining/import.rs` and `op-core/src/sales/import.rs`; their sparse CSV
+mechanism is shared inside the core. Native and browser file transport remains
+generic. The `calamine` dependency reads workbook cells;
+it is needed to decode XLSX rather than introducing a separate application or
+custom spreadsheet container parser.
+
+`op-core/src/sales.rs` owns the typed study, exact monetary sums, grouping and
+CSV exports. `sales_editor.rs` registers a canvas-free document and reuses
+`DiagramLayout` inspectors, typed history, saving and background jobs. Its
+module-local file inbox adds sources without a shell editor catalogue. Each view
+owns filters and cached output; study records remain document content. The
+`sales.analysis` worker task aggregates snapshots and rejects outdated results
+by content generation, filters and language.
+
 Diagram and workflow descriptors provide an `icon` function. Modules choose
 symbols from `icons.rs`; cards do not infer a notation from its order. The same
 module provides the shared graphical selection cursor.
@@ -258,8 +278,9 @@ Models, histories, cameras and `.opx` schemas are unchanged. See the
 
 ## Interface languages
 
-English (`en`) is the first-run and fallback language. French (`fr`) and Spanish
-(`es`) are available; an explicitly saved choice is restored. The
+Until a language is explicitly chosen, the app follows the first supported
+system or browser language among English (`en`), French (`fr`) and Spanish (`es`).
+English is the fallback; an explicitly saved choice takes precedence. The
 [core i18n module](../crates/op-core/src/i18n/mod.rs) owns `Lang` and stable message
 keys. English lives in `en.rs`; translations live in `fr.rs` and `es.rs`. Missing
 translations use English, while unknown keys are displayed unchanged. Tests

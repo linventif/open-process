@@ -29,6 +29,26 @@ fn historical_documents_migrate_and_roundtrip_without_losing_payloads() {
 }
 
 #[test]
+fn historical_logs_keep_classic_discovery_and_new_import_settings_roundtrip() {
+    use op_core::document::{LogDocument, LogImportNote};
+    let old = Document::read(include_bytes!("fixtures/v1/event-log.opx")).unwrap();
+    let codec = JsonCodec::<LogDocument>::new("event-log");
+    let mut log = codec.decode(&old).unwrap();
+    assert!(!log.discovery.normalize_boundaries);
+    assert_eq!(log.import_note, None);
+    let classic = codec.encode(&log);
+    assert!(classic.model.get("discovery").is_none());
+    assert!(classic.model.get("import_note").is_none());
+
+    log.discovery.normalize_boundaries = true;
+    log.import_note = Some(LogImportNote::WorkbookEventLog);
+    let saved = codec.encode(&log).to_json();
+    let reopened = codec.decode(&Document::read(saved.as_bytes()).unwrap()).unwrap();
+    assert_eq!(reopened, log);
+    assert_eq!(reopened.text, old.model["text"].as_str().unwrap());
+}
+
+#[test]
 fn typed_codec_supports_a_new_kind_without_changing_the_catalogue() {
     let codec = JsonCodec::<Vec<Vec<String>>>::new("decision.table.test");
     let table = vec![vec!["input".into(), "decision".into()], vec!["true".into(), "approve".into()]];

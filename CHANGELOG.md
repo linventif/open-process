@@ -7,6 +7,17 @@ does not distinguish the automatic `main-*` releases.
 
 ## Unreleased
 
+### Process discovery and sales analysis
+
+- Import event logs from CSV and XLSX, remove empty trailing CSV columns, and
+  optionally normalize case boundaries for parallel starts and ends. Convert
+  recorded `Vide`/`Empty` routing markers to silent Petri transitions and replay
+  the corresponding observable traces while preserving the source log.
+- Add sales study documents with CSV/XLSX imports, multiple sources, filters,
+  grouped tables and charts, exact monetary totals and CSV exports. Run analysis
+  through the existing native and browser workers, with English, French and
+  Spanish interface text.
+
 ### Dependencies and CI
 
 - Keep website audits blocking while temporarily excepting the reviewed,

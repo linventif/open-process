@@ -40,10 +40,19 @@ pub struct ImportDescriptor {
     pub decode: fn(&str) -> Result<Document, String>,
 }
 
+/// Byte-oriented formats declare their own detection without forcing text importers
+/// to decode binary input or changing their existing contracts.
+pub struct BinaryImportDescriptor {
+    pub extensions: &'static [&'static str],
+    pub accepts: fn(&[u8]) -> bool,
+    pub decode: fn(&[u8], Option<&str>) -> Result<Document, String>,
+}
+
 pub struct DiagramRegistry {
     pub diagrams: Vec<DiagramDescriptor>,
     pub examples: Vec<ExampleDescriptor>,
     pub imports: Vec<ImportDescriptor>,
+    pub binary_imports: Vec<BinaryImportDescriptor>,
     pub workflows: Vec<WorkflowDescriptor>,
 }
 
@@ -53,6 +62,7 @@ impl DiagramRegistry {
             diagrams,
             examples,
             imports,
+            binary_imports: vec![],
             workflows: vec![],
         };
         registry.validate()?;
@@ -91,8 +101,25 @@ impl DiagramRegistry {
         self.examples.iter().find(|e| e.id == id).map(|e| (e.create)())
     }
     pub fn load(&self, bytes: &[u8]) -> Result<Document, ReadError> {
+        self.load_with_source(bytes, None)
+    }
+    /// Named imports retain source identity without coupling the shell to a document family.
+    pub fn load_named(&self, source_name: &str, bytes: &[u8]) -> Result<Document, ReadError> {
+        if source_name.is_empty() {
+            self.load(bytes)
+        } else {
+            self.load_with_source(bytes, Some(source_name))
+        }
+    }
+    fn load_with_source(&self, bytes: &[u8], source_name: Option<&str>) -> Result<Document, ReadError> {
         if bytes.len() > op_core::document::MAX_DOCUMENT_BYTES {
             return Err(ReadError::Invalid(op_core::i18n::tr("file.input_limit").into()));
+        }
+        let binary: Vec<_> = self.binary_imports.iter().filter(|i| (i.accepts)(bytes)).collect();
+        match binary.as_slice() {
+            [import] => return (import.decode)(bytes, source_name).map_err(ReadError::Invalid),
+            [] => {}
+            _ => return Err(ReadError::Invalid("Ambiguous file format".into())),
         }
         let text = std::str::from_utf8(bytes).map_err(|e| ReadError::Invalid(e.to_string()))?;
         let text = text.trim_start_matches('\u{feff}').trim_start();
@@ -108,7 +135,12 @@ impl DiagramRegistry {
     }
     pub fn extensions(&self) -> Vec<&'static str> {
         let mut result = vec!["opx", "json"];
-        for ext in self.imports.iter().flat_map(|i| i.extensions) {
+        for ext in self
+            .imports
+            .iter()
+            .flat_map(|i| i.extensions)
+            .chain(self.binary_imports.iter().flat_map(|i| i.extensions))
+        {
             if !result.contains(ext) {
                 result.push(ext);
             }

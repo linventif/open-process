@@ -47,8 +47,41 @@ try {
     const mining=await run(JSON.stringify({task:'mining.discovery',text:'ABCD\nACBD\nAED',lang:'En'}));
     if(mining.error) throw new Error(mining.error);
     const discovery=JSON.parse(mining.ok);
-    if(!discovery.result.Ok || discovery.result.Ok[1].footprint.activities.length!==5) throw new Error('Invalid discovery result');
+    const mined=discovery.result.Ok?.Discovery;
+    if(!mined || mined[1].footprint.activities.length!==5) throw new Error('Invalid discovery result');
     report.mining=true;
+    const markerSource='case;activity\n1;Prepare\n1;Vide1\n1;Serve\n2;Prepare\n2;Empty_2\n2;Cancel\n';
+    const markerResponse=await run(JSON.stringify({task:'mining.discovery',text:markerSource,lang:'En',discovery:{normalize_boundaries:true}}));
+    if(markerResponse.error) throw new Error(markerResponse.error);
+    const markerDiscovery=JSON.parse(markerResponse.ok);
+    const markerNet=markerDiscovery.result.Ok?.Discovery?.[1]?.net;
+    if(markerDiscovery.text!==markerSource || !markerNet
+        || markerNet.transitions.some(t=>t.name==='Vide1' || t.name==='Empty_2')
+        || markerNet.transitions.filter(t=>t.silent && t.name==='').length!==2
+        || markerNet.places.some(p=>p.name.includes('Vide1') || p.name.includes('Empty_2'))
+        || markerDiscovery.replays.length!==2 || markerDiscovery.replays.some(result=>!Object.hasOwn(result,'Ok'))) {
+        throw new Error('Routing marker projection changed the source or broke replay');
+    }
+    report.routing_markers=true;
+    const sale=(id,revenue,cost,satisfaction,customer_type)=>({
+        id,structure_id:'1',pizza_type:'Margherita',pizza_size:'Large',
+        revenue,cost,satisfaction,weekday:'Monday',customer_location:'Centre',customer_type
+    });
+    const study={name:'Sales worker smoke test',datasets:[{
+        source_name:'sales.csv',channel:'Counter',records:[
+            sale('1',1500,1200,0,'Student'),sale('2',2000,1800,null,'Adult')
+        ]
+    }]};
+    const sales=await run(JSON.stringify({task:'sales.analysis',study,filter:{},generation:1,lang:'En'}));
+    if(sales.error) throw new Error(sales.error);
+    const totals=JSON.parse(sales.ok).result.Ok?.totals;
+    if(!totals || totals.sales_count!==2 || totals.revenue!==3500 || totals.cost!==3000 || totals.profit!==500
+        || totals.satisfaction_observed!==1 || totals.satisfaction_missing!==1 || totals.satisfaction_average!==0) {
+        throw new Error('Invalid sales analysis or missing-rating handling');
+    }
+    const filtered=await run(JSON.stringify({task:'sales.analysis',study,filter:{customer_type:'Student'},generation:2,lang:'En'}));
+    if(filtered.error || JSON.parse(filtered.ok).result.Ok?.totals.sales_count!==1) throw new Error('Invalid filtered sales analysis');
+    report.sales={records:totals.sales_count,revenue:totals.revenue,missing:totals.satisfaction_missing};
     const diagram={name:'Worker evaluation',next_id:6,pools:[],nodes:[
         {id:1,kind:{StartEvent:'None'},name:'',pos:{x:0,y:0},w:36,h:36},
         {id:2,kind:{Task:'Abstract'},name:'Work',pos:{x:100,y:0},w:100,h:60,cost:2,duration:3},
