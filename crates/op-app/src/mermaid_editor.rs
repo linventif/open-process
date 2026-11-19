@@ -173,7 +173,7 @@ impl MermaidEditor {
     }
 
     fn show(&mut self, ui: &mut Ui) {
-        let layout = DiagramLayout::new(ui, self.state.uid, self.state.inspector);
+        let layout = DiagramLayout::with_primary_inspector(ui, self.state.uid, self.state.inspector);
         layout.tools(ui, |ui| {
             if crate::editor::exam::active(ui.ctx()) {
                 return;

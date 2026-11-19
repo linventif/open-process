@@ -207,8 +207,12 @@ rather than copying configuration bars, zoom, spacing or breakpoints.
 
 Thresholds depend on **available view width**, including docking splits:
 
-- Inspector on the right above 760 px; hidden by default below it. Explicitly
-  opening it in a narrow view places a bounded panel above the canvas.
+- Canvas editors (BPMN, Petri, UML, EPC/activity/flowcharts, databases, free
+  drawing) start with the inspector closed; the **Inspector** button opens it and
+  the choice is kept per view. Mermaid (source editor) and DMN (clauses and
+  evaluation, without a configuration bar) keep their inspector open by default
+  above 760 px. The inspector sits on the right above 760 px; opening it in a
+  narrower view places a bounded panel above the canvas.
 - Options grouped in Z12 below 720 px of bar width.
 - Inspector button also grouped in Z12 below 360 px.
 

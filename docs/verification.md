@@ -1635,3 +1635,17 @@ does not), the explicit flag including an explicit English, portal value mapping
 stable. A temporary live check on this Linux (Wayland) desktop read the portal
 through the new thread and got light (value 0); following a live change was not
 exercised.
+
+## Inspector closed by default — 19 November 2026
+
+`DiagramLayout::new` now keeps the inspector closed until the **Inspector** toggle
+opens it. `DiagramLayout::with_primary_inspector` keeps the former behavior
+(open above 760 px) for Mermaid, whose source editor is in the inspector, and
+DMN, which has no configuration bar and so no toggle. Nine UI tests that used
+inspector fields or its canvas geometry now open it the way a user does, or
+through the saved view state in their setup. The configuration-controls test
+now expects the first toggle to open the inspector at every width.
+
+`cargo fmt --check`, `cargo clippy --workspace --all-targets -D warnings` (Rust
+1.100) and `git diff --check` pass; **282 tests passed** (138 app, 129 core,
+15 integration), none ignored.
