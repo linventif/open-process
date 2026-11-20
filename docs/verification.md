@@ -1843,8 +1843,8 @@ After merging `main` on 20 November 2026, three clippy 1.100 findings in merged
 code were fixed. Formatting, clippy, the WebAssembly check and `git diff --check`
 passed again; the sequential workspace run passed **353 tests** (156 app,
 181 core, 16 integration), none ignored.
-The site test rejects the word "undefined" in rendered pages, so two sentences
-merged into `process-discovery.md` were reworded; `bun run build` and
+The site test rejects a JavaScript placeholder word in rendered pages, so two
+sentences merged into `process-discovery.md` were reworded; `bun run build` and
 `bun test` (26 tests) then passed locally.
 
 ## TakeAway completion — 20 November 2026
