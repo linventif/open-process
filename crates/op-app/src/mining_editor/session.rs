@@ -45,6 +45,8 @@ impl EditorBackend for MiningEditor {
             text: self.text.clone(),
             manual: self.legacy_manual,
             answers: self.answers.clone(),
+            discovery: self.discovery,
+            import_note: self.import_note,
         })
     }
     fn cancel_edit(&mut self) {
@@ -54,11 +56,16 @@ impl EditorBackend for MiningEditor {
     }
     fn ui(&mut self, ui: &mut Ui, _: &str) -> Vec<HostEvent> {
         MiningEditor::ui(self, ui);
-        match self.action.take() {
-            Some(MiningAction::OpenPetri(m)) => vec![HostEvent::Open(JsonCodec::new("petri").encode(&m))],
-            Some(MiningAction::OpenBpmn(m)) => vec![HostEvent::Open(JsonCodec::new("bpmn").encode(&m))],
-            None => vec![],
-        }
+        let mut actions = std::mem::take(&mut self.queued_actions);
+        actions.extend(self.action.take());
+        actions
+            .into_iter()
+            .map(|action| match action {
+                MiningAction::OpenPetri(m) => HostEvent::Open(JsonCodec::new("petri").encode(&m)),
+                MiningAction::OpenBpmn(m) => HostEvent::Open(JsonCodec::new("bpmn").encode(&m)),
+                MiningAction::OpenLog(m) => HostEvent::Open(JsonCodec::new("event-log").encode(&m)),
+            })
+            .collect()
     }
     fn commands(&self) -> &'static [CommandDescriptor] {
         const COMMANDS: &[CommandDescriptor] = &[
@@ -96,14 +103,17 @@ impl EditorBackend for MiningEditor {
         let computed = self
             .computed
             .as_ref()
-            .filter(|c| c.text == self.text && c.lang == op_core::i18n::lang())
+            .filter(|c| c.text == self.text && c.lang == op_core::i18n::lang() && c.discovery == self.discovery && !c.exam)
             .ok_or_else(|| tr("mining.analysis_pending").to_string())?;
-        let MiningOutput::Discovery(log, result) = computed.result.as_ref().map_err(Clone::clone)? else {
+        let MiningOutput::Discovery(_, _) = computed.result.as_ref().map_err(Clone::clone)? else {
             return Err(tr("exam.assistance_disabled").into());
         };
+        if computed.report.is_empty() {
+            return Err(tr("mining.analysis_pending").into());
+        }
         Ok(ExportData {
             suffix: "txt",
-            bytes: result.report(log).into_bytes(),
+            bytes: computed.report.as_bytes().to_vec(),
         })
     }
     fn export_requires_assistance(&self) -> bool {
@@ -167,11 +177,24 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
                     && !op_core::mermaid::markdown::accepts(s)
             },
             decode: |s| {
-                let log = op_core::mining::EventLog::parse(s)?;
-                if log.traces.is_empty() {
-                    return Err("No trace found".into());
+                let source = op_core::mining::import::normalize_event_log_text(s)?;
+                if source.len() > MAX_SOURCE_BYTES {
+                    return Err(tr("mining.analysis_limit").into());
                 }
-                Ok(log_example(s))
+                let log = op_core::mining::EventLog::parse(&source)?;
+                if log.traces.is_empty() {
+                    return Err(tr("mining.no_trace_found").into());
+                }
+                let mut doc = LogDocument {
+                    name: "Imported log".into(),
+                    import_note: (source != s).then_some(op_core::document::LogImportNote::EmptyColumnsRemoved),
+                    text: source,
+                    ..Default::default()
+                };
+                // Only structured CSV imports opt in. Teaching text and examples
+                // keep the original Alpha construction by default.
+                doc.discovery.normalize_boundaries = op_core::mining::import::is_csv_event_log(&doc.text);
+                Ok(JsonCodec::new("event-log").encode(&doc))
             },
         },
     ]);

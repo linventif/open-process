@@ -24,6 +24,7 @@ content is currently English.
 | UML use cases | [Actors, goals and system boundaries](uml-use-cases.md) |
 | Petri nets | [Token play, matrices and analysis](petri-nets.md) |
 | Process discovery | [Event logs, Alpha and trace replay](process-discovery.md) |
+| Sales analysis | [Sales imports, metrics and grouped comparisons](process-discovery.md#analyze-recorded-sales) |
 | BPMN evaluation | [Costs, durations and assumptions](bpmn-evaluation.md) |
 | DMN | [Decision rules, hit policies and evaluation](dmn.md) |
 | EPC | [Events, functions and connectors](epc.md) |
@@ -79,7 +80,9 @@ at each change, rather than a current certification of the entire project.
 
 ## Language and stable links
 
-Project documentation and original interface copy use English. The application
-starts in English without a saved preference; French and Spanish remain
-available. Contributions in French are welcome. Existing documentation filenames
-are retained so links continue to work, even where their names originated in French.
+Project documentation and original interface copy use English. Until a language
+is chosen, the application follows a supported system or browser language
+(English, French or Spanish), with English as the fallback. Explicit saved
+preferences take precedence. Contributions in French are welcome. Existing
+documentation filenames are retained so links continue to work, even where their
+names originated in French.

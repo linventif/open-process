@@ -6,9 +6,11 @@ use op_core::geom::Pos;
 mod appearance;
 mod arrange_and_tabs;
 mod image_export;
+mod import_discovery;
 mod mermaid_builder;
 mod newer_files;
 mod resize;
+mod sales_analysis;
 mod selection_editing;
 mod uml_tools;
 mod whiteboard_editing;
@@ -1298,6 +1300,7 @@ fn exam_mode_replaces_manual_alpha_without_losing_answers() {
             text: "ABCD\nACBD\nAED".into(),
             manual: true,
             answers,
+            ..Default::default()
         }),
         None,
         false,
