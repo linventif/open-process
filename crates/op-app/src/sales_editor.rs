@@ -764,7 +764,8 @@ impl EditorBackend for SalesEditor {
     fn ui(&mut self, ui: &mut Ui, _: &str) -> Vec<HostEvent> {
         self.poll_files();
         let exam = crate::editor::exam::active(ui.ctx());
-        let layout = DiagramLayout::new(ui, self.state.uid, self.state.inspector);
+        // Sources and filters live in the inspector: keep it open like Mermaid and DMN.
+        let layout = DiagramLayout::with_primary_inspector(ui, self.state.uid, self.state.inspector);
         layout.tools(ui, |ui| {
             if ui.button(tr("sales.add_file")).clicked() {
                 self.files.open_dialog(ui.ctx(), vec!["xlsx", "csv"]);
