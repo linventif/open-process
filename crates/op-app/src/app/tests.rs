@@ -5,6 +5,7 @@ use op_core::geom::Pos;
 
 mod appearance;
 mod arrange_and_tabs;
+mod connections;
 mod image_export;
 mod import_discovery;
 mod mermaid_builder;
@@ -12,6 +13,7 @@ mod newer_files;
 mod resize;
 mod sales_analysis;
 mod selection_editing;
+mod trash;
 mod uml_tools;
 mod whiteboard_editing;
 

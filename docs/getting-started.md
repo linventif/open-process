@@ -59,7 +59,10 @@ a token game and analysis, while process discovery starts from an event log.
 Work is saved automatically. Desktop versions create **Documents/Open Process**
 and write editable `.opx` copies there. The browser keeps automatic copies in
 local storage for the app's origin. **Saved diagrams** on the home screen reopens
-documents after their tabs have been closed.
+documents after their tabs have been closed. The bin button on a card (or
+**Move to trash** in its context menu) moves a saved diagram to **Trash**, where it
+can be restored or deleted permanently. Diagrams left in the trash for 15 days
+are erased the next time the app starts.
 
 **File → Save**, **Save as** and **Ctrl/Cmd+S** remain available for manual copies:
 choose a file on desktop or download an `.opx` file in the browser. Later native

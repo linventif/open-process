@@ -400,6 +400,20 @@ impl UmlDiagram {
         self.relations.retain(|r| r.from != id && r.to != id);
     }
 
+    /// Moves one end of a relation to `node` when its kind allows the new pair.
+    /// Labels, multiplicities and roles stay with their ends.
+    pub fn reconnect(&mut self, id: Id, end: crate::geom::Endpoint, node: Id) -> bool {
+        let Some(r) = self.relations.iter().find(|r| r.id == id) else {
+            return false;
+        };
+        let (from, to) = end.moved((r.from, r.to), node);
+        let allowed = self.can_connect_excluding(from, to, r.kind, Some(id));
+        if allowed && let Some(r) = self.relations.iter_mut().find(|r| r.id == id) {
+            (r.from, r.to) = (from, to);
+        }
+        allowed
+    }
+
     /// A system carries its contained use cases when moved by its header or border.
     pub fn move_node(&mut self, id: Id, pos: Pos) {
         let Some(node) = self.node(id) else { return };

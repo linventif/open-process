@@ -142,6 +142,26 @@ Escape and dismissal when the pointer leaves the tool/menu. Choosing a type
 clears an unfinished connection without changing the document or its history.
 Create relations by dragging between nodes or clicking the two endpoints.
 
+### Editing connections
+
+Selecting an arrow in BPMN, Petri nets, EPC, UML activity, flowcharts or UML
+class/use-case diagrams shows a handle at each end. Drag a handle onto another
+element to move that end; the arrow keeps its identity, label, weight or
+multiplicities. The same rules as a new connection apply. BPMN recomputes the
+flow kind, so a sequence flow moved into another pool becomes a message flow and
+loses its default marker. Petri arcs keep alternating between places and
+transitions, and inhibitor arcs keep leaving a place. A refused target leaves the
+arrow unchanged and explains why in the status bar. Each move is one undoable step.
+
+Deleting elements in BPMN or EPC/activity/flowchart diagrams merges the flows
+around them. When the deleted elements, taken together if they are linked, had
+exactly one incoming and one outgoing flow, the incoming flow is extended to the
+successor: A → B → C becomes A → C, and deleting B and C from A → B → C → D leaves
+A → D. The kept flow keeps its name or condition. Nothing merges when the direct
+connection would be invalid (for example event → event in EPC) or already exists.
+Petri nets never merge (a place cannot follow a place), and UML relations are not
+flows, so deletion there is unchanged.
+
 UML has no horizontal business action bar. For multiple selected nodes,
 **Arrange** is available in the inspector and the canvas context menu. Duplication
 remains in the context menu and **Ctrl/Cmd+D**. UML class conversion to Mermaid

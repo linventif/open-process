@@ -166,8 +166,42 @@ impl OpenProcessApp {
         });
     }
 
+    /// Moves a closed saved diagram to the trash (`Some(time)`) or restores it.
+    pub(super) fn trash_automatic_document(&mut self, index: usize, at: Option<u64>) {
+        let Some(id) = self.automatic.entries.get(index).map(|entry| entry.id.clone()) else {
+            return;
+        };
+        if self.docs.iter().any(|doc| doc.archive.as_ref().is_some_and(|entry| entry.id == id)) {
+            return;
+        }
+        // A pending write of the just-closed copy must not land after the change.
+        match self.automatic.wait() {
+            Ok(results) => self.complete_automatic(results),
+            Err(error) => {
+                self.automatic_error = Some(error);
+                return;
+            }
+        }
+        if let Err(error) = self.automatic.set_trashed(&id, at) {
+            self.automatic_error = Some(error);
+        }
+    }
+
+    /// Erases a trashed diagram before its retention period ends.
+    pub(super) fn erase_automatic_document(&mut self, index: usize) {
+        let Some(entry) = self.automatic.entries.get(index).filter(|entry| entry.trashed_at.is_some()) else {
+            return;
+        };
+        let id = entry.id.clone();
+        if let Err(error) = self.automatic.delete(&id) {
+            self.automatic_error = Some(error);
+        }
+    }
+
     pub(super) fn open_automatic_document(&mut self, index: usize) {
-        let Some(entry) = self.automatic.entries.get(index) else { return };
+        let Some(entry) = self.automatic.entries.get(index).filter(|entry| entry.trashed_at.is_none()) else {
+            return;
+        };
         let id = entry.id.clone();
         if let Some(index) = self
             .docs

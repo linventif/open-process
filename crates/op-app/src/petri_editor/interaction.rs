@@ -78,8 +78,13 @@ impl PetriEditor {
             && let Some(w) = press
         {
             let hit = self.hit_node(w);
+            let arc_end = ui
+                .input(|i| i.pointer.press_origin())
+                .and_then(|p| Some((self.selected_arc_path(canvas)?, p)))
+                .and_then(|((arc, path), p)| Some((arc, canvas::end_at(&path, p)?)));
             self.drag = match (self.tool, hit) {
                 _ if space => Some(Drag::Pan),
+                _ if arc_end.is_some() => arc_end.map(|(arc, end)| Drag::Reconnect { arc, end }),
                 (Tool::Select | Tool::Token, Some(n)) if ui.input(|i| i.modifiers.alt) => {
                     if !self.group.contains(&n) {
                         self.group.clear();
@@ -142,6 +147,14 @@ impl PetriEditor {
                 (Some(Drag::Arc { from }), Some(w)) => {
                     if let Some(to) = self.hit_node(w) {
                         self.connect(from, to);
+                    }
+                }
+                (Some(Drag::Reconnect { arc, end }), Some(w)) => {
+                    if let Some(node) = self.hit_node(w) {
+                        match self.net.reconnect_arc(arc, end, node) {
+                            Ok(()) => self.status.clear(),
+                            Err(e) => self.status = e.into(),
+                        }
                     }
                 }
                 (Some(Drag::Rubber { start }), Some(w)) => {

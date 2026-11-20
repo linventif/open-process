@@ -5,6 +5,24 @@ use serde::{Deserialize, Serialize};
 #[cfg(target_arch = "wasm32")]
 const PREFIX: &str = "open-process-document-";
 
+/// Days a deleted automatic copy stays in the trash before it is erased.
+pub const TRASH_DAYS: u64 = 15;
+const DAY: u64 = 86_400;
+
+/// Seconds since the Unix epoch, on native and web.
+pub fn now() -> u64 {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs())
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        (js_sys::Date::now() / 1000.0) as u64
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Entry {
     pub id: String,
@@ -14,6 +32,10 @@ pub struct Entry {
     pub manual_path: Option<String>,
     #[serde(default)]
     pub original_reason: Option<String>,
+    /// When the copy was moved to the trash (Unix seconds). Older versions
+    /// ignore this field and list the copy as a saved diagram again.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trashed_at: Option<u64>,
 }
 
 impl Entry {
@@ -25,7 +47,13 @@ impl Entry {
             kind,
             manual_path,
             original_reason: None,
+            trashed_at: None,
         }
+    }
+
+    /// Whole days left before a trashed copy is erased (0 once due).
+    pub fn days_left(&self, now: u64) -> Option<u64> {
+        self.trashed_at.map(|at| (at + TRASH_DAYS * DAY).saturating_sub(now).div_ceil(DAY))
     }
     fn validate(&self) -> Result<(), String> {
         if uuid::Uuid::parse_str(&self.id).is_err() {
@@ -250,6 +278,62 @@ impl Library {
         Ok(self.poll())
     }
 
+    /// Moves a closed copy to the trash (`Some(time)`) or restores it (`None`).
+    /// Only its metadata changes; call [`Self::wait`] first so that no earlier
+    /// write of the same copy can land afterwards.
+    pub fn set_trashed(&mut self, id: &str, trashed_at: Option<u64>) -> Result<(), String> {
+        let index = self.entries.iter().position(|e| e.id == id).ok_or("Unknown automatic document")?;
+        let mut entry = self.entries[index].clone();
+        entry.validate()?;
+        entry.trashed_at = trashed_at;
+        match &self.backend {
+            Backend::Disabled => return Err("Automatic saving is unavailable".into()),
+            #[cfg(not(target_arch = "wasm32"))]
+            Backend::Native(worker) => worker.store.write_metadata(&entry)?,
+            #[cfg(target_arch = "wasm32")]
+            Backend::Browser(storage) => {
+                let key = format!("{PREFIX}{id}");
+                let raw = storage.get_item(&key).map_err(js_error)?.ok_or("Missing automatic document")?;
+                let mut record: Record = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+                record.entry.trashed_at = trashed_at;
+                entry = record.entry.clone();
+                let raw = serde_json::to_string(&record).map_err(|e| e.to_string())?;
+                storage.set_item(&key, &raw).map_err(js_error)?;
+            }
+        }
+        self.entries[index] = entry;
+        Ok(())
+    }
+
+    /// Erases a copy for good.
+    pub fn delete(&mut self, id: &str) -> Result<(), String> {
+        let entry = self.entries.iter().find(|e| e.id == id).ok_or("Unknown automatic document")?;
+        entry.validate()?;
+        match &self.backend {
+            Backend::Disabled => return Err("Automatic saving is unavailable".into()),
+            #[cfg(not(target_arch = "wasm32"))]
+            Backend::Native(worker) => worker.store.delete(id)?,
+            #[cfg(target_arch = "wasm32")]
+            Backend::Browser(storage) => storage.remove_item(&format!("{PREFIX}{id}")).map_err(js_error)?,
+        }
+        self.entries.retain(|e| e.id != id);
+        Ok(())
+    }
+
+    /// Erases copies trashed more than [`TRASH_DAYS`] ago; returns how many.
+    pub fn purge(&mut self, now: u64) -> Result<usize, String> {
+        let due: Vec<String> = self
+            .entries
+            .iter()
+            .filter(|e| e.days_left(now) == Some(0))
+            .map(|e| e.id.clone())
+            .collect();
+        for id in &due {
+            self.delete(id)?;
+        }
+        Ok(due.len())
+    }
+
     pub fn remember(&mut self, entry: Entry) {
         self.entries.retain(|old| old.id != entry.id);
         self.entries.insert(0, entry);
@@ -370,6 +454,25 @@ mod native {
             };
             Ok(Record { entry: current, state })
         }
+        pub fn write_metadata(&self, entry: &Entry) -> Result<(), String> {
+            let path = self.metadata(&entry.id);
+            let current: Entry = serde_json::from_slice(&crate::io::read_file(&path)?).map_err(|e| e.to_string())?;
+            if current.id != entry.id || current.revision != entry.revision {
+                return Err(op_core::i18n::tr("autosave.conflict").into());
+            }
+            let bytes = serde_json::to_vec(entry).map_err(|e| e.to_string())?;
+            crate::io::atomic::write(&path, &bytes).map_err(|e| e.to_string())
+        }
+        /// The document goes first: without it the copy is no longer listed.
+        pub fn delete(&self, id: &str) -> Result<(), String> {
+            for path in [self.document(id), self.metadata(id)] {
+                match fs::remove_file(&path) {
+                    Err(error) if error.kind() != std::io::ErrorKind::NotFound => return Err(error.to_string()),
+                    _ => {}
+                }
+            }
+            Ok(())
+        }
         fn write(&self, request: &Request) -> Result<(), String> {
             let bytes = check_record(&request.record)?;
             let metadata = self.metadata(&request.record.entry.id);
@@ -417,5 +520,58 @@ mod native {
                 .map_err(|e| e.to_string())?;
             Ok(Self { store, sender, receiver })
         }
+    }
+}
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod tests {
+    use super::*;
+    use op_core::document::{DocumentCodec, JsonCodec};
+
+    fn save(library: &mut Library, name: &str) -> String {
+        let state = StoredDocument::Editable(JsonCodec::new("bpmn").encode(&op_core::bpmn::BpmnDiagram::new(name)));
+        let record = Record {
+            entry: Entry::new(name.into(), "bpmn".into(), None),
+            state,
+        };
+        let done = library.save_now(record, Default::default()).unwrap();
+        let entry = done.last().unwrap().record.entry.clone();
+        assert!(done.iter().all(|c| c.result.is_ok()));
+        library.remember(entry.clone());
+        entry.id
+    }
+
+    #[test]
+    fn trashed_copies_persist_restore_and_are_erased_after_fifteen_days() {
+        let directory = tempfile::tempdir().unwrap();
+        let ctx = egui::Context::default();
+        let mut library = Library::at(directory.path().into(), ctx.clone()).unwrap();
+        let (a, b) = (save(&mut library, "A"), save(&mut library, "B"));
+        let reopen = || Library::at(directory.path().into(), ctx.clone()).unwrap();
+        let trashed_at = |library: &Library, id: &str| library.entries.iter().find(|e| e.id == id).unwrap().trashed_at;
+
+        library.set_trashed(&a, Some(1_000)).unwrap();
+        assert_eq!(trashed_at(&reopen(), &a), Some(1_000), "the trash survives a restart");
+        assert_eq!(trashed_at(&reopen(), &b), None);
+        let entry = reopen().entries.into_iter().find(|e| e.id == a).unwrap();
+        assert_eq!(entry.days_left(1_000), Some(TRASH_DAYS));
+        assert_eq!(entry.days_left(1_000 + TRASH_DAYS * DAY - DAY / 2), Some(1));
+        assert_eq!(entry.days_left(1_000 + TRASH_DAYS * DAY), Some(0));
+        assert!(reopen().load(&a).is_ok(), "trashed content stays readable until erased");
+
+        library.set_trashed(&a, None).unwrap();
+        assert_eq!(trashed_at(&reopen(), &a), None, "restored");
+
+        library.set_trashed(&a, Some(5_000)).unwrap();
+        assert_eq!(library.purge(5_000 + TRASH_DAYS * DAY - 1).unwrap(), 0);
+        assert_eq!(library.purge(5_000 + TRASH_DAYS * DAY).unwrap(), 1);
+        let files = |id: &str| [format!("{id}.opx"), format!("{id}.json")].map(|f| directory.path().join(f).exists());
+        assert_eq!(files(&a), [false, false]);
+        assert_eq!(files(&b), [true, true]);
+        assert_eq!(reopen().entries.iter().map(|e| e.id.as_str()).collect::<Vec<_>>(), [b.as_str()]);
+
+        library.delete(&b).unwrap();
+        assert!(reopen().entries.is_empty());
+        assert!(library.set_trashed(&b, Some(1)).is_err(), "unknown copies are reported");
     }
 }

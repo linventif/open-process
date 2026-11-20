@@ -110,6 +110,13 @@ Export any documents you want to keep first.
 - **Saved files:** `.opx` files, exports and downloaded copies are separate.
   Remove those through your file manager if you no longer want them.
 
+**Move to trash** on a closed saved diagram keeps its copy but records the time in
+its metadata (`trashed_at`, Unix seconds) and lists it under **Trash** on the home
+screen. **Restore** clears that time. **Delete permanently**, or the next launch
+15 days after trashing, removes the `.opx` and `.json` files on desktop or the
+`open-process-document-<uuid>` key in the browser. Versions without this
+feature ignore `trashed_at` and list a trashed copy as a saved diagram again.
+
 Closing a document keeps its automatic copy. Removing a manual/downloaded file
 does not delete its automatic copy or every persisted session/preview, including
 legacy session data.

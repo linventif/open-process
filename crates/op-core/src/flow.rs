@@ -7,6 +7,46 @@ use std::collections::BTreeSet;
 
 pub type Id = u64;
 
+/// Flows to merge when `deleted` nodes are removed. Deleted nodes linked by
+/// flows form one block; a block with exactly one flow entering from outside
+/// and one leaving to outside yields `(entering flow, outside target)`, so
+/// A→B→C→D without B and C becomes A→D. `edges` are `(flow, from, to)`.
+pub fn bridges<N: Copy + Ord, F: Copy>(deleted: &BTreeSet<N>, edges: &[(F, N, N)]) -> Vec<(F, N)> {
+    // Union-find over the deleted nodes, joined by the flows between them.
+    let nodes: Vec<N> = deleted.iter().copied().collect();
+    let index = |n: N| nodes.binary_search(&n).ok();
+    let mut parent: Vec<usize> = (0..nodes.len()).collect();
+    fn root(parent: &mut [usize], mut i: usize) -> usize {
+        while parent[i] != i {
+            parent[i] = parent[parent[i]];
+            i = parent[i];
+        }
+        i
+    }
+    for &(_, from, to) in edges {
+        if let (Some(a), Some(b)) = (index(from), index(to)) {
+            let (a, b) = (root(&mut parent, a), root(&mut parent, b));
+            parent[a] = b;
+        }
+    }
+    let mut entering = std::collections::BTreeMap::<usize, Vec<F>>::new();
+    let mut leaving = std::collections::BTreeMap::<usize, Vec<N>>::new();
+    for &(flow, from, to) in edges {
+        match (index(from), index(to)) {
+            (None, Some(b)) => entering.entry(root(&mut parent, b)).or_default().push(flow),
+            (Some(a), None) => leaving.entry(root(&mut parent, a)).or_default().push(to),
+            _ => {}
+        }
+    }
+    entering
+        .into_iter()
+        .filter_map(|(block, flows)| match (flows.as_slice(), leaving.get(&block).map(Vec::as_slice)) {
+            ([flow], Some([to])) => Some((*flow, *to)),
+            _ => None,
+        })
+        .collect()
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Shape {
     Action,
@@ -159,6 +199,44 @@ impl<K: FlowKind> Diagram<K> {
         });
         Some(id)
     }
+    /// Deletes like [`Self::delete`], then merges the flows around removed
+    /// nodes (see [`bridges`]) when the notation allows the direct connection
+    /// and it does not exist yet. The entering flow keeps its label.
+    pub fn delete_bridging(&mut self, nodes: &BTreeSet<Id>, flow: Option<Id>) {
+        self.flows.retain(|f| Some(f.id) != flow);
+        let edges: Vec<_> = self.flows.iter().map(|f| (f.id, f.from, f.to)).collect();
+        let mut merged = vec![];
+        for (entering, to) in bridges(nodes, &edges) {
+            let Some(from) = self.flows.iter().find(|f| f.id == entering).map(|f| f.from) else {
+                continue;
+            };
+            let allowed = from != to
+                && self.node(from).zip(self.node(to)).is_some_and(|(a, b)| a.kind.can_connect(b.kind))
+                && !self.flows.iter().any(|f| f.from == from && f.to == to)
+                && !merged.contains(&(from, to));
+            if allowed && let Some(f) = self.flows.iter_mut().find(|f| f.id == entering) {
+                f.to = to;
+                merged.push((from, to));
+            }
+        }
+        self.delete(nodes, None);
+    }
+
+    /// Moves one end of a flow to `node` when the notation allows it.
+    pub fn reconnect(&mut self, id: Id, end: crate::geom::Endpoint, node: Id) -> bool {
+        let Some(flow) = self.flows.iter().find(|f| f.id == id) else {
+            return false;
+        };
+        let (from, to) = end.moved((flow.from, flow.to), node);
+        let allowed = from != to
+            && self.node(from).zip(self.node(to)).is_some_and(|(a, b)| a.kind.can_connect(b.kind))
+            && !self.flows.iter().any(|f| f.id != id && f.from == from && f.to == to);
+        if allowed && let Some(flow) = self.flows.iter_mut().find(|f| f.id == id) {
+            (flow.from, flow.to) = (from, to);
+        }
+        allowed
+    }
+
     pub fn delete(&mut self, nodes: &BTreeSet<Id>, flow: Option<Id>) {
         self.nodes.retain(|n| !nodes.contains(&n.id));
         self.flows

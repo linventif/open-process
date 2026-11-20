@@ -12,3 +12,7 @@ updates:
     directory: /website
     schedule:
       interval: weekly
+    ignore:
+      # TypeScript 6 is kept only to check .astro files; see website/README.md.
+      - dependency-name: typescript-6
+        update-types: ["version-update:semver-major"]

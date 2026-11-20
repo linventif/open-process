@@ -254,8 +254,13 @@ impl UmlEditor {
         {
             let start = self.view.to_world(rect, screen);
             self.history.sync(&self.diagram, false);
+            let relation_end = self
+                .selected_relation_path(rect)
+                .and_then(|(relation, path)| Some((relation, canvas::end_at(&path, screen)?)));
             if ui.input(|i| i.key_down(Key::Space)) {
                 self.drag = Some(Drag::Pan);
+            } else if let Some((relation, end)) = relation_end {
+                self.drag = Some(Drag::Reconnect { relation, end });
             } else {
                 match self.tool {
                     Tool::Connect => {
@@ -347,14 +352,24 @@ impl UmlEditor {
             }
         }
         if ui.input(|i| i.pointer.primary_released()) {
-            if let Some(Drag::Connect(from)) = self.drag.take() {
-                if let Some(to) = world.and_then(|p| self.hit_node(p)) {
-                    self.connect(from, to);
-                } else {
-                    self.pending = None;
+            match self.drag.take() {
+                Some(Drag::Connect(from)) => {
+                    if let Some(to) = world.and_then(|p| self.hit_node(p)) {
+                        self.connect(from, to);
+                    } else {
+                        self.pending = None;
+                    }
                 }
-            } else {
-                self.drag = None;
+                Some(Drag::Reconnect { relation, end }) => {
+                    if let Some(node) = world.and_then(|p| self.hit_node(p)) {
+                        self.status = if self.diagram.reconnect(relation, end, node) {
+                            String::new()
+                        } else {
+                            tr("canvas.cannot_reconnect").into()
+                        };
+                    }
+                }
+                _ => {}
             }
             if let Some(kind) = self.dnd.take()
                 && let Some(p) = pointer.filter(|p| rect.contains(*p))

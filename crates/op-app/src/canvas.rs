@@ -242,6 +242,35 @@ pub fn polyline(painter: &Painter, pts: &[Pos2], stroke: Stroke) {
     }
 }
 
+/// Screen radius of the handles at both ends of a selected connection.
+pub const END_HANDLE: f32 = 6.0;
+
+/// Handles at the first and last screen points of a selected connection;
+/// dragging one moves that end to another element.
+pub fn end_handles(painter: &Painter, path: &[Pos2], color: Color32, fill: Color32) {
+    for p in [path.first(), path.last()].into_iter().flatten() {
+        painter.circle(*p, END_HANDLE - 1.0, fill, Stroke::new(2.0, color));
+    }
+}
+
+/// The end of a connection's screen `path` under `pointer`, target first.
+pub fn end_at(path: &[Pos2], pointer: Pos2) -> Option<op_core::geom::Endpoint> {
+    let near = |p: Option<&Pos2>| p.is_some_and(|p| p.distance(pointer) <= END_HANDLE + 3.0);
+    if near(path.last()) {
+        Some(op_core::geom::Endpoint::Target)
+    } else if near(path.first()) {
+        Some(op_core::geom::Endpoint::Source)
+    } else {
+        None
+    }
+}
+
+/// While an end is dragged: a dashed line from the end that stays to the pointer.
+pub fn reconnect_preview(painter: &Painter, fixed: Pos2, pointer: Pos2, color: Color32) {
+    dashed(painter, &[fixed, pointer], Stroke::new(1.5, color), 6.0, 4.0);
+    painter.circle(pointer, END_HANDLE - 1.0, color.gamma_multiply(0.25), Stroke::new(2.0, color));
+}
+
 pub fn dashed(painter: &Painter, pts: &[Pos2], stroke: Stroke, dash: f32, gap: f32) {
     painter.extend(Shape::dashed_line(pts, stroke, dash, gap));
 }
