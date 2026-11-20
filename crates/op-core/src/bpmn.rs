@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod layout;
 pub mod resize;
+mod svg;
 
 pub type Id = u32;
 
@@ -716,6 +717,19 @@ pub fn route(diagram: &BpmnDiagram, f: &Flow) -> Vec<Pos> {
 
 /// Orthogonal routing similar to common BPMN tools.
 pub fn route_orthogonal(diagram: &BpmnDiagram, f: &Flow) -> Vec<Pos> {
+    let preferred = preferred_orthogonal_route(diagram, f);
+    let (Some(source), Some(target)) = (diagram.node(f.from), diagram.node(f.to)) else {
+        return preferred;
+    };
+    // Preserve unobstructed authoring conventions exactly. Larger diagrams keep
+    // the inexpensive preferred route rather than starting an unbounded search.
+    if diagram.nodes.len() > 256 || route_clears_nodes(diagram, f, &preferred) {
+        return preferred;
+    }
+    obstacle_route(diagram, f, source, target, &preferred).unwrap_or(preferred)
+}
+
+fn preferred_orthogonal_route(diagram: &BpmnDiagram, f: &Flow) -> Vec<Pos> {
     let (Some(a), Some(b)) = (diagram.node(f.from), diagram.node(f.to)) else {
         return Vec::new();
     };
@@ -770,6 +784,306 @@ pub fn route_orthogonal(diagram: &BpmnDiagram, f: &Flow) -> Vec<Pos> {
     vec![boundary_point(a, b.pos), boundary_point(b, a.pos)]
 }
 
+/// Test the open interior, so a segment touching a shape boundary is allowed.
+fn segment_enters_rect(from: Pos, to: Pos, rect: Rect) -> bool {
+    const EPS: f32 = 0.01;
+    let mut lower = 0.0_f32;
+    let mut upper = 1.0_f32;
+    for (origin, delta, low, high) in [
+        (from.x, to.x - from.x, rect.x + EPS, rect.right() - EPS),
+        (from.y, to.y - from.y, rect.y + EPS, rect.bottom() - EPS),
+    ] {
+        if low >= high {
+            return false;
+        }
+        if delta.abs() < EPS {
+            if origin <= low || origin >= high {
+                return false;
+            }
+        } else {
+            let (a, b) = ((low - origin) / delta, (high - origin) / delta);
+            lower = lower.max(a.min(b));
+            upper = upper.min(a.max(b));
+            if lower >= upper {
+                return false;
+            }
+        }
+    }
+    lower < upper
+}
+
+fn route_clears_nodes(diagram: &BpmnDiagram, flow: &Flow, points: &[Pos]) -> bool {
+    if points.len() < 2 {
+        return false;
+    }
+    let (Some(source), Some(target)) = (diagram.node(flow.from), diagram.node(flow.to)) else {
+        return false;
+    };
+    let outward = |center: Pos, anchor: Pos, next: Pos| {
+        let radial = anchor - center;
+        let direction = next - anchor;
+        radial.x * direction.x + radial.y * direction.y >= -0.01
+    };
+    if !outward(source.pos, points[0], points[1]) || !outward(target.pos, points[points.len() - 1], points[points.len() - 2]) {
+        return false;
+    }
+    points.windows(2).enumerate().all(|(index, segment)| {
+        diagram.nodes.iter().all(|node| {
+            (index == 0 && node.id == flow.from)
+                || (index + 2 == points.len() && node.id == flow.to)
+                || !segment_enters_rect(segment[0], segment[1], node.rect())
+        })
+    })
+}
+
+#[derive(Clone, Copy)]
+struct RoutingPort {
+    anchor: Pos,
+    stub: Pos,
+    axis: usize,
+    penalty: f32,
+}
+
+fn routing_ports(node: &Node, preferred: Pos) -> Vec<RoutingPort> {
+    use crate::geom::Port;
+    const GAP: f32 = 8.0;
+    let rect = node.rect();
+    let preferred_side = Port::ALL
+        .into_iter()
+        .min_by(|a, b| a.point(rect).dist(preferred).total_cmp(&b.point(rect).dist(preferred)))
+        .unwrap_or(Port::Right);
+    Port::ALL
+        .into_iter()
+        .map(|side| {
+            let (delta, axis) = match side {
+                Port::Top => (Pos::new(0.0, -GAP), 1),
+                Port::Right => (Pos::new(GAP, 0.0), 0),
+                Port::Bottom => (Pos::new(0.0, GAP), 1),
+                Port::Left => (Pos::new(-GAP, 0.0), 0),
+            };
+            let anchor = if node.kind.is_event() {
+                boundary_point(node, node.pos + delta)
+            } else {
+                side.point(rect)
+            };
+            let stub = match side {
+                Port::Top => Pos::new(anchor.x, rect.y - GAP),
+                Port::Right => Pos::new(rect.right() + GAP, anchor.y),
+                Port::Bottom => Pos::new(anchor.x, rect.bottom() + GAP),
+                Port::Left => Pos::new(rect.x - GAP, anchor.y),
+            };
+            RoutingPort {
+                anchor,
+                stub,
+                axis,
+                penalty: if side == preferred_side { 0.0 } else { 40.0 },
+            }
+        })
+        .collect()
+}
+
+fn simplify_route(points: Vec<Pos>) -> Vec<Pos> {
+    let mut result: Vec<Pos> = Vec::new();
+    for point in points {
+        if result.last().is_some_and(|previous| previous.dist(point) < 0.01) {
+            continue;
+        }
+        while result.len() >= 2 {
+            let a = result[result.len() - 2];
+            let b = result[result.len() - 1];
+            let collinear =
+                ((a.x - b.x).abs() < 0.01 && (b.x - point.x).abs() < 0.01) || ((a.y - b.y).abs() < 0.01 && (b.y - point.y).abs() < 0.01);
+            if collinear && (b.x - a.x) * (point.x - b.x) + (b.y - a.y) * (point.y - b.y) >= 0.0 {
+                result.pop();
+            } else {
+                break;
+            }
+        }
+        result.push(point);
+    }
+    result
+}
+
+#[derive(Clone, Copy)]
+struct RoutingVisit {
+    estimate: f32,
+    cost: f32,
+    state: usize,
+}
+impl PartialEq for RoutingVisit {
+    fn eq(&self, other: &Self) -> bool {
+        self.estimate == other.estimate && self.state == other.state
+    }
+}
+impl Eq for RoutingVisit {}
+impl PartialOrd for RoutingVisit {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for RoutingVisit {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        other.estimate.total_cmp(&self.estimate).then_with(|| other.state.cmp(&self.state))
+    }
+}
+
+/// A bounded visibility grid, following the same geometry strategy as UML but
+/// keeping BPMN's existing preferred-route and attachment conventions intact.
+fn obstacle_route(diagram: &BpmnDiagram, flow: &Flow, source: &Node, target: &Node, preferred: &[Pos]) -> Option<Vec<Pos>> {
+    use std::collections::BinaryHeap;
+    const GAP: f32 = 8.0;
+    const BEND: f32 = 24.0;
+    const MAX_GRID: usize = 32_768;
+    let from = routing_ports(source, preferred.first().copied().unwrap_or(source.pos));
+    let to = routing_ports(target, preferred.last().copied().unwrap_or(target.pos));
+    let obstacles: Vec<_> = diagram
+        .nodes
+        .iter()
+        .map(|node| {
+            let rect = node.rect();
+            Rect::new(rect.x - GAP, rect.y - GAP, rect.w + 2.0 * GAP, rect.h + 2.0 * GAP)
+        })
+        .collect();
+    let mut budget = 2_000_000usize;
+    let mut clear = |a: Pos, b: Pos| {
+        for &rect in &obstacles {
+            if budget == 0 {
+                return false;
+            }
+            budget -= 1;
+            if segment_enters_rect(a, b, rect) {
+                return false;
+            }
+        }
+        true
+    };
+    let mut simple: Option<(f32, Vec<Pos>)> = None;
+    for start in &from {
+        for end in &to {
+            for corner in [Pos::new(start.stub.x, end.stub.y), Pos::new(end.stub.x, start.stub.y)] {
+                if clear(start.stub, corner) && clear(corner, end.stub) {
+                    let path = simplify_route(vec![start.anchor, start.stub, corner, end.stub, end.anchor]);
+                    let cost = start.penalty
+                        + end.penalty
+                        + path.windows(2).map(|pair| pair[0].dist(pair[1])).sum::<f32>()
+                        + BEND * path.len().saturating_sub(2) as f32;
+                    if route_clears_nodes(diagram, flow, &path) && simple.as_ref().is_none_or(|(best, _)| cost < *best) {
+                        simple = Some((cost, path));
+                    }
+                }
+            }
+        }
+    }
+    if let Some((_, path)) = simple {
+        return Some(path);
+    }
+    let mut xs: Vec<_> = obstacles.iter().flat_map(|rect| [rect.x, rect.right()]).collect();
+    let mut ys: Vec<_> = obstacles.iter().flat_map(|rect| [rect.y, rect.bottom()]).collect();
+    for port in from.iter().chain(&to) {
+        xs.push(port.stub.x);
+        ys.push(port.stub.y);
+    }
+    for coordinates in [&mut xs, &mut ys] {
+        coordinates.sort_by(f32::total_cmp);
+        coordinates.dedup_by(|a, b| (*a - *b).abs() < 0.01);
+    }
+    let count = xs.len().checked_mul(ys.len())?;
+    if count == 0 || count > MAX_GRID {
+        return None;
+    }
+    let width = xs.len();
+    let index = |point: Pos| -> Option<usize> {
+        Some(
+            ys.iter().position(|value| (*value - point.y).abs() < 0.01)? * width
+                + xs.iter().position(|value| (*value - point.x).abs() < 0.01)?,
+        )
+    };
+    let point = |index: usize| Pos::new(xs[index % width], ys[index / width]);
+    let targets: Vec<_> = to
+        .iter()
+        .enumerate()
+        .filter_map(|(which, port)| index(port.stub).map(|cell| (cell, which)))
+        .collect();
+    let heuristic = |at: Pos| {
+        to.iter()
+            .map(|port| (port.stub.x - at.x).abs() + (port.stub.y - at.y).abs() + port.penalty)
+            .fold(f32::INFINITY, f32::min)
+    };
+    let mut costs = vec![f32::INFINITY; count * 2];
+    let mut previous: Vec<Option<usize>> = vec![None; count * 2];
+    let mut roots = vec![None; count * 2];
+    let mut heap = BinaryHeap::new();
+    for (which, port) in from.iter().enumerate() {
+        if !clear(port.stub, port.stub) {
+            continue;
+        }
+        let state = index(port.stub)? * 2 + port.axis;
+        let cost = port.penalty + port.anchor.dist(port.stub);
+        if cost < costs[state] {
+            costs[state] = cost;
+            roots[state] = Some(which);
+            heap.push(RoutingVisit {
+                estimate: cost + heuristic(port.stub),
+                cost,
+                state,
+            });
+        }
+    }
+    let mut visits = 0;
+    while let Some(RoutingVisit { cost, state, .. }) = heap.pop() {
+        visits += 1;
+        if visits > MAX_GRID * 2 {
+            return None;
+        }
+        if cost > costs[state] {
+            continue;
+        }
+        let cell = state / 2;
+        if let Some(&(_, target)) = targets.iter().find(|(target, _)| *target == cell) {
+            let mut at = state;
+            let mut path = vec![to[target].anchor];
+            loop {
+                path.push(point(at / 2));
+                if let Some(parent) = previous[at] {
+                    at = parent;
+                } else {
+                    path.push(from[roots[at]?].anchor);
+                    break;
+                }
+            }
+            path.reverse();
+            let path = simplify_route(path);
+            if route_clears_nodes(diagram, flow, &path) {
+                return Some(path);
+            }
+        }
+        let (x, y) = (cell % width, cell / width);
+        for (next, axis) in [
+            (x.checked_sub(1).map(|x| y * width + x), 0),
+            ((x + 1 < width).then_some(cell + 1), 0),
+            (y.checked_sub(1).map(|y| y * width + x), 1),
+            ((y + 1 < ys.len()).then_some(cell + width), 1),
+        ] {
+            let Some(next) = next else { continue };
+            if !clear(point(cell), point(next)) {
+                continue;
+            }
+            let next_cost = cost + point(cell).dist(point(next)) + if state % 2 == axis { 0.0 } else { BEND };
+            let next_state = next * 2 + axis;
+            if next_cost + 0.01 < costs[next_state] {
+                costs[next_state] = next_cost;
+                previous[next_state] = Some(state);
+                heap.push(RoutingVisit {
+                    estimate: next_cost + heuristic(point(next)),
+                    cost: next_cost,
+                    state: next_state,
+                });
+            }
+        }
+    }
+    None
+}
+
 /// Loop-back route: leaves `a` and enters `b` by the top (or bottom) and runs
 /// beyond every element spanning the gap, on the side with the shorter detour.
 fn route_loop(diagram: &BpmnDiagram, a: &Node, b: &Node) -> Vec<Pos> {
@@ -800,6 +1114,135 @@ fn route_loop(diagram: &BpmnDiagram, a: &Node, b: &Node) -> Vec<Pos> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn assert_clear_orthogonal(diagram: &BpmnDiagram, flow: &Flow, points: &[Pos]) {
+        assert!(points.len() >= 2);
+        for (index, segment) in points.windows(2).enumerate() {
+            assert!(
+                (segment[0].x - segment[1].x).abs() < 0.01 || (segment[0].y - segment[1].y).abs() < 0.01,
+                "nonorthogonal segment: {segment:?}"
+            );
+            for node in &diagram.nodes {
+                if (index == 0 && node.id == flow.from) || (index + 2 == points.len() && node.id == flow.to) {
+                    continue;
+                }
+                let rect = node.rect();
+                for sample in 1..100 {
+                    let point = segment[0].lerp(segment[1], sample as f32 / 100.0);
+                    assert!(
+                        !(point.x > rect.x + 0.02
+                            && point.x < rect.right() - 0.02
+                            && point.y > rect.y + 0.02
+                            && point.y < rect.bottom() - 0.02),
+                        "flow {} crosses node {} at {point:?}: {points:?}",
+                        flow.id,
+                        node.id
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn clear_preferred_route_is_kept_exactly() {
+        let mut diagram = BpmnDiagram::new("Preferred route");
+        let a = diagram.add_node(NodeKind::Gateway(GatewayType::Exclusive), Pos::new(0.0, 0.0));
+        let b = diagram.add_node(NodeKind::Task(TaskType::User), Pos::new(300.0, 150.0));
+        let flow = diagram.add_flow(a, b).unwrap();
+        assert_eq!(
+            route_orthogonal(&diagram, diagram.flow(flow).unwrap()),
+            vec![Pos::new(0.0, 25.0), Pos::new(0.0, 150.0), Pos::new(245.0, 150.0)]
+        );
+    }
+
+    #[test]
+    fn blocked_straight_flow_detours_without_moving_elements() {
+        let mut diagram = BpmnDiagram::new("Blocked horizontal flow");
+        let a = diagram.add_node(NodeKind::Task(TaskType::Abstract), Pos::new(0.0, 0.0));
+        let b = diagram.add_node(NodeKind::Task(TaskType::Abstract), Pos::new(400.0, 0.0));
+        diagram.add_node(NodeKind::Task(TaskType::Abstract), Pos::new(200.0, 0.0));
+        let flow = diagram.add_flow(a, b).unwrap();
+        let original = diagram.clone();
+        let points = route(&diagram, diagram.flow(flow).unwrap());
+        assert!(points.len() > 2);
+        assert_clear_orthogonal(&diagram, diagram.flow(flow).unwrap(), &points);
+        for (node, point) in [
+            (diagram.node(a).unwrap(), points[0]),
+            (diagram.node(b).unwrap(), *points.last().unwrap()),
+        ] {
+            assert!(
+                crate::geom::Port::ALL
+                    .into_iter()
+                    .any(|port| port.point(node.rect()).dist(point) < 0.01)
+            );
+        }
+        assert_eq!(diagram, original);
+    }
+
+    #[test]
+    fn loop_vertical_legs_avoid_stacked_unrelated_nodes() {
+        let mut diagram = BpmnDiagram::new("Loop corridor");
+        let a = diagram.add_node(NodeKind::Gateway(GatewayType::Exclusive), Pos::new(600.0, 200.0));
+        let b = diagram.add_node(NodeKind::Task(TaskType::User), Pos::new(100.0, 200.0));
+        diagram.add_node(NodeKind::Task(TaskType::User), Pos::new(600.0, 0.0));
+        diagram.add_node(NodeKind::Task(TaskType::User), Pos::new(600.0, 400.0));
+        let flow = diagram.add_flow(a, b).unwrap();
+        let legacy = preferred_orthogonal_route(&diagram, diagram.flow(flow).unwrap());
+        assert!(!route_clears_nodes(&diagram, diagram.flow(flow).unwrap(), &legacy));
+        let points = route(&diagram, diagram.flow(flow).unwrap());
+        assert_clear_orthogonal(&diagram, diagram.flow(flow).unwrap(), &points);
+    }
+
+    #[test]
+    fn associations_and_messages_avoid_tasks_while_containers_remain_crossable() {
+        let mut diagram = BpmnDiagram::new("Data association");
+        let a = diagram.add_node(NodeKind::Task(TaskType::User), Pos::new(0.0, 0.0));
+        let b = diagram.add_node(NodeKind::DataObject, Pos::new(400.0, 200.0));
+        diagram.add_node(NodeKind::Task(TaskType::User), Pos::new(200.0, 100.0));
+        let flow = diagram.add_flow(a, b).unwrap();
+        assert_eq!(diagram.flow(flow).unwrap().kind, FlowKind::Association);
+        assert_clear_orthogonal(&diagram, diagram.flow(flow).unwrap(), &route(&diagram, diagram.flow(flow).unwrap()));
+
+        let mut diagram = BpmnDiagram::new("Message through container boundaries");
+        diagram.add_pool(Pos::new(0.0, 0.0));
+        diagram.add_pool(Pos::new(0.0, 300.0));
+        let a = diagram.add_node(NodeKind::Task(TaskType::Send), Pos::new(200.0, 90.0));
+        let b = diagram.add_node(NodeKind::Task(TaskType::Receive), Pos::new(200.0, 390.0));
+        diagram.add_node(NodeKind::Task(TaskType::User), Pos::new(200.0, 240.0));
+        let flow = diagram.add_flow(a, b).unwrap();
+        assert_eq!(diagram.flow(flow).unwrap().kind, FlowKind::Message);
+        assert_clear_orthogonal(&diagram, diagram.flow(flow).unwrap(), &route(&diagram, diagram.flow(flow).unwrap()));
+    }
+
+    #[test]
+    fn blocked_event_ports_remain_on_the_circle() {
+        let mut diagram = BpmnDiagram::new("Circular attachments");
+        let a = diagram.add_node(NodeKind::StartEvent(EventTrigger::None), Pos::new(0.0, 0.0));
+        let b = diagram.add_node(NodeKind::Task(TaskType::User), Pos::new(400.0, 0.0));
+        diagram.add_node(NodeKind::Task(TaskType::User), Pos::new(200.0, 0.0));
+        let flow = diagram.add_flow(a, b).unwrap();
+        let points = route(&diagram, diagram.flow(flow).unwrap());
+        assert!((points[0].dist(diagram.node(a).unwrap().pos) - 18.0).abs() < 0.01);
+        assert_clear_orthogonal(&diagram, diagram.flow(flow).unwrap(), &points);
+    }
+
+    #[test]
+    fn overlapping_and_oversized_drafts_have_finite_nonpanicking_fallbacks() {
+        let mut diagram = BpmnDiagram::new("Overlapping draft");
+        let a = diagram.add_node(NodeKind::Task(TaskType::User), Pos::new(0.0, 0.0));
+        let b = diagram.add_node(NodeKind::Task(TaskType::User), Pos::new(0.0, 0.0));
+        let obstacle = diagram.add_node(NodeKind::Task(TaskType::User), Pos::new(0.0, 0.0));
+        diagram.node_mut(obstacle).unwrap().w = 600.0;
+        diagram.node_mut(obstacle).unwrap().h = 600.0;
+        let flow = diagram.add_flow(a, b).unwrap();
+        let points = route(&diagram, diagram.flow(flow).unwrap());
+        assert!(points.len() >= 2 && points.iter().all(|point| point.x.is_finite() && point.y.is_finite()));
+        for index in 0..256 {
+            diagram.add_node(NodeKind::Task(TaskType::User), Pos::new(index as f32 * 200.0, 1000.0));
+        }
+        let points = route(&diagram, diagram.flow(flow).unwrap());
+        assert!(points.len() >= 2 && points.iter().all(|point| point.x.is_finite() && point.y.is_finite()));
+    }
 
     #[test]
     fn rectangle_and_gateway_flows_keep_preferred_ports_after_moves() {

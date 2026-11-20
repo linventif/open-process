@@ -24,6 +24,8 @@ fn sales_csv_import_analysis_reopen_and_exam_mode() {
     assert_eq!(h.state().docs[h.state().active].editor.kind(), "process.sales");
     wait_for_sales(&mut h);
     assert!(h.query_by_label(tr("sales.average_revenue")).is_some());
+    assert!(h.query_by_label(tr("sales.kpi_margin")).is_some());
+    assert!(h.query_by_label(tr("sales.kpi_coverage")).is_some());
     assert!(h.query_by_label(&trf("sales.satisfaction_note", &[&1, &1])).is_some());
     let active = h.state().active;
     let snapshot = h.state().docs[active].snapshot();
@@ -38,12 +40,19 @@ fn sales_csv_import_analysis_reopen_and_exam_mode() {
     h.run_steps(4);
     assert!(h.query_by_label(tr("sales.group_by")).is_some());
     shot(&mut h, "sales_breakdown");
+    h.get_by_label(tr("sales.evolution")).click();
+    h.run_steps(4);
+    assert!(h.query_by_label(tr("sales.weekday_profile_note")).is_some());
+    let series = String::from_utf8(h.state().docs[active].editor.export_as("weekday-series").unwrap().bytes).unwrap();
+    assert!(series.contains("Customer type;Regular;Monday;1;15.00;6.00;9.00;4;1;0\n"));
+    shot(&mut h, "sales_weekday_evolution");
     h.state_mut().load_bytes("sales.opx".into(), &snapshot.bytes());
     h.run_steps(4);
     assert_eq!(h.state().docs[h.state().active].snapshot(), snapshot);
     wait_for_sales(&mut h);
     toggle_exam(&mut h);
     assert!(h.state().docs[h.state().active].editor.export().is_err());
+    assert!(h.state().docs[h.state().active].editor.export_as("kpis").is_err());
     assert!(h.query_by_label(tr("sales.average_revenue")).is_none());
 }
 

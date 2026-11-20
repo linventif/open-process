@@ -1815,3 +1815,73 @@ collected doctests. Native and WebAssembly `cargo check --locked -p op-app`
 passed after the integration changes. Formatting, 168 local file links across
 nine changed Markdown pages and the whitespace check passed. These are local
 Linux checks; no remote CI, release build or publication was performed.
+
+## TakeAway completion — 20 November 2026
+
+Application discovery now converts silent routing to BPMN gateways with
+conservative contractions, retains silent generated boundaries on reverse
+conversion and reports omitted place capacities. Bounded observable-language
+regressions cover preparation loops, parallel completion, repeated routes and
+non-free-choice examples. The source Petri models are not mutated.
+
+The shared BPMN SVG renderer exports complete model geometry, lanes, information
+artifacts, routed loops and wrapped escaped labels. Orthogonal routing keeps
+clear preferred paths and uses bounded obstacle search for obstructed routes:
+256 nodes, 32,768 grid points, 65,536 states and two million intersection checks
+are upper limits. Larger/overlapping drafts can retain the preferred fallback;
+explicit straight/curved styles are unchanged. A UI regression exposed flow
+insertion querying the route after its new shape became an obstacle. Capturing
+the target before insertion preserves that editing behavior.
+
+Official OMG BPMN 2.0.2 XSD validation identified process artifacts being emitted
+before later sequence flows. Export now writes flow elements before annotations
+and associations, preserving identities and diagram interchange. The four final
+XML models pass all five normative schemas with libxml2 2.15.2; schema URLs,
+SHA-256 fingerprints, file fingerprints and scope are recorded in
+[`bpmn-xsd.json`](../tp/results/checks/bpmn-xsd.json). XSD grammar validation does
+not certify all BPMN semantics or every external editor.
+
+Sales analysis now derives weekday/customer-type profiles in the existing
+worker, displays count/revenue/profit/observed-score curves and comparisons, and
+exports series and two explained KPIs. An exact `StructureId` filter can be
+scoped by channel; it does not interpret a sales ID as a case/customer ID.
+Historical view preferences remain readable and no stored model schema changed.
+
+The reproducible TakeAway example produces 17 outputs: four enriched native,
+BPMN XML and SVG models, complementary evidence, case validation, weekday/KPI
+CSVs and a filtered scenario export. All 327 observed cases replay through their
+channel BPMN, the connected global BPMN and XML round-trips. All four converted
+workflow networks return `Sound` within the 20,000-state analysis bound; 15
+selected invalid control/cross-channel traces are rejected. Reproducible geometry
+checks find no node-body overlaps or unrelated-node crossings for sequence,
+association or message routes, using a 3 px inset and excluding endpoints.
+Visual review separately checks labels and channel corridors. Inferred role
+titles, representative information associations and unmeasured task defaults
+are documented; these are not resource-availability or data-execution proofs.
+
+Independent integer/Decimal analysis reconciles eight native summary/series/KPI
+CSVs plus the separate scenario subset. It verifies all 463 stored rows against
+their own workbooks and resolves local template references. Internet rows 18,
+61 and 135 reference cancellation template 7 but retain cached revenue 36 and
+cost 28; they also account for all three missing scores. Recorded totals remain
+463 / 6,795 / 5,420 / 1,375. A clearly conditional exclusion yields
+460 / 6,759 / 5,392 / 1,367; neither actual cash flows nor automatic exclusions
+are asserted. All 31 independent analysis outputs reproduce byte-for-byte,
+including seven SVG/PNG figure pairs and sixteen CSV tables.
+
+The complete sequential workspace suite passes 351 tests: 154 application,
+181 core unit and 16 integration tests; the zero-doctest rustdoc step passes.
+An initial unused translation key and a duplicate JavaScript smoke-page binding
+were corrected before final verification. The installed WebAssembly target
+check, Trunk `/app/` debug build and Firefox worker smoke pass, including seven
+weekday points, two customer-type series, exact scenario filtering, zero/missing
+scores, existing jobs, cancellation and invalid input.
+
+Final publication checks native/source fingerprints, recorded software results,
+all model/CSV checks and the official-XSD file fingerprints before producing the
+French PDF/HTML report and ZIP. PDF text extraction, required sections, vector
+appendices, ZIP integrity, contained hashes and relative HTML asset paths are
+checked. Optional pinned Python publication packages are isolated from Rust and
+WebAssembly runtime dependencies. The supplied data and existing log/Petri/sales
+study files retain their original bytes. These are local Linux/Firefox checks;
+no remote multi-system CI, release build, upload or deployment is claimed.

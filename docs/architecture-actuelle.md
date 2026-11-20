@@ -99,6 +99,13 @@ owns filters and cached output; study records remain document content. The
 `sales.analysis` worker task aggregates snapshots and rejects outdated results
 by content generation, filters and language.
 
+Weekday/customer-type series and KPI CSVs are derived `SalesAnalysis` output,
+computed in the same worker; no stored study schema changed. Chart tab/metric
+choices remain backward-compatible view state. `bpmn/svg.rs` supplies the shared
+`BpmnDiagram::to_svg` vector renderer used by the BPMN export descriptor and the
+TakeAway artifact example. It consumes typed geometry/routes without changing
+the document or relying on a viewport capture.
+
 Diagram and workflow descriptors provide an `icon` function. Modules choose
 symbols from `icons.rs`; cards do not infer a notation from its order. The same
 module provides the shared graphical selection cursor.

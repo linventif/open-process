@@ -234,6 +234,9 @@ impl SalesStudy {
         let mut totals = Accumulator::default();
         let mut groups: BTreeMap<SalesGroupBy, BTreeMap<SalesGroupKey, Accumulator>> =
             SalesGroupBy::ALL.into_iter().map(|by| (by, BTreeMap::new())).collect();
+        let mut weekday_totals = std::array::from_fn(|_| Accumulator::default());
+        let mut customer_weekdays: BTreeMap<String, [Accumulator; 7]> = BTreeMap::new();
+        let mut unrecognized_weekday_rows = 0;
         for dataset in &self.datasets {
             for record in &dataset.records {
                 if !filter.matches(&dataset.channel, record) {
@@ -242,6 +245,15 @@ impl SalesStudy {
                 totals.add(record)?;
                 for (by, entries) in &mut groups {
                     entries.entry(by.key(&dataset.channel, record)).or_default().add(record)?;
+                }
+                if let Some(day) = Weekday::from_source(&record.weekday) {
+                    weekday_totals[day.index()].add(record)?;
+                    customer_weekdays
+                        .entry(record.customer_type.clone())
+                        .or_insert_with(|| std::array::from_fn(|_| Accumulator::default()))[day.index()]
+                    .add(record)?;
+                } else {
+                    unrecognized_weekday_rows += 1;
                 }
             }
         }
@@ -280,6 +292,19 @@ impl SalesStudy {
         Ok(SalesAnalysis {
             totals: totals.finish()?,
             grouped,
+            weekday_evolution: SalesWeekdayEvolution {
+                total: weekday_points(weekday_totals)?,
+                customer_types: customer_weekdays
+                    .into_iter()
+                    .map(|(customer_type, values)| {
+                        Ok(CustomerWeekdaySeries {
+                            customer_type,
+                            points: weekday_points(values)?,
+                        })
+                    })
+                    .collect::<Result<_, String>>()?,
+                unrecognized_weekday_rows,
+            },
         })
     }
 
@@ -329,6 +354,9 @@ impl SalesStudy {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SalesFilter {
     pub channel: Option<String>,
+    /// A source-local scenario identifier; it is not a sale or event-log case ID.
+    #[serde(default)]
+    pub structure_id: Option<String>,
     pub pizza_type: Option<String>,
     pub customer_type: Option<String>,
     pub weekday: Option<String>,
@@ -339,6 +367,7 @@ impl SalesFilter {
     pub fn matches(&self, channel: &str, sale: &Sale) -> bool {
         [
             (&self.channel, channel),
+            (&self.structure_id, sale.structure_id.as_str()),
             (&self.pizza_type, sale.pizza_type.as_str()),
             (&self.customer_type, sale.customer_type.as_str()),
             (&self.weekday, sale.weekday.as_str()),
@@ -440,6 +469,80 @@ pub struct SalesMetrics {
     pub satisfaction_missing: usize,
 }
 
+impl SalesMetrics {
+    /// Completeness of the recorded satisfaction evidence, not proof that the
+    /// observations are representative of all customers. Zero is an observation.
+    pub fn satisfaction_observation_rate(&self) -> Option<f64> {
+        (self.sales_count > 0).then(|| self.satisfaction_observed as f64 / self.sales_count as f64)
+    }
+}
+
+/// A weekday category from the recorded source. It contains no calendar date.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum Weekday {
+    Monday,
+    Tuesday,
+    Wednesday,
+    Thursday,
+    Friday,
+    Saturday,
+    Sunday,
+}
+
+impl Weekday {
+    pub const ALL: [Self; 7] = [
+        Self::Monday,
+        Self::Tuesday,
+        Self::Wednesday,
+        Self::Thursday,
+        Self::Friday,
+        Self::Saturday,
+        Self::Sunday,
+    ];
+
+    pub fn source_name(self) -> &'static str {
+        match self {
+            Self::Monday => "Monday",
+            Self::Tuesday => "Tuesday",
+            Self::Wednesday => "Wednesday",
+            Self::Thursday => "Thursday",
+            Self::Friday => "Friday",
+            Self::Saturday => "Saturday",
+            Self::Sunday => "Sunday",
+        }
+    }
+
+    pub fn from_source(source: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|day| day.source_name().eq_ignore_ascii_case(source.trim()))
+    }
+
+    fn index(self) -> usize {
+        self as usize
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct WeekdayPoint {
+    pub weekday: Weekday,
+    pub metrics: SalesMetrics,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct CustomerWeekdaySeries {
+    pub customer_type: String,
+    pub points: Vec<WeekdayPoint>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct SalesWeekdayEvolution {
+    pub total: Vec<WeekdayPoint>,
+    pub customer_types: Vec<CustomerWeekdaySeries>,
+    /// These rows remain in totals and raw grouped tables; no day is guessed.
+    pub unrecognized_weekday_rows: usize,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SalesGroup {
     pub key: SalesGroupKey,
@@ -450,6 +553,8 @@ pub struct SalesGroup {
 pub struct SalesAnalysis {
     pub totals: SalesMetrics,
     pub grouped: BTreeMap<SalesGroupBy, Vec<SalesGroup>>,
+    #[serde(default)]
+    pub weekday_evolution: SalesWeekdayEvolution,
 }
 
 impl SalesAnalysis {
@@ -497,6 +602,83 @@ impl SalesAnalysis {
         }
         output
     }
+
+    /// Export the seven categorical weekdays, never an inferred dated timeline.
+    /// Unknown source weekday labels are retained as separate total rows.
+    pub fn weekday_series_csv(&self) -> String {
+        let mut output = "Series;Customer Type;Weekday;Recorded sales;Revenue;Cost;Profit;Satisfaction average;Satisfaction observed;Satisfaction missing\n".to_owned();
+        let mut append = |series: &str, customer_type: &str, weekday: &str, metrics: &SalesMetrics| {
+            let cells = [
+                csv_cell(series),
+                csv_cell(customer_type),
+                csv_cell(weekday),
+                metrics.sales_count.to_string(),
+                metrics.revenue.to_string(),
+                metrics.cost.to_string(),
+                metrics.profit.to_string(),
+                metrics.satisfaction_average.map(|value| value.to_string()).unwrap_or_default(),
+                metrics.satisfaction_observed.to_string(),
+                metrics.satisfaction_missing.to_string(),
+            ];
+            output += &cells.join(";");
+            output.push('\n');
+        };
+        for point in &self.weekday_evolution.total {
+            append("Total", "", point.weekday.source_name(), &point.metrics);
+        }
+        for series in &self.weekday_evolution.customer_types {
+            for point in &series.points {
+                append("Customer type", &series.customer_type, point.weekday.source_name(), &point.metrics);
+            }
+        }
+        for group in self.groups(SalesGroupBy::Weekday) {
+            if let SalesGroupKey::Weekday(day) = &group.key
+                && Weekday::from_source(day).is_none()
+            {
+                append("Unrecognized weekday", "", day, &group.metrics);
+            }
+        }
+        output
+    }
+
+    /// Two managerial indicators whose denominators are supported by sale rows.
+    /// These do not require a customer identifier, order join or rating threshold.
+    pub fn kpis_csv(&self) -> String {
+        let metrics = &self.totals;
+        format!(
+            "KPI;Value (fraction);Numerator;Denominator;Definition\nRecorded margin rate;{};{};{};Profit / recorded revenue\nSatisfaction observation rate;{};{};{};Rated sales / recorded sales\n",
+            metrics.profit_rate.map(|value| value.to_string()).unwrap_or_default(),
+            metrics.profit,
+            metrics.revenue,
+            metrics
+                .satisfaction_observation_rate()
+                .map(|value| value.to_string())
+                .unwrap_or_default(),
+            metrics.satisfaction_observed,
+            metrics.sales_count,
+        )
+    }
+}
+
+fn csv_cell(value: &str) -> String {
+    if value.contains([';', '"', '\r', '\n']) || value.trim() != value {
+        format!("\"{}\"", value.replace('"', "\"\""))
+    } else {
+        value.to_owned()
+    }
+}
+
+fn weekday_points(values: [Accumulator; 7]) -> Result<Vec<WeekdayPoint>, String> {
+    Weekday::ALL
+        .into_iter()
+        .zip(values)
+        .map(|(weekday, values)| {
+            Ok(WeekdayPoint {
+                weekday,
+                metrics: values.finish()?,
+            })
+        })
+        .collect()
 }
 
 #[derive(Default)]
@@ -648,6 +830,7 @@ mod tests {
     fn filters_all_requested_dimensions_and_keeps_zero_satisfaction_observed() {
         let filter = SalesFilter {
             channel: Some("Counter".into()),
+            structure_id: None,
             weekday: Some("Sunday".into()),
             pizza_type: Some("Margherita".into()),
             customer_type: Some("Regular".into()),
@@ -669,6 +852,130 @@ mod tests {
         assert_eq!(empty.totals.profit_rate, None);
         assert_eq!(empty.totals.satisfaction_average, None);
         assert!(SalesGroupBy::ALL.into_iter().all(|by| empty.groups(by).is_empty()));
+    }
+
+    #[test]
+    fn scenario_filter_is_exact_and_can_be_scoped_to_a_source_channel() {
+        let mut study = study();
+        study.datasets[0].records[0].structure_id = "7".into();
+        study.datasets[0].records[1].structure_id = "17".into();
+        study.datasets[1].records[0].structure_id = "7".into();
+        let original = study.clone();
+        let filter = SalesFilter {
+            structure_id: Some("7".into()),
+            ..Default::default()
+        };
+        assert_eq!(study.analyze(&filter).unwrap().totals.sales_count, 2);
+        let scoped = SalesFilter {
+            channel: Some("Counter".into()),
+            ..filter
+        };
+        let result = study.analyze(&scoped).unwrap();
+        assert_eq!(result.totals.sales_count, 1);
+        assert_eq!(result.totals.revenue, Money(1001));
+        assert_eq!(result.totals.satisfaction_average, Some(0.0));
+        assert_eq!(study.to_csv(&scoped).unwrap().lines().count(), 2);
+        assert_eq!(study, original);
+        let sale_id_is_not_a_scenario = SalesFilter {
+            structure_id: Some("1".into()),
+            ..Default::default()
+        };
+        assert_eq!(study.analyze(&sale_id_is_not_a_scenario).unwrap().totals.sales_count, 0);
+        let legacy: SalesFilter = serde_json::from_value(serde_json::json!({"channel":"Counter"})).unwrap();
+        assert_eq!(legacy.structure_id, None);
+    }
+
+    #[test]
+    fn weekday_series_compare_recorded_types_in_calendar_order_without_dates() {
+        let result = study().analyze(&SalesFilter::default()).unwrap();
+        let evolution = &result.weekday_evolution;
+        assert_eq!(evolution.total.iter().map(|point| point.weekday).collect::<Vec<_>>(), Weekday::ALL);
+        assert_eq!(evolution.total[0].metrics.sales_count, 2);
+        assert_eq!(evolution.total[0].metrics.revenue, Money(3001));
+        assert_eq!(evolution.total[6].metrics.sales_count, 1);
+        assert_eq!(evolution.total[1].metrics.sales_count, 0);
+        assert_eq!(evolution.total[1].metrics.satisfaction_average, None);
+        assert_eq!(evolution.unrecognized_weekday_rows, 0);
+        for day in 0..7 {
+            assert_eq!(
+                evolution
+                    .customer_types
+                    .iter()
+                    .map(|series| series.points[day].metrics.sales_count)
+                    .sum::<usize>(),
+                evolution.total[day].metrics.sales_count
+            );
+            assert_eq!(
+                evolution
+                    .customer_types
+                    .iter()
+                    .map(|series| series.points[day].metrics.revenue.0)
+                    .sum::<i64>(),
+                evolution.total[day].metrics.revenue.0
+            );
+        }
+        let regular = evolution
+            .customer_types
+            .iter()
+            .find(|series| series.customer_type == "Regular")
+            .unwrap();
+        assert_eq!(regular.points[6].metrics.satisfaction_average, Some(0.0));
+        assert_eq!(regular.points[6].metrics.satisfaction_observed, 1);
+        let filtered = study()
+            .analyze(&SalesFilter {
+                customer_type: Some("Student".into()),
+                ..Default::default()
+            })
+            .unwrap();
+        assert_eq!(filtered.weekday_evolution.total[0].metrics.sales_count, 1);
+        assert_eq!(filtered.weekday_evolution.customer_types.len(), 1);
+        assert_eq!(Weekday::from_source(" monday "), Some(Weekday::Monday));
+        assert_eq!(Weekday::from_source("2026-11-19"), None);
+    }
+
+    #[test]
+    fn unrecognized_weekdays_remain_accounted_for_and_series_exports_preserve_labels() {
+        let mut study = study();
+        study.datasets[0]
+            .records
+            .push(sale("3", "Four cheese", "Unknown day", 800, 500, None));
+        study.datasets[1].records[0].customer_type = "New;Group".into();
+        let result = study.analyze(&SalesFilter::default()).unwrap();
+        assert_eq!(result.totals.sales_count, 4);
+        assert_eq!(result.weekday_evolution.unrecognized_weekday_rows, 1);
+        assert_eq!(
+            result
+                .weekday_evolution
+                .total
+                .iter()
+                .map(|point| point.metrics.sales_count)
+                .sum::<usize>(),
+            3
+        );
+        let csv = result.weekday_series_csv();
+        assert!(csv.starts_with("Series;Customer Type;Weekday;Recorded sales;"));
+        assert!(csv.contains("Customer type;\"New;Group\";Monday;1;9.99;6.99;3.00;4;1;0\n"));
+        assert!(csv.contains("Unrecognized weekday;;Unknown day;1;8.00;5.00;3.00;;0;1\n"));
+        assert_eq!(csv.lines().count(), 1 + 7 + 2 * 7 + 1);
+    }
+
+    #[test]
+    fn kpis_explain_supported_denominators_and_keep_missing_distinct_from_zero() {
+        let result = study().analyze(&SalesFilter::default()).unwrap();
+        assert_eq!(result.totals.satisfaction_observation_rate(), Some(2.0 / 3.0));
+        let kpis = result.kpis_csv();
+        assert!(kpis.contains("Recorded margin rate;"));
+        assert!(kpis.contains(";17.00;40.02;Profit / recorded revenue\n"));
+        assert!(kpis.contains(";2;3;Rated sales / recorded sales\n"));
+        let empty = SalesStudy::new("Empty").analyze(&SalesFilter::default()).unwrap();
+        assert_eq!(empty.totals.satisfaction_observation_rate(), None);
+        assert!(empty.kpis_csv().contains("Satisfaction observation rate;;0;0;"));
+        let missing = SalesMetrics {
+            sales_count: 1,
+            satisfaction_missing: 1,
+            ..Default::default()
+        };
+        assert_eq!(missing.satisfaction_observation_rate(), Some(0.0));
     }
 
     #[test]

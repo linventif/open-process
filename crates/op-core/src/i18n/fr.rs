@@ -1762,7 +1762,6 @@ pub const TABLE: &[(&str, &str)] = &[
     ("sales.cost", "Coûts"),
     ("sales.profit", "Bénéfice"),
     ("sales.average_revenue", "Recette par vente"),
-    ("sales.profit_rate", "Bénéfice / chiffre d’affaires"),
     ("sales.satisfaction", "Satisfaction moyenne"),
     ("sales.satisfaction_observed", "Ventes évaluées"),
     ("sales.satisfaction_missing", "Évaluations manquantes"),
@@ -1851,5 +1850,54 @@ pub const TABLE: &[(&str, &str)] = &[
     (
         "mining.report.projected_markers",
         "Les marqueurs de routage Vide/Empty sont remplacés par des transitions silencieuses τ dans le réseau de Petri.",
+    ),
+    (
+        "conversion.place_capacities_have_no_bpmn",
+        "Les capacités des places ne sont pas représentées dans la conversion BPMN.",
+    ),
+    ("sales.evolution", "Évolution par jour de la semaine"),
+    (
+        "sales.weekday_profile_note",
+        "Ventes enregistrées agrégées par jour de la semaine. La source ne contient pas de dates : ces courbes ne représentent ni une chronologie datée, ni des transactions, ni des clients uniques.",
+    ),
+    ("sales.weekday_total", "Toutes les ventes enregistrées"),
+    (
+        "sales.customer_weekday_lines",
+        "Types de clients enregistrés par jour de la semaine",
+    ),
+    (
+        "sales.weekday_unclassified",
+        "{} ventes enregistrées ont un jour non reconnu et restent dans les totaux et les tableaux.",
+    ),
+    ("sales.unknown_customer_type", "Type enregistré non renseigné"),
+    (
+        "sales.weekday_series_limit",
+        "Le graphique montre les 20 premiers types de clients enregistrés. Le CSV les inclut tous.",
+    ),
+    ("sales.kpis", "Indicateurs pour le gérant"),
+    ("sales.kpi_margin", "Part du bénéfice dans le CA enregistré"),
+    (
+        "sales.kpi_margin_help",
+        "Bénéfice ÷ CA enregistré. Comparez les canaux et les pizzas pour repérer les ventes peu rentables. Indéfini si le CA est nul.",
+    ),
+    ("sales.kpi_coverage", "Taux de satisfaction renseignée"),
+    (
+        "sales.kpi_coverage_help",
+        "Ventes notées ÷ ventes enregistrées. Indique la couverture des moyennes de satisfaction ; les scores manquants sont exclus et les zéros sont conservés.",
+    ),
+    ("sales.export_weekday", "Exporter les séries par jour (CSV)"),
+    ("sales.export_kpis", "Exporter les indicateurs (CSV)"),
+    ("sales.day_monday", "Lundi"),
+    ("sales.day_tuesday", "Mardi"),
+    ("sales.day_wednesday", "Mercredi"),
+    ("sales.day_thursday", "Jeudi"),
+    ("sales.day_friday", "Vendredi"),
+    ("sales.day_saturday", "Samedi"),
+    ("sales.day_sunday", "Dimanche"),
+    ("bpmn.export_svg", "Exporter le diagramme BPMN vectoriel (.svg)…"),
+    ("sales.structure_id", "Scénario enregistré (StructureId)"),
+    (
+        "sales.scenario_help",
+        "StructureId identifie un scénario dans son classeur source. Sélectionnez aussi son canal ; ce n'est ni Sales.Id ni le CaseId du journal.",
     ),
 ];

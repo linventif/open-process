@@ -114,119 +114,128 @@ pub fn export(d: &BpmnDiagram) -> String {
             w.close("bpmn:laneSet");
         }
 
-        for n in d.nodes.iter().filter(in_proc) {
-            let id = ids[&n.id].clone();
-            let mut a = vec![("id", id.clone())];
-            if !n.name.is_empty() && n.kind != NodeKind::TextAnnotation {
-                a.push(("name", n.name.clone()));
-            }
-            let (tag, trigger): (String, Option<EventTrigger>) = match n.kind {
-                NodeKind::StartEvent(t) => ("bpmn:startEvent".into(), Some(t)),
-                NodeKind::EndEvent(t) => ("bpmn:endEvent".into(), Some(t)),
-                NodeKind::IntermediateEvent { trigger, throwing } => (
-                    if throwing {
-                        "bpmn:intermediateThrowEvent"
-                    } else {
-                        "bpmn:intermediateCatchEvent"
-                    }
-                    .into(),
-                    Some(trigger),
-                ),
-                NodeKind::Task(t) => (format!("bpmn:{}", t.xml_tag()), None),
-                NodeKind::SubProcess => ("bpmn:subProcess".into(), None),
-                NodeKind::Gateway(g) => {
-                    if let Some(def) = d.outgoing(n.id).find(|f| f.is_default) {
-                        a.push(("default", flow_id(def)));
-                    }
-                    (format!("bpmn:{}", g.xml_tag()), None)
+        // OMG tProcess orders all flowElement children before artifact children.
+        // Authored node/flow order can interleave annotations and associations,
+        // so preserve that order within each of these two schema phases.
+        for artifacts in [false, true] {
+            for n in d
+                .nodes
+                .iter()
+                .filter(|n| in_proc(n) && (n.kind == NodeKind::TextAnnotation) == artifacts)
+            {
+                let id = ids[&n.id].clone();
+                let mut a = vec![("id", id.clone())];
+                if !n.name.is_empty() && n.kind != NodeKind::TextAnnotation {
+                    a.push(("name", n.name.clone()));
                 }
-                NodeKind::DataObject => {
-                    w.empty("bpmn:dataObject", &[("id", format!("DataObject_{}", n.id))]);
-                    a.push(("dataObjectRef", format!("DataObject_{}", n.id)));
-                    ("bpmn:dataObjectReference".into(), None)
-                }
-                NodeKind::DataStore => ("bpmn:dataStoreReference".into(), None),
-                NodeKind::TextAnnotation => {
-                    w.open("bpmn:textAnnotation", &a);
-                    w.text_element("bpmn:text", &[], &n.name);
-                    w.close("bpmn:textAnnotation");
+                let (tag, trigger): (String, Option<EventTrigger>) = match n.kind {
+                    NodeKind::StartEvent(t) => ("bpmn:startEvent".into(), Some(t)),
+                    NodeKind::EndEvent(t) => ("bpmn:endEvent".into(), Some(t)),
+                    NodeKind::IntermediateEvent { trigger, throwing } => (
+                        if throwing {
+                            "bpmn:intermediateThrowEvent"
+                        } else {
+                            "bpmn:intermediateCatchEvent"
+                        }
+                        .into(),
+                        Some(trigger),
+                    ),
+                    NodeKind::Task(t) => (format!("bpmn:{}", t.xml_tag()), None),
+                    NodeKind::SubProcess => ("bpmn:subProcess".into(), None),
+                    NodeKind::Gateway(g) => {
+                        if let Some(def) = d.outgoing(n.id).find(|f| f.is_default) {
+                            a.push(("default", flow_id(def)));
+                        }
+                        (format!("bpmn:{}", g.xml_tag()), None)
+                    }
+                    NodeKind::DataObject => {
+                        w.empty("bpmn:dataObject", &[("id", format!("DataObject_{}", n.id))]);
+                        a.push(("dataObjectRef", format!("DataObject_{}", n.id)));
+                        ("bpmn:dataObjectReference".into(), None)
+                    }
+                    NodeKind::DataStore => ("bpmn:dataStoreReference".into(), None),
+                    NodeKind::TextAnnotation => {
+                        w.open("bpmn:textAnnotation", &a);
+                        w.text_element("bpmn:text", &[], &n.name);
+                        w.close("bpmn:textAnnotation");
+                        continue;
+                    }
+                };
+                let incoming: Vec<&Flow> = d.incoming(n.id).collect();
+                let outgoing: Vec<&Flow> = d.outgoing(n.id).collect();
+                let def = trigger.and_then(|t| t.xml_definition());
+                if incoming.is_empty()
+                    && outgoing.is_empty()
+                    && def.is_none()
+                    && n.documentation.is_empty()
+                    && !matches!(n.kind, NodeKind::Task(_) | NodeKind::SubProcess)
+                {
+                    w.empty(&tag, &a);
                     continue;
                 }
-            };
-            let incoming: Vec<&Flow> = d.incoming(n.id).collect();
-            let outgoing: Vec<&Flow> = d.outgoing(n.id).collect();
-            let def = trigger.and_then(|t| t.xml_definition());
-            if incoming.is_empty()
-                && outgoing.is_empty()
-                && def.is_none()
-                && n.documentation.is_empty()
-                && !matches!(n.kind, NodeKind::Task(_) | NodeKind::SubProcess)
-            {
-                w.empty(&tag, &a);
-                continue;
+                w.open(&tag, &a);
+                if !n.documentation.is_empty() {
+                    w.text_element("bpmn:documentation", &[], &n.documentation);
+                }
+                if matches!(n.kind, NodeKind::Task(_) | NodeKind::SubProcess) {
+                    w.open("bpmn:extensionElements", &[]);
+                    w.empty(
+                        "op:activityMetrics",
+                        &[("cost", n.cost.to_string()), ("duration", n.duration.to_string())],
+                    );
+                    w.close("bpmn:extensionElements");
+                }
+                for fl in incoming {
+                    w.text_element("bpmn:incoming", &[], &flow_id(fl));
+                }
+                for fl in outgoing {
+                    w.text_element("bpmn:outgoing", &[], &flow_id(fl));
+                }
+                if let Some(def) = def {
+                    w.empty(&format!("bpmn:{def}"), &[("id", format!("{}Def_{}", def, n.id))]);
+                }
+                w.close(&tag);
             }
-            w.open(&tag, &a);
-            if !n.documentation.is_empty() {
-                w.text_element("bpmn:documentation", &[], &n.documentation);
-            }
-            if matches!(n.kind, NodeKind::Task(_) | NodeKind::SubProcess) {
-                w.open("bpmn:extensionElements", &[]);
-                w.empty(
-                    "op:activityMetrics",
-                    &[("cost", n.cost.to_string()), ("duration", n.duration.to_string())],
-                );
-                w.close("bpmn:extensionElements");
-            }
-            for fl in incoming {
-                w.text_element("bpmn:incoming", &[], &flow_id(fl));
-            }
-            for fl in outgoing {
-                w.text_element("bpmn:outgoing", &[], &flow_id(fl));
-            }
-            if let Some(def) = def {
-                w.empty(&format!("bpmn:{def}"), &[("id", format!("{}Def_{}", def, n.id))]);
-            }
-            w.close(&tag);
-        }
 
-        for fl in d.flows.iter() {
-            let Some(src) = d.node(fl.from) else { continue };
-            if has_collab && process_of(src) != proc {
-                continue;
-            }
-            match fl.kind {
-                FlowKind::Sequence => {
-                    let mut a = vec![
-                        ("id", flow_id(fl)),
-                        ("sourceRef", ids[&fl.from].clone()),
-                        ("targetRef", ids[&fl.to].clone()),
-                    ];
-                    if !fl.name.is_empty() {
-                        a.push(("name", fl.name.clone()));
+            for fl in d.flows.iter().filter(|flow| (flow.kind == FlowKind::Association) == artifacts) {
+                let Some(src) = d.node(fl.from) else { continue };
+                if has_collab && process_of(src) != proc {
+                    continue;
+                }
+                match fl.kind {
+                    FlowKind::Sequence => {
+                        let mut a = vec![
+                            ("id", flow_id(fl)),
+                            ("sourceRef", ids[&fl.from].clone()),
+                            ("targetRef", ids[&fl.to].clone()),
+                        ];
+                        if !fl.name.is_empty() {
+                            a.push(("name", fl.name.clone()));
+                        }
+                        w.empty("bpmn:sequenceFlow", &a);
                     }
-                    w.empty("bpmn:sequenceFlow", &a);
+                    FlowKind::Association => {
+                        w.empty(
+                            "bpmn:association",
+                            &[
+                                ("id", flow_id(fl)),
+                                ("sourceRef", ids[&fl.from].clone()),
+                                ("targetRef", ids[&fl.to].clone()),
+                            ],
+                        );
+                    }
+                    FlowKind::Message if !has_collab => {
+                        w.empty(
+                            "bpmn:sequenceFlow",
+                            &[
+                                ("id", flow_id(fl)),
+                                ("sourceRef", ids[&fl.from].clone()),
+                                ("targetRef", ids[&fl.to].clone()),
+                            ],
+                        );
+                    }
+                    FlowKind::Message => {}
                 }
-                FlowKind::Association => {
-                    w.empty(
-                        "bpmn:association",
-                        &[
-                            ("id", flow_id(fl)),
-                            ("sourceRef", ids[&fl.from].clone()),
-                            ("targetRef", ids[&fl.to].clone()),
-                        ],
-                    );
-                }
-                FlowKind::Message if !has_collab => {
-                    w.empty(
-                        "bpmn:sequenceFlow",
-                        &[
-                            ("id", flow_id(fl)),
-                            ("sourceRef", ids[&fl.from].clone()),
-                            ("targetRef", ids[&fl.to].clone()),
-                        ],
-                    );
-                }
-                FlowKind::Message => {}
             }
         }
         w.close("bpmn:process");
@@ -606,5 +615,66 @@ mod tests {
         assert_eq!(d.nodes.len(), 3);
         assert_eq!(d.flows.len(), 2);
         assert!(d.validate().is_empty());
+    }
+
+    #[test]
+    fn artifacts_follow_all_flow_elements_without_losing_di_or_contents() {
+        for pooled in [false, true] {
+            let mut diagram = BpmnDiagram::new("Mixed authored order");
+            if pooled {
+                let pool = diagram.add_pool(Pos::new(0.0, 0.0));
+                diagram.add_lane(pool);
+            }
+            // Create artifacts before normal nodes and interleave artifact
+            // connections with sequence flows, as an author can in the editor.
+            let note = diagram.add_node(NodeKind::TextAnnotation, Pos::new(150.0, 240.0));
+            diagram.node_mut(note).unwrap().name = "Check <order> & source".into();
+            let start = diagram.add_node(NodeKind::StartEvent(EventTrigger::None), Pos::new(80.0, 90.0));
+            let task = diagram.add_node(NodeKind::Task(TaskType::User), Pos::new(240.0, 90.0));
+            diagram.node_mut(task).unwrap().documentation = "The authored task documentation".into();
+            let data = diagram.add_node(NodeKind::DataObject, Pos::new(340.0, 240.0));
+            let end = diagram.add_node(NodeKind::EndEvent(EventTrigger::None), Pos::new(500.0, 90.0));
+            diagram.add_flow(note, task).unwrap();
+            diagram.add_flow(start, task).unwrap();
+            diagram.add_flow(task, data).unwrap();
+            diagram.add_flow(task, end).unwrap();
+            let original = diagram.clone();
+            let exported = export(&diagram);
+            assert_eq!(diagram, original);
+            let root = xml::parse(&exported).unwrap();
+            let process = root.child("process").unwrap();
+            let artifact = |element: &&Element| matches!(element.name.as_str(), "textAnnotation" | "association");
+            let first_artifact = process.children.iter().position(|element| artifact(&element)).unwrap();
+            assert!(process.children[..first_artifact].iter().all(|element| !artifact(&element)));
+            assert!(
+                process.children[first_artifact..].iter().all(|element| artifact(&element)),
+                "flowElement serialized after artifact"
+            );
+            assert_eq!(process.children_named("sequenceFlow").count(), 2);
+            assert_eq!(process.children_named("association").count(), 2);
+            let elements = root.descendants();
+            for node in &diagram.nodes {
+                let id = node_xml_id(node);
+                assert!(elements.iter().any(|element| element.attr("id") == Some(id.as_str())));
+                assert!(
+                    elements
+                        .iter()
+                        .any(|element| element.name == "BPMNShape" && element.attr("bpmnElement") == Some(id.as_str()))
+                );
+            }
+            let restored = import(&exported).unwrap();
+            assert_eq!(restored.nodes.len(), diagram.nodes.len());
+            assert_eq!(restored.flows.len(), diagram.flows.len());
+            assert_eq!(restored.flows.iter().filter(|flow| flow.kind == FlowKind::Association).count(), 2);
+            let restored_note = restored.nodes.iter().find(|node| node.kind == NodeKind::TextAnnotation).unwrap();
+            assert_eq!(restored_note.name, "Check <order> & source");
+            assert_eq!(restored_note.pos, diagram.node(note).unwrap().pos);
+            assert!(
+                restored
+                    .nodes
+                    .iter()
+                    .any(|node| node.documentation == "The authored task documentation")
+            );
+        }
     }
 }

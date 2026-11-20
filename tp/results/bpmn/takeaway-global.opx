@@ -1,0 +1,1509 @@
+{
+  "format": "open-process",
+  "version": 2,
+  "generator": {
+    "application": "Open Process",
+    "version": "v0.1.0",
+    "revision": 2
+  },
+  "document": {
+    "kind": "bpmn",
+    "model_version": 1,
+    "model": {
+      "flows": [
+        {
+          "from": 1,
+          "id": 5,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 2
+        },
+        {
+          "from": 3,
+          "id": 6,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 4
+        },
+        {
+          "from": 9,
+          "id": 17,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 12
+        },
+        {
+          "from": 10,
+          "id": 18,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 16
+        },
+        {
+          "from": 11,
+          "id": 19,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 16
+        },
+        {
+          "from": 13,
+          "id": 20,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 9
+        },
+        {
+          "from": 15,
+          "id": 21,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 10
+        },
+        {
+          "from": 15,
+          "id": 22,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 11
+        },
+        {
+          "from": 12,
+          "id": 23,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 7
+        },
+        {
+          "from": 14,
+          "id": 24,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 8
+        },
+        {
+          "from": 8,
+          "id": 25,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 13
+        },
+        {
+          "from": 7,
+          "id": 26,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "Repeat preparation",
+          "to": 8
+        },
+        {
+          "from": 7,
+          "id": 27,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "Payment and handover",
+          "to": 15
+        },
+        {
+          "from": 16,
+          "id": 28,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 3
+        },
+        {
+          "from": 2,
+          "id": 29,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "Counter",
+          "to": 14
+        },
+        {
+          "from": 33,
+          "id": 43,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 37
+        },
+        {
+          "from": 34,
+          "id": 44,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 42
+        },
+        {
+          "from": 36,
+          "id": 45,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 42
+        },
+        {
+          "from": 38,
+          "id": 46,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 35
+        },
+        {
+          "from": 39,
+          "id": 47,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 33
+        },
+        {
+          "from": 41,
+          "id": 48,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 34
+        },
+        {
+          "from": 41,
+          "id": 49,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 36
+        },
+        {
+          "from": 35,
+          "id": 50,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 30
+        },
+        {
+          "from": 40,
+          "id": 51,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 31
+        },
+        {
+          "from": 31,
+          "id": 52,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 39
+        },
+        {
+          "from": 37,
+          "id": 53,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 32
+        },
+        {
+          "from": 32,
+          "id": 54,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "Continue to delivery",
+          "to": 38
+        },
+        {
+          "from": 32,
+          "id": 55,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "Repeat preparation",
+          "to": 31
+        },
+        {
+          "from": 32,
+          "id": 56,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "Payment and handover",
+          "to": 30
+        },
+        {
+          "from": 30,
+          "id": 57,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 41
+        },
+        {
+          "from": 42,
+          "id": 58,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 3
+        },
+        {
+          "from": 2,
+          "id": 59,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "Phone",
+          "to": 40
+        },
+        {
+          "from": 71,
+          "id": 79,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 72
+        },
+        {
+          "from": 68,
+          "id": 80,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 60
+        },
+        {
+          "from": 61,
+          "id": 81,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 60
+        },
+        {
+          "from": 69,
+          "id": 82,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 61
+        },
+        {
+          "from": 73,
+          "id": 83,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 61
+        },
+        {
+          "from": 67,
+          "id": 84,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 75
+        },
+        {
+          "from": 72,
+          "id": 85,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 69
+        },
+        {
+          "from": 72,
+          "id": 86,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 73
+        },
+        {
+          "from": 76,
+          "id": 87,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 71
+        },
+        {
+          "from": 77,
+          "id": 88,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 67
+        },
+        {
+          "from": 78,
+          "id": 89,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 66
+        },
+        {
+          "from": 66,
+          "id": 90,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 62
+        },
+        {
+          "from": 62,
+          "id": 91,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "Contact needed",
+          "to": 70
+        },
+        {
+          "from": 70,
+          "id": 92,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 63
+        },
+        {
+          "from": 63,
+          "id": 93,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "Order cancelled",
+          "to": 68
+        },
+        {
+          "from": 63,
+          "id": 94,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "Order modified",
+          "to": 74
+        },
+        {
+          "from": 75,
+          "id": 95,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 64
+        },
+        {
+          "from": 64,
+          "id": 96,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "Continue to delivery",
+          "to": 76
+        },
+        {
+          "from": 74,
+          "id": 97,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 65
+        },
+        {
+          "from": 65,
+          "id": 98,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 77
+        },
+        {
+          "from": 62,
+          "id": 99,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "Repeat preparation",
+          "to": 65
+        },
+        {
+          "from": 64,
+          "id": 100,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "Repeat preparation",
+          "to": 65
+        },
+        {
+          "from": 60,
+          "id": 101,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "",
+          "to": 3
+        },
+        {
+          "from": 2,
+          "id": 102,
+          "is_default": false,
+          "kind": "Sequence",
+          "name": "Internet",
+          "to": 78
+        },
+        {
+          "from": 108,
+          "id": 113,
+          "is_default": false,
+          "kind": "Association",
+          "name": "",
+          "to": 2
+        },
+        {
+          "from": 110,
+          "id": 114,
+          "is_default": false,
+          "kind": "Association",
+          "name": "",
+          "to": 10
+        },
+        {
+          "from": 10,
+          "id": 115,
+          "is_default": false,
+          "kind": "Association",
+          "name": "",
+          "to": 111
+        },
+        {
+          "from": 109,
+          "id": 116,
+          "is_default": false,
+          "kind": "Association",
+          "name": "",
+          "to": 13
+        },
+        {
+          "from": 112,
+          "id": 117,
+          "is_default": false,
+          "kind": "Association",
+          "name": "",
+          "to": 38
+        },
+        {
+          "from": 118,
+          "id": 119,
+          "is_default": false,
+          "kind": "Association",
+          "name": "",
+          "to": 14
+        },
+        {
+          "from": 120,
+          "id": 121,
+          "is_default": false,
+          "kind": "Association",
+          "name": "",
+          "to": 13
+        }
+      ],
+      "name": "TakeAway - integrated order management",
+      "next_id": 130,
+      "nodes": [
+        {
+          "cost": 0.0,
+          "documentation": "",
+          "duration": 0.0,
+          "h": 36.0,
+          "id": 1,
+          "kind": {
+            "StartEvent": "None"
+          },
+          "name": "",
+          "pos": {
+            "x": 130.0,
+            "y": 288.0
+          },
+          "w": 36.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "One channel is selected for a case. Branch control-flow graphs remain distinct to retain channel-dependent delivery and cancellation choices; role lanes, information objects, entry and completion are integrated. Reusing a task label does not merge its behavior.",
+          "duration": 0.0,
+          "h": 50.0,
+          "id": 2,
+          "kind": {
+            "Gateway": "Exclusive"
+          },
+          "name": "Order channel",
+          "pos": {
+            "x": 260.0,
+            "y": 288.0
+          },
+          "w": 50.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "",
+          "duration": 0.0,
+          "h": 50.0,
+          "id": 3,
+          "kind": {
+            "Gateway": "Exclusive"
+          },
+          "name": "",
+          "pos": {
+            "x": 4245.0,
+            "y": 2270.0
+          },
+          "w": 50.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "A selected channel completes, including the explicitly observed Internet cancellation route.",
+          "duration": 0.0,
+          "h": 36.0,
+          "id": 4,
+          "kind": {
+            "EndEvent": "None"
+          },
+          "name": "",
+          "pos": {
+            "x": 4375.0,
+            "y": 2270.0
+          },
+          "w": 36.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Counter. ",
+          "duration": 0.0,
+          "h": 50.0,
+          "id": 7,
+          "kind": {
+            "Gateway": "Exclusive"
+          },
+          "name": "",
+          "pos": {
+            "x": 1590.0,
+            "y": 1038.0
+          },
+          "w": 50.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Counter. ",
+          "duration": 0.0,
+          "h": 50.0,
+          "id": 8,
+          "kind": {
+            "Gateway": "Exclusive"
+          },
+          "name": "",
+          "pos": {
+            "x": 670.0,
+            "y": 1038.0
+          },
+          "w": 50.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Counter. Source: corrected Counter event log(s). Observed assignments (event counts): Patrick: 52, Robert: 8. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements. The integrated model retains this branch-specific assignment evidence.",
+          "duration": 0.0,
+          "h": 76.0,
+          "id": 9,
+          "kind": {
+            "Task": "Abstract"
+          },
+          "name": "Bake",
+          "pos": {
+            "x": 1130.0,
+            "y": 1038.0
+          },
+          "w": 150.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Counter. Source: corrected Counter event log(s). Observed assignments (event counts): William: 33. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements. The integrated model retains this branch-specific assignment evidence.",
+          "duration": 0.0,
+          "h": 76.0,
+          "id": 10,
+          "kind": {
+            "Task": "Abstract"
+          },
+          "name": "Cash",
+          "pos": {
+            "x": 2050.0,
+            "y": 2388.0
+          },
+          "w": 150.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Counter. Source: corrected Counter event log(s). Observed assignments (event counts): William: 33. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements. The integrated model retains this branch-specific assignment evidence.",
+          "duration": 0.0,
+          "h": 76.0,
+          "id": 11,
+          "kind": {
+            "Task": "Abstract"
+          },
+          "name": "Give order",
+          "pos": {
+            "x": 2050.0,
+            "y": 2528.0
+          },
+          "w": 150.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Counter. Source: corrected Counter event log(s). Observed assignments (event counts): Patrick: 52, Robert: 8. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements. The integrated model retains this branch-specific assignment evidence.",
+          "duration": 0.0,
+          "h": 76.0,
+          "id": 12,
+          "kind": {
+            "Task": "Abstract"
+          },
+          "name": "Pack",
+          "pos": {
+            "x": 1360.0,
+            "y": 1038.0
+          },
+          "w": 150.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Counter. Source: corrected Counter event log(s). Observed assignments (event counts): (unrecorded): 5, Patrick: 48, Robert: 7. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements. The integrated model retains this branch-specific assignment evidence.",
+          "duration": 0.0,
+          "h": 76.0,
+          "id": 13,
+          "kind": {
+            "Task": "Abstract"
+          },
+          "name": "Prepare",
+          "pos": {
+            "x": 900.0,
+            "y": 1038.0
+          },
+          "w": 150.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Counter. Source: corrected Counter event log(s). Observed assignments (event counts): William: 33. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements. The integrated model retains this branch-specific assignment evidence.",
+          "duration": 0.0,
+          "h": 76.0,
+          "id": 14,
+          "kind": {
+            "Task": "Abstract"
+          },
+          "name": "Take order at counter",
+          "pos": {
+            "x": 440.0,
+            "y": 148.0
+          },
+          "w": 150.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Counter. ",
+          "duration": 0.0,
+          "h": 50.0,
+          "id": 15,
+          "kind": {
+            "Gateway": "Parallel"
+          },
+          "name": "",
+          "pos": {
+            "x": 1820.0,
+            "y": 2458.0
+          },
+          "w": 50.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Counter. ",
+          "duration": 0.0,
+          "h": 50.0,
+          "id": 16,
+          "kind": {
+            "Gateway": "Parallel"
+          },
+          "name": "",
+          "pos": {
+            "x": 2280.0,
+            "y": 2458.0
+          },
+          "w": 50.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Phone. ",
+          "duration": 0.0,
+          "h": 50.0,
+          "id": 30,
+          "kind": {
+            "Gateway": "Exclusive"
+          },
+          "name": "",
+          "pos": {
+            "x": 2380.0,
+            "y": 2788.0
+          },
+          "w": 50.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Phone. ",
+          "duration": 0.0,
+          "h": 50.0,
+          "id": 31,
+          "kind": {
+            "Gateway": "Exclusive"
+          },
+          "name": "",
+          "pos": {
+            "x": 770.0,
+            "y": 1178.0
+          },
+          "w": 50.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Phone. ",
+          "duration": 0.0,
+          "h": 50.0,
+          "id": 32,
+          "kind": {
+            "Gateway": "Exclusive"
+          },
+          "name": "",
+          "pos": {
+            "x": 1690.0,
+            "y": 1178.0
+          },
+          "w": 50.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Phone. Source: corrected Phone event log(s). Observed assignments (event counts): Patrick: 110, Robert: 24. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements. The integrated model retains this branch-specific assignment evidence.",
+          "duration": 0.0,
+          "h": 76.0,
+          "id": 33,
+          "kind": {
+            "Task": "Abstract"
+          },
+          "name": "Bake",
+          "pos": {
+            "x": 1230.0,
+            "y": 1178.0
+          },
+          "w": 150.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Phone. Source: corrected Phone event log(s). Observed assignments (event counts): Harry: 2, Jack: 42, Paul: 9, Richard: 12, William: 44. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements. The integrated model retains this branch-specific assignment evidence.",
+          "duration": 0.0,
+          "h": 76.0,
+          "id": 34,
+          "kind": {
+            "Task": "Abstract"
+          },
+          "name": "Cash",
+          "pos": {
+            "x": 2840.0,
+            "y": 2668.0
+          },
+          "w": 150.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Phone. Source: corrected Phone event log(s). Observed assignments (event counts): Harry: 2, Jack: 42, Paul: 9, Richard: 12. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements. The integrated model retains this branch-specific assignment evidence.",
+          "duration": 0.0,
+          "h": 76.0,
+          "id": 35,
+          "kind": {
+            "Task": "Abstract"
+          },
+          "name": "Deliver",
+          "pos": {
+            "x": 2150.0,
+            "y": 1788.0
+          },
+          "w": 150.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Phone. Source: corrected Phone event log(s). Observed assignments (event counts): Harry: 2, Jack: 42, Paul: 9, Richard: 12, William: 44. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements. The integrated model retains this branch-specific assignment evidence.",
+          "duration": 0.0,
+          "h": 76.0,
+          "id": 36,
+          "kind": {
+            "Task": "Abstract"
+          },
+          "name": "Give order",
+          "pos": {
+            "x": 2840.0,
+            "y": 2808.0
+          },
+          "w": 150.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Phone. Source: corrected Phone event log(s). Observed assignments (event counts): Patrick: 110, Robert: 24. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements. The integrated model retains this branch-specific assignment evidence.",
+          "duration": 0.0,
+          "h": 76.0,
+          "id": 37,
+          "kind": {
+            "Task": "Abstract"
+          },
+          "name": "Pack",
+          "pos": {
+            "x": 1460.0,
+            "y": 1178.0
+          },
+          "w": 150.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Phone. Source: corrected Phone event log(s). Observed assignments (event counts): Harry: 2, Jack: 42, Paul: 9, Richard: 12. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements. The integrated model retains this branch-specific assignment evidence.",
+          "duration": 0.0,
+          "h": 76.0,
+          "id": 38,
+          "kind": {
+            "Task": "Abstract"
+          },
+          "name": "Plan",
+          "pos": {
+            "x": 1920.0,
+            "y": 1788.0
+          },
+          "w": 150.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Phone. Source: corrected Phone event log(s). Observed assignments (event counts): Patrick: 110, Robert: 24. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements. The integrated model retains this branch-specific assignment evidence.",
+          "duration": 0.0,
+          "h": 76.0,
+          "id": 39,
+          "kind": {
+            "Task": "Abstract"
+          },
+          "name": "Prepare",
+          "pos": {
+            "x": 1000.0,
+            "y": 1178.0
+          },
+          "w": 150.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Phone. Source: corrected Phone event log(s). Observed assignments (event counts): William: 109. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements. The integrated model retains this branch-specific assignment evidence.",
+          "duration": 0.0,
+          "h": 76.0,
+          "id": 40,
+          "kind": {
+            "Task": "Abstract"
+          },
+          "name": "Take order by phone",
+          "pos": {
+            "x": 540.0,
+            "y": 288.0
+          },
+          "w": 150.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Phone. ",
+          "duration": 0.0,
+          "h": 50.0,
+          "id": 41,
+          "kind": {
+            "Gateway": "Parallel"
+          },
+          "name": "",
+          "pos": {
+            "x": 2610.0,
+            "y": 2738.0
+          },
+          "w": 50.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Phone. ",
+          "duration": 0.0,
+          "h": 50.0,
+          "id": 42,
+          "kind": {
+            "Gateway": "Parallel"
+          },
+          "name": "",
+          "pos": {
+            "x": 3070.0,
+            "y": 2738.0
+          },
+          "w": 50.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Internet. ",
+          "duration": 0.0,
+          "h": 50.0,
+          "id": 60,
+          "kind": {
+            "Gateway": "Exclusive"
+          },
+          "name": "",
+          "pos": {
+            "x": 4070.0,
+            "y": 3018.0
+          },
+          "w": 50.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Internet. ",
+          "duration": 0.0,
+          "h": 50.0,
+          "id": 61,
+          "kind": {
+            "Gateway": "Parallel"
+          },
+          "name": "",
+          "pos": {
+            "x": 3940.0,
+            "y": 3018.0
+          },
+          "w": 50.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Internet. ",
+          "duration": 0.0,
+          "h": 50.0,
+          "id": 62,
+          "kind": {
+            "Gateway": "Exclusive"
+          },
+          "name": "",
+          "pos": {
+            "x": 1100.0,
+            "y": 488.0
+          },
+          "w": 50.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Internet. ",
+          "duration": 0.0,
+          "h": 50.0,
+          "id": 63,
+          "kind": {
+            "Gateway": "Exclusive"
+          },
+          "name": "",
+          "pos": {
+            "x": 1560.0,
+            "y": 488.0
+          },
+          "w": 50.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Internet. ",
+          "duration": 0.0,
+          "h": 50.0,
+          "id": 64,
+          "kind": {
+            "Gateway": "Exclusive"
+          },
+          "name": "",
+          "pos": {
+            "x": 2940.0,
+            "y": 1318.0
+          },
+          "w": 50.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Internet. ",
+          "duration": 0.0,
+          "h": 50.0,
+          "id": 65,
+          "kind": {
+            "Gateway": "Exclusive"
+          },
+          "name": "",
+          "pos": {
+            "x": 2020.0,
+            "y": 1318.0
+          },
+          "w": 50.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Internet. Source: corrected Internet event log(s). Observed assignments (event counts): William: 185. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements. The integrated model retains this branch-specific assignment evidence.",
+          "duration": 0.0,
+          "h": 76.0,
+          "id": 66,
+          "kind": {
+            "Task": "Abstract"
+          },
+          "name": "Approve order",
+          "pos": {
+            "x": 870.0,
+            "y": 488.0
+          },
+          "w": 150.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Internet. Source: corrected Internet event log(s). Observed assignments (event counts): Patrick: 162, Robert: 99. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements. The integrated model retains this branch-specific assignment evidence.",
+          "duration": 0.0,
+          "h": 76.0,
+          "id": 67,
+          "kind": {
+            "Task": "Abstract"
+          },
+          "name": "Bake",
+          "pos": {
+            "x": 2480.0,
+            "y": 1318.0
+          },
+          "w": 150.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Internet. Source: corrected Internet event log(s). Observed assignments (event counts): William: 3. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements. The integrated model retains this branch-specific assignment evidence.",
+          "duration": 0.0,
+          "h": 76.0,
+          "id": 68,
+          "kind": {
+            "Task": "Abstract"
+          },
+          "name": "Cancel order",
+          "pos": {
+            "x": 1790.0,
+            "y": 428.0
+          },
+          "w": 150.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Internet. Source: corrected Internet event log(s). Observed assignments (event counts): Harry: 7, Jack: 140, Paul: 24, Richard: 11. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements. The integrated model retains this branch-specific assignment evidence.",
+          "duration": 0.0,
+          "h": 76.0,
+          "id": 69,
+          "kind": {
+            "Task": "Abstract"
+          },
+          "name": "Cash",
+          "pos": {
+            "x": 3760.0,
+            "y": 2948.0
+          },
+          "w": 150.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Internet. Source: corrected Internet event log(s). Observed assignments (event counts): William: 21. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements. The integrated model retains this branch-specific assignment evidence.",
+          "duration": 0.0,
+          "h": 76.0,
+          "id": 70,
+          "kind": {
+            "Task": "Abstract"
+          },
+          "name": "Contact customer",
+          "pos": {
+            "x": 1330.0,
+            "y": 488.0
+          },
+          "w": 150.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Internet. Source: corrected Internet event log(s). Observed assignments (event counts): Harry: 7, Jack: 140, Paul: 24, Richard: 11. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements. The integrated model retains this branch-specific assignment evidence.",
+          "duration": 0.0,
+          "h": 76.0,
+          "id": 71,
+          "kind": {
+            "Task": "Abstract"
+          },
+          "name": "Deliver",
+          "pos": {
+            "x": 3400.0,
+            "y": 1928.0
+          },
+          "w": 150.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Internet. ",
+          "duration": 0.0,
+          "h": 50.0,
+          "id": 72,
+          "kind": {
+            "Gateway": "Parallel"
+          },
+          "name": "",
+          "pos": {
+            "x": 3580.0,
+            "y": 3018.0
+          },
+          "w": 50.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Internet. Source: corrected Internet event log(s). Observed assignments (event counts): Harry: 7, Jack: 140, Paul: 24, Richard: 11. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements. The integrated model retains this branch-specific assignment evidence.",
+          "duration": 0.0,
+          "h": 76.0,
+          "id": 73,
+          "kind": {
+            "Task": "Abstract"
+          },
+          "name": "Give order",
+          "pos": {
+            "x": 3760.0,
+            "y": 3088.0
+          },
+          "w": 150.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Internet. Source: corrected Internet event log(s). Observed assignments (event counts): William: 18. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements. The integrated model retains this branch-specific assignment evidence.",
+          "duration": 0.0,
+          "h": 76.0,
+          "id": 74,
+          "kind": {
+            "Task": "Abstract"
+          },
+          "name": "Modify order",
+          "pos": {
+            "x": 1790.0,
+            "y": 568.0
+          },
+          "w": 150.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Internet. Source: corrected Internet event log(s). Observed assignments (event counts): Patrick: 162, Robert: 99. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements. The integrated model retains this branch-specific assignment evidence.",
+          "duration": 0.0,
+          "h": 76.0,
+          "id": 75,
+          "kind": {
+            "Task": "Abstract"
+          },
+          "name": "Pack",
+          "pos": {
+            "x": 2710.0,
+            "y": 1318.0
+          },
+          "w": 150.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Internet. Source: corrected Internet event log(s). Observed assignments (event counts): Harry: 7, Jack: 140, Paul: 24, Richard: 11. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements. The integrated model retains this branch-specific assignment evidence.",
+          "duration": 0.0,
+          "h": 76.0,
+          "id": 76,
+          "kind": {
+            "Task": "Abstract"
+          },
+          "name": "Plan",
+          "pos": {
+            "x": 3170.0,
+            "y": 1928.0
+          },
+          "w": 150.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Internet. Source: corrected Internet event log(s). Observed assignments (event counts): Patrick: 162, Robert: 99. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements. The integrated model retains this branch-specific assignment evidence.",
+          "duration": 0.0,
+          "h": 76.0,
+          "id": 77,
+          "kind": {
+            "Task": "Abstract"
+          },
+          "name": "Prepare",
+          "pos": {
+            "x": 2250.0,
+            "y": 1318.0
+          },
+          "w": 150.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Channel branch: Internet. Source: corrected Internet event log(s). Observed assignments (event counts): William: 185. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements. The integrated model retains this branch-specific assignment evidence.",
+          "duration": 0.0,
+          "h": 76.0,
+          "id": 78,
+          "kind": {
+            "Task": "Abstract"
+          },
+          "name": "Receive order by internet",
+          "pos": {
+            "x": 640.0,
+            "y": 498.0
+          },
+          "w": 150.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Corrected event CSV: CaseId, Activity, Actor; order channel comes from the source file. No customer identity or timestamp is available. Sales IDs are not case IDs. In the global view this is a shared information concept for every applicable branch; a representative association is drawn to keep the diagram readable.",
+          "duration": 0.0,
+          "h": 100.0,
+          "id": 108,
+          "kind": "DataObject",
+          "name": "Case and channel [observed]",
+          "pos": {
+            "x": 720.0,
+            "y": 805.0
+          },
+          "w": 190.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "The Sales worksheets record Pizza Type and Pizza Size. Using those fields as a preparation specification is an authored information-flow assumption; there is no row-level sales-to-case join. In the global view this is a shared information concept for every applicable branch; a representative association is drawn to keep the diagram readable.",
+          "duration": 0.0,
+          "h": 100.0,
+          "id": 109,
+          "kind": "DataObject",
+          "name": "Pizza type / size [source fields]",
+          "pos": {
+            "x": 720.0,
+            "y": 1555.0
+          },
+          "w": 190.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "PizzasInfo: 18 type/size entries, recorded cost and revenue. Monetary unit is unspecified. The association with settlement describes a proposed information interface, not a recorded data exchange. In the global view this is a shared information concept for every applicable branch; a representative association is drawn to keep the diagram readable.",
+          "duration": 0.0,
+          "h": 100.0,
+          "id": 110,
+          "kind": "DataStore",
+          "name": "Price catalogue [source]",
+          "pos": {
+            "x": 2633.333251953125,
+            "y": 3300.0
+          },
+          "w": 190.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Sales fields: Id, StructureId, Pizza Type, Pizza Size, Revenue, Cost, Satisfaction, Weekday, Customer Location, Customer Type. This is a sales record, not proof of a distinct customer or an event-log transaction. Cached Excel values are used; formulas are never executed. In the global view this is a shared information concept for every applicable branch; a representative association is drawn to keep the diagram readable.",
+          "duration": 0.0,
+          "h": 100.0,
+          "id": 111,
+          "kind": "DataStore",
+          "name": "Recorded sales [source]",
+          "pos": {
+            "x": 3133.333251953125,
+            "y": 3300.0
+          },
+          "w": 190.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Customer Location is a geographic category in Sales, not a street address or a case-linked delivery instruction. Its proposed use in planning is an explicit modeling assumption. In the global view this is a shared information concept for every applicable branch; a representative association is drawn to keep the diagram readable.",
+          "duration": 0.0,
+          "h": 100.0,
+          "id": 112,
+          "kind": "DataObject",
+          "name": "Customer location [source field]",
+          "pos": {
+            "x": 270.0,
+            "y": 2140.0
+          },
+          "w": 190.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "William handles intake and Internet approval/contact/modification/cancellation. Patrick and Robert prepare, bake and pack. Jack, Paul, Richard and Harry plan/deliver and settle delivered orders. Counter and pickup settlement is assigned to William. Unknown Counter Prepare actors are retained, not filled from adjacent events. In the global view this is a shared information concept for every applicable branch; a representative association is drawn to keep the diagram readable.",
+          "duration": 0.0,
+          "h": 150.0,
+          "id": 118,
+          "kind": "TextAnnotation",
+          "name": "* Roles inferred from tasks. People are observed. 5 business events have no actor.",
+          "pos": {
+            "x": 270.0,
+            "y": 805.0
+          },
+          "w": 340.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Prepare -> Bake -> Pack repeats one to three times in the logs. The model generalizes this as a loop; no defect/rework cause or one-cycle/one-sale equivalence is asserted. Cash and Give order occur in both orders. Logical parallel routing expresses that flexibility, not simultaneous human work. Branch labels are explanatory, not an executable decision engine. In the global view this is a shared information concept for every applicable branch; a representative association is drawn to keep the diagram readable.",
+          "duration": 0.0,
+          "h": 150.0,
+          "id": 120,
+          "kind": "TextAnnotation",
+          "name": "Loops and order flexibility are observed; their business cause and timing are unknown.",
+          "pos": {
+            "x": 270.0,
+            "y": 1555.0
+          },
+          "w": 340.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Visual channel subrow within a shared role lane. Control-flow branches remain separate; this caption is not an executable activity or an additional participant.",
+          "duration": 0.0,
+          "h": 26.0,
+          "id": 122,
+          "kind": "TextAnnotation",
+          "name": "Counter",
+          "pos": {
+            "x": 170.0,
+            "y": 1040.0
+          },
+          "w": 110.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Visual channel subrow within a shared role lane. Control-flow branches remain separate; this caption is not an executable activity or an additional participant.",
+          "duration": 0.0,
+          "h": 26.0,
+          "id": 123,
+          "kind": "TextAnnotation",
+          "name": "Phone",
+          "pos": {
+            "x": 170.0,
+            "y": 1180.0
+          },
+          "w": 110.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Visual channel subrow within a shared role lane. Control-flow branches remain separate; this caption is not an executable activity or an additional participant.",
+          "duration": 0.0,
+          "h": 26.0,
+          "id": 124,
+          "kind": "TextAnnotation",
+          "name": "Internet",
+          "pos": {
+            "x": 170.0,
+            "y": 1320.0
+          },
+          "w": 110.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Visual channel subrow within a shared role lane. Control-flow branches remain separate; this caption is not an executable activity or an additional participant.",
+          "duration": 0.0,
+          "h": 26.0,
+          "id": 125,
+          "kind": "TextAnnotation",
+          "name": "Phone",
+          "pos": {
+            "x": 170.0,
+            "y": 1790.0
+          },
+          "w": 110.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Visual channel subrow within a shared role lane. Control-flow branches remain separate; this caption is not an executable activity or an additional participant.",
+          "duration": 0.0,
+          "h": 26.0,
+          "id": 126,
+          "kind": "TextAnnotation",
+          "name": "Internet",
+          "pos": {
+            "x": 170.0,
+            "y": 1930.0
+          },
+          "w": 110.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Visual channel subrow within a shared role lane. Control-flow branches remain separate; this caption is not an executable activity or an additional participant.",
+          "duration": 0.0,
+          "h": 26.0,
+          "id": 127,
+          "kind": "TextAnnotation",
+          "name": "Counter",
+          "pos": {
+            "x": 170.0,
+            "y": 2460.0
+          },
+          "w": 110.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Visual channel subrow within a shared role lane. Control-flow branches remain separate; this caption is not an executable activity or an additional participant.",
+          "duration": 0.0,
+          "h": 26.0,
+          "id": 128,
+          "kind": "TextAnnotation",
+          "name": "Phone",
+          "pos": {
+            "x": 170.0,
+            "y": 2740.0
+          },
+          "w": 110.0
+        },
+        {
+          "cost": 0.0,
+          "documentation": "Visual channel subrow within a shared role lane. Control-flow branches remain separate; this caption is not an executable activity or an additional participant.",
+          "duration": 0.0,
+          "h": 26.0,
+          "id": 129,
+          "kind": "TextAnnotation",
+          "name": "Internet",
+          "pos": {
+            "x": 170.0,
+            "y": 3020.0
+          },
+          "w": 110.0
+        }
+      ],
+      "pools": [
+        {
+          "id": 103,
+          "lanes": [
+            {
+              "height": 890.0,
+              "id": 104,
+              "name": "Order handling* | William"
+            },
+            {
+              "height": 750.0,
+              "id": 105,
+              "name": "Production* | Patrick, Robert"
+            },
+            {
+              "height": 560.0,
+              "id": 106,
+              "name": "Delivery* | Jack, Paul, Richard, Harry"
+            },
+            {
+              "height": 1160.0,
+              "id": 107,
+              "name": "Settlement* | William or delivery actor"
+            }
+          ],
+          "name": "TakeAway - integrated order management",
+          "pos": {
+            "x": 40.0,
+            "y": 40.0
+          },
+          "width": 4415.0
+        }
+      ],
+      "style": {
+        "edges": "Auto",
+        "sketch": false,
+        "transitions": "Box"
+      }
+    }
+  }
+}

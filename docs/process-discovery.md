@@ -118,6 +118,14 @@ supported process projection. These are separate documents, not synchronized
 views of the original log. **File → Export** provides the Alpha write-up when
 the current results are ready. Save `.opx` to preserve your log and authored work.
 
+Silent Petri routes become BPMN routing gateways rather than unnamed business
+tasks. Transparent connectors are contracted only when doing so preserves
+branches and loops. Generated start/end events remain unnamed so converting the
+BPMN back to Petri does not invent visible boundary activities. Review conversion
+warnings: weighted/inhibitor arcs and place capacities are not represented by
+the BPMN projection. Replaying observed traces is not a complete equivalence
+proof.
+
 ## Limits and interpretation
 
 Alpha is sensitive to log completeness and its modelling assumptions. A log
@@ -165,8 +173,27 @@ each view. Charts show up to 20 groups; the scrollable table and exports include
 all groups. Aggregation runs on immutable snapshots in the existing background
 worker, and edits or changed filters invalidate older results.
 
+The optional **Recorded scenario (StructureId)** filter matches the recorded
+value exactly. Select its channel as well: a scenario identifier refers to a
+template in its own source workbook, not to `Sales.Id` or an event-log `CaseId`.
+Its availability does not assert a join between unrelated sources.
+
+**Weekday trends** draws Monday-to-Sunday profiles for all recorded sales and
+each recorded customer type, with a numeric comparison table. Choose counts,
+revenue, profit or average observed satisfaction. Empty-day counts are zero;
+undefined satisfaction values leave gaps. The display shows up to 20 types and
+the CSV retains every type. Unrecognized weekday values remain in overall/grouped
+totals and are reported separately rather than assigned a guessed day.
+
+The summary explains two manager KPIs: profit divided by recorded revenue, and
+observed satisfaction scores divided by recorded sales. The first is undefined
+when revenue is zero; the second when there are no rows. Score zero remains an
+observation. Neither indicator establishes the completeness of recorded costs
+or the representativeness of customer feedback.
+
 **File → Export** provides the current grouped analysis CSV or the filtered sales
-records CSV. Row exports retain channel/source columns. The initial CSV reader
+records CSV, plus separate weekday-series and KPI CSVs. Row exports retain
+channel/source columns. The initial CSV reader
 accepts one channel per file; a mixed-channel row export must be split or filtered
 to one channel before reimport. Save `.opx` for lossless study persistence across
 all channels. Undo/redo covers imported sources, removal and channel edits;

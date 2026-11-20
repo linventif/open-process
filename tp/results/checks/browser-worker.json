@@ -1,0 +1,28 @@
+{
+  "command": "python3 scripts/check-web-worker.py --dist target/tp-complete-web --app-prefix /app/ --timeout 50",
+  "browser": "Firefox, headless, temporary profile",
+  "date": "2026-11-20",
+  "exit_code": 0,
+  "report": {
+    "analysis": {
+      "states": 2,
+      "ui_ticks": 60,
+      "ms": 626
+    },
+    "mermaid": true,
+    "mining": true,
+    "routing_markers": true,
+    "sales": {
+      "records": 2,
+      "revenue": 3500,
+      "missing": 1,
+      "weekday_points": 7,
+      "customer_types": 2,
+      "scenario_filter": true
+    },
+    "bpmn": true,
+    "cancel": true,
+    "invalid": true,
+    "ok": true
+  }
+}

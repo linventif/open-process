@@ -7,7 +7,9 @@ use crate::history::History;
 use egui::{RichText, Ui};
 use op_core::document::{Document, DocumentCodec, JsonCodec, LogDocument, LogImportNote};
 use op_core::i18n::{Lang, key, tr, trf};
-use op_core::sales::{Money, Sale, SalesAnalysis, SalesDataset, SalesFilter, SalesGroup, SalesGroupBy, SalesStudy};
+use op_core::sales::{
+    Money, Sale, SalesAnalysis, SalesDataset, SalesFilter, SalesGroup, SalesGroupBy, SalesMetrics, SalesStudy, Weekday, WeekdayPoint,
+};
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -29,12 +31,12 @@ impl ChartMetric {
             Self::Satisfaction => key("sales.satisfaction"),
         }
     }
-    fn value(self, group: &SalesGroup) -> Option<f64> {
+    fn value(self, metrics: &SalesMetrics) -> Option<f64> {
         match self {
-            Self::Revenue => Some(group.metrics.revenue.as_major()),
-            Self::Count => Some(group.metrics.sales_count as f64),
-            Self::Profit => Some(group.metrics.profit.as_major()),
-            Self::Satisfaction => group.metrics.satisfaction_average,
+            Self::Revenue => Some(metrics.revenue.as_major()),
+            Self::Count => Some(metrics.sales_count as f64),
+            Self::Profit => Some(metrics.profit.as_major()),
+            Self::Satisfaction => metrics.satisfaction_average,
         }
     }
 }
@@ -45,8 +47,10 @@ pub struct SalesView {
     inspector: Option<bool>,
     filter: SalesFilter,
     breakdown: bool,
+    evolution: bool,
     group_by: SalesGroupBy,
     metric: ChartMetric,
+    trend_metric: ChartMetric,
     result: Option<Arc<analysis_job::Output>>,
     // Cloned view states share one task; closing its last view releases the job.
     pending: Option<Arc<Mutex<Pending>>>,
@@ -59,8 +63,10 @@ impl Default for SalesView {
             inspector: None,
             filter: SalesFilter::default(),
             breakdown: false,
+            evolution: false,
             group_by: SalesGroupBy::Channel,
             metric: ChartMetric::Revenue,
+            trend_metric: ChartMetric::Count,
             result: None,
             pending: None,
         }
@@ -204,6 +210,8 @@ impl SalesEditor {
             ui.separator();
             ui.heading(tr("sales.filters"));
             filter_text(ui, key("sales.channel"), &mut self.state.filter.channel);
+            filter_text(ui, key("sales.structure_id"), &mut self.state.filter.structure_id);
+            ui.label(RichText::new(tr("sales.scenario_help")).small().weak());
             filter_text(ui, key("sales.customer_type"), &mut self.state.filter.customer_type);
             filter_text(ui, key("sales.weekday"), &mut self.state.filter.weekday);
             filter_text(ui, key("sales.customer_location"), &mut self.state.filter.customer_location);
@@ -235,15 +243,43 @@ impl SalesEditor {
             }
         };
         ui.horizontal_wrapped(|ui| {
-            ui.selectable_value(&mut self.state.breakdown, false, tr("sales.summary"));
-            ui.selectable_value(&mut self.state.breakdown, true, tr("sales.breakdown"));
+            if ui
+                .selectable_label(!self.state.breakdown && !self.state.evolution, tr("sales.summary"))
+                .clicked()
+            {
+                self.state.breakdown = false;
+                self.state.evolution = false;
+            }
+            if ui
+                .selectable_label(self.state.breakdown && !self.state.evolution, tr("sales.breakdown"))
+                .clicked()
+            {
+                self.state.breakdown = true;
+                self.state.evolution = false;
+            }
+            if ui.selectable_label(self.state.evolution, tr("sales.evolution")).clicked() {
+                self.state.evolution = true;
+                self.state.breakdown = false;
+            }
         });
         ui.separator();
         if analysis.totals.sales_count == 0 {
             ui.label(tr("sales.no_matches"));
             return;
         }
-        if !self.state.breakdown {
+        if self.state.evolution {
+            ui.horizontal_wrapped(|ui| {
+                ui.label(tr("sales.chart_metric"));
+                egui::ComboBox::from_id_salt("sales_trend_metric")
+                    .selected_text(tr(self.state.trend_metric.label()))
+                    .show_ui(ui, |ui| {
+                        for metric in ChartMetric::ALL {
+                            ui.selectable_value(&mut self.state.trend_metric, metric, tr(metric.label()));
+                        }
+                    });
+            });
+            egui::ScrollArea::vertical().show(ui, |ui| weekday_evolution(ui, analysis, self.state.trend_metric));
+        } else if !self.state.breakdown {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 summary(ui, analysis);
                 ui.separator();
@@ -326,6 +362,10 @@ fn decimal(value: Option<f64>) -> String {
     value.map(|value| format!("{value:.2}")).unwrap_or_else(|| "—".into())
 }
 
+fn percentage(value: Option<f64>) -> String {
+    value.map(|value| format!("{:.2}%", value * 100.0)).unwrap_or_else(|| "—".into())
+}
+
 fn summary(ui: &mut Ui, analysis: &SalesAnalysis) {
     let metrics = &analysis.totals;
     egui::Grid::new("sales_totals").striped(true).num_columns(2).show(ui, |ui| {
@@ -335,13 +375,6 @@ fn summary(ui: &mut Ui, analysis: &SalesAnalysis) {
             (key("sales.cost"), metrics.cost.to_string()),
             (key("sales.profit"), metrics.profit.to_string()),
             (key("sales.average_revenue"), decimal(metrics.average_revenue)),
-            (
-                key("sales.profit_rate"),
-                metrics
-                    .profit_rate
-                    .map(|rate| format!("{:.2}%", rate * 100.0))
-                    .unwrap_or_else(|| "—".into()),
-            ),
             (key("sales.satisfaction"), decimal(metrics.satisfaction_average)),
         ] {
             ui.label(tr(label));
@@ -353,6 +386,207 @@ fn summary(ui: &mut Ui, analysis: &SalesAnalysis) {
         "sales.satisfaction_note",
         &[&metrics.satisfaction_observed, &metrics.satisfaction_missing],
     ));
+    ui.separator();
+    ui.heading(tr("sales.kpis"));
+    for (label, value, help) in [
+        (
+            key("sales.kpi_margin"),
+            percentage(metrics.profit_rate),
+            key("sales.kpi_margin_help"),
+        ),
+        (
+            key("sales.kpi_coverage"),
+            percentage(metrics.satisfaction_observation_rate()),
+            key("sales.kpi_coverage_help"),
+        ),
+    ] {
+        ui.group(|ui| {
+            ui.horizontal_wrapped(|ui| {
+                ui.label(RichText::new(tr(label)).strong());
+                ui.label(RichText::new(value).strong());
+            });
+            ui.label(RichText::new(tr(help)).small().weak());
+        });
+    }
+}
+
+fn weekday_label(day: Weekday) -> &'static str {
+    match day {
+        Weekday::Monday => key("sales.day_monday"),
+        Weekday::Tuesday => key("sales.day_tuesday"),
+        Weekday::Wednesday => key("sales.day_wednesday"),
+        Weekday::Thursday => key("sales.day_thursday"),
+        Weekday::Friday => key("sales.day_friday"),
+        Weekday::Saturday => key("sales.day_saturday"),
+        Weekday::Sunday => key("sales.day_sunday"),
+    }
+}
+
+fn metric_text(metric: ChartMetric, metrics: Option<&SalesMetrics>) -> String {
+    let value = metrics.and_then(|metrics| metric.value(metrics));
+    if metric == ChartMetric::Count {
+        value.map(|value| format!("{value:.0}")).unwrap_or_else(|| "—".into())
+    } else {
+        decimal(value)
+    }
+}
+
+fn weekday_evolution(ui: &mut Ui, analysis: &SalesAnalysis, metric: ChartMetric) {
+    let evolution = &analysis.weekday_evolution;
+    ui.label(tr("sales.weekday_profile_note"));
+    if evolution.unrecognized_weekday_rows > 0 {
+        ui.label(RichText::new(trf("sales.weekday_unclassified", &[&evolution.unrecognized_weekday_rows])).weak());
+    }
+    let total_name = tr("sales.weekday_total");
+    ui.heading(total_name);
+    line_chart(ui, &[(total_name, &evolution.total)], metric);
+    ui.heading(tr("sales.customer_weekday_lines"));
+    let labels: Vec<_> = evolution
+        .customer_types
+        .iter()
+        .take(20)
+        .map(|series| {
+            if series.customer_type.is_empty() {
+                tr("sales.unknown_customer_type").to_owned()
+            } else {
+                series.customer_type.clone()
+            }
+        })
+        .collect();
+    let series: Vec<_> = evolution
+        .customer_types
+        .iter()
+        .take(20)
+        .zip(&labels)
+        .map(|(series, label)| (label.as_str(), series.points.as_slice()))
+        .collect();
+    line_chart(ui, &series, metric);
+    if evolution.customer_types.len() > 20 {
+        ui.label(RichText::new(tr("sales.weekday_series_limit")).small().weak());
+    }
+    egui::ScrollArea::horizontal().id_salt("sales_weekday_table").show(ui, |ui| {
+        egui::Grid::new("sales_weekday_values").striped(true).show(ui, |ui| {
+            ui.label(RichText::new(tr("sales.weekday")).strong());
+            ui.label(RichText::new(total_name).strong());
+            for label in &labels {
+                ui.label(RichText::new(label).strong());
+            }
+            ui.end_row();
+            for (index, day) in Weekday::ALL.into_iter().enumerate() {
+                ui.label(tr(weekday_label(day)));
+                ui.label(metric_text(metric, evolution.total.get(index).map(|point| &point.metrics)));
+                for series in evolution.customer_types.iter().take(20) {
+                    ui.label(metric_text(metric, series.points.get(index).map(|point| &point.metrics)));
+                }
+                ui.end_row();
+            }
+        });
+    });
+    ui.label(RichText::new(tr("sales.units_note")).small().weak());
+}
+
+fn line_chart(ui: &mut Ui, series: &[(&str, &[WeekdayPoint])], metric: ChartMetric) {
+    let colors = [
+        crate::theme::accent(ui),
+        egui::Color32::from_rgb(61, 132, 203),
+        egui::Color32::from_rgb(216, 120, 38),
+        egui::Color32::from_rgb(140, 95, 199),
+        egui::Color32::from_rgb(189, 77, 112),
+        egui::Color32::from_rgb(40, 151, 115),
+    ];
+    ui.horizontal_wrapped(|ui| {
+        for (index, (label, _)) in series.iter().enumerate() {
+            ui.colored_label(colors[index % colors.len()], "●");
+            ui.label(*label);
+        }
+    });
+    let values: Vec<_> = series
+        .iter()
+        .flat_map(|(_, points)| points.iter().filter_map(|point| metric.value(&point.metrics)))
+        .collect();
+    let min = values.iter().copied().fold(0.0_f64, f64::min);
+    let max = values.iter().copied().fold(0.0_f64, f64::max);
+    let max = if metric == ChartMetric::Count {
+        ((max / 4.0).ceil() * 4.0).max(4.0)
+    } else {
+        max
+    };
+    // Scaling first keeps even finite extreme imported scores from overflowing
+    // the subtraction used to map values to the chart's finite coordinates.
+    let scale = min.abs().max(max.abs()).max(1.0);
+    let low = min / scale;
+    let high = max / scale;
+    let span = (high - low).max(f64::EPSILON);
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(ui.available_width().max(1.0), 220.0), egui::Sense::hover());
+    let left = rect.left() + (rect.width() * 0.12).min(52.0);
+    let plot = egui::Rect::from_min_max(
+        egui::pos2(left, rect.top() + 8.0),
+        egui::pos2((rect.right() - 5.0).max(left + 1.0), rect.bottom() - 30.0),
+    );
+    let at = |index: usize, value: f64| {
+        egui::pos2(
+            plot.left() + index as f32 * plot.width() / 6.0,
+            plot.bottom() - ((value / scale - low) / span) as f32 * plot.height(),
+        )
+    };
+    let weak = ui.visuals().weak_text_color();
+    let stroke = ui.visuals().widgets.noninteractive.bg_stroke;
+    for step in 0..=4 {
+        let fraction = step as f32 / 4.0;
+        let y = plot.bottom() - fraction * plot.height();
+        ui.painter()
+            .line_segment([egui::pos2(plot.left(), y), egui::pos2(plot.right(), y)], stroke);
+        let value = low * (1.0 - f64::from(fraction)) * scale + high * f64::from(fraction) * scale;
+        ui.painter().text(
+            egui::pos2(plot.left() - 4.0, y),
+            egui::Align2::RIGHT_CENTER,
+            if metric == ChartMetric::Count {
+                format!("{value:.0}")
+            } else {
+                format!("{value:.2}")
+            },
+            egui::FontId::proportional(11.0),
+            weak,
+        );
+    }
+    for (index, day) in Weekday::ALL.into_iter().enumerate() {
+        let label: String = tr(weekday_label(day)).chars().take(3).collect();
+        ui.painter().text(
+            egui::pos2(at(index, 0.0).x, plot.bottom() + 10.0),
+            egui::Align2::CENTER_TOP,
+            label,
+            egui::FontId::proportional(11.0),
+            weak,
+        );
+    }
+    for (index, (_, points)) in series.iter().enumerate() {
+        let color = colors[index % colors.len()];
+        let mut previous = None;
+        for (day, point) in points.iter().take(7).enumerate() {
+            if let Some(value) = metric.value(&point.metrics) {
+                let position = at(day, value);
+                if let Some(previous) = previous {
+                    ui.painter().line_segment([previous, position], egui::Stroke::new(2.0, color));
+                }
+                ui.painter().circle_filled(position, 3.0, color);
+                previous = Some(position);
+            } else {
+                previous = None;
+            }
+        }
+    }
+    if let Some(pointer) = response.hover_pos() {
+        let day = (((pointer.x - plot.left()) / plot.width()) * 6.0).round().clamp(0.0, 6.0) as usize;
+        response.on_hover_ui(|ui| {
+            ui.label(RichText::new(tr(weekday_label(Weekday::ALL[day]))).strong());
+            for (label, points) in series {
+                ui.label(format!(
+                    "{label}: {}",
+                    metric_text(metric, points.get(day).map(|point| &point.metrics))
+                ));
+            }
+        });
+    }
 }
 
 fn group_table(ui: &mut Ui, groups: &[SalesGroup]) {
@@ -402,7 +636,7 @@ fn bar_chart(ui: &mut Ui, groups: &[SalesGroup], metric: ChartMetric) {
     let values: Vec<_> = groups
         .iter()
         .take(20)
-        .map(|group| (group.key.label(), metric.value(group)))
+        .map(|group| (group.key.label(), metric.value(&group.metrics)))
         .collect();
     let min = values.iter().filter_map(|(_, value)| *value).fold(0.0_f64, f64::min);
     let max = values.iter().filter_map(|(_, value)| *value).fold(0.0_f64, f64::max);
@@ -476,7 +710,7 @@ impl EditorBackend for SalesEditor {
         SalesView::default()
     }
     fn save_view(state: &SalesView) -> serde_json::Value {
-        serde_json::json!({"inspector":state.inspector,"filter":state.filter,"breakdown":state.breakdown,"group_by":state.group_by,"metric":state.metric})
+        serde_json::json!({"inspector":state.inspector,"filter":state.filter,"breakdown":state.breakdown,"evolution":state.evolution,"group_by":state.group_by,"metric":state.metric,"trend_metric":state.trend_metric})
     }
     fn load_view(state: &mut SalesView, value: &serde_json::Value) {
         state.inspector = value["inspector"].as_bool();
@@ -486,12 +720,14 @@ impl EditorBackend for SalesEditor {
         if let Some(breakdown) = value["breakdown"].as_bool() {
             state.breakdown = breakdown;
         }
+        state.evolution = value["evolution"].as_bool().unwrap_or(false);
         if let Ok(by) = serde_json::from_value(value["group_by"].clone()) {
             state.group_by = by;
         }
         if let Ok(metric) = serde_json::from_value(value["metric"].clone()) {
             state.metric = metric;
         }
+        state.trend_metric = serde_json::from_value(value["trend_metric"].clone()).unwrap_or(ChartMetric::Count);
     }
     fn set_exam_mode(&mut self, active: bool) {
         if active {
@@ -595,6 +831,14 @@ impl EditorBackend for SalesEditor {
                 id: "rows",
                 label: key("sales.export_rows"),
             },
+            ExportDescriptor {
+                id: "weekday-series",
+                label: key("sales.export_weekday"),
+            },
+            ExportDescriptor {
+                id: "kpis",
+                label: key("sales.export_kpis"),
+            },
         ]
     }
     fn export_as(&self, format: &str) -> Result<ExportData, String> {
@@ -606,6 +850,18 @@ impl EditorBackend for SalesEditor {
         }
         if format == "standard" {
             return self.export();
+        }
+        if format == "weekday-series" || format == "kpis" {
+            let analysis = self.current_analysis()?;
+            return Ok(ExportData {
+                suffix: "csv",
+                bytes: if format == "weekday-series" {
+                    analysis.weekday_series_csv()
+                } else {
+                    analysis.kpis_csv()
+                }
+                .into_bytes(),
+            });
         }
         Err("Unknown sales export".into())
     }
