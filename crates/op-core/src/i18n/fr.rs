@@ -35,7 +35,16 @@ pub const TABLE: &[(&str, &str)] = &[
         "Choisissez un type de diagramme pour commencer.",
     ),
     ("app.close_tab", "Fermer l'onglet"),
+    ("autosave.days_left", "Jours restants : {}"),
+    ("autosave.erase", "Supprimer définitivement"),
     ("autosave.library", "Diagrammes enregistrés"),
+    ("autosave.move_to_trash", "Mettre à la corbeille"),
+    ("autosave.restore", "Restaurer"),
+    ("autosave.trash", "Corbeille ({})"),
+    (
+        "autosave.trash_notice",
+        "Les diagrammes supprimés restent ici {} jours, puis sont effacés.",
+    ),
     ("drawing.invalid_attachment", "Attache de connexion du dessin invalide"),
     ("autosave.browser_location", "Stockage local de ce navigateur"),
     (
