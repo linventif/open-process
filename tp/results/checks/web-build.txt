@@ -1,0 +1,7 @@
+Command: trunk build --dist target/tp-complete-web/app --public-url /app/
+Environment: local Linux
+Exit code: 0
+
+   Compiling op-core v0.1.0 (/home/toybox/open-process/crates/op-core)
+   Compiling op-app v0.1.0 (/home/toybox/open-process/crates/op-app)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 10.15s

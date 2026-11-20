@@ -1,0 +1,314 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="16 16 3538 2028" width="3538" height="2028"><title>TakeAway - Internet order management</title>
+<defs><marker id="bpmn-sequence" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="10" markerHeight="10" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1L11 6L1 11Z" fill="#243342"/></marker><marker id="bpmn-open" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="10" markerHeight="10" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1L11 6L1 11" stroke="#243342" fill="none"/></marker><marker id="bpmn-message" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="11" markerHeight="11" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1L11 6L1 11Z" stroke="#243342" fill="white"/></marker></defs>
+<rect x="16" y="16" width="3538" height="2028" fill="white"/><g font-family="sans-serif" stroke="#243342" stroke-width="1.4" fill="white" stroke-linejoin="round" stroke-linecap="round">
+<g id="pool58" data-name="TakeAway - Internet order management">
+<rect x="40" y="40" width="3490" height="1980" rx="0" />
+<rect x="40" y="40" width="30" height="1980" rx="0" fill="#edf2f6"/>
+<g id="lane59" data-name="Order handling* | William">
+<rect x="70" y="40" width="26" height="550" rx="0" fill="#f6f8fa"/>
+</g>
+<g id="lane60" data-name="Production* | Patrick, Robert">
+<rect x="70" y="590" width="26" height="490" rx="0" fill="#f6f8fa"/>
+<path d="M70 590L3530 590" fill="none" />
+</g>
+<g id="lane61" data-name="Delivery* | Jack, Paul, Richard, Harry">
+<rect x="70" y="1080" width="26" height="440" rx="0" fill="#f6f8fa"/>
+<path d="M70 1080L3530 1080" fill="none" />
+</g>
+<g id="lane62" data-name="Settlement* | William or delivery actor">
+<rect x="70" y="1520" width="26" height="500" rx="0" fill="#f6f8fa"/>
+<path d="M70 1520L3530 1520" fill="none" />
+</g>
+</g>
+<g id="flow16" data-name=""><title></title>
+<polyline points="2745,1160 2850,1160 2850,1645" fill="none" marker-end="url(#bpmn-sequence)"/>
+</g>
+<g id="flow28" data-name=""><title></title>
+<polyline points="1335,120 3340,120 3340,1645" fill="none" marker-end="url(#bpmn-sequence)"/>
+</g>
+<g id="flow29" data-name=""><title></title>
+<polyline points="3235,1670 3315,1670" fill="none" marker-end="url(#bpmn-sequence)"/>
+</g>
+<g id="flow30" data-name=""><title></title>
+<polyline points="3105,1600 3210,1600 3210,1645" fill="none" marker-end="url(#bpmn-sequence)"/>
+</g>
+<g id="flow31" data-name=""><title></title>
+<polyline points="3105,1740 3210,1740 3210,1695" fill="none" marker-end="url(#bpmn-sequence)"/>
+</g>
+<g id="flow33" data-name=""><title></title>
+<polyline points="1925,670 2005,670" fill="none" marker-end="url(#bpmn-sequence)"/>
+</g>
+<g id="flow34" data-name=""><title></title>
+<polyline points="2850,1645 2850,1600 2955,1600" fill="none" marker-end="url(#bpmn-sequence)"/>
+</g>
+<g id="flow35" data-name=""><title></title>
+<polyline points="2850,1695 2850,1740 2955,1740" fill="none" marker-end="url(#bpmn-sequence)"/>
+</g>
+<g id="flow36" data-name=""><title></title>
+<polyline points="2515,1160 2595,1160" fill="none" marker-end="url(#bpmn-sequence)"/>
+</g>
+<g id="flow37" data-name=""><title></title>
+<polyline points="1695,670 1775,670" fill="none" marker-end="url(#bpmn-sequence)"/>
+</g>
+<g id="flow38" data-name=""><title></title>
+<polyline points="385,190 465,190" fill="none" marker-end="url(#bpmn-sequence)"/>
+</g>
+<g id="flow40" data-name=""><title></title>
+<polyline points="615,190 695,190" fill="none" marker-end="url(#bpmn-sequence)"/>
+</g>
+<g id="flow41" data-name="Contact needed"><title>Contact needed</title>
+<polyline points="745,190 825,190" fill="none" marker-end="url(#bpmn-sequence)"/>
+<text font-size="11" text-anchor="middle" fill="#243342" stroke="none"><title>Contact needed</title>
+<tspan x="785" y="178.70001">Contact needed</tspan>
+</text>
+</g>
+<g id="flow43" data-name=""><title></title>
+<polyline points="975,190 1055,190" fill="none" marker-end="url(#bpmn-sequence)"/>
+</g>
+<g id="flow44" data-name="Order cancelled"><title>Order cancelled</title>
+<polyline points="1080,165 1080,120 1185,120" fill="none" marker-end="url(#bpmn-sequence)"/>
+<text font-size="11" text-anchor="middle" fill="#243342" stroke="none"><title>Order cancelled</title>
+<tspan x="1110" y="108.7">Order cancelled</tspan>
+</text>
+</g>
+<g id="flow45" data-name="Order modified"><title>Order modified</title>
+<polyline points="1080,215 1080,260 1185,260" fill="none" marker-end="url(#bpmn-sequence)"/>
+<text font-size="11" text-anchor="middle" fill="#243342" stroke="none"><title>Order modified</title>
+<tspan x="1110" y="248.70001">Order modified</tspan>
+</text>
+</g>
+<g id="flow46" data-name=""><title></title>
+<polyline points="2155,670 2235,670" fill="none" marker-end="url(#bpmn-sequence)"/>
+</g>
+<g id="flow47" data-name="Continue to delivery"><title>Continue to delivery</title>
+<polyline points="2260,695 2260,1160 2365,1160" fill="none" marker-end="url(#bpmn-sequence)"/>
+<text font-size="11" text-anchor="middle" fill="#243342" stroke="none"><title>Continue to delivery</title>
+<tspan x="2260" y="968.69995">Continue to delivery</tspan>
+</text>
+</g>
+<g id="flow49" data-name=""><title></title>
+<polyline points="1335,260 1440,260 1440,645" fill="none" marker-end="url(#bpmn-sequence)"/>
+</g>
+<g id="flow52" data-name=""><title></title>
+<polyline points="1465,670 1545,670" fill="none" marker-end="url(#bpmn-sequence)"/>
+</g>
+<g id="flow54" data-name="Repeat preparation"><title>Repeat preparation</title>
+<polyline points="720,215 720,407 1407,407 1407,670 1415,670" fill="none" marker-end="url(#bpmn-sequence)"/>
+<text font-size="11" text-anchor="middle" fill="#243342" stroke="none"><title>Repeat preparation</title>
+<tspan x="1103" y="395.7">Repeat preparation</tspan>
+</text>
+</g>
+<g id="flow55" data-name="Repeat preparation"><title>Repeat preparation</title>
+<polyline points="2260,645 2260,602 1440,602 1440,645" fill="none" marker-end="url(#bpmn-sequence)"/>
+<text font-size="11" text-anchor="middle" fill="#243342" stroke="none"><title>Repeat preparation</title>
+<tspan x="1850" y="590.69995">Repeat preparation</tspan>
+</text>
+</g>
+<g id="flow56" data-name=""><title></title>
+<polyline points="3365,1670 3452,1670" fill="none" marker-end="url(#bpmn-sequence)"/>
+</g>
+<g id="flow57" data-name=""><title></title>
+<polyline points="148,190 235,190" fill="none" marker-end="url(#bpmn-sequence)"/>
+</g>
+<g id="flow68" data-name=""><title></title>
+<polyline points="2780,1870 2780,1600 2955,1600" fill="none" stroke-dasharray="2 3" marker-end="url(#bpmn-open)"/>
+</g>
+<g id="flow69" data-name=""><title></title>
+<polyline points="3105,1600 3280,1600 3280,1870" fill="none" stroke-dasharray="2 3" marker-end="url(#bpmn-open)"/>
+</g>
+<g id="flow70" data-name=""><title></title>
+<polyline points="365,1420 2365,1160" fill="none" stroke-dasharray="2 3" marker-end="url(#bpmn-open)"/>
+</g>
+<g id="flow71" data-name=""><title></title>
+<polyline points="815,955 1545,670" fill="none" stroke-dasharray="2 3" marker-end="url(#bpmn-open)"/>
+</g>
+<g id="flow72" data-name=""><title></title>
+<polyline points="310,228 720,415" fill="none" stroke-dasharray="2 3" marker-end="url(#bpmn-open)"/>
+</g>
+<g id="flow74" data-name=""><title></title>
+<polyline points="270,390 540,228" fill="none" stroke-dasharray="2 3"/>
+</g>
+<g id="flow76" data-name=""><title></title>
+<polyline points="440,955 448,955 448,716 1620,716 1620,708" fill="none" stroke-dasharray="2 3"/>
+</g>
+<g id="node1" data-name=""><title></title><desc></desc>
+<polygon points="3340,1645 3365,1670 3340,1695 3315,1670"/>
+<path d="M3330 1660L3350 1680" fill="none" stroke-width="3"/>
+<path d="M3330 1680L3350 1660" fill="none" stroke-width="3"/>
+</g>
+<g id="node2" data-name=""><title></title><desc></desc>
+<polygon points="3210,1645 3235,1670 3210,1695 3185,1670"/>
+<path d="M3198 1670L3222 1670" fill="none" stroke-width="3"/>
+<path d="M3210 1658L3210 1682" fill="none" stroke-width="3"/>
+</g>
+<g id="node3" data-name=""><title></title><desc>iw</desc>
+<circle cx="130" cy="190" r="18" />
+</g>
+<g id="node4" data-name=""><title></title><desc></desc>
+<polygon points="720,165 745,190 720,215 695,190"/>
+<path d="M710 180L730 200" fill="none" stroke-width="3"/>
+<path d="M710 200L730 180" fill="none" stroke-width="3"/>
+</g>
+<g id="node5" data-name=""><title></title><desc></desc>
+<polygon points="1080,165 1105,190 1080,215 1055,190"/>
+<path d="M1070 180L1090 200" fill="none" stroke-width="3"/>
+<path d="M1070 200L1090 180" fill="none" stroke-width="3"/>
+</g>
+<g id="node6" data-name=""><title></title><desc></desc>
+<polygon points="2260,645 2285,670 2260,695 2235,670"/>
+<path d="M2250 660L2270 680" fill="none" stroke-width="3"/>
+<path d="M2250 680L2270 660" fill="none" stroke-width="3"/>
+</g>
+<g id="node7" data-name=""><title></title><desc></desc>
+<polygon points="1440,645 1465,670 1440,695 1415,670"/>
+<path d="M1430 660L1450 680" fill="none" stroke-width="3"/>
+<path d="M1430 680L1450 660" fill="none" stroke-width="3"/>
+</g>
+<g id="node8" data-name=""><title></title><desc>ow&#10;[end]</desc>
+<circle cx="3470" cy="1670" r="18" stroke-width="3.5"/>
+</g>
+<g id="node9" data-name="Approve order"><title>Approve order</title><desc>Source: corrected Internet event log(s). Observed assignments (event counts): William: 185. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements.</desc>
+<rect x="465" y="152" width="150" height="76" rx="9" />
+<text font-size="12" text-anchor="middle" fill="#243342" stroke="none"><title>Approve order</title>
+<tspan x="540" y="194.2">Approve order</tspan>
+</text>
+</g>
+<g id="node10" data-name="Bake"><title>Bake</title><desc>Source: corrected Internet event log(s). Observed assignments (event counts): Patrick: 162, Robert: 99. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements.</desc>
+<rect x="1775" y="632" width="150" height="76" rx="9" />
+<text font-size="12" text-anchor="middle" fill="#243342" stroke="none"><title>Bake</title>
+<tspan x="1850" y="674.2">Bake</tspan>
+</text>
+</g>
+<g id="node11" data-name="Cancel order"><title>Cancel order</title><desc>Source: corrected Internet event log(s). Observed assignments (event counts): William: 3. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements.</desc>
+<rect x="1185" y="82" width="150" height="76" rx="9" />
+<text font-size="12" text-anchor="middle" fill="#243342" stroke="none"><title>Cancel order</title>
+<tspan x="1260" y="124.2">Cancel order</tspan>
+</text>
+</g>
+<g id="node12" data-name="Cash"><title>Cash</title><desc>Source: corrected Internet event log(s). Observed assignments (event counts): Harry: 7, Jack: 140, Paul: 24, Richard: 11. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements.</desc>
+<rect x="2955" y="1562" width="150" height="76" rx="9" />
+<text font-size="12" text-anchor="middle" fill="#243342" stroke="none"><title>Cash</title>
+<tspan x="3030" y="1604.2">Cash</tspan>
+</text>
+</g>
+<g id="node13" data-name="Contact customer"><title>Contact customer</title><desc>Source: corrected Internet event log(s). Observed assignments (event counts): William: 21. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements.</desc>
+<rect x="825" y="152" width="150" height="76" rx="9" />
+<text font-size="12" text-anchor="middle" fill="#243342" stroke="none"><title>Contact customer</title>
+<tspan x="900" y="194.2">Contact customer</tspan>
+</text>
+</g>
+<g id="node14" data-name="Deliver"><title>Deliver</title><desc>Source: corrected Internet event log(s). Observed assignments (event counts): Harry: 7, Jack: 140, Paul: 24, Richard: 11. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements.</desc>
+<rect x="2595" y="1122" width="150" height="76" rx="9" />
+<text font-size="12" text-anchor="middle" fill="#243342" stroke="none"><title>Deliver</title>
+<tspan x="2670" y="1164.2">Deliver</tspan>
+</text>
+</g>
+<g id="node15" data-name=""><title></title><desc></desc>
+<polygon points="2850,1645 2875,1670 2850,1695 2825,1670"/>
+<path d="M2838 1670L2862 1670" fill="none" stroke-width="3"/>
+<path d="M2850 1658L2850 1682" fill="none" stroke-width="3"/>
+</g>
+<g id="node17" data-name="Give order"><title>Give order</title><desc>Source: corrected Internet event log(s). Observed assignments (event counts): Harry: 7, Jack: 140, Paul: 24, Richard: 11. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements.</desc>
+<rect x="2955" y="1702" width="150" height="76" rx="9" />
+<text font-size="12" text-anchor="middle" fill="#243342" stroke="none"><title>Give order</title>
+<tspan x="3030" y="1744.2">Give order</tspan>
+</text>
+</g>
+<g id="node18" data-name="Modify order"><title>Modify order</title><desc>Source: corrected Internet event log(s). Observed assignments (event counts): William: 18. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements.</desc>
+<rect x="1185" y="222" width="150" height="76" rx="9" />
+<text font-size="12" text-anchor="middle" fill="#243342" stroke="none"><title>Modify order</title>
+<tspan x="1260" y="264.2">Modify order</tspan>
+</text>
+</g>
+<g id="node19" data-name="Pack"><title>Pack</title><desc>Source: corrected Internet event log(s). Observed assignments (event counts): Patrick: 162, Robert: 99. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements.</desc>
+<rect x="2005" y="632" width="150" height="76" rx="9" />
+<text font-size="12" text-anchor="middle" fill="#243342" stroke="none"><title>Pack</title>
+<tspan x="2080" y="674.2">Pack</tspan>
+</text>
+</g>
+<g id="node20" data-name="Plan"><title>Plan</title><desc>Source: corrected Internet event log(s). Observed assignments (event counts): Harry: 7, Jack: 140, Paul: 24, Richard: 11. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements.</desc>
+<rect x="2365" y="1122" width="150" height="76" rx="9" />
+<text font-size="12" text-anchor="middle" fill="#243342" stroke="none"><title>Plan</title>
+<tspan x="2440" y="1164.2">Plan</tspan>
+</text>
+</g>
+<g id="node21" data-name="Prepare"><title>Prepare</title><desc>Source: corrected Internet event log(s). Observed assignments (event counts): Patrick: 162, Robert: 99. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements.</desc>
+<rect x="1545" y="632" width="150" height="76" rx="9" />
+<text font-size="12" text-anchor="middle" fill="#243342" stroke="none"><title>Prepare</title>
+<tspan x="1620" y="674.2">Prepare</tspan>
+</text>
+</g>
+<g id="node22" data-name="Receive order by internet"><title>Receive order by internet</title><desc>Source: corrected Internet event log(s). Observed assignments (event counts): William: 185. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements.</desc>
+<rect x="235" y="152" width="150" height="76" rx="9" />
+<text font-size="12" text-anchor="middle" fill="#243342" stroke="none"><title>Receive order by internet</title>
+<tspan x="310" y="186.4">Receive order by</tspan>
+<tspan x="310" y="202">internet</tspan>
+</text>
+</g>
+<g id="node63" data-name="Case and channel [observed]"><title>Case and channel [observed]</title><desc>Corrected event CSV: CaseId, Activity, Actor; order channel comes from the source file. No customer identity or timestamp is available. Sales IDs are not case IDs.</desc>
+<path d="M625 415H758L815 472V515H625Z"/><path d="M758 415V472H815" fill="none"/>
+<text font-size="12" text-anchor="middle" fill="#243342" stroke="none"><title>Case and channel [observed]</title>
+<tspan x="720" y="533">Case and channel</tspan>
+<tspan x="720" y="548.6">[observed]</tspan>
+</text>
+</g>
+<g id="node64" data-name="Pizza type / size [source fields]"><title>Pizza type / size [source fields]</title><desc>The Sales worksheets record Pizza Type and Pizza Size. Using those fields as a preparation specification is an authored information-flow assumption; there is no row-level sales-to-case join.</desc>
+<path d="M625 905H758L815 962V1005H625Z"/><path d="M758 905V962H815" fill="none"/>
+<text font-size="12" text-anchor="middle" fill="#243342" stroke="none"><title>Pizza type / size [source fields]</title>
+<tspan x="720" y="1023">Pizza type / size</tspan>
+<tspan x="720" y="1038.6">[source fields]</tspan>
+</text>
+</g>
+<g id="node65" data-name="Price catalogue [source]"><title>Price catalogue [source]</title><desc>PizzasInfo: 18 type/size entries, recorded cost and revenue. Monetary unit is unspecified. The association with settlement describes a proposed information interface, not a recorded data exchange.</desc>
+<path d="M2685 1882V1958A95 12 0 0 0 2875 1958V1882"/><ellipse cx="2780" cy="1882" rx="95" ry="12"/>
+<text font-size="12" text-anchor="middle" fill="#243342" stroke="none"><title>Price catalogue [source]</title>
+<tspan x="2780" y="1988">Price catalogue</tspan>
+<tspan x="2780" y="2003.6">[source]</tspan>
+</text>
+</g>
+<g id="node66" data-name="Recorded sales [source]"><title>Recorded sales [source]</title><desc>Sales fields: Id, StructureId, Pizza Type, Pizza Size, Revenue, Cost, Satisfaction, Weekday, Customer Location, Customer Type. This is a sales record, not proof of a distinct customer or an event-log transaction. Cached Excel values are used; formulas are never executed.</desc>
+<path d="M3185 1882V1958A95 12 0 0 0 3375 1958V1882"/><ellipse cx="3280" cy="1882" rx="95" ry="12"/>
+<text font-size="12" text-anchor="middle" fill="#243342" stroke="none"><title>Recorded sales [source]</title>
+<tspan x="3280" y="1988">Recorded sales</tspan>
+<tspan x="3280" y="2003.6">[source]</tspan>
+</text>
+</g>
+<g id="node67" data-name="Customer location [source field]"><title>Customer location [source field]</title><desc>Customer Location is a geographic category in Sales, not a street address or a case-linked delivery instruction. Its proposed use in planning is an explicit modeling assumption.</desc>
+<path d="M175 1370H308L365 1427V1470H175Z"/><path d="M308 1370V1427H365" fill="none"/>
+<text font-size="12" text-anchor="middle" fill="#243342" stroke="none"><title>Customer location [source field]</title>
+<tspan x="270" y="1488">Customer location</tspan>
+<tspan x="270" y="1503.6">[source field]</tspan>
+</text>
+</g>
+<g id="node73" data-name="* Roles inferred from tasks. People are observed. 0 business events have no actor."><title>* Roles inferred from tasks. People are observed. 0 business events have no actor.</title><desc>William handles intake and Internet approval/contact/modification/cancellation. Patrick and Robert prepare, bake and pack. Jack, Paul, Richard and Harry plan/deliver and settle delivered orders. Counter and pickup settlement is assigned to William. Unknown Counter Prepare actors are retained, not filled from adjacent events.</desc>
+<path d="M110 390H100V540H110" fill="none"/>
+<text font-size="12" text-anchor="middle" fill="#243342" stroke="none"><title>* Roles inferred from tasks. People are observed. 0 business events have no actor.</title>
+<tspan x="270" y="453.6">* Roles inferred from tasks. People are</tspan>
+<tspan x="270" y="469.2">observed. 0 business events have no</tspan>
+<tspan x="270" y="484.8">actor.</tspan>
+</text>
+</g>
+<g id="node75" data-name="Loops and order flexibility are observed; their business cause and timing are unknown."><title>Loops and order flexibility are observed; their business cause and timing are unknown.</title><desc>Prepare -&gt; Bake -&gt; Pack repeats one to three times in the logs. The model generalizes this as a loop; no defect/rework cause or one-cycle/one-sale equivalence is asserted. Cash and Give order occur in both orders. Logical parallel routing expresses that flexibility, not simultaneous human work. Branch labels are explanatory, not an executable decision engine.</desc>
+<path d="M110 880H100V1030H110" fill="none"/>
+<text font-size="12" text-anchor="middle" fill="#243342" stroke="none"><title>Loops and order flexibility are observed; their business cause and timing are unknown.</title>
+<tspan x="270" y="943.6">Loops and order flexibility are</tspan>
+<tspan x="270" y="959.19995">observed; their business cause and</tspan>
+<tspan x="270" y="974.8">timing are unknown.</tspan>
+</text>
+</g>
+<text font-size="12" text-anchor="middle" fill="#243342" stroke="none" transform="rotate(-90 55 1030)"><title>TakeAway - Internet order management</title>
+<tspan x="55" y="1034.2">TakeAway - Internet order management</tspan>
+</text>
+<text font-size="12" text-anchor="middle" fill="#243342" stroke="none" transform="rotate(-90 83 315)"><title>Order handling* | William</title>
+<tspan x="83" y="319.2">Order handling* | William</tspan>
+</text>
+<text font-size="12" text-anchor="middle" fill="#243342" stroke="none" transform="rotate(-90 83 835)"><title>Production* | Patrick, Robert</title>
+<tspan x="83" y="839.2">Production* | Patrick, Robert</tspan>
+</text>
+<text font-size="12" text-anchor="middle" fill="#243342" stroke="none" transform="rotate(-90 83 1300)"><title>Delivery* | Jack, Paul, Richard, Harry</title>
+<tspan x="83" y="1304.2">Delivery* | Jack, Paul, Richard, Harry</tspan>
+</text>
+<text font-size="12" text-anchor="middle" fill="#243342" stroke="none" transform="rotate(-90 83 1770)"><title>Settlement* | William or delivery actor</title>
+<tspan x="83" y="1774.2">Settlement* | William or delivery actor</tspan>
+</text>
+</g></svg>

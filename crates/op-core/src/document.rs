@@ -31,6 +31,22 @@ pub struct LogDocument {
     /// The student's answers (relations, matrix cells, algorithm steps).
     #[serde(default)]
     pub answers: std::collections::BTreeMap<String, String>,
+    /// Discovery configuration is document content; classic Alpha remains the default.
+    #[serde(default, skip_serializing_if = "is_default_discovery")]
+    pub discovery: crate::mining::DiscoveryOptions,
+    /// Records how the working source was prepared without modifying the original file.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub import_note: Option<LogImportNote>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum LogImportNote {
+    EmptyColumnsRemoved,
+    WorkbookEventLog,
+}
+
+fn is_default_discovery(options: &crate::mining::DiscoveryOptions) -> bool {
+    *options == crate::mining::DiscoveryOptions::default()
 }
 
 impl Model {

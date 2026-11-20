@@ -1,0 +1,238 @@
+<!doctype html><html lang='fr'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>Rapport final — TakeAway</title><style>
+body{font:16px/1.6 system-ui,sans-serif;color:#152238;background:#eef2f7;margin:0}main{max-width:1060px;margin:32px auto;padding:48px;background:white}h1,h2,h3{color:#124b64;line-height:1.25}h1{font-size:2.2rem}h2{margin-top:2.2rem;border-bottom:2px solid #d5e8ee;padding-bottom:8px}table{border-collapse:collapse;width:100%;font-size:.88rem;margin:20px 0}th,td{border:1px solid #d7e0e9;text-align:left;vertical-align:top;padding:8px}th{background:#e8f1f6}tr:nth-child(even){background:#f8fafc}figure{margin:28px 0}figure img{width:100%;height:auto;border:1px solid #e2e8f0}figcaption{font-size:.85rem;color:#475569}li{margin:.6rem 0}.date{color:#64748b}.page{margin-top:3rem}@media print{body{background:white}main{max-width:none;margin:0;padding:0}.page{break-before:page}table{font-size:9pt}h2{break-after:avoid}figure{break-inside:avoid}}
+</style><main><p class='date'>Édition du 2026-11-20</p>
+<h1>Process Intelligence : pizzeria TakeAway</h1>
+<p>Découverte des processus, modèles BPMN et analyse quantitative — M2 MIAGe IPM FA, année 2026/2027.</p>
+<p>Rapport final réalisé avec Open Process. Les fichiers sources fournis sont conservés ; les modèles restent modifiables dans le logiciel.</p>
+<h2>Synthèse</h2>
+<p>L’étude distingue deux unités : 327 cas de commande observés dans les journaux événementiels et 463 lignes de vente dans les feuilles Sales. Aucune clé commune validée ne permet de confondre ces populations ni d’identifier des clients uniques.</p>
+<table><thead><tr><th>Indicateur descriptif</th><th>Résultat</th></tr></thead><tbody>
+<tr><td>Cas événementiels / canaux</td><td>327 / 3</td></tr>
+<tr><td>Ventes enregistrées</td><td>463</td></tr>
+<tr><td>Chiffre d’affaires enregistré</td><td>6 795,00 u.m.</td></tr>
+<tr><td>Coûts enregistrés</td><td>5 420,00 u.m.</td></tr>
+<tr><td>Bénéfice calculé (CA − coûts)</td><td>1 375,00 u.m.</td></tr>
+<tr><td>KPI 1 — part du bénéfice dans le CA</td><td>20,24 %</td></tr>
+<tr><td>Satisfaction moyenne / observations</td><td>2,73 / 460</td></tr>
+<tr><td>KPI 2 — satisfaction renseignée</td><td>99,35 %</td></tr>
+</tbody></table>
+<p>Le canal Internet concentre le volume de l’échantillon. Les profils de semaine et les segments de clientèle sont descriptifs : les fichiers ne donnent ni dates complètes, ni identifiant de personne, ni unité monétaire, ni barème documenté pour la satisfaction. Les propositions de pilotage restent conditionnelles à ces limites.</p>
+<table><thead><tr><th>Demande du sujet</th><th>Réponse fournie</th></tr></thead><tbody>
+<tr><td>Découvrir les trois modes</td><td>Trois BPMN expliqués, issus des journaux corrigés</td></tr>
+<tr><td>Intégrer les modes</td><td>Un BPMN global connecté, choix du canal et fin commune</td></tr>
+<tr><td>Organisation et information</td><td>Couloirs, affectations observées, objets et magasins de données documentés</td></tr>
+<tr><td>Quantifier l’activité</td><td>Comptages, finances, profils hebdomadaires, géographie, satisfaction et palmarès</td></tr>
+<tr><td>Proposer deux KPI</td><td>Part du bénéfice dans le CA et taux de satisfaction renseignée</td></tr>
+<tr><td>Restituer et contrôler</td><td>Rapport PDF/HTML, modèles OPX/BPMN/SVG, CSV et contrôles reproductibles</td></tr>
+</tbody></table>
+<div class='page'></div>
+<h2>1. Sources, périmètre et méthode</h2>
+<p>Le sujet demande initialement ProM et BizAgi. À la demande du commanditaire de ce travail, les opérations de découverte et de modélisation ont été réalisées dans Open Process, avec les fonctions nécessaires ajoutées au logiciel. Python sert à l’analyse indépendante, aux figures et à la publication du rapport. Aucun résultat n’est présenté comme une sortie de ProM ou de BizAgi.</p>
+<p>Les CSV du répertoire clean constituent la référence comportementale. Les feuilles événementielles des classeurs Counter et Phone sont antérieures à ces corrections ; les classeurs restent utilisables pour leurs feuilles Sales, CaseStructure et PizzasInfo. Les sources originales ne sont pas réparées silencieusement.</p>
+<table><thead><tr><th>Canal</th><th>Événements</th><th>Cas</th><th>Variantes brutes</th><th>Ventes</th></tr></thead><tbody>
+<tr><td>Comptoir</td><td>339</td><td>33</td><td>6</td><td>67</td></tr>
+<tr><td>Téléphone</td><td>1037</td><td>109</td><td>12</td><td>132</td></tr>
+<tr><td>Internet</td><td>2166</td><td>185</td><td>13</td><td>264</td></tr>
+</tbody></table>
+<ul><li>Le CSV garde l’ordre des événements de chaque CaseId et ses colonnes renseignées. Les colonnes entièrement vides en fin de tableau sont seulement retirées de la copie de travail si nécessaire.</li><li>La découverte utilise Alpha avec frontières communes pour les traces dont les activités finales peuvent apparaître dans les deux ordres. Les noms de frontière sont ensuite silencieux.</li><li>Les marqueurs entiers Vide/Empty et leurs suffixes numériques deviennent des transitions silencieuses après la construction d’Alpha. Les enlever avant l’algorithme changerait les boucles et les choix observés.</li><li>La conversion Petri vers BPMN produit des passerelles de routage et des tâches métier nommées. Le retrait d’un connecteur transparent reste conservateur afin de préserver les branches et les boucles.</li><li>Le rejeu prouve l’acceptation des traces testées. Il ne démontre ni l’exhaustivité du journal, ni l’équivalence complète des langages, ni la validité de toutes les exécutions futures.</li></ul>
+<h3>1.1 Qualité et limites des données</h3>
+<ul><li>Counter : cinq événements Prepare n’ont pas d’acteur renseigné, dans les cas 2005, 2007, 2019, 2025 et 2028. Les acteurs manquants des marqueurs de routage ne sont pas interprétés comme des postes vacants.</li><li>Phone : le CSV corrigé emploie Prepare là où l’ancien journal et certains gabarits du classeur emploient Start. La correspondance est explicitement documentée pour comparer les gabarits ; elle ne modifie pas les classeurs.</li><li>Sales.Id est un identifiant de ligne local. StructureId référence un gabarit CaseStructure dans le même classeur ; cette référence ne constitue pas une jointure vers les CaseId du CSV, un panier ou une personne.</li><li>Les répétitions Prepare–Bake–Pack sont observées, mais leur cause n’est pas donnée. Elles ne prouvent ni défaut de qualité, ni reprise, ni correspondance un cycle = une pizza ou une vente.</li><li>Les montants sont additionnés en centièmes entiers. Le bénéfice n’intègre que les coûts fournis, sans inventer salaires, charges, commissions, taxes ou coûts de livraison.</li><li>Les résultats mis en cache des formules Get_Revenue/Get_Cost sont lus dans les classeurs ; aucune fonction Excel n’est exécutée ni recalculée par l’importeur.</li><li>Les deux scores zéro sont conservés ; trois scores absents restent absents. La moyenne n’est jamais calculée en remplaçant une absence par zéro.</li></ul>
+<div class='page'></div>
+<h2>2. Processus découverts par canal</h2>
+<p>Les tâches conservent les libellés anglais du journal pour permettre le rapprochement avec les traces. Le parallélisme du modèle exprime une absence de précédence imposée : il ne prouve pas deux actions physiques simultanées, notamment lorsqu’un même employé réalise encaissement et remise.</p>
+<h3>2.1 Commande par comptoir</h3>
+<p>La prise de commande au comptoir est suivie de Prepare, Bake et Pack. La production peut revenir à Prepare avant de poursuivre vers le règlement et la remise. Aucun événement de livraison n’est enregistré pour ce canal.</p>
+<p>Les 33 cas comportent respectivement 14, 11 et 8 observations avec un, deux et trois cycles de préparation. Le modèle conserve cette possibilité de répétition ; Alpha ne borne pas automatiquement la boucle à trois passages.</p>
+<p>Cash précède Give order dans 18 cas ; l’ordre inverse apparaît dans 15 cas. Le routage impose l’accomplissement des deux activités tout en autorisant ces deux ordres.</p>
+<figure><a href='../results/bpmn/takeaway-counter.svg'><img src='../results/bpmn/takeaway-counter.svg' alt='BPMN Comptoir. Vue d’ensemble ; l’annexe vectorielle et le fichier SVG permettent la lecture détaillée avec zoom.'></a><figcaption>BPMN Comptoir. Vue d’ensemble ; l’annexe vectorielle et le fichier SVG permettent la lecture détaillée avec zoom.</figcaption></figure>
+<table><thead><tr><th>Fichier modifiable</th><th>Échange standard</th><th>Figure vectorielle</th></tr></thead><tbody>
+<tr><td>takeaway-counter.opx</td><td>takeaway-counter.bpmn</td><td>takeaway-counter.svg</td></tr>
+</tbody></table>
+<div class='page'></div>
+<h3>2.2 Commande par téléphone</h3>
+<p>La commande est enregistrée par téléphone, puis suit la production Prepare–Bake–Pack avec possibilité de répétition. Une branche ajoute Plan puis Deliver avant les activités de règlement et de remise.</p>
+<p>La livraison est enregistrée dans 65 des 109 cas. Les 44 autres ne contiennent pas Plan/Deliver : ils sont interprétés comme un retrait dans le modèle organisationnel, avec cette interprétation signalée comme hypothèse.</p>
+<p>Les cycles de préparation sont répartis ainsi : 91 cas à un cycle, 11 à deux, 7 à trois. Cash est observé avant la remise dans 48 cas, après dans 61 cas.</p>
+<figure><a href='../results/bpmn/takeaway-phone.svg'><img src='../results/bpmn/takeaway-phone.svg' alt='BPMN Téléphone. Vue d’ensemble ; l’annexe vectorielle et le fichier SVG permettent la lecture détaillée avec zoom.'></a><figcaption>BPMN Téléphone. Vue d’ensemble ; l’annexe vectorielle et le fichier SVG permettent la lecture détaillée avec zoom.</figcaption></figure>
+<table><thead><tr><th>Fichier modifiable</th><th>Échange standard</th><th>Figure vectorielle</th></tr></thead><tbody>
+<tr><td>takeaway-phone.opx</td><td>takeaway-phone.bpmn</td><td>takeaway-phone.svg</td></tr>
+</tbody></table>
+<div class='page'></div>
+<h3>2.3 Commande par internet</h3>
+<p>Receive order by internet est suivi d’Approve order. Une voie poursuit directement ; une autre passe par Contact customer puis soit Modify order, soit Cancel order. Une annulation termine le traitement sans préparation ni livraison.</p>
+<p>Sur 185 cas, 21 comportent un contact, 18 une modification et 3 une annulation. Les 164 autres ne comportent pas de contact. Les 182 cas non annulés contiennent une livraison.</p>
+<p>Les 182 cas préparés présentent 112 séquences à un cycle, 61 à deux et 9 à trois. Le règlement et la remise restent tous deux nécessaires dans le chemin non annulé.</p>
+<figure><a href='../results/bpmn/takeaway-internet.svg'><img src='../results/bpmn/takeaway-internet.svg' alt='BPMN Internet. Vue d’ensemble ; l’annexe vectorielle et le fichier SVG permettent la lecture détaillée avec zoom.'></a><figcaption>BPMN Internet. Vue d’ensemble ; l’annexe vectorielle et le fichier SVG permettent la lecture détaillée avec zoom.</figcaption></figure>
+<table><thead><tr><th>Fichier modifiable</th><th>Échange standard</th><th>Figure vectorielle</th></tr></thead><tbody>
+<tr><td>takeaway-internet.opx</td><td>takeaway-internet.bpmn</td><td>takeaway-internet.svg</td></tr>
+</tbody></table>
+<div class='page'></div>
+<h2>3. Intégration dans un processus global</h2>
+<p>Le modèle global possède un seul participant Pizzeria, un démarrage commun, une passerelle exclusive de sélection du canal et une fin commune. Les trois sous-graphes de contrôle sont reliés à ces éléments communs ; les mêmes catégories de rôles et les mêmes interfaces de données organisent l’ensemble.</p>
+<p>Une tâche n’est pas fusionnée avec une autre uniquement parce que son libellé est identique. Cette précaution évite de créer un scénario hybride, par exemple une commande au comptoir qui emprunterait les décisions de contact/annulation propres à Internet. La mutualisation porte ici sur le participant, la sélection d’entrée, la complétion, les rôles et les informations ; les contraintes propres à chaque canal sont conservées.</p>
+<p>Les conditions nommées des branches sont des indications de lecture et de configuration. Elles ne constituent pas un moteur de décision exécutable ni la preuve d’une variable enregistrée dans les traces. La vérification porte sur le contrôle de flux et les activités observables.</p>
+<figure><a href='../results/bpmn/takeaway-global.svg'><img src='../results/bpmn/takeaway-global.svg' alt='Processus global connecté : trois branches de canal dans un participant partagé. Le modèle détaillé est également fourni en OPX, BPMN 2.0 et SVG.'></a><figcaption>Processus global connecté : trois branches de canal dans un participant partagé. Le modèle détaillé est également fourni en OPX, BPMN 2.0 et SVG.</figcaption></figure>
+<p>L’intégration est contrôlée par rejeu des 327 traces projetées ainsi que par des contre-exemples sélectionnés : sauts de tâches requises, défaut de règlement/remise et passages non autorisés entre canaux. Ces essais complètent les contrôles structurels et les allers-retours de formats ; ils ne constituent pas une preuve exhaustive de précision.</p>
+<div class='page'></div>
+<h2>4. Dimensions organisationnelle et informationnelle</h2>
+<h3>4.1 Rôles et affectations</h3>
+<p>Les noms de personnes proviennent des colonnes Actor. Les intitulés de couloirs marqués d’un astérisque sont des regroupements de modélisation, proposés à partir des activités observées ; ils ne sont pas présentés comme un organigramme officiel.</p>
+<table><thead><tr><th>Couloir proposé</th><th>Évidence / responsabilité</th></tr></thead><tbody>
+<tr><td>Gestion de commande*</td><td>William : prises/réception de commande, approbation, contact, modification et annulation selon le canal</td></tr>
+<tr><td>Production*</td><td>Patrick et Robert : Prepare, Bake, Pack ; cinq Prepare du comptoir restent sans acteur renseigné</td></tr>
+<tr><td>Livraison*</td><td>Jack, Paul, Richard et Harry : affectations observées aux activités de planification/livraison</td></tr>
+<tr><td>Règlement et remise*</td><td>William ou acteur de livraison selon les traces et le canal ; les affectations exactes figurent dans la documentation de chaque tâche</td></tr>
+</tbody></table>
+<p>Un couloir regroupe une responsabilité ; il n’impose ni ressource unique, ni capacité, ni temps de travail. Les attributs de coût et de durée des tâches restent à leur valeur technique par défaut faute de mesures : ces zéros ne sont pas utilisés comme des estimations opérationnelles.</p>
+<p>Le contrôle des cas livrés montre que, pour chacune des 65 livraisons Phone et des 182 livraisons Internet, un même acteur réalise Plan, Deliver, Cash et Give order. Cette continuité observée explique l’affectation du règlement/remise à l’acteur de livraison. Les deux couloirs représentent des responsabilités, pas nécessairement deux employés différents ; les disponibilités et contraintes de ressources restent hors du moteur de contrôle.</p>
+<h3>4.2 Informations et associations</h3>
+<p>Les objets et magasins de données expriment une configuration informationnelle documentée. Les attributs enregistrés viennent des feuilles complémentaires ; les associations avec les tâches sont une interprétation explicitement proposée, car le journal ne contient pas de traces de lecture/écriture de données.</p>
+<p>Dans le modèle global, certaines associations sont représentatives afin de garder le schéma lisible. La documentation des objets précise leur portée partagée entre les branches et conserve les affectations propres à chaque canal.</p>
+<table><thead><tr><th>Information</th><th>Attributs / origine</th><th>Usage proposé et limite</th></tr></thead><tbody>
+<tr><td>Commande / canal</td><td>CaseId et activités du CSV ; mode connu par le fichier source</td><td>Piloter le choix du canal ; pas de clé de jointure créée vers Sales</td></tr>
+<tr><td>Gabarit de scénario</td><td>CaseStructure ; StructureId local dans Sales</td><td>Décrire les scénarios complémentaires ; correspondance Start/Prepare de Phone documentée</td></tr>
+<tr><td>Vente enregistrée</td><td>Id, StructureId, Pizza Type, Pizza Size, Revenue, Cost</td><td>Conserver le relevé commercial sans assimiler une ligne à un panier ou à une commande du journal</td></tr>
+<tr><td>Profil déclaré</td><td>Customer Type, Customer Location, Weekday</td><td>Segmenter les observations ; aucune identité unique ni date complète n’est déduite</td></tr>
+<tr><td>Retour de satisfaction</td><td>Satisfaction, éventuellement absente</td><td>Évaluer les scores observés et leur couverture, en distinguant absence et zéro</td></tr>
+<tr><td>Catalogue pizza</td><td>PizzasInfo : six types × trois tailles, revenus/coûts de référence</td><td>Documenter la production et les montants ; unité monétaire non indiquée</td></tr>
+</tbody></table>
+<p>Les libellés d’activité et les champs d’origine restent traçables dans evidence.json. Les coquilles et gabarits anciens sont signalés, sans créer de relation commerciale ou informationnelle non démontrée.</p>
+<div class='page'></div>
+<h2>5. Analyse quantitative</h2>
+<h3>5.1 Clients, transactions et unités de comptage</h3>
+<p>Le tableau suivant répond au dénombrement par type en comptant les mentions de type sur les lignes de vente. En l’absence d’identifiant de personne, il ne permet pas de compter des clients distincts. Les 463 lignes constituent le volume commercial observable ; 327 est le nombre séparé de cas événementiels. Le nombre exact de paniers/transactions reliant ces sources n’est pas identifiable.</p>
+<table><thead><tr><th>Type enregistré</th><th>Lignes</th><th>Part de l’échantillon</th><th>Satisfaction observée</th></tr></thead><tbody>
+<tr><td>Adult</td><td>76</td><td>16,41 %</td><td>2,87 (n=76)</td></tr>
+<tr><td>Senior</td><td>9</td><td>1,94 %</td><td>2,56 (n=9)</td></tr>
+<tr><td>Student</td><td>296</td><td>63,93 %</td><td>2,52 (n=293)</td></tr>
+<tr><td>Teenager</td><td>82</td><td>17,71 %</td><td>3,40 (n=82)</td></tr>
+</tbody></table>
+<figure><a href='analysis/figures/01_weekday_evolution.svg'><img src='analysis/figures/01_weekday_evolution.svg' alt='Nombre de lignes de vente par jour déclaré, puis par type de clientèle enregistré. Les sept jours sont des catégories agrégées : aucune date, transaction ou identité client unique n&#x27;est reconstituée.'></a><figcaption>Nombre de lignes de vente par jour déclaré, puis par type de clientèle enregistré. Les sept jours sont des catégories agrégées : aucune date, transaction ou identité client unique n&#x27;est reconstituée.</figcaption></figure>
+<figure><a href='analysis/figures/07_customer_profiles.svg'><img src='analysis/figures/07_customer_profiles.svg' alt='Comparaison des occurrences de chaque type de clientèle, globalement et par canal. Ces effectifs ne dénombrent pas des personnes distinctes.'></a><figcaption>Comparaison des occurrences de chaque type de clientèle, globalement et par canal. Ces effectifs ne dénombrent pas des personnes distinctes.</figcaption></figure>
+<p>L’axe lundi–dimanche est un profil par catégorie de jour, calculé sur toutes les observations disponibles. Il ne montre pas une progression datée et ne permet pas de calculer une croissance entre semaines ou une fréquentation quotidienne de clients uniques.</p>
+<h3>5.2 Chiffre d’affaires, coûts et bénéfice</h3>
+<table><thead><tr><th>Canal</th><th>Ventes</th><th>CA (u.m.)</th><th>Coûts</th><th>Bénéfice</th><th>Bénéfice / CA</th></tr></thead><tbody>
+<tr><td>Counter</td><td>67</td><td>971,00</td><td>776,00</td><td>195,00</td><td>20,08 %</td></tr>
+<tr><td>Internet</td><td>264</td><td>3 919,00</td><td>3 107,00</td><td>812,00</td><td>20,72 %</td></tr>
+<tr><td>Phone</td><td>132</td><td>1 905,00</td><td>1 537,00</td><td>368,00</td><td>19,32 %</td></tr>
+<tr><td>Total</td><td>463</td><td>6 795,00</td><td>5 420,00</td><td>1 375,00</td><td>20,24 %</td></tr>
+</tbody></table>
+<figure><a href='analysis/figures/02_channel_financials.svg'><img src='analysis/figures/02_channel_financials.svg' alt='Chiffre d&#x27;affaires, coûts et bénéfice calculés en centièmes entiers de l&#x27;unité enregistrée. Aucun symbole de devise n&#x27;est supposé.'></a><figcaption>Chiffre d&#x27;affaires, coûts et bénéfice calculés en centièmes entiers de l&#x27;unité enregistrée. Aucun symbole de devise n&#x27;est supposé.</figcaption></figure>
+<p>Le bénéfice calculé correspond à la différence entre les revenus et les seuls coûts enregistrés. Les parts par canal ne constituent pas une mesure de rentabilité nette après frais fixes ou de livraison. Une comparaison de canaux doit donc être complétée par ces coûts si le gérant souhaite une décision économique complète.</p>
+<h3>5.2.1 Annulations et sensibilité financière</h3>
+<p>Le rapprochement interne au classeur Internet identifie trois lignes Sales (Id 18, 61 et 135) dont StructureId = 7 référence le scénario Contact customer → Cancel order. Elles portent pourtant des valeurs mises en cache de Revenue et Cost, respectivement 36,00 et 28,00 u.m. au total. Ces champs ne suffisent donc pas à établir des encaissements ou coûts effectivement réalisés. Ce rapprochement de gabarit ne permet pas d’identifier les CaseId correspondants.</p>
+<table><thead><tr><th>Périmètre</th><th>Lignes</th><th>Revenue</th><th>Cost</th><th>Différence</th></tr></thead><tbody>
+<tr><td>Tous les enregistrements (réponse de base)</td><td>463</td><td>6 795,00</td><td>5 420,00</td><td>1 375,00</td></tr>
+<tr><td>Lignes liées au gabarit d’annulation</td><td>3</td><td>36,00</td><td>28,00</td><td>8,00</td></tr>
+<tr><td>Sensibilité : hors ces trois lignes</td><td>460</td><td>6 759,00</td><td>5 392,00</td><td>1 367,00</td></tr>
+</tbody></table>
+<p>La dernière ligne est une sensibilité sous l’hypothèse d’exclure les montants du gabarit d’annulation ; elle ne remplace pas les totaux de base et n’est pas une correction comptable validée. Les sources ne documentent ni statut de facturation, ni remboursement, ni règle d’imputation des coûts. Le diagnostic détaillé est joint et les enregistrements d’origine sont conservés.</p>
+<h3>5.3 Profils de vente selon le jour</h3>
+<figure><a href='analysis/figures/03_weekday_sales.svg'><img src='analysis/figures/03_weekday_sales.svg' alt='Comparaison des lignes de vente et du chiffre d&#x27;affaires pour les sept jours de la semaine ; il ne s&#x27;agit pas d&#x27;une série quotidienne datée.'></a><figcaption>Comparaison des lignes de vente et du chiffre d&#x27;affaires pour les sept jours de la semaine ; il ne s&#x27;agit pas d&#x27;une série quotidienne datée.</figcaption></figure>
+<table><thead><tr><th>Jour</th><th>Ventes</th><th>CA (u.m.)</th><th>Coûts</th><th>Bénéfice</th><th>Bénéfice / CA</th></tr></thead><tbody>
+<tr><td>Lundi</td><td>33</td><td>463,00</td><td>367,00</td><td>96,00</td><td>20,73 %</td></tr>
+<tr><td>Mardi</td><td>32</td><td>437,00</td><td>341,00</td><td>96,00</td><td>21,97 %</td></tr>
+<tr><td>Mercredi</td><td>65</td><td>1 006,00</td><td>805,00</td><td>201,00</td><td>19,98 %</td></tr>
+<tr><td>Jeudi</td><td>16</td><td>238,00</td><td>193,00</td><td>45,00</td><td>18,91 %</td></tr>
+<tr><td>Vendredi</td><td>59</td><td>852,00</td><td>682,00</td><td>170,00</td><td>19,95 %</td></tr>
+<tr><td>Samedi</td><td>193</td><td>2 852,00</td><td>2 271,00</td><td>581,00</td><td>20,37 %</td></tr>
+<tr><td>Dimanche</td><td>65</td><td>947,00</td><td>761,00</td><td>186,00</td><td>19,64 %</td></tr>
+</tbody></table>
+<p>Saturday représente 193 lignes sur 463, soit 41,68 % de l’échantillon ; Saturday et Sunday réunis en représentent 55,72 %. Cette concentration invite à vérifier l’adéquation des moyens de préparation aux jours de forte demande sur une période datée plus longue. Elle ne suffit pas à établir une règle de capacité valable pour toutes les semaines.</p>
+<h3>5.4 Répartition géographique</h3>
+<figure><a href='analysis/figures/04_geography.svg'><img src='analysis/figures/04_geography.svg' alt='Répartition des lignes selon le district déclaré. Les libellés sources sont conservés ; aucune position cartographique ou population locale n&#x27;est inférée.'></a><figcaption>Répartition des lignes selon le district déclaré. Les libellés sources sont conservés ; aucune position cartographique ou population locale n&#x27;est inférée.</figcaption></figure>
+<table><thead><tr><th>Localisation enregistrée</th><th>Ventes</th><th>CA (u.m.)</th><th>Coûts</th><th>Bénéfice</th><th>Bénéfice / CA</th></tr></thead><tbody>
+<tr><td>London District Five</td><td>58</td><td>897,00</td><td>720,00</td><td>177,00</td><td>19,73 %</td></tr>
+<tr><td>London District Four</td><td>17</td><td>246,00</td><td>199,00</td><td>47,00</td><td>19,11 %</td></tr>
+<tr><td>London District One</td><td>256</td><td>3 727,00</td><td>2 973,00</td><td>754,00</td><td>20,23 %</td></tr>
+<tr><td>London District Three</td><td>51</td><td>744,00</td><td>590,00</td><td>154,00</td><td>20,70 %</td></tr>
+<tr><td>London District Two</td><td>81</td><td>1 181,00</td><td>938,00</td><td>243,00</td><td>20,58 %</td></tr>
+</tbody></table>
+<p>London District One regroupe 256 lignes, soit 55,29 % de l’échantillon. La source fournit des catégories géographiques, pas des coordonnées ni des distances : une répartition par libellé est pertinente, alors qu’une carte de zones ou un coût kilométrique serait inventé.</p>
+<h3>5.5 Satisfaction</h3>
+<p>La somme des 460 scores observés est 1 258 ; la moyenne pondérée est 2,734783. Les 3 valeurs manquantes sont exclues du dénominateur. Deux valeurs nulles sont de vrais scores zéro et sont conservées. Les trois absences correspondent précisément aux lignes liées au gabarit d’annulation Internet : elles peuvent être non applicables plutôt que des oublis de collecte. L’étendue observée ne suffit pas à documenter le barème du questionnaire.</p>
+<figure><a href='analysis/figures/05_satisfaction.svg'><img src='analysis/figures/05_satisfaction.svg' alt='Moyennes des scores présents uniquement. Les notes zéro restent des observations, les notes absentes sont exclues et les effectifs notés sont indiqués. L&#x27;échelle de notation n&#x27;est pas supposée.'></a><figcaption>Moyennes des scores présents uniquement. Les notes zéro restent des observations, les notes absentes sont exclues et les effectifs notés sont indiqués. L&#x27;échelle de notation n&#x27;est pas supposée.</figcaption></figure>
+<table><thead><tr><th>Catégorie de clientèle</th><th>Moyenne</th><th>Observés</th><th>Manquants</th></tr></thead><tbody>
+<tr><td>Adult</td><td>2,8684</td><td>76</td><td>0</td></tr>
+<tr><td>Senior</td><td>2,5556</td><td>9</td><td>0</td></tr>
+<tr><td>Student</td><td>2,5188</td><td>293</td><td>3</td></tr>
+<tr><td>Teenager</td><td>3,4024</td><td>82</td><td>0</td></tr>
+</tbody></table>
+<table><thead><tr><th>Type de pizza</th><th>Moyenne</th><th>Observés</th><th>Manquants</th></tr></thead><tbody>
+<tr><td>Salami</td><td>2,7364</td><td>129</td><td>1</td></tr>
+<tr><td>Margherita</td><td>3,0093</td><td>108</td><td>1</td></tr>
+<tr><td>Speciale</td><td>2,3418</td><td>79</td><td>0</td></tr>
+<tr><td>Funghi</td><td>2,6418</td><td>67</td><td>0</td></tr>
+<tr><td>Calzone</td><td>2,9259</td><td>54</td><td>1</td></tr>
+<tr><td>Veggie</td><td>2,6087</td><td>23</td><td>0</td></tr>
+</tbody></table>
+<table><thead><tr><th>Région enregistrée</th><th>Moyenne</th><th>Observés</th><th>Manquants</th></tr></thead><tbody>
+<tr><td>London District Five</td><td>2,1207</td><td>58</td><td>0</td></tr>
+<tr><td>London District Four</td><td>2,5294</td><td>17</td><td>0</td></tr>
+<tr><td>London District One</td><td>2,9646</td><td>254</td><td>2</td></tr>
+<tr><td>London District Three</td><td>3,2200</td><td>50</td><td>1</td></tr>
+<tr><td>London District Two</td><td>2,1975</td><td>81</td><td>0</td></tr>
+</tbody></table>
+<p>Ces moyennes décrivent des sous-ensembles de tailles inégales. Elles n’établissent pas une causalité entre pizza, lieu, type de clientèle et satisfaction. Les petits groupes, notamment Senior, appellent une lecture prudente et la couverture des scores doit rester visible.</p>
+<h3>5.6 Palmarès des pizzas</h3>
+<figure><a href='analysis/figures/06_pizza_rankings.svg'><img src='analysis/figures/06_pizza_rankings.svg' alt='Classement par nombre de lignes de vente, accompagné du bénéfice par pizza. Une ligne n&#x27;est assimilée ni à un client unique ni à une quantité physique non documentée.'></a><figcaption>Classement par nombre de lignes de vente, accompagné du bénéfice par pizza. Une ligne n&#x27;est assimilée ni à un client unique ni à une quantité physique non documentée.</figcaption></figure>
+<table><thead><tr><th>Pizza</th><th>Ventes</th><th>CA (u.m.)</th><th>Coûts</th><th>Bénéfice</th><th>Bénéfice / CA</th></tr></thead><tbody>
+<tr><td>Salami</td><td>130</td><td>2 211,00</td><td>1 784,00</td><td>427,00</td><td>19,31 %</td></tr>
+<tr><td>Margherita</td><td>109</td><td>1 186,00</td><td>939,00</td><td>247,00</td><td>20,83 %</td></tr>
+<tr><td>Speciale</td><td>79</td><td>1 418,00</td><td>1 154,00</td><td>264,00</td><td>18,62 %</td></tr>
+<tr><td>Funghi</td><td>67</td><td>1 026,00</td><td>800,00</td><td>226,00</td><td>22,03 %</td></tr>
+<tr><td>Calzone</td><td>55</td><td>701,00</td><td>536,00</td><td>165,00</td><td>23,54 %</td></tr>
+<tr><td>Veggie</td><td>23</td><td>253,00</td><td>207,00</td><td>46,00</td><td>18,18 %</td></tr>
+</tbody></table>
+<p>Le classement utilise le nombre de lignes de vente ; les ex æquo partagent un rang. Le CA puis le libellé stabilisent leur ordre d’affichage. Salami arrive en tête du volume global avec 130 lignes, devant Margherita (109). Les classements complets par type de client et jour sont joints en CSV.</p>
+<table><thead><tr><th>Type de client</th><th>Lundi</th><th>Mardi</th><th>Mercredi</th><th>Jeudi</th><th>Vendredi</th><th>Samedi</th><th>Dimanche</th></tr></thead><tbody>
+<tr><td>Adult</td><td>Salami (8)</td><td>Aucune observation</td><td>Funghi (5)</td><td>Aucune observation</td><td>Speciale (3)</td><td>Speciale, Salami, Margherita, Veggie (1)</td><td>Margherita (8)</td></tr>
+<tr><td>Senior</td><td>Aucune observation</td><td>Aucune observation</td><td>Veggie (1)</td><td>Aucune observation</td><td>Speciale (2)</td><td>Calzone, Margherita (1)</td><td>Calzone, Margherita (1)</td></tr>
+<tr><td>Student</td><td>Margherita (3)</td><td>Salami (10)</td><td>Salami (13)</td><td>Salami (7)</td><td>Margherita (16)</td><td>Salami (35)</td><td>Salami (12)</td></tr>
+<tr><td>Teenager</td><td>Aucune observation</td><td>Salami, Calzone, Margherita (1)</td><td>Margherita (2)</td><td>Speciale, Salami (1)</td><td>Speciale (3)</td><td>Salami (19)</td><td>Margherita (3)</td></tr>
+</tbody></table>
+<p>Lecture du tableau : pizza(s) de premier rang pour chaque type et jour, suivie(s) du nombre de lignes de chacune. « Aucune observation » signifie qu’aucune vente du segment n’est enregistrée, pas qu’une pizza a été proposée puis refusée.</p>
+<h2>6. Deux KPI proposés au gérant</h2>
+<h3>6.1 Part du bénéfice dans le CA enregistré</h3>
+<p>KPI 1 = (CA − coûts enregistrés) / CA. Valeur globale : 20,24 %, calculée avec 1 375,00 / 6 795,00. Cet indicateur est sans dimension et reste non défini si le CA est nul.</p>
+<p>Il complète le volume : vendre davantage ne garantit pas une meilleure contribution au bénéfice enregistré. Son suivi par canal et pizza aide à repérer un mix moins rémunérateur ou une variation de coût. Un seuil de pilotage autour de 20 % peut servir de point de discussion à partir de cet échantillon ; ce n’est ni un objectif imposé ni une référence du secteur. Avant de décider un prix, il faut intégrer les charges absentes des fichiers.</p>
+<h3>6.2 Taux de satisfaction renseignée</h3>
+<p>KPI 2 = nombre de lignes avec un score / nombre de lignes de vente. Valeur globale : 99,35 %, soit 460 / 463. Un score zéro reste renseigné ; un score absent ne l’est pas.</p>
+<p>Ce KPI mesure la couverture de la donnée qui soutient les moyennes de satisfaction. Il évite d’interpréter une moyenne favorable ou défavorable comme représentative lorsque les retours manquent. Les trois absences sont dans le gabarit d’annulation Internet : il faut d’abord vérifier l’applicabilité de la note, puis distinguer « non applicable » de « non répondu », sans fabriquer de score. Sous l’hypothèse d’un périmètre hors annulations, les 460 lignes restantes sont toutes notées, soit 100 % ; cette sensibilité ne change pas le dénominateur du KPI de base.</p>
+<table><thead><tr><th>Canal</th><th>Bénéfice / CA</th><th>Couverture satisfaction</th><th>Scores absents</th></tr></thead><tbody>
+<tr><td>Counter</td><td>20,08 %</td><td>100,00 %</td><td>0</td></tr>
+<tr><td>Internet</td><td>20,72 %</td><td>98,86 %</td><td>3</td></tr>
+<tr><td>Phone</td><td>19,32 %</td><td>100,00 %</td><td>0</td></tr>
+</tbody></table>
+<p>Pour une utilisation opérationnelle future, les deux KPI doivent être recalculés à chaque export daté, avec leur périmètre et leurs dénominateurs. La cadence, les seuils et les responsables de suivi sont des propositions à convenir avec le gérant ; les sources actuelles ne les imposent pas.</p>
+<h2>7. Interprétations et pistes d’amélioration</h2>
+<ul><li>Capacité de préparation : confronter la forte présence des lignes Saturday au planning réel et à des dates d’exploitation avant de changer les effectifs. Aucune durée de tâche n’est déduite du seul ordre des événements.</li><li>Canaux : suivre simultanément volume et part du bénéfice dans le CA ; isoler les frais de livraison, commissions et charges fixes pour une analyse nette qui n’est pas possible aujourd’hui.</li><li>Production : instrumenter la raison des retours Prepare–Bake–Pack avant de les qualifier de reprises, de défauts ou de pizzas supplémentaires.</li><li>Clientèle : ajouter une clé de transaction et un identifiant de client adapté au besoin de comptage, ainsi que des dates complètes, si le gérant veut mesurer clients uniques, panier moyen et évolution chronologique.</li><li>Satisfaction : distinguer la non-applicabilité éventuelle des notes en cas d’annulation et la non-réponse ; documenter le barème, conserver les scores zéro et publier les effectifs qui soutiennent chaque moyenne.</li></ul>
+<h2>8. Vérifications et reproductibilité</h2>
+<p>Le générateur natif utilise les types, importeurs, conversions, exports et analyses d’Open Process. Il vérifie les modèles et leurs allers-retours OPX/BPMN XML, le rejeu des traces projetées, des contre-exemples sélectionnés et une analyse bornée de bonne formation. Les résultats détaillés se trouvent dans validation.json ; un résultat borné ou indécidable n’est pas transformé en preuve générale.</p>
+<table><thead><tr><th>Modèle</th><th>Nœuds</th><th>Flux</th><th>Cas acceptés</th><th>Analyse du réseau</th></tr></thead><tbody>
+<tr><td>TakeAway - Counter order management</td><td>19</td><td>19</td><td>33</td><td>Sound</td></tr>
+<tr><td>TakeAway - Phone order management</td><td>22</td><td>24</td><td>109</td><td>Sound</td></tr>
+<tr><td>TakeAway - Internet order management</td><td>28</td><td>31</td><td>185</td><td>Sound</td></tr>
+<tr><td>TakeAway - integrated order management</td><td>61</td><td>63</td><td>327</td><td>Sound</td></tr>
+</tbody></table>
+<p>L’analyse bornée renvoie Sound pour les quatre réseaux de contrôle encodés ; les 15 contre-exemples de contrôle et de mélange de canaux retenus sont rejetés. Ce résultat porte sur l’abstraction de flux modélisée, avec ses hypothèses, et non sur les disponibilités humaines ou l’exécution réelle des échanges d’information.</p>
+<p>Les quatre fichiers BPMN XML passent aussi la validation contre les cinq schémas normatifs OMG BPMN 2.0.2, sans diagnostic, avec libxml2 2.15.2. Le relevé joint conserve les URL et empreintes des schémas ainsi que les empreintes des fichiers contrôlés. Cette validation porte sur la grammaire XML et ses types ; elle ne remplace pas les contrôles de comportement et ne garantit pas toutes les fonctions de tout éditeur BPMN.</p>
+<p>Les figures et tables Python sont recalculées indépendamment à partir des montants entiers du document Sales. Leurs totaux et agrégations sont confrontés aux CSV natifs. Les empreintes SHA-256 des entrées et du code de publication figurent dans le manifeste joint ; les empreintes FNV du générateur sont identifiées comme de simples empreintes reproductibles, sans prétention cryptographique.</p>
+<table><thead><tr><th>Vérification</th><th>Résultat enregistré</th></tr></thead><tbody>
+<tr><td>Tests logiciels</td><td>351 tests réussis : 154 application, 181 cœur, 16 intégration ; étape rustdoc réussie (aucun doctest).</td></tr>
+<tr><td>Compilation native</td><td>Construction debug de tout le workspace et de toutes les cibles ; contrôle natif op-app réussi.</td></tr>
+<tr><td>WebAssembly</td><td>Cible wasm32-unknown-unknown contrôlée et construction Trunk debug sous /app/ réussie.</td></tr>
+<tr><td>Navigateur</td><td>Firefox : Web Workers, 7 jours, 2 types de clients, filtre exact de scénario, zéro/absence, annulation de tâche et erreurs validés.</td></tr>
+<tr><td>BPMN et traces</td><td>327 cas acceptés par canal, global et aller-retour XML ; 15 contre-exemples sélectionnés rejetés.</td></tr>
+<tr><td>Structure et géométrie</td><td>4 réseaux Sound dans le contrôle borné ; zéro chevauchement et zéro croisement de flux avec des nœuds non reliés.</td></tr>
+<tr><td>Schémas officiels</td><td>4 fichiers XML valides contre les 5 schémas normatifs OMG BPMN 2.0.2, sans diagnostic.</td></tr>
+<tr><td>Analyse indépendante</td><td>8 exports natifs principaux concordent, plus le sous-ensemble Internet scénario 7 ; 463 lignes contrôlées dans leurs propres classeurs.</td></tr>
+<tr><td>Périmètre</td><td>Vérifications locales Linux/Firefox ; pas de certification multi-système, de publication distante ou de preuve de complétude du comportement.</td></tr>
+</tbody></table>
+<p>Les instructions de reproduction et la liste exacte des livrables accompagnent le rapport. Les vérifications locales ne valent pas une exécution de toute la matrice CI sur plusieurs systèmes ni une exécution métier réelle.</p>
+<h2>9. Conclusion</h2>
+<p>Les trois processus observés et leur intégration sont livrés sous forme modifiable. Les dimensions de responsabilité et d’information sont configurées en distinguant ce qui est enregistré de ce qui est proposé. L’analyse quantitative répond aux questions avec les unités réellement disponibles, deux KPI explicités et les limites qui conditionnent leur interprétation. L’étape suivante, côté pizzeria, serait d’enrichir l’instrumentation avant de conclure sur les clients uniques, les paniers, les délais ou les capacités.</p>
+<h2>Annexes et fichiers de preuve</h2>
+<ul><li>Quatre modèles : takeaway-counter, takeaway-phone, takeaway-internet, takeaway-global, chacun en .opx, .bpmn et .svg.</li><li>evidence.json : feuilles complémentaires, scénarios, acteurs, provenance, hypothèses et limites ; validation.json : contrôles des modèles et des traces.</li><li>Étude Sales .opx, agrégations et séries/KPI CSV natifs ; tables et figures indépendantes sous analysis/.</li><li>Les quatre pages vectorielles grand format qui suivent le corps du PDF sont les diagrammes complets. Elles sont destinées à la lecture avec zoom, sans perte de qualité.</li></ul>
+</main></html>

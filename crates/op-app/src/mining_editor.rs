@@ -14,13 +14,14 @@ use op_core::answers::{RelationList, Step};
 use op_core::bpmn::BpmnDiagram;
 use op_core::convert;
 use op_core::i18n::{key, tr, trf};
-use op_core::mining::{AlphaResult, EventLog, Relation, replay};
+use op_core::mining::{AlphaResult, DiscoveryOptions, EventLog, Relation};
 use op_core::petri::PetriNet;
 use std::collections::BTreeMap;
 
 pub enum MiningAction {
     OpenPetri(PetriNet),
     OpenBpmn(BpmnDiagram),
+    OpenLog(op_core::document::LogDocument),
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -28,8 +29,14 @@ struct Computed {
     text: String,
     lang: op_core::i18n::Lang,
     exam: bool,
+    #[serde(default)]
+    discovery: DiscoveryOptions,
     result: Result<MiningOutput, String>,
     soundness: Option<Soundness>,
+    #[serde(default)]
+    replays: Vec<Result<(), String>>,
+    #[serde(default)]
+    report: String,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -45,12 +52,16 @@ pub struct MiningEditor {
     /// Retained for compatibility with existing event-log documents.
     legacy_manual: bool,
     pub answers: BTreeMap<String, String>,
+    discovery: DiscoveryOptions,
+    import_note: Option<op_core::document::LogImportNote>,
     computed: Option<Computed>,
-    pending: Option<(String, op_core::i18n::Lang, bool, crate::platform::jobs::Job)>,
+    pending: Option<(String, op_core::i18n::Lang, bool, DiscoveryOptions, crate::platform::jobs::Job)>,
     preview: Option<PetriEditor>,
     pub action: Option<MiningAction>,
+    queued_actions: Vec<MiningAction>,
     matrix_rect: egui::Rect,
     pub status: String,
+    workbooks: crate::io::FileIo,
 }
 
 pub const EXAMPLE_1: &str = "case 1 : task A\ncase 2 : task A\ncase 3 : task A\ncase 3 : task B\ncase 1 : task B\n\
@@ -60,6 +71,7 @@ case 1 : task D\ncase 3 : task C\ncase 3 : task D\ncase 4 : task B\ncase 5 : tas
 pub const EXAMPLE_2: &str = "ABCD\nACBD\nAED\n";
 
 const FORMATS: &str = key("mining.accepted_formats_case_1_task_one_event");
+const MAX_SOURCE_BYTES: usize = 2 * 1024 * 1024;
 
 impl MiningEditor {
     pub fn new(doc: op_core::document::LogDocument) -> Self {
@@ -70,30 +82,50 @@ impl MiningEditor {
             text: doc.text,
             legacy_manual: doc.manual,
             answers: doc.answers,
+            discovery: doc.discovery,
+            import_note: doc.import_note,
             computed: None,
             pending: None,
             preview: None,
             action: None,
+            queued_actions: Vec::new(),
             matrix_rect: egui::Rect::NOTHING,
             status: String::new(),
+            workbooks: crate::io::FileIo::default(),
         }
     }
 
     fn recompute(&mut self, ui: &Ui) {
         let language = op_core::i18n::lang();
         let exam = crate::editor::exam::active(ui.ctx());
-        if self
-            .computed
-            .as_ref()
-            .is_some_and(|c| c.text == self.text && c.lang == language && c.exam == exam)
-        {
+        if self.computed.as_ref().is_some_and(|c| {
+            c.text == self.text
+                && c.lang == language
+                && c.exam == exam
+                && c.discovery == self.discovery
+                && (!matches!(&c.result, Ok(MiningOutput::Discovery(_, _))) || !c.report.is_empty())
+        }) {
             return;
         }
-        if self
-            .pending
-            .as_ref()
-            .is_none_or(|(text, lang, mode, _)| *text != self.text || *lang != language || *mode != exam)
-        {
+        if self.text.len() > MAX_SOURCE_BYTES {
+            self.pending = None;
+            self.preview = None;
+            self.computed = Some(Computed {
+                // Avoid serializing an oversized source into the worker transport.
+                text: self.text.clone(),
+                lang: language,
+                exam,
+                discovery: self.discovery,
+                result: Err(tr("mining.pasted_input_limit").into()),
+                soundness: None,
+                replays: Vec::new(),
+                report: String::new(),
+            });
+            return;
+        }
+        if self.pending.as_ref().is_none_or(|(text, lang, mode, options, _)| {
+            *text != self.text || *lang != language || *mode != exam || *options != self.discovery
+        }) {
             self.pending = None;
             self.computed = None;
             self.preview = None;
@@ -102,22 +134,26 @@ impl MiningEditor {
                 text: self.text.clone(),
                 lang: language,
                 exam,
+                discovery: self.discovery,
             })
             .unwrap();
             match crate::platform::jobs::Job::spawn(input, analysis_job::compute_json, ui.ctx()) {
-                Ok(job) => self.pending = Some((self.text.clone(), language, exam, job)),
+                Ok(job) => self.pending = Some((self.text.clone(), language, exam, self.discovery, job)),
                 Err(error) => {
                     self.computed = Some(Computed {
                         text: self.text.clone(),
                         lang: language,
                         exam,
+                        discovery: self.discovery,
                         result: Err(error),
                         soundness: None,
+                        replays: Vec::new(),
+                        report: String::new(),
                     })
                 }
             }
         }
-        if let Some(result) = self.pending.as_mut().and_then(|(_, _, _, job)| job.poll()) {
+        if let Some(result) = self.pending.as_mut().and_then(|(_, _, _, _, job)| job.poll()) {
             self.pending = None;
             self.computed = Some(
                 result
@@ -126,8 +162,11 @@ impl MiningEditor {
                         text: self.text.clone(),
                         lang: language,
                         exam,
+                        discovery: self.discovery,
                         result: Err(error),
                         soundness: None,
+                        replays: Vec::new(),
+                        report: String::new(),
                     }),
             );
             self.preview = self
@@ -145,6 +184,7 @@ impl MiningEditor {
     }
 
     pub fn ui(&mut self, ui: &mut Ui) {
+        self.poll_workbooks();
         self.recompute(ui);
         let panel = ui.visuals().panel_fill;
         egui::Panel::left("log_input")
@@ -192,6 +232,8 @@ impl MiningEditor {
             text: self.text.clone(),
             manual: self.legacy_manual,
             answers: self.answers.clone(),
+            discovery: self.discovery,
+            import_note: self.import_note,
         }
     }
     fn restore_document(&mut self, doc: op_core::document::LogDocument) {
@@ -199,9 +241,42 @@ impl MiningEditor {
         self.text = doc.text;
         self.legacy_manual = doc.manual;
         self.answers = doc.answers;
+        self.discovery = doc.discovery;
+        self.import_note = doc.import_note;
         self.computed = None;
         self.pending = None;
         self.preview = None;
+    }
+
+    fn poll_workbooks(&mut self) {
+        let mut import_error = self.workbooks.poll_errors().into_iter().last();
+        for (path, bytes) in self.workbooks.poll() {
+            let name = crate::io::file_name(&path);
+            let result = op_core::mining::import::import_xlsx_event_log(&bytes).and_then(|text| {
+                if text.len() > MAX_SOURCE_BYTES {
+                    return Err(tr("mining.analysis_limit").into());
+                }
+                Ok(op_core::document::LogDocument {
+                    name: name.rsplit_once('.').map(|(stem, _)| stem).unwrap_or(name).into(),
+                    text,
+                    discovery: DiscoveryOptions {
+                        normalize_boundaries: true,
+                    },
+                    import_note: Some(op_core::document::LogImportNote::WorkbookEventLog),
+                    ..Default::default()
+                })
+            });
+            match result {
+                Ok(document) => {
+                    self.queued_actions.push(MiningAction::OpenLog(document));
+                    self.status = trf("app.opened", &[&name]);
+                }
+                Err(error) => import_error = Some(trf("file.open_failed", &[&name, &error])),
+            }
+        }
+        if let Some(error) = import_error {
+            self.status = error;
+        }
     }
 
     fn input_panel(&mut self, ui: &mut Ui) {
@@ -211,14 +286,53 @@ impl MiningEditor {
         let lbl = ui.label(RichText::new(tr("mining.name_log")).small().weak());
         ui.add(egui::TextEdit::singleline(&mut self.name).desired_width(f32::INFINITY))
             .labelled_by(lbl.id);
+        if ui
+            .button(tr("mining.open_workbook_log"))
+            .on_hover_text(tr("mining.workbook_log_help"))
+            .clicked()
+        {
+            self.workbooks.open_dialog(ui.ctx(), vec!["xlsx"]);
+        }
+        if let Some(note) = self.import_note {
+            let message = match note {
+                op_core::document::LogImportNote::EmptyColumnsRemoved => key("mining.import_prepared"),
+                op_core::document::LogImportNote::WorkbookEventLog => key("mining.import_workbook_log"),
+            };
+            ui.label(RichText::new(tr(message)).small().weak());
+        }
+        if !exam
+            && ui
+                .checkbox(&mut self.discovery.normalize_boundaries, tr("mining.normalize_boundaries"))
+                .on_hover_text(tr("mining.normalize_boundaries_help"))
+                .changed()
+        {
+            self.pending = None;
+            self.computed = None;
+            self.preview = None;
+        }
         theme::section_title(ui, tr("mining.traces"));
         let lbl = ui.label(RichText::new(tr("mining.one_event_trace_per_line")).small().weak());
         let help_h = 120.0;
         let h = (ui.available_height() - help_h).max(120.0);
         egui::ScrollArea::vertical().id_salt("log_text").max_height(h).show(ui, |ui| {
+            let text_id = ui.scope_id().with("mining_log_text");
+            if ui.memory(|memory| memory.has_focus(text_id)) {
+                let mut rejected = false;
+                ui.input_mut(|input| {
+                    input.events.retain(|event| {
+                        let oversized = matches!(event, egui::Event::Paste(text) if text.len() > MAX_SOURCE_BYTES);
+                        rejected |= oversized;
+                        !oversized
+                    });
+                });
+                if rejected {
+                    self.status = tr("mining.pasted_input_limit").into();
+                }
+            }
             ui.add_sized(
                 egui::vec2(ui.available_width(), h),
                 egui::TextEdit::multiline(&mut self.text)
+                    .id(text_id)
                     .code_editor()
                     .margin(egui::Margin::same(10))
                     .hint_text(if exam { "" } else { "ABCD\nACBD\nEF" }),
@@ -571,3 +685,6 @@ fn editable_relation_table(ui: &mut Ui, activities: &[String], answers: &mut BTr
         resp.on_hover_text_at_pointer(name);
     }
 }
+
+#[cfg(test)]
+mod tests;

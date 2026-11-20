@@ -353,11 +353,11 @@ impl BpmnEditor {
         self.pool_group.clear();
         match tool {
             Tool::Create(kind) => {
+                // Capture the visible flow before the new shape becomes a routing obstacle.
+                let insertion_flow = if kind.is_flow_node() { self.hit_flow(w) } else { None };
                 let id = self.diagram.add_node(kind, pos);
                 // Dropping on a flow: insert the element in the flow
-                if kind.is_flow_node()
-                    && let Some(fid) = self.hit_flow(w)
-                {
+                if let Some(fid) = insertion_flow {
                     self.split_flow(fid, id);
                 }
                 self.selection = Some(Sel::Node(id));

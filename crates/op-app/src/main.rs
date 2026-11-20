@@ -25,6 +25,7 @@ mod mermaid_editor;
 mod mining_editor;
 mod petri_editor;
 mod platform;
+mod sales_editor;
 mod theme;
 mod uml_editor;
 mod whiteboard_editor;
