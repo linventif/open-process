@@ -10,6 +10,8 @@ use crate::xml;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 
+pub mod import;
+
 // -------------------------------------------------------------------------
 // Event log
 
@@ -512,6 +514,28 @@ impl Footprint {
 
 pub type Pair = (Vec<usize>, Vec<usize>);
 
+/// Optional common-boundary preprocessing for application discovery.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DiscoveryOptions {
+    /// Add common case boundaries so parallel initial/final activities can synchronize.
+    #[serde(default)]
+    pub normalize_boundaries: bool,
+}
+
+/// Recorded routing placeholders are whole names, never a substring of a task.
+/// For example, `Vide_2` is a marker; `Empty basket` and `Vider oven` are tasks.
+pub fn is_routing_marker(activity: &str) -> bool {
+    let name = activity.trim().to_ascii_lowercase();
+    let Some(suffix) = name.strip_prefix("vide").or_else(|| name.strip_prefix("empty")) else {
+        return false;
+    };
+    if suffix.is_empty() {
+        return true;
+    }
+    let number = suffix.trim_start_matches(|c: char| c == '_' || c == '-' || c.is_whitespace());
+    !number.is_empty() && number.bytes().all(|digit| digit.is_ascii_digit())
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AlphaResult {
     pub footprint: Footprint,
@@ -531,6 +555,13 @@ pub struct AlphaResult {
     pub net: PetriNet,
     /// Petri net place id of each Y_W pair (same order as `y_w`).
     pub place_ids: Vec<u32>,
+    /// Generated boundary activity names; their transitions are silent in the net.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub boundary_activities: Option<[String; 2]>,
+    /// Recorded routing markers projected to unnamed silent transitions after Alpha.
+    /// The original names remain in the source log and construction footprint.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub projected_activities: Vec<String>,
 }
 
 const MAX_X: usize = 20_000;
@@ -569,6 +600,61 @@ impl AlphaResult {
         }
     }
 
+    /// Project observed traces explicitly, without changing replay of raw Alpha
+    /// nets or ordinary tasks whose names contain words such as "Empty".
+    pub fn project_trace(&self, trace: &[String]) -> Vec<String> {
+        trace
+            .iter()
+            .filter(|activity| {
+                !self.projected_activities.contains(*activity)
+                    || self
+                        .net
+                        .transitions
+                        .iter()
+                        .any(|transition| !transition.silent && transition.name.as_str() == activity.as_str())
+            })
+            .cloned()
+            .collect()
+    }
+
+    /// Label a generated Petri place using silent routing symbols. The original
+    /// Alpha construction remains available through `place_name`.
+    pub fn net_place_name(&self, pair: &Pair) -> String {
+        if self.projected_activities.is_empty() {
+            return self.place_name(pair);
+        }
+        let set = |indices: &[usize]| {
+            let labels: Vec<_> = indices
+                .iter()
+                .map(|&index| {
+                    let name = self.name(index);
+                    if self.projected_activities.iter().any(|projected| projected == name) {
+                        "τ"
+                    } else {
+                        name
+                    }
+                })
+                .collect();
+            format!("{{{}}}", labels.join(", "))
+        };
+        format!("P({},{})", set(&pair.0), set(&pair.1))
+    }
+
+    fn apply_recorded_activity_projection(&mut self) {
+        for transition in &mut self.net.transitions {
+            if self.projected_activities.contains(&transition.name) {
+                transition.name.clear();
+                transition.silent = true;
+            }
+        }
+        let place_names: Vec<_> = self.y_w.iter().map(|pair| self.net_place_name(pair)).collect();
+        for (&id, name) in self.place_ids.iter().zip(place_names) {
+            if let Some(place) = self.net.place_mut(id) {
+                place.name = name;
+            }
+        }
+    }
+
     /// Arcs of step 7 (F_W) as text pairs.
     pub fn flow_relation(&self) -> Vec<(String, String)> {
         let mut out = Vec::new();
@@ -592,9 +678,28 @@ impl AlphaResult {
 
     /// Full step-by-step write-up (plain text), as expected in exercises.
     pub fn report(&self, log: &EventLog) -> String {
+        let replays: Vec<_> = log
+            .variants()
+            .iter()
+            .map(|(trace, _)| replay(&self.net, &self.project_trace(trace)))
+            .collect();
+        self.report_with_replays(log, &replays)
+    }
+
+    /// Format a write-up using cached outcomes in `log.variants()` order.
+    /// Missing outcomes remain pending; formatting never starts additional replay.
+    pub fn report_with_replays(&self, log: &EventLog, replays: &[Result<(), String>]) -> String {
         let f = &self.footprint;
         let n = |a: usize| self.name(a).to_string();
         let mut s = String::new();
+        if self.boundary_activities.is_some() {
+            s += tr("mining.report.normalized_boundaries");
+            s.push('\n');
+        }
+        if !self.projected_activities.is_empty() {
+            s += tr("mining.report.projected_markers");
+            s.push('\n');
+        }
         s += tr("mining.report.traces");
         for (t, k) in log.variants() {
             s += &format!(
@@ -644,13 +749,14 @@ impl AlphaResult {
         );
         s += "8. α(W) = (PW, TW, FW)\n\n";
         s += tr("mining.report.word_check");
-        for (t, _) in log.variants() {
+        for (index, (t, _)) in log.variants().into_iter().enumerate() {
             s += &format!(
                 "  {} ? {}\n",
                 log.format_trace(&t),
-                match replay(&self.net, &t) {
-                    Ok(()) => "ok".to_string(),
-                    Err(e) => trf("mining.not_ok", &[&e]),
+                match replays.get(index) {
+                    Some(Ok(())) => "ok".to_string(),
+                    Some(Err(e)) => trf("mining.not_ok", &[e]),
+                    None => tr("mining.analysis_pending").to_string(),
                 }
             );
         }
@@ -664,13 +770,68 @@ pub fn alpha(log: &EventLog) -> AlphaResult {
 
 /// Application discovery rejects incomplete results and bounds costly pair construction.
 pub fn discover_cancellable(log: &EventLog, cancelled: &impl Fn() -> bool) -> Result<AlphaResult, String> {
+    discover_with_options_cancellable(log, &DiscoveryOptions::default(), cancelled)
+}
+
+/// Discover a net with optional common boundaries, keeping the source log unchanged.
+///
+/// Generated activities remain visible in Alpha's construction and are marked silent
+/// only in the resulting net. Recorded Vide/Empty routing markers are likewise
+/// projected after construction, keeping the source and footprint unchanged.
+/// Limits on source events exclude generated boundaries.
+pub fn discover_with_options_cancellable(
+    log: &EventLog,
+    options: &DiscoveryOptions,
+    cancelled: &impl Fn() -> bool,
+) -> Result<AlphaResult, String> {
     if log.traces.iter().map(Vec::len).sum::<usize>() > 100_000 || log.activities().len() > 128 || cancelled() {
         return Err(tr("mining.analysis_limit").into());
     }
-    let result = alpha_bounded(log, 2000, cancelled);
+    let boundaries = options.normalize_boundaries.then(|| {
+        let activities: HashSet<_> = log.activities().into_iter().collect();
+        let unique = |base: &str| {
+            let mut name = base.to_string();
+            let mut suffix = 2;
+            while activities.contains(&name) {
+                name = format!("{base} ({suffix})");
+                suffix += 1;
+            }
+            name
+        };
+        [unique("[start]"), unique("[end]")]
+    });
+    let normalized = boundaries.as_ref().map(|[start, end]| EventLog {
+        traces: log
+            .traces
+            .iter()
+            .map(|trace| {
+                std::iter::once(start.clone())
+                    .chain(trace.iter().cloned())
+                    .chain(std::iter::once(end.clone()))
+                    .collect()
+            })
+            .collect(),
+    });
+    let input = normalized.as_ref().unwrap_or(log);
+    if input.activities().len() > 128 || cancelled() {
+        return Err(tr("mining.analysis_limit").into());
+    }
+    let mut result = alpha_bounded(input, 2000, cancelled);
     if result.x_truncated || cancelled() {
         return Err(tr("mining.analysis_limit").into());
     }
+    if let Some(boundaries) = boundaries {
+        for transition in &mut result.net.transitions {
+            transition.silent = boundaries.contains(&transition.name);
+        }
+        result.boundary_activities = Some(boundaries);
+    }
+    result.projected_activities = log
+        .activities()
+        .into_iter()
+        .filter(|activity| is_routing_marker(activity))
+        .collect();
+    result.apply_recorded_activity_projection();
     result.net.check_storage()?;
     Ok(result)
 }
@@ -783,6 +944,8 @@ fn alpha_bounded(log: &EventLog, pair_limit: usize, cancelled: &impl Fn() -> boo
         y_w,
         net: PetriNet::new("Alpha"),
         place_ids: Vec::new(),
+        boundary_activities: None,
+        projected_activities: Vec::new(),
     };
     if !res.x_truncated && !cancelled() {
         build_net(&mut res);
@@ -844,7 +1007,13 @@ fn build_net(r: &mut AlphaResult) {
     let mut tid = vec![0u32; n];
     for a in 0..n {
         let id = net.add_transition(tpos[a]);
-        net.transition_mut(id).unwrap().name = r.footprint.activities[a].clone();
+        let transition = net.transition_mut(id).unwrap();
+        transition.name = r.footprint.activities[a].clone();
+        transition.silent = r.boundary_activities.as_ref().is_some_and(|names| names.contains(&transition.name));
+        if r.projected_activities.contains(&transition.name) {
+            transition.name.clear();
+            transition.silent = true;
+        }
         tid[a] = id;
     }
     let avg = |s: &[usize]| -> Pos {
@@ -880,7 +1049,7 @@ fn build_net(r: &mut AlphaResult) {
             pos = Pos::new(a.x.max(b.x) + DX / 2.0, a.y.max(b.y) + DY * 0.8);
         }
         let pid = net.add_place(free_spot(pos), 0);
-        net.place_mut(pid).unwrap().name = r.place_name(&p);
+        net.place_mut(pid).unwrap().name = r.net_place_name(&p);
         for &x in &p.0 {
             let _ = net.add_arc(NodeRef::Transition(tid[x]), NodeRef::Place(pid));
         }
@@ -903,8 +1072,21 @@ fn build_net(r: &mut AlphaResult) {
 /// Replays a trace on a workflow net (token game, "vérification des mots"):
 /// starting with one token in the source place, every activity must be enabled
 /// in turn and the run must end with exactly one token in the sink place.
+/// Silent transitions can fire before, between and after observed activities.
 pub fn replay(net: &PetriNet, trace: &[String]) -> Result<(), String> {
+    replay_cancellable(net, trace, &|| false)
+}
+
+/// Bounded replay explores alternative silent routes and equally named transitions.
+/// Exceeding a search limit is an inconclusive error, never an accepted trace.
+pub fn replay_cancellable(net: &PetriNet, trace: &[String], cancelled: &impl Fn() -> bool) -> Result<(), String> {
     let c = net.compile();
+    let silent: Vec<_> = net
+        .transitions
+        .iter()
+        .enumerate()
+        .filter_map(|(i, t)| t.silent.then_some(i))
+        .collect();
     let sources: Vec<usize> = (0..net.places.len())
         .filter(|&p| !net.arcs.iter().any(|a| a.to == NodeRef::Place(net.places[p].id)))
         .collect();
@@ -915,16 +1097,46 @@ pub fn replay(net: &PetriNet, trace: &[String]) -> Result<(), String> {
     for &s in &sources {
         m[s] = 1;
     }
+    let mut states = vec![m];
+    let mut budget = 1_000_000usize;
     for (k, act) in trace.iter().enumerate() {
-        let cands: Vec<usize> = (0..net.transitions.len()).filter(|&t| &net.transitions[t].name == act).collect();
+        let cands: Vec<usize> = (0..net.transitions.len())
+            .filter(|&t| !net.transitions[t].silent && &net.transitions[t].name == act)
+            .collect();
         if cands.is_empty() {
             return Err(trf("mining.not_net", &[&act]));
         }
-        let Some(&t) = cands.iter().find(|&&t| c.is_enabled(t, &m)) else {
+        let reachable = replay_silent_closure(&c, &silent, states, &mut budget, cancelled)?;
+        let mut next = Vec::new();
+        let mut seen = HashSet::new();
+        for marking in reachable {
+            for &t in &cands {
+                replay_charge(&mut budget, cancelled)?;
+                if let Some(fired) = c.fire(t, &marking)
+                    && seen.insert(fired.clone())
+                {
+                    next.push(fired);
+                    if next.len() > 5000 {
+                        return Err(tr("mining.replay_limit").into());
+                    }
+                }
+            }
+        }
+        if next.is_empty() {
             return Err(trf("mining.not_enabled_at_position", &[&act, &(k + 1)]));
-        };
-        m = c.fire(t, &m).unwrap();
+        }
+        states = next;
     }
+    let states = replay_silent_closure(&c, &silent, states, &mut budget, cancelled)?;
+    if states.iter().any(|m| {
+        sinks.iter().all(|&s| m[s] <= 1)
+            && sinks.iter().map(|&s| m[s]).sum::<u32>() == 1
+            && m.iter().enumerate().all(|(p, &tokens)| tokens == 0 || sinks.contains(&p))
+    }) {
+        return Ok(());
+    }
+    // Keep the original teaching replay diagnostics when no route can finish.
+    let m = &states[0];
     let ok_end = sinks.iter().all(|&s| m[s] <= 1) && sinks.iter().map(|&s| m[s]).sum::<u32>() == 1;
     let leftovers: Vec<&str> = (0..m.len())
         .filter(|&p| m[p] > 0 && !sinks.contains(&p))
@@ -939,6 +1151,48 @@ pub fn replay(net: &PetriNet, trace: &[String]) -> Result<(), String> {
         return Err(trf("mining.tokens_left", &[&(leftovers.join(", "))]));
     }
     Ok(())
+}
+
+fn replay_charge(budget: &mut usize, cancelled: &impl Fn() -> bool) -> Result<(), String> {
+    if cancelled() || *budget == 0 {
+        return Err(tr("mining.replay_limit").into());
+    }
+    *budget -= 1;
+    Ok(())
+}
+
+fn replay_silent_closure(
+    net: &crate::petri::CompiledNet,
+    silent: &[usize],
+    seeds: Vec<Vec<u32>>,
+    budget: &mut usize,
+    cancelled: &impl Fn() -> bool,
+) -> Result<Vec<Vec<u32>>, String> {
+    let mut seen: HashSet<Vec<u32>> = HashSet::new();
+    let mut states = Vec::new();
+    for marking in seeds {
+        if seen.insert(marking.clone()) {
+            states.push(marking);
+        }
+    }
+    let mut index = 0;
+    while index < states.len() {
+        replay_charge(budget, cancelled)?;
+        let marking = states[index].clone();
+        for &transition in silent {
+            replay_charge(budget, cancelled)?;
+            if let Some(fired) = net.fire(transition, &marking)
+                && seen.insert(fired.clone())
+            {
+                states.push(fired);
+                if states.len() > 5000 {
+                    return Err(tr("mining.replay_limit").into());
+                }
+            }
+        }
+        index += 1;
+    }
+    Ok(states)
 }
 
 #[cfg(test)]
@@ -977,6 +1231,291 @@ mod tests {
                 .collect(),
         };
         assert!(discover_cancellable(&many_pairs, &|| false).is_err());
+    }
+
+    #[test]
+    fn normalized_discovery_synchronizes_parallel_ends_and_cancellation() {
+        let log =
+            EventLog::parse("case;activity\n1;Prepare\n1;Cash\n1;Give order\n2;Prepare\n2;Give order\n2;Cash\n3;Cancel order").unwrap();
+        let original = log.clone();
+        let teaching = discover_cancellable(&log, &|| false).unwrap();
+        assert!(teaching.boundary_activities.is_none());
+        assert!(replay(&teaching.net, &log.traces[0]).is_err());
+
+        let mut normalized = discover_with_options_cancellable(
+            &log,
+            &DiscoveryOptions {
+                normalize_boundaries: true,
+            },
+            &|| false,
+        )
+        .unwrap();
+        assert_eq!(log, original);
+        assert_eq!(normalized.net.transitions.iter().filter(|t| t.silent).count(), 2);
+        for trace in &log.traces {
+            assert_eq!(replay(&normalized.net, trace), Ok(()), "{trace:?}");
+        }
+        let invalid = vec!["Prepare".into(), "Cash".into()];
+        assert!(replay(&normalized.net, &invalid).is_err());
+        // Rebuilding from construction sets must preserve generated routing semantics.
+        let rebuilt = build_alpha_net(&mut normalized);
+        assert_eq!(rebuilt.transitions.iter().filter(|t| t.silent).count(), 2);
+        assert!(replay(&rebuilt, &log.traces[0]).is_ok());
+        assert!(normalized.report(&log).contains(tr("mining.report.normalized_boundaries")));
+    }
+
+    #[test]
+    fn normalized_discovery_projects_recorded_routing_and_avoids_name_collisions() {
+        let log = EventLog {
+            traces: vec![vec!["[start]".into(), "Vide1".into(), "[end]".into()]],
+        };
+        let normalized = discover_with_options_cancellable(
+            &log,
+            &DiscoveryOptions {
+                normalize_boundaries: true,
+            },
+            &|| false,
+        )
+        .unwrap();
+        let boundaries = normalized.boundary_activities.as_ref().unwrap();
+        assert!(boundaries.iter().all(|name| !log.traces[0].contains(name)));
+        assert!(normalized.projected_activities.contains(&"Vide1".to_string()));
+        assert!(normalized.net.transitions.iter().any(|t| t.name.is_empty() && t.silent));
+        assert!(normalized.net.transitions.iter().any(|t| t.name == "[start]" && !t.silent));
+        assert_eq!(replay(&normalized.net, &normalized.project_trace(&log.traces[0])), Ok(()));
+    }
+
+    #[test]
+    fn normalized_discovery_synchronizes_parallel_case_starts() {
+        let log = EventLog::parse("ABC\nBAC").unwrap();
+        let teaching = discover_cancellable(&log, &|| false).unwrap();
+        assert!(replay(&teaching.net, &log.traces[0]).is_err());
+        let normalized = discover_with_options_cancellable(
+            &log,
+            &DiscoveryOptions {
+                normalize_boundaries: true,
+            },
+            &|| false,
+        )
+        .unwrap();
+        for trace in &log.traces {
+            assert_eq!(replay(&normalized.net, trace), Ok(()));
+        }
+    }
+
+    #[test]
+    fn normalized_discovery_checks_limits_after_adding_boundaries() {
+        let log = EventLog {
+            traces: (0..127).map(|i| vec![format!("Activity {i}")]).collect(),
+        };
+        assert!(discover_cancellable(&log, &|| false).is_ok());
+        assert!(
+            discover_with_options_cancellable(
+                &log,
+                &DiscoveryOptions {
+                    normalize_boundaries: true
+                },
+                &|| false
+            )
+            .is_err()
+        );
+        assert!(
+            discover_with_options_cancellable(
+                &EventLog::parse("AB").unwrap(),
+                &DiscoveryOptions {
+                    normalize_boundaries: true
+                },
+                &|| true
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn discovery_configuration_and_result_read_legacy_json() {
+        let options: DiscoveryOptions = serde_json::from_str("{}").unwrap();
+        assert_eq!(options, DiscoveryOptions::default());
+        let result = alpha(&EventLog::parse("ABC").unwrap());
+        let wire = serde_json::to_value(&result).unwrap();
+        assert!(wire.get("boundary_activities").is_none());
+        assert!(wire.get("projected_activities").is_none());
+        let restored: AlphaResult = serde_json::from_value(wire).unwrap();
+        assert!(restored.boundary_activities.is_none());
+        assert!(restored.projected_activities.is_empty());
+        assert_eq!(restored.net, result.net);
+    }
+
+    #[test]
+    fn routing_marker_matching_is_whole_name_and_does_not_hide_business_tasks() {
+        for name in ["Vide", "EMPTY", "vide1", "Empty_002", "vIdE- 42", " empty 9 "] {
+            assert!(is_routing_marker(name), "{name}");
+        }
+        for name in [
+            "",
+            "vide_",
+            "Empty basket",
+            "Vider oven",
+            "vide1x",
+            "Vide1_2",
+            "Empty2nd",
+            "Already empty",
+        ] {
+            assert!(!is_routing_marker(name), "{name}");
+        }
+        let log = EventLog {
+            traces: vec![vec![
+                "Register".into(),
+                "Vide1".into(),
+                "Empty basket".into(),
+                "Vider oven".into(),
+                "Ship".into(),
+            ]],
+        };
+        let raw = alpha(&log);
+        assert!(raw.projected_activities.is_empty());
+        assert_eq!(raw.project_trace(&log.traces[0]), log.traces[0]);
+        assert_eq!(replay(&raw.net, &log.traces[0]), Ok(()));
+        let projected = discover_cancellable(&log, &|| false).unwrap();
+        for name in ["Empty basket", "Vider oven"] {
+            assert!(projected.net.transitions.iter().any(|t| t.name == name && !t.silent));
+        }
+        assert_eq!(
+            projected.project_trace(&log.traces[0]),
+            ["Register", "Empty basket", "Vider oven", "Ship"]
+        );
+        assert_eq!(replay(&projected.net, &projected.project_trace(&log.traces[0])), Ok(()));
+        assert!(replay(&projected.net, &log.traces[0]).is_err());
+    }
+
+    #[test]
+    fn routing_projection_preserves_preparation_loops_source_and_net_topology() {
+        let mut log = EventLog::default();
+        for repeats in 1..=3 {
+            for reversed in [false, true] {
+                let mut trace = vec!["Take order".to_owned()];
+                for index in 0..repeats {
+                    trace.extend(["Prepare", "Bake", "Pack"].map(str::to_owned));
+                    trace.push(if index + 1 == repeats { "Vide2" } else { "Vide1" }.into());
+                }
+                trace.extend(if reversed { ["Give order", "Cash"] } else { ["Cash", "Give order"] }.map(str::to_owned));
+                log.traces.push(trace);
+            }
+        }
+        let original = log.clone();
+        let projected = discover_with_options_cancellable(
+            &log,
+            &DiscoveryOptions {
+                normalize_boundaries: true,
+            },
+            &|| false,
+        )
+        .unwrap();
+        assert_eq!(log, original);
+        assert_eq!(projected.projected_activities, ["Vide1", "Vide2"]);
+        assert!(projected.footprint.activities.contains(&"Vide1".into()));
+        assert!(projected.y_w.iter().any(|pair| projected.place_name(pair).contains("Vide")));
+        assert!(!projected.net.places.iter().any(|place| place.name.contains("Vide")));
+        assert!(
+            !projected
+                .net
+                .transitions
+                .iter()
+                .any(|transition| is_routing_marker(&transition.name))
+        );
+        assert_eq!(
+            projected.net.transitions.iter().filter(|t| t.silent && t.name.is_empty()).count(),
+            2
+        );
+
+        let boundaries = projected.boundary_activities.as_ref().unwrap();
+        let augmented = EventLog {
+            traces: log
+                .traces
+                .iter()
+                .map(|trace| {
+                    std::iter::once(boundaries[0].clone())
+                        .chain(trace.iter().cloned())
+                        .chain(std::iter::once(boundaries[1].clone()))
+                        .collect()
+                })
+                .collect(),
+        };
+        let raw = alpha(&augmented);
+        assert_eq!(projected.net.arcs, raw.net.arcs);
+        assert_eq!(projected.net.places.len(), raw.net.places.len());
+        assert_eq!(projected.net.transitions.len(), raw.net.transitions.len());
+        for (projected, raw) in projected.net.transitions.iter().zip(&raw.net.transitions) {
+            assert_eq!((projected.id, projected.pos), (raw.id, raw.pos));
+        }
+        for trace in &log.traces {
+            assert_eq!(replay(&projected.net, &projected.project_trace(trace)), Ok(()));
+        }
+        let mut restored: AlphaResult = serde_json::from_value(serde_json::to_value(&projected).unwrap()).unwrap();
+        let rebuilt = build_alpha_net(&mut restored);
+        assert!(!rebuilt.transitions.iter().any(|t| is_routing_marker(&t.name)));
+        assert!(!rebuilt.places.iter().any(|p| p.name.contains("Vide")));
+        for trace in &log.traces {
+            assert_eq!(replay(&rebuilt, &restored.project_trace(trace)), Ok(()));
+        }
+    }
+
+    #[test]
+    fn cached_replay_report_matches_computed_report_and_handles_missing_entries() {
+        let log = EventLog::parse("ABC\nABC\nAC").unwrap();
+        let result = alpha(&log);
+        let replays: Vec<_> = log.variants().iter().map(|(trace, _)| replay(&result.net, trace)).collect();
+        assert_eq!(result.report_with_replays(&log, &replays), result.report(&log));
+        let missing = result.report_with_replays(&log, &[]);
+        assert!(missing.contains(tr("mining.analysis_pending")));
+        assert!(!missing.contains(" ? ok"));
+        let failed = vec![Err("cached failure".to_owned()); replays.len()];
+        assert!(result.report_with_replays(&log, &failed).contains("cached failure"));
+    }
+
+    #[test]
+    fn replay_explores_silent_routes_and_duplicate_visible_labels() {
+        let mut net = PetriNet::new("Alternative routes");
+        let source = net.add_place(Pos::default(), 1);
+        let first = net.add_place(Pos::default(), 0);
+        let second = net.add_place(Pos::default(), 0);
+        let dead = net.add_place(Pos::default(), 0);
+        let ready = net.add_place(Pos::default(), 0);
+        let sink = net.add_place(Pos::default(), 0);
+        for place in [first, second] {
+            let t = net.add_transition(Pos::default());
+            net.transition_mut(t).unwrap().silent = true;
+            net.add_arc(NodeRef::Place(source), NodeRef::Transition(t)).unwrap();
+            net.add_arc(NodeRef::Transition(t), NodeRef::Place(place)).unwrap();
+        }
+        for (from, to, name) in [(first, dead, "A"), (second, ready, "A"), (ready, sink, "B")] {
+            let t = net.add_transition(Pos::default());
+            net.transition_mut(t).unwrap().name = name.into();
+            net.add_arc(NodeRef::Place(from), NodeRef::Transition(t)).unwrap();
+            net.add_arc(NodeRef::Transition(t), NodeRef::Place(to)).unwrap();
+        }
+        assert_eq!(replay(&net, &["A".into(), "B".into()]), Ok(()));
+        assert!(replay(&net, &["B".into()]).is_err());
+        assert!(replay_cancellable(&net, &["A".into()], &|| true).is_err());
+    }
+
+    #[test]
+    fn replay_bounds_unbounded_silent_routing() {
+        let mut net = PetriNet::new("Unbounded silent routing");
+        let source = net.add_place(Pos::default(), 1);
+        let growing = net.add_place(Pos::default(), 0);
+        let t = net.add_transition(Pos::default());
+        net.transition_mut(t).unwrap().silent = true;
+        net.add_arc(NodeRef::Place(source), NodeRef::Transition(t)).unwrap();
+        net.add_arc(NodeRef::Transition(t), NodeRef::Place(growing)).unwrap();
+        // A returned token creates an unbounded closure once the routing has started.
+        net.add_arc(NodeRef::Transition(t), NodeRef::Place(source)).unwrap();
+        // Keep the input place a source for the replay convention.
+        let initial = net.add_place(Pos::default(), 1);
+        let enter = net.add_transition(Pos::default());
+        net.transition_mut(enter).unwrap().silent = true;
+        net.add_arc(NodeRef::Place(initial), NodeRef::Transition(enter)).unwrap();
+        net.add_arc(NodeRef::Transition(enter), NodeRef::Place(source)).unwrap();
+        assert_eq!(replay(&net, &[]), Err(tr("mining.replay_limit").into()));
     }
 
     #[test]

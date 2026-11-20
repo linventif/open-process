@@ -39,6 +39,12 @@ left to right and fits the view. It preserves node sizes and pool/lane membershi
 pool and lane bounds may grow to accommodate content. With **Snap to grid**, node
 centres and container geometry use the editor's grid. Arrangement is undoable.
 
+Orthogonal routing keeps clear preferred paths and uses a bounded obstacle
+search when another node obstructs them. Pools and lanes remain traversable
+containers. Explicit straight/curved styles retain their authored behavior.
+Overlapping or oversized drafts can retain the preferred fallback when the
+bounded search cannot resolve a route; moving elements can free a corridor.
+
 ## Validate and analyse
 
 Validation identifies supported structural and modelling issues. A clean
@@ -57,10 +63,14 @@ The cost/duration workflow uses the same BPMN model and task properties. Read
 
 Save `.opx` to retain an editable Open Process document. **File → Open** imports
 supported BPMN XML; **File → Export** offers BPMN 2.0 XML with diagram
-interchange, Mermaid source, Mermaid Markdown and PNG capture.
+interchange, a standalone SVG vector image, Mermaid source, Mermaid Markdown and
+PNG capture.
 
 Mermaid retains the visible process structure but omits structured execution,
-cost, duration, documentation and style data. PNG captures the visible region.
+cost, duration, documentation and style data. SVG draws BPMN shapes, wrapped
+labels, routed connections, pools, lanes and data artifacts from the complete
+model, including loop routes outside node bounds. It uses a clean vector style
+and does not reproduce hand-drawn stroke effects. PNG captures the whole diagram.
 Keep `.opx` or BPMN XML for subsequent modelling. See the
 [format catalogue](export-formats.md) and [shared controls](interface.md).
 

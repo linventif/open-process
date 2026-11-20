@@ -234,12 +234,20 @@ impl EditorBackend for BpmnEditor {
             id: "standard",
             label: self.export_label(),
         }];
+        formats.push(ExportDescriptor {
+            id: "svg",
+            label: key("bpmn.export_svg"),
+        });
         formats.extend(mermaid_exports::FORMATS);
         formats
     }
     fn export_as(&self, format: &str) -> Result<ExportData, String> {
         match format {
             "standard" => self.export(),
+            "svg" => Ok(ExportData {
+                suffix: "svg",
+                bytes: self.diagram.to_svg().into_bytes(),
+            }),
             "mermaid" | "mermaid-markdown" => mermaid_exports::data(format, op_core::mermaid::export::bpmn(&self.diagram)?),
             _ => Err(format!("Unknown BPMN export: {format}")),
         }
@@ -299,4 +307,42 @@ pub(crate) fn register(registry: &mut DiagramRegistry) {
         example: "bpmn.evaluation",
         command: Some("bpmn.evaluation"),
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn vector_export_is_renderable_and_remains_available_in_exam_mode() {
+        let mut session = Session::boxed(BpmnEditor::new(op_core::examples::order_process()));
+        let original = session.snapshot();
+        session.set_exam_mode(true);
+        assert!(session.exports().iter().any(|format| format.id == "svg"));
+        let exported = session.export_as("svg").unwrap();
+        assert_eq!(exported.suffix, "svg");
+        let mut options = resvg::usvg::Options::default();
+        options
+            .fontdb_mut()
+            .load_font_data(include_bytes!("../../assets/fonts/Inter-Regular.ttf").to_vec());
+        options.fontdb_mut().set_sans_serif_family("Inter");
+        let tree = resvg::usvg::Tree::from_data(&exported.bytes, &options).unwrap();
+        let scale = (1200.0 / tree.size().width().max(tree.size().height())).min(1.0);
+        let mut image = resvg::tiny_skia::Pixmap::new(
+            (tree.size().width() * scale).ceil() as u32,
+            (tree.size().height() * scale).ceil() as u32,
+        )
+        .unwrap();
+        resvg::render(&tree, resvg::tiny_skia::Transform::from_scale(scale, scale), &mut image.as_mut());
+        assert!(
+            image
+                .data()
+                .chunks_exact(4)
+                .any(|pixel| pixel[0] < 100 && pixel[1] < 100 && pixel[2] < 100 && pixel[3] > 0)
+        );
+        let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/screenshots");
+        std::fs::create_dir_all(&directory).unwrap();
+        image.save_png(directory.join("bpmn_vector_export.png")).unwrap();
+        assert_eq!(session.snapshot(), original);
+    }
 }

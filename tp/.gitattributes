@@ -1,0 +1,4 @@
+# Preserve supplied CSV bytes, including their original CRLF line endings.
+*.csv -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+*.xlsx binary
+*.pdf binary

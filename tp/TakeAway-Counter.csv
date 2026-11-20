@@ -1,0 +1,340 @@
+CaseId;Activity;Actor
+2000;Take order at counter;William
+2000;Prepare;
+2000;Bake;Patrick
+2000;Pack;Patrick
+2000;Vide2;
+2000;Cash;William
+2000;Give order;William
+2001;Take order at counter;William
+2001;Prepare;
+2001;Bake;Patrick
+2001;Pack;Patrick
+2001;Vide2;
+2001;Give order;William
+2001;Cash;William
+2002;Take order at counter;William
+2002;Prepare;
+2002;Bake;Patrick
+2002;Pack;Patrick
+2002;Vide1;
+2002;Prepare;
+2002;Bake;Patrick
+2002;Pack;Patrick
+2002;Vide2;
+2002;Cash;William
+2002;Give order;William
+2003;Take order at counter;William
+2003;Prepare;
+2003;Bake;Patrick
+2003;Pack;Patrick
+2003;Vide1;
+2003;Prepare;
+2003;Bake;Patrick
+2003;Pack;Patrick
+2003;Vide2;
+2003;Give order;William
+2003;Cash;William
+2004;Take order at counter;William
+2004;Prepare;
+2004;Bake;Patrick
+2004;Pack;Patrick
+2004;Vide1;
+2004;Prepare;
+2004;Bake;Patrick
+2004;Pack;Patrick
+2004;Vide1;
+2004;Prepare;
+2004;Bake;Patrick
+2004;Pack;Patrick
+2004;Vide2;
+2004;Give order;William
+2004;Cash;William
+2005;Take order at counter;William
+2005;Prepare;
+2005;Bake;Patrick
+2005;Pack;Patrick
+2005;Vide1;
+2005;Prepare;
+2005;Bake;Patrick
+2005;Pack;Patrick
+2005;Vide1;
+2005;Prepare;
+2005;Bake;Patrick
+2005;Pack;Patrick
+2005;Vide2;
+2005;Cash;William
+2005;Give order;William
+2006;Take order at counter;William
+2006;Prepare;
+2006;Bake;Patrick
+2006;Pack;Patrick
+2006;Vide1;
+2006;Prepare;
+2006;Bake;Patrick
+2006;Pack;Patrick
+2006;Vide1;
+2006;Prepare;
+2006;Bake;Patrick
+2006;Pack;Patrick
+2006;Vide2;
+2006;Give order;William
+2006;Cash;William
+2007;Take order at counter;William
+2007;Prepare;
+2007;Bake;Patrick
+2007;Pack;Patrick
+2007;Vide1;
+2007;Prepare;
+2007;Bake;Patrick
+2007;Pack;Patrick
+2007;Vide2;
+2007;Give order;William
+2007;Cash;William
+2008;Take order at counter;William
+2008;Prepare;
+2008;Bake;Patrick
+2008;Pack;Patrick
+2008;Vide2;
+2008;Cash;William
+2008;Give order;William
+2009;Take order at counter;William
+2009;Prepare;
+2009;Bake;Robert
+2009;Pack;Robert
+2009;Vide2;
+2009;Give order;William
+2009;Cash;William
+2010;Take order at counter;William
+2010;Prepare;
+2010;Bake;Patrick
+2010;Pack;Patrick
+2010;Vide2;
+2010;Cash;William
+2010;Give order;William
+2011;Take order at counter;William
+2011;Prepare;
+2011;Bake;Patrick
+2011;Pack;Patrick
+2011;Vide1;
+2011;Prepare;
+2011;Bake;Patrick
+2011;Pack;Patrick
+2011;Vide2;
+2011;Give order;William
+2011;Cash;William
+2012;Take order at counter;William
+2012;Prepare;
+2012;Bake;Patrick
+2012;Pack;Patrick
+2012;Vide1;
+2012;Prepare;
+2012;Bake;Patrick
+2012;Pack;Patrick
+2012;Vide1;
+2012;Prepare;
+2012;Bake;Patrick
+2012;Pack;Patrick
+2012;Vide2;
+2012;Give order;William
+2012;Cash;William
+2013;Take order at counter;William
+2013;Prepare;
+2013;Bake;Patrick
+2013;Pack;Patrick
+2013;Vide2;
+2013;Cash;William
+2013;Give order;William
+2014;Take order at counter;William
+2014;Prepare;
+2014;Bake;Patrick
+2014;Pack;Patrick
+2014;Vide1;
+2014;Prepare;
+2014;Bake;Patrick
+2014;Pack;Patrick
+2014;Vide1;
+2014;Prepare;
+2014;Bake;Patrick
+2014;Pack;Patrick
+2014;Vide2;
+2014;Cash;William
+2014;Give order;William
+2015;Take order at counter;William
+2015;Prepare;
+2015;Bake;Patrick
+2015;Pack;Patrick
+2015;Vide2;
+2015;Cash;William
+2015;Give order;William
+2016;Take order at counter;William
+2016;Prepare;
+2016;Bake;Patrick
+2016;Pack;Patrick
+2016;Vide1;
+2016;Prepare;
+2016;Bake;Patrick
+2016;Pack;Patrick
+2016;Vide2;
+2016;Give order;William
+2016;Cash;William
+2017;Take order at counter;William
+2017;Prepare;
+2017;Bake;Patrick
+2017;Pack;Patrick
+2017;Vide1;
+2017;Prepare;
+2017;Bake;Patrick
+2017;Pack;Patrick
+2017;Vide2;
+2017;Cash;William
+2017;Give order;William
+2018;Take order at counter;William
+2018;Prepare;
+2018;Bake;Robert
+2018;Pack;Robert
+2018;Vide2;
+2018;Cash;William
+2018;Give order;William
+2019;Take order at counter;William
+2019;Prepare;
+2019;Bake;Patrick
+2019;Pack;Patrick
+2019;Vide1;
+2019;Prepare;
+2019;Bake;Patrick
+2019;Pack;Patrick
+2019;Vide1;
+2019;Prepare;
+2019;Bake;Patrick
+2019;Pack;Patrick
+2019;Vide2;
+2019;Give order;William
+2019;Cash;William
+2020;Take order at counter;William
+2020;Prepare;
+2020;Bake;Patrick
+2020;Pack;Patrick
+2020;Vide1;
+2020;Prepare;
+2020;Bake;Patrick
+2020;Pack;Patrick
+2020;Vide2;
+2020;Give order;William
+2020;Cash;William
+2021;Take order at counter;William
+2021;Prepare;
+2021;Bake;Robert
+2021;Pack;Robert
+2021;Vide1;
+2021;Prepare;
+2021;Bake;Robert
+2021;Pack;Robert
+2021;Vide1;
+2021;Prepare;
+2021;Bake;Robert
+2021;Pack;Robert
+2021;Vide2;
+2021;Cash;William
+2021;Give order;William
+2022;Take order at counter;William
+2022;Prepare;
+2022;Bake;Patrick
+2022;Pack;Patrick
+2022;Vide2;
+2022;Cash;William
+2022;Give order;William
+2023;Take order at counter;William
+2023;Prepare;
+2023;Bake;Patrick
+2023;Pack;Patrick
+2023;Vide2;
+2023;Give order;William
+2023;Cash;William
+2024;Take order at counter;William
+2024;Prepare;
+2024;Bake;Patrick
+2024;Pack;Patrick
+2024;Vide1;
+2024;Prepare;
+2024;Bake;Patrick
+2024;Pack;Patrick
+2024;Vide2;
+2024;Cash;William
+2024;Give order;William
+2025;Take order at counter;William
+2025;Prepare;
+2025;Bake;Patrick
+2025;Pack;Patrick
+2025;Vide1;
+2025;Prepare;
+2025;Bake;Patrick
+2025;Pack;Patrick
+2025;Vide2;
+2025;Give order;William
+2025;Cash;William
+2026;Take order at counter;William
+2026;Prepare;
+2026;Bake;Patrick
+2026;Pack;Patrick
+2026;Vide2;
+2026;Cash;William
+2026;Give order;William
+2027;Take order at counter;William
+2027;Prepare;
+2027;Bake;Patrick
+2027;Pack;Patrick
+2027;Vide1;
+2027;Prepare;
+2027;Bake;Patrick
+2027;Pack;Patrick
+2027;Vide2;
+2027;Cash;William
+2027;Give order;William
+2028;Take order at counter;William
+2028;Prepare;
+2028;Bake;Patrick
+2028;Pack;Patrick
+2028;Vide1;
+2028;Prepare;
+2028;Bake;Patrick
+2028;Pack;Patrick
+2028;Vide2;
+2028;Give order;William
+2028;Cash;William
+2029;Take order at counter;William
+2029;Prepare;
+2029;Bake;Patrick
+2029;Pack;Patrick
+2029;Vide2;
+2029;Cash;William
+2029;Give order;William
+2030;Take order at counter;William
+2030;Prepare;
+2030;Bake;Robert
+2030;Pack;Robert
+2030;Vide1;
+2030;Prepare;
+2030;Bake;Robert
+2030;Pack;Robert
+2030;Vide1;
+2030;Prepare;
+2030;Bake;Robert
+2030;Pack;Robert
+2030;Vide2;
+2030;Cash;William
+2030;Give order;William
+2031;Take order at counter;William
+2031;Prepare;
+2031;Bake;Patrick
+2031;Pack;Patrick
+2031;Vide2;
+2031;Give order;William
+2031;Cash;William
+2032;Take order at counter;William
+2032;Prepare;
+2032;Bake;Patrick
+2032;Pack;Patrick
+2032;Vide2;
+2032;Cash;William
+2032;Give order;William

@@ -1,0 +1,481 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:op="https://open-process.app/schema/evaluation" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Open Process" exporterVersion="0.1.0">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_58" name="TakeAway - Internet order management" processRef="Process_58"/>
+  </bpmn:collaboration>
+  <bpmn:process id="Process_58" isExecutable="false">
+    <bpmn:laneSet id="LaneSet_58">
+      <bpmn:lane id="Lane_59" name="Order handling* | William">
+        <bpmn:flowNodeRef>Event_3</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_4</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_5</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_9</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_11</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_13</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_18</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_22</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_60" name="Production* | Patrick, Robert">
+        <bpmn:flowNodeRef>Gateway_6</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_7</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_10</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_19</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_21</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_61" name="Delivery* | Jack, Paul, Richard, Harry">
+        <bpmn:flowNodeRef>Activity_14</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_20</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_62" name="Settlement* | William or delivery actor">
+        <bpmn:flowNodeRef>Gateway_1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_2</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_8</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_12</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_15</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Activity_17</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:exclusiveGateway id="Gateway_1">
+      <bpmn:incoming>Flow_28</bpmn:incoming>
+      <bpmn:incoming>Flow_29</bpmn:incoming>
+      <bpmn:outgoing>Flow_56</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:parallelGateway id="Gateway_2">
+      <bpmn:incoming>Flow_30</bpmn:incoming>
+      <bpmn:incoming>Flow_31</bpmn:incoming>
+      <bpmn:outgoing>Flow_29</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:startEvent id="Event_3">
+      <bpmn:documentation>iw</bpmn:documentation>
+      <bpmn:outgoing>Flow_57</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:exclusiveGateway id="Gateway_4">
+      <bpmn:incoming>Flow_40</bpmn:incoming>
+      <bpmn:outgoing>Flow_41</bpmn:outgoing>
+      <bpmn:outgoing>Flow_54</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="Gateway_5">
+      <bpmn:incoming>Flow_43</bpmn:incoming>
+      <bpmn:outgoing>Flow_44</bpmn:outgoing>
+      <bpmn:outgoing>Flow_45</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="Gateway_6">
+      <bpmn:incoming>Flow_46</bpmn:incoming>
+      <bpmn:outgoing>Flow_47</bpmn:outgoing>
+      <bpmn:outgoing>Flow_55</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="Gateway_7">
+      <bpmn:incoming>Flow_49</bpmn:incoming>
+      <bpmn:incoming>Flow_54</bpmn:incoming>
+      <bpmn:incoming>Flow_55</bpmn:incoming>
+      <bpmn:outgoing>Flow_52</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="Event_8">
+      <bpmn:documentation>ow&#10;[end]</bpmn:documentation>
+      <bpmn:incoming>Flow_56</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="Activity_9" name="Approve order">
+      <bpmn:documentation>Source: corrected Internet event log(s). Observed assignments (event counts): William: 185. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <op:activityMetrics cost="0" duration="0"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_38</bpmn:incoming>
+      <bpmn:outgoing>Flow_40</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Activity_10" name="Bake">
+      <bpmn:documentation>Source: corrected Internet event log(s). Observed assignments (event counts): Patrick: 162, Robert: 99. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <op:activityMetrics cost="0" duration="0"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_37</bpmn:incoming>
+      <bpmn:outgoing>Flow_33</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Activity_11" name="Cancel order">
+      <bpmn:documentation>Source: corrected Internet event log(s). Observed assignments (event counts): William: 3. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <op:activityMetrics cost="0" duration="0"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_44</bpmn:incoming>
+      <bpmn:outgoing>Flow_28</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Activity_12" name="Cash">
+      <bpmn:documentation>Source: corrected Internet event log(s). Observed assignments (event counts): Harry: 7, Jack: 140, Paul: 24, Richard: 11. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <op:activityMetrics cost="0" duration="0"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_34</bpmn:incoming>
+      <bpmn:outgoing>Flow_30</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Activity_13" name="Contact customer">
+      <bpmn:documentation>Source: corrected Internet event log(s). Observed assignments (event counts): William: 21. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <op:activityMetrics cost="0" duration="0"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_41</bpmn:incoming>
+      <bpmn:outgoing>Flow_43</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Activity_14" name="Deliver">
+      <bpmn:documentation>Source: corrected Internet event log(s). Observed assignments (event counts): Harry: 7, Jack: 140, Paul: 24, Richard: 11. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <op:activityMetrics cost="0" duration="0"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_36</bpmn:incoming>
+      <bpmn:outgoing>Flow_16</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:parallelGateway id="Gateway_15">
+      <bpmn:incoming>Flow_16</bpmn:incoming>
+      <bpmn:outgoing>Flow_34</bpmn:outgoing>
+      <bpmn:outgoing>Flow_35</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:task id="Activity_17" name="Give order">
+      <bpmn:documentation>Source: corrected Internet event log(s). Observed assignments (event counts): Harry: 7, Jack: 140, Paul: 24, Richard: 11. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <op:activityMetrics cost="0" duration="0"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_35</bpmn:incoming>
+      <bpmn:outgoing>Flow_31</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Activity_18" name="Modify order">
+      <bpmn:documentation>Source: corrected Internet event log(s). Observed assignments (event counts): William: 18. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <op:activityMetrics cost="0" duration="0"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_45</bpmn:incoming>
+      <bpmn:outgoing>Flow_49</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Activity_19" name="Pack">
+      <bpmn:documentation>Source: corrected Internet event log(s). Observed assignments (event counts): Patrick: 162, Robert: 99. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <op:activityMetrics cost="0" duration="0"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_33</bpmn:incoming>
+      <bpmn:outgoing>Flow_46</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Activity_20" name="Plan">
+      <bpmn:documentation>Source: corrected Internet event log(s). Observed assignments (event counts): Harry: 7, Jack: 140, Paul: 24, Richard: 11. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <op:activityMetrics cost="0" duration="0"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_47</bpmn:incoming>
+      <bpmn:outgoing>Flow_36</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Activity_21" name="Prepare">
+      <bpmn:documentation>Source: corrected Internet event log(s). Observed assignments (event counts): Patrick: 162, Robert: 99. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <op:activityMetrics cost="0" duration="0"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_52</bpmn:incoming>
+      <bpmn:outgoing>Flow_37</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Activity_22" name="Receive order by internet">
+      <bpmn:documentation>Source: corrected Internet event log(s). Observed assignments (event counts): William: 185. Role lane titles marked * are inferred groupings. No task duration or execution cost is recorded; zero-valued model defaults are not measurements.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <op:activityMetrics cost="0" duration="0"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_57</bpmn:incoming>
+      <bpmn:outgoing>Flow_38</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:dataObject id="DataObject_63"/>
+    <bpmn:dataObjectReference id="DataObjectReference_63" name="Case and channel [observed]" dataObjectRef="DataObject_63">
+      <bpmn:documentation>Corrected event CSV: CaseId, Activity, Actor; order channel comes from the source file. No customer identity or timestamp is available. Sales IDs are not case IDs.</bpmn:documentation>
+    </bpmn:dataObjectReference>
+    <bpmn:dataObject id="DataObject_64"/>
+    <bpmn:dataObjectReference id="DataObjectReference_64" name="Pizza type / size [source fields]" dataObjectRef="DataObject_64">
+      <bpmn:documentation>The Sales worksheets record Pizza Type and Pizza Size. Using those fields as a preparation specification is an authored information-flow assumption; there is no row-level sales-to-case join.</bpmn:documentation>
+    </bpmn:dataObjectReference>
+    <bpmn:dataStoreReference id="DataStoreReference_65" name="Price catalogue [source]">
+      <bpmn:documentation>PizzasInfo: 18 type/size entries, recorded cost and revenue. Monetary unit is unspecified. The association with settlement describes a proposed information interface, not a recorded data exchange.</bpmn:documentation>
+    </bpmn:dataStoreReference>
+    <bpmn:dataStoreReference id="DataStoreReference_66" name="Recorded sales [source]">
+      <bpmn:documentation>Sales fields: Id, StructureId, Pizza Type, Pizza Size, Revenue, Cost, Satisfaction, Weekday, Customer Location, Customer Type. This is a sales record, not proof of a distinct customer or an event-log transaction. Cached Excel values are used; formulas are never executed.</bpmn:documentation>
+    </bpmn:dataStoreReference>
+    <bpmn:dataObject id="DataObject_67"/>
+    <bpmn:dataObjectReference id="DataObjectReference_67" name="Customer location [source field]" dataObjectRef="DataObject_67">
+      <bpmn:documentation>Customer Location is a geographic category in Sales, not a street address or a case-linked delivery instruction. Its proposed use in planning is an explicit modeling assumption.</bpmn:documentation>
+    </bpmn:dataObjectReference>
+    <bpmn:sequenceFlow id="Flow_16" sourceRef="Activity_14" targetRef="Gateway_15"/>
+    <bpmn:sequenceFlow id="Flow_28" sourceRef="Activity_11" targetRef="Gateway_1"/>
+    <bpmn:sequenceFlow id="Flow_29" sourceRef="Gateway_2" targetRef="Gateway_1"/>
+    <bpmn:sequenceFlow id="Flow_30" sourceRef="Activity_12" targetRef="Gateway_2"/>
+    <bpmn:sequenceFlow id="Flow_31" sourceRef="Activity_17" targetRef="Gateway_2"/>
+    <bpmn:sequenceFlow id="Flow_33" sourceRef="Activity_10" targetRef="Activity_19"/>
+    <bpmn:sequenceFlow id="Flow_34" sourceRef="Gateway_15" targetRef="Activity_12"/>
+    <bpmn:sequenceFlow id="Flow_35" sourceRef="Gateway_15" targetRef="Activity_17"/>
+    <bpmn:sequenceFlow id="Flow_36" sourceRef="Activity_20" targetRef="Activity_14"/>
+    <bpmn:sequenceFlow id="Flow_37" sourceRef="Activity_21" targetRef="Activity_10"/>
+    <bpmn:sequenceFlow id="Flow_38" sourceRef="Activity_22" targetRef="Activity_9"/>
+    <bpmn:sequenceFlow id="Flow_40" sourceRef="Activity_9" targetRef="Gateway_4"/>
+    <bpmn:sequenceFlow id="Flow_41" sourceRef="Gateway_4" targetRef="Activity_13" name="Contact needed"/>
+    <bpmn:sequenceFlow id="Flow_43" sourceRef="Activity_13" targetRef="Gateway_5"/>
+    <bpmn:sequenceFlow id="Flow_44" sourceRef="Gateway_5" targetRef="Activity_11" name="Order cancelled"/>
+    <bpmn:sequenceFlow id="Flow_45" sourceRef="Gateway_5" targetRef="Activity_18" name="Order modified"/>
+    <bpmn:sequenceFlow id="Flow_46" sourceRef="Activity_19" targetRef="Gateway_6"/>
+    <bpmn:sequenceFlow id="Flow_47" sourceRef="Gateway_6" targetRef="Activity_20" name="Continue to delivery"/>
+    <bpmn:sequenceFlow id="Flow_49" sourceRef="Activity_18" targetRef="Gateway_7"/>
+    <bpmn:sequenceFlow id="Flow_52" sourceRef="Gateway_7" targetRef="Activity_21"/>
+    <bpmn:sequenceFlow id="Flow_54" sourceRef="Gateway_4" targetRef="Gateway_7" name="Repeat preparation"/>
+    <bpmn:sequenceFlow id="Flow_55" sourceRef="Gateway_6" targetRef="Gateway_7" name="Repeat preparation"/>
+    <bpmn:sequenceFlow id="Flow_56" sourceRef="Gateway_1" targetRef="Event_8"/>
+    <bpmn:sequenceFlow id="Flow_57" sourceRef="Event_3" targetRef="Activity_22"/>
+    <bpmn:textAnnotation id="TextAnnotation_73">
+      <bpmn:text>* Roles inferred from tasks. People are observed. 0 business events have no actor.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="TextAnnotation_75">
+      <bpmn:text>Loops and order flexibility are observed; their business cause and timing are unknown.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_68" sourceRef="DataStoreReference_65" targetRef="Activity_12"/>
+    <bpmn:association id="Association_69" sourceRef="Activity_12" targetRef="DataStoreReference_66"/>
+    <bpmn:association id="Association_70" sourceRef="DataObjectReference_67" targetRef="Activity_20"/>
+    <bpmn:association id="Association_71" sourceRef="DataObjectReference_64" targetRef="Activity_21"/>
+    <bpmn:association id="Association_72" sourceRef="Activity_22" targetRef="DataObjectReference_63"/>
+    <bpmn:association id="Association_74" sourceRef="TextAnnotation_73" targetRef="Activity_9"/>
+    <bpmn:association id="Association_76" sourceRef="TextAnnotation_75" targetRef="Activity_21"/>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Participant_58_di" bpmnElement="Participant_58" isHorizontal="true">
+        <dc:Bounds x="40" y="40" width="3490" height="1980"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_59_di" bpmnElement="Lane_59" isHorizontal="true">
+        <dc:Bounds x="70" y="40" width="3460" height="550"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_60_di" bpmnElement="Lane_60" isHorizontal="true">
+        <dc:Bounds x="70" y="590" width="3460" height="490"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_61_di" bpmnElement="Lane_61" isHorizontal="true">
+        <dc:Bounds x="70" y="1080" width="3460" height="440"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_62_di" bpmnElement="Lane_62" isHorizontal="true">
+        <dc:Bounds x="70" y="1520" width="3460" height="500"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_1_di" bpmnElement="Gateway_1" isMarkerVisible="true">
+        <dc:Bounds x="3315" y="1645" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_2_di" bpmnElement="Gateway_2">
+        <dc:Bounds x="3185" y="1645" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_3_di" bpmnElement="Event_3">
+        <dc:Bounds x="112" y="172" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_4_di" bpmnElement="Gateway_4" isMarkerVisible="true">
+        <dc:Bounds x="695" y="165" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_5_di" bpmnElement="Gateway_5" isMarkerVisible="true">
+        <dc:Bounds x="1055" y="165" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_6_di" bpmnElement="Gateway_6" isMarkerVisible="true">
+        <dc:Bounds x="2235" y="645" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_7_di" bpmnElement="Gateway_7" isMarkerVisible="true">
+        <dc:Bounds x="1415" y="645" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_8_di" bpmnElement="Event_8">
+        <dc:Bounds x="3452" y="1652" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_9_di" bpmnElement="Activity_9">
+        <dc:Bounds x="465" y="152" width="150" height="76"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_10_di" bpmnElement="Activity_10">
+        <dc:Bounds x="1775" y="632" width="150" height="76"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_11_di" bpmnElement="Activity_11">
+        <dc:Bounds x="1185" y="82" width="150" height="76"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_12_di" bpmnElement="Activity_12">
+        <dc:Bounds x="2955" y="1562" width="150" height="76"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_13_di" bpmnElement="Activity_13">
+        <dc:Bounds x="825" y="152" width="150" height="76"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_14_di" bpmnElement="Activity_14">
+        <dc:Bounds x="2595" y="1122" width="150" height="76"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_15_di" bpmnElement="Gateway_15">
+        <dc:Bounds x="2825" y="1645" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_17_di" bpmnElement="Activity_17">
+        <dc:Bounds x="2955" y="1702" width="150" height="76"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_18_di" bpmnElement="Activity_18">
+        <dc:Bounds x="1185" y="222" width="150" height="76"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_19_di" bpmnElement="Activity_19">
+        <dc:Bounds x="2005" y="632" width="150" height="76"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_20_di" bpmnElement="Activity_20">
+        <dc:Bounds x="2365" y="1122" width="150" height="76"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_21_di" bpmnElement="Activity_21">
+        <dc:Bounds x="1545" y="632" width="150" height="76"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_22_di" bpmnElement="Activity_22">
+        <dc:Bounds x="235" y="152" width="150" height="76"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DataObjectReference_63_di" bpmnElement="DataObjectReference_63">
+        <dc:Bounds x="625" y="415" width="190" height="100"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DataObjectReference_64_di" bpmnElement="DataObjectReference_64">
+        <dc:Bounds x="625" y="905" width="190" height="100"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DataStoreReference_65_di" bpmnElement="DataStoreReference_65">
+        <dc:Bounds x="2685" y="1870" width="190" height="100"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DataStoreReference_66_di" bpmnElement="DataStoreReference_66">
+        <dc:Bounds x="3185" y="1870" width="190" height="100"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DataObjectReference_67_di" bpmnElement="DataObjectReference_67">
+        <dc:Bounds x="175" y="1370" width="190" height="100"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TextAnnotation_73_di" bpmnElement="TextAnnotation_73">
+        <dc:Bounds x="100" y="390" width="340" height="150"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TextAnnotation_75_di" bpmnElement="TextAnnotation_75">
+        <dc:Bounds x="100" y="880" width="340" height="150"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_16_di" bpmnElement="Flow_16">
+        <di:waypoint x="2745" y="1160"/>
+        <di:waypoint x="2850" y="1160"/>
+        <di:waypoint x="2850" y="1645"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_28_di" bpmnElement="Flow_28">
+        <di:waypoint x="1335" y="120"/>
+        <di:waypoint x="3340" y="120"/>
+        <di:waypoint x="3340" y="1645"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_29_di" bpmnElement="Flow_29">
+        <di:waypoint x="3235" y="1670"/>
+        <di:waypoint x="3315" y="1670"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_30_di" bpmnElement="Flow_30">
+        <di:waypoint x="3105" y="1600"/>
+        <di:waypoint x="3210" y="1600"/>
+        <di:waypoint x="3210" y="1645"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_31_di" bpmnElement="Flow_31">
+        <di:waypoint x="3105" y="1740"/>
+        <di:waypoint x="3210" y="1740"/>
+        <di:waypoint x="3210" y="1695"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_33_di" bpmnElement="Flow_33">
+        <di:waypoint x="1925" y="670"/>
+        <di:waypoint x="2005" y="670"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_34_di" bpmnElement="Flow_34">
+        <di:waypoint x="2850" y="1645"/>
+        <di:waypoint x="2850" y="1600"/>
+        <di:waypoint x="2955" y="1600"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_35_di" bpmnElement="Flow_35">
+        <di:waypoint x="2850" y="1695"/>
+        <di:waypoint x="2850" y="1740"/>
+        <di:waypoint x="2955" y="1740"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_36_di" bpmnElement="Flow_36">
+        <di:waypoint x="2515" y="1160"/>
+        <di:waypoint x="2595" y="1160"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_37_di" bpmnElement="Flow_37">
+        <di:waypoint x="1695" y="670"/>
+        <di:waypoint x="1775" y="670"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_38_di" bpmnElement="Flow_38">
+        <di:waypoint x="385" y="190"/>
+        <di:waypoint x="465" y="190"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_40_di" bpmnElement="Flow_40">
+        <di:waypoint x="615" y="190"/>
+        <di:waypoint x="695" y="190"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_41_di" bpmnElement="Flow_41">
+        <di:waypoint x="745" y="190"/>
+        <di:waypoint x="825" y="190"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_43_di" bpmnElement="Flow_43">
+        <di:waypoint x="975" y="190"/>
+        <di:waypoint x="1055" y="190"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_44_di" bpmnElement="Flow_44">
+        <di:waypoint x="1080" y="165"/>
+        <di:waypoint x="1080" y="120"/>
+        <di:waypoint x="1185" y="120"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_45_di" bpmnElement="Flow_45">
+        <di:waypoint x="1080" y="215"/>
+        <di:waypoint x="1080" y="260"/>
+        <di:waypoint x="1185" y="260"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_46_di" bpmnElement="Flow_46">
+        <di:waypoint x="2155" y="670"/>
+        <di:waypoint x="2235" y="670"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_47_di" bpmnElement="Flow_47">
+        <di:waypoint x="2260" y="695"/>
+        <di:waypoint x="2260" y="1160"/>
+        <di:waypoint x="2365" y="1160"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_49_di" bpmnElement="Flow_49">
+        <di:waypoint x="1335" y="260"/>
+        <di:waypoint x="1440" y="260"/>
+        <di:waypoint x="1440" y="645"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_52_di" bpmnElement="Flow_52">
+        <di:waypoint x="1465" y="670"/>
+        <di:waypoint x="1545" y="670"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_54_di" bpmnElement="Flow_54">
+        <di:waypoint x="720" y="215"/>
+        <di:waypoint x="720" y="407"/>
+        <di:waypoint x="1407" y="407"/>
+        <di:waypoint x="1407" y="670"/>
+        <di:waypoint x="1415" y="670"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_55_di" bpmnElement="Flow_55">
+        <di:waypoint x="2260" y="645"/>
+        <di:waypoint x="2260" y="602"/>
+        <di:waypoint x="1440" y="602"/>
+        <di:waypoint x="1440" y="645"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_56_di" bpmnElement="Flow_56">
+        <di:waypoint x="3365" y="1670"/>
+        <di:waypoint x="3452" y="1670"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_57_di" bpmnElement="Flow_57">
+        <di:waypoint x="148" y="190"/>
+        <di:waypoint x="235" y="190"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_68_di" bpmnElement="Association_68">
+        <di:waypoint x="2780" y="1870"/>
+        <di:waypoint x="2780" y="1600"/>
+        <di:waypoint x="2955" y="1600"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_69_di" bpmnElement="Association_69">
+        <di:waypoint x="3105" y="1600"/>
+        <di:waypoint x="3280" y="1600"/>
+        <di:waypoint x="3280" y="1870"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_70_di" bpmnElement="Association_70">
+        <di:waypoint x="365" y="1420"/>
+        <di:waypoint x="2365" y="1160"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_71_di" bpmnElement="Association_71">
+        <di:waypoint x="815" y="955"/>
+        <di:waypoint x="1545" y="670"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_72_di" bpmnElement="Association_72">
+        <di:waypoint x="310" y="228"/>
+        <di:waypoint x="720" y="415"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_74_di" bpmnElement="Association_74">
+        <di:waypoint x="270" y="390"/>
+        <di:waypoint x="540" y="228"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_76_di" bpmnElement="Association_76">
+        <di:waypoint x="440" y="955"/>
+        <di:waypoint x="448" y="955"/>
+        <di:waypoint x="448" y="716"/>
+        <di:waypoint x="1620" y="716"/>
+        <di:waypoint x="1620" y="708"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -31,7 +31,7 @@ model represented by a `Model` enum variant. The open v2 envelope is:
   "generator": {
     "application": "Open Process",
     "version": "v0.4.0",
-    "revision": 1
+    "revision": 2
   },
   "document": {
     "kind": "uml.class",
@@ -56,6 +56,23 @@ Subsequent modules register `dmn.table`, `epc`, `uml.activity`, `database.schema
 invalid drafts; rendered previews are not saved. Each type's codec owns its model
 version. IDs written to files become compatibility contracts.
 
+Event-log model v1 has optional discovery settings and a typed import note.
+Absent settings retain classic Alpha; the default settings are omitted when
+writing. Historical v1 logs remain readable without adding generated boundaries.
+Prepared CSV text, including additional event columns, is document content.
+XLSX event-log import does not retain the workbook's other sheets, so keep the
+original workbook for later analysis. The envelope and event-log model versions
+are unchanged by these backward-compatible optional fields.
+
+`process.sales` model v1 stores a study name and typed datasets with source names,
+editable channels and recorded sales. Monetary values are signed integer
+hundredths of the source unit; missing satisfaction is distinct from zero.
+The module-owned checked codec validates limits and duplicate sources. Filters,
+chart choices and cached aggregates are view/derived state, outside `.opx` model
+content. This adds a registered document kind without changing existing model
+schemas or the envelope. Earlier applications can preserve an unknown sales
+document in recovery mode instead of treating it as another diagram.
+
 Whiteboard model v2 adds optional endpoint attachments with a target element ID
 and typed port. Its module-owned codec reads both v1 and v2; legacy independent
 paths retain their geometry. New writes use v2 so older v1-only editors enter
@@ -76,12 +93,18 @@ main builds, or the crate version for local builds), and `revision` is the
 [document/envelope.rs](../crates/op-core/src/document/envelope.rs). Files written
 before this field have no `generator` and count as revision 0. Readers that
 predate it ignore unknown envelope fields, so the envelope version stays 2 and
-older applications still open new files.
+older applications can still read the envelope. An unsupported document kind
+opens in recovery with its original bytes preserved.
 
 **Increase `CONTENT_REVISION`** whenever any notation can store content that older
 readers would not keep: a new optional field, kind or model version. Revisions
 are compared instead of release tags because web, local and main builds do not
 all carry an orderable tag.
+
+Revision 2 adds the `process.sales` document kind and the optional event-log
+`discovery` and `import_note` fields. Older logs retain their default settings;
+older application versions can warn before opening files containing the new
+content.
 
 When a native file comes from a higher revision, or decoding then re-encoding it
 would drop content, opening it first shows **File from a newer version**. The
@@ -130,6 +153,10 @@ Native codecs are identified by `kind`. External importers declare extensions,
 content probes and possible results. Detection is deterministic: extensions alone
 do not force parsers; two credible candidates produce explicit ambiguity.
 Unknown XML is not assumed to be BPMN, nor arbitrary text a valid log.
+
+Binary importers declare byte probes and decoders separately from text importers.
+This lets XLSX be detected before UTF-8 decoding while preserving existing text
+imports and ambiguity checks. The mining module owns workbook event-log import.
 
 Registered formats supply dialog filters. Exporters describe losses/limitations;
 PlantUML export does not imply import. Modules produce export bytes; platform

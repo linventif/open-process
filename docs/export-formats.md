@@ -9,7 +9,7 @@ starts a download. PNG contains the whole diagram, whatever the current zoom or 
 
 | Document | File exports |
 | --- | --- |
-| BPMN | BPMN 2.0 XML (`.bpmn`), Mermaid (`.mmd`), Mermaid Markdown (`.mermaid.md`), PNG. |
+| BPMN | BPMN 2.0 XML (`.bpmn`), SVG, Mermaid (`.mmd`), Mermaid Markdown (`.mermaid.md`), PNG. |
 | Petri net | PNML (`.pnml`), Mermaid, Mermaid Markdown, PNG. |
 | UML classes / use cases | PlantUML (`.puml`), Mermaid, Mermaid Markdown, PNG. |
 | Native flowchart | SVG, Graphviz (`.dot`), Mermaid, Mermaid Markdown, PNG. |
@@ -19,6 +19,14 @@ starts a download. PNG contains the whole diagram, whatever the current zoom or 
 | Free drawing | SVG, PNG. |
 | DMN decision table | DMN XML (`.dmn`), CSV. |
 | Event log / process discovery | Alpha analysis report (`.txt`) when current results are ready. |
+| Sales study | Grouped analysis, filtered source rows, weekday series and KPI CSVs. |
+
+BPMN SVG is an image of the full model geometry and routing, independent of the
+current canvas view. It preserves readable BPMN symbols, names, pools, lanes and
+information artifacts as vector shapes/text. It is not a BPMN execution or
+round-trip format; keep `.opx` or BPMN XML for editing. Authored visual exports
+remain available in exam mode; calculated sales/KPI exports follow the generated
+assistance policy.
 
 ## Mermaid source and Markdown
 
