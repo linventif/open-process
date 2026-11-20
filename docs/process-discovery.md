@@ -181,12 +181,12 @@ Its availability does not assert a join between unrelated sources.
 **Weekday trends** draws Monday-to-Sunday profiles for all recorded sales and
 each recorded customer type, with a numeric comparison table. Choose counts,
 revenue, profit or average observed satisfaction. Empty-day counts are zero;
-undefined satisfaction values leave gaps. The display shows up to 20 types and
+satisfaction averages without any score leave gaps. The display shows up to 20 types and
 the CSV retains every type. Unrecognized weekday values remain in overall/grouped
 totals and are reported separately rather than assigned a guessed day.
 
 The summary explains two manager KPIs: profit divided by recorded revenue, and
-observed satisfaction scores divided by recorded sales. The first is undefined
+observed satisfaction scores divided by recorded sales. The first has no value
 when revenue is zero; the second when there are no rows. Score zero remains an
 observation. Neither indicator establishes the completeness of recorded costs
 or the representativeness of customer feedback.
