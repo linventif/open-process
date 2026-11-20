@@ -7,9 +7,9 @@
   "scripts": {
     "audit": "bun run scripts/audit.ts",
     "dev": "astro dev --host 0.0.0.0",
-    "check": "astro check",
+    "check": "astro sync && tsc --noEmit && bun run scripts/astro-check.ts",
     "build": "bun run build:site && bun run build:app",
-    "build:site": "astro check && astro build",
+    "build:site": "bun run check && astro build",
     "build:app": "bun run scripts/build-app.ts",
     "preview": "astro preview --host 0.0.0.0",
     "test": "bun test"
@@ -19,8 +19,9 @@
     "astro": "7.4.12"
   },
   "devDependencies": {
+    "@astrojs/language-server": "2.17.3",
     "@types/bun": "1.4.4",
-    "@astrojs/check": "0.9.12",
-    "typescript": "6.0.3"
+    "typescript": "7.0.2",
+    "typescript-6": "npm:typescript@6.0.3"
   }
 }

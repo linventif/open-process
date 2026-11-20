@@ -37,9 +37,15 @@ recreates `dist/`, so run it first. Preview serves the final folder: English `/`
 French `/fr/`, Spanish `/es/`, app `/app/`. English is the original site copy and
 default root language; localized routes remain supported.
 
-TypeScript stays on 6.0.3: the current `@astrojs/check` 0.9.12 declares
-`^5.0.0 || ^6.0.0` and does not accept TypeScript 7. Recheck that peer constraint
-when upgrading the checker; avoid forcing an unsupported major version.
+TypeScript is 7.0.2: `bun run check` runs `astro sync`, then `tsc --noEmit` on
+every `.ts` file. `astro check` refuses TypeScript 7, and Astro's TypeScript 7
+route (`@astrojs/ts-content-mapper`) needs TypeScript 7.1. Until then,
+`scripts/astro-check.ts` runs the same checker engine (`@astrojs/language-server`)
+on `.astro` components with TypeScript 6.0.3, installed as the `typescript-6`
+alias. Within that script only, `typescript` resolves to the alias, because the
+engine's Volar dependencies load it themselves (peer `typescript <7`). When
+TypeScript 7.1 is stable, switch `.astro` files to the content mapper and remove
+the alias and the script.
 Node's exact version is recorded in `.node-version` and selected explicitly in CI.
 
 ## Cloudflare Pages
