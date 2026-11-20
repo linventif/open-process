@@ -18,6 +18,7 @@ use op_core::mining::{AlphaResult, DiscoveryOptions, EventLog, Relation};
 use op_core::petri::PetriNet;
 use std::collections::BTreeMap;
 
+#[expect(clippy::enum_variant_names, reason = "each variant opens a different document")]
 pub enum MiningAction {
     OpenPetri(PetriNet),
     OpenBpmn(BpmnDiagram),
