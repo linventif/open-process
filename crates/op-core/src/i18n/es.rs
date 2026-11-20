@@ -32,7 +32,16 @@ pub const TABLE: &[(&str, &str)] = &[
     ("app.back_select_tool", "Volver a la herramienta de selección"),
     ("app.choose_diagram_type_get_started", "Elige un tipo de diagrama para empezar."),
     ("app.close_tab", "Cerrar pestaña"),
+    ("autosave.days_left", "Días restantes: {}"),
+    ("autosave.erase", "Eliminar definitivamente"),
     ("autosave.library", "Diagramas guardados"),
+    ("autosave.move_to_trash", "Mover a la papelera"),
+    ("autosave.restore", "Restaurar"),
+    ("autosave.trash", "Papelera ({})"),
+    (
+        "autosave.trash_notice",
+        "Los diagramas eliminados permanecen aquí {} días y después se borran.",
+    ),
     ("drawing.invalid_attachment", "Anclaje de conexión del dibujo no válido"),
     ("autosave.browser_location", "Almacenamiento local de este navegador"),
     (

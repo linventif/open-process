@@ -11,6 +11,25 @@ pub enum Action {
     Open,
     Resume(u64),
     Saved(usize),
+    /// Moves a saved diagram to the trash.
+    Trash(usize),
+    Restore(usize),
+    /// Erases a trashed diagram now.
+    Erase(usize),
+}
+
+/// A saved diagram in the trash, erased once `days_left` reaches zero.
+pub struct Trashed {
+    pub index: usize,
+    pub name: String,
+    pub kind: String,
+    pub color: Color32,
+    pub days_left: u64,
+}
+
+enum CardEvent {
+    Open,
+    Trash,
 }
 
 pub struct Document {
@@ -33,7 +52,13 @@ struct Process {
     action: Action,
 }
 
-pub fn show(ui: &mut Ui, docs: &[Document], saved: &[Document], registry: &crate::editor::DiagramRegistry) -> Option<Action> {
+pub fn show(
+    ui: &mut Ui,
+    docs: &[Document],
+    saved: &[Document],
+    trashed: &[Trashed],
+    registry: &crate::editor::DiagramRegistry,
+) -> Option<Action> {
     let mut processes: Vec<_> = registry
         .diagrams
         .iter()
@@ -96,7 +121,7 @@ pub fn show(ui: &mut Ui, docs: &[Document], saved: &[Document], registry: &crate
                 if !docs.is_empty() {
                     ui.heading(tr("workspace.continue_work"));
                     ui.add_space(10.0);
-                    if let Some(uid) = document_grid(ui, docs, "resume_document_cards") {
+                    if let Some((uid, _)) = document_grid(ui, docs, "resume_document_cards", false) {
                         action = Some(Action::Resume(uid));
                     }
                     ui.add_space(26.0);
@@ -105,8 +130,16 @@ pub fn show(ui: &mut Ui, docs: &[Document], saved: &[Document], registry: &crate
                 if !saved.is_empty() {
                     ui.heading(tr("autosave.library"));
                     ui.add_space(10.0);
-                    if let Some(index) = document_grid(ui, saved, "saved_document_cards") {
-                        action = Some(Action::Saved(index as usize));
+                    match document_grid(ui, saved, "saved_document_cards", true) {
+                        Some((index, CardEvent::Open)) => action = Some(Action::Saved(index as usize)),
+                        Some((index, CardEvent::Trash)) => action = Some(Action::Trash(index as usize)),
+                        None => {}
+                    }
+                    ui.add_space(26.0);
+                }
+                if !trashed.is_empty() {
+                    if let Some(chosen) = trash_section(ui, trashed) {
+                        action = Some(chosen);
                     }
                     ui.add_space(26.0);
                 }
@@ -126,15 +159,46 @@ pub fn show(ui: &mut Ui, docs: &[Document], saved: &[Document], registry: &crate
     action
 }
 
-fn document_grid(ui: &mut Ui, docs: &[Document], id: &str) -> Option<u64> {
+/// Trashed diagrams with their remaining days, to restore or erase now.
+fn trash_section(ui: &mut Ui, trashed: &[Trashed]) -> Option<Action> {
+    let mut action = None;
+    egui::CollapsingHeader::new(RichText::new(trf("autosave.trash", &[&trashed.len()])).heading())
+        .id_salt("saved_diagram_trash")
+        .show(ui, |ui| {
+            ui.label(RichText::new(trf("autosave.trash_notice", &[&crate::platform::autosave::TRASH_DAYS])).weak());
+            ui.add_space(6.0);
+            egui::Grid::new("saved_diagram_trash_rows")
+                .num_columns(4)
+                .spacing(vec2(14.0, 8.0))
+                .show(ui, |ui| {
+                    for item in trashed {
+                        ui.label(RichText::new(&item.kind).font(theme::medium(10.5)).color(item.color));
+                        ui.label(RichText::new(&item.name).strong());
+                        ui.label(RichText::new(trf("autosave.days_left", &[&item.days_left])).weak());
+                        ui.horizontal(|ui| {
+                            if ui.button(tr("autosave.restore")).clicked() {
+                                action = Some(Action::Restore(item.index));
+                            }
+                            if ui.button(tr("autosave.erase")).clicked() {
+                                action = Some(Action::Erase(item.index));
+                            }
+                        });
+                        ui.end_row();
+                    }
+                });
+        });
+    action
+}
+
+fn document_grid(ui: &mut Ui, docs: &[Document], id: &str, removable: bool) -> Option<(u64, CardEvent)> {
     let gap = 16.0;
     let columns = ((ui.available_width() + gap) / (240.0 + gap)).floor().clamp(1.0, 4.0) as usize;
     let width = ((ui.available_width() - gap * (columns - 1) as f32) / columns as f32).max(1.0);
     let mut chosen = None;
     egui::Grid::new(id).num_columns(columns).spacing(vec2(gap, gap)).show(ui, |ui| {
         for (i, doc) in docs.iter().enumerate() {
-            if document_card(ui, doc, width) {
-                chosen = Some(doc.uid);
+            if let Some(event) = document_card(ui, doc, width, removable) {
+                chosen = Some((doc.uid, event));
             }
             if (i + 1) % columns == 0 {
                 ui.end_row();
@@ -144,7 +208,7 @@ fn document_grid(ui: &mut Ui, docs: &[Document], id: &str) -> Option<u64> {
     chosen
 }
 
-fn document_card(ui: &mut Ui, doc: &Document, width: f32) -> bool {
+fn document_card(ui: &mut Ui, doc: &Document, width: f32, removable: bool) -> Option<CardEvent> {
     let preview_height = (width - 16.0).max(1.0) * 9.0 / 16.0;
     let (rect, response) = ui.allocate_exact_size(vec2(width, preview_height + 76.0), Sense::click());
     let label = if doc.dirty { format!("{} *", doc.name) } else { doc.name.clone() };
@@ -217,15 +281,56 @@ fn document_card(ui: &mut Ui, doc: &Document, width: f32) -> bool {
             );
         }
     }
+    // Saved diagrams: a trash button in the bottom-right corner, above the card.
+    let mut trash = false;
+    if removable {
+        let button = Rect::from_center_size(rect.right_bottom() - vec2(24.0, 18.0), vec2(26.0, 24.0));
+        let r = ui.interact(button, response.id.with("trash"), Sense::click());
+        r.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tr("autosave.move_to_trash")));
+        let color = if r.hovered() {
+            ui.visuals().error_fg_color
+        } else {
+            ui.visuals().weak_text_color()
+        };
+        if r.hovered() {
+            ui.painter().rect_filled(button, 5.0, ui.visuals().widgets.hovered.bg_fill);
+        }
+        paint_trash(ui.painter(), button.center(), color);
+        trash = r.on_hover_text(tr("autosave.move_to_trash")).clicked();
+        response.context_menu(|ui| {
+            theme::menu_style(ui.style_mut());
+            if ui.button(tr("autosave.move_to_trash")).clicked() {
+                trash = true;
+                ui.close();
+            }
+        });
+    }
     let tooltip = if doc.dirty {
         format!("{}\n{} · {}", doc.name, doc.kind, tr("workspace.unsaved"))
     } else {
         format!("{}\n{}", doc.name, doc.kind)
     };
-    response
+    let open = response
         .on_hover_cursor(egui::CursorIcon::PointingHand)
         .on_hover_text(tooltip)
-        .clicked()
+        .clicked();
+    if trash {
+        Some(CardEvent::Trash)
+    } else {
+        open.then_some(CardEvent::Open)
+    }
+}
+
+/// A small bin: lid, handle and body with two ribs.
+fn paint_trash(p: &egui::Painter, c: egui::Pos2, color: Color32) {
+    let s = Stroke::new(1.4, color);
+    p.line_segment([c + vec2(-6.0, -5.0), c + vec2(6.0, -5.0)], s);
+    p.line_segment([c + vec2(-2.0, -7.0), c + vec2(2.0, -7.0)], s);
+    let body = [c + vec2(-4.5, -3.5), c + vec2(-3.5, 7.0), c + vec2(3.5, 7.0), c + vec2(4.5, -3.5)];
+    p.add(egui::Shape::line(body.to_vec(), s));
+    for x in [-1.3, 1.3] {
+        p.line_segment([c + vec2(x, -1.5), c + vec2(x, 5.0)], Stroke::new(1.0, color));
+    }
 }
 
 /// The creation picker and home page share their cards, sizing and breakpoints.

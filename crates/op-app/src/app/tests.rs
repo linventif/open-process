@@ -12,6 +12,7 @@ mod newer_files;
 mod resize;
 mod sales_analysis;
 mod selection_editing;
+mod trash;
 mod uml_tools;
 mod whiteboard_editing;
 

@@ -337,7 +337,9 @@ mod tests {
         assert!(
             image
                 .data()
-                .chunks_exact(4)
+                .as_chunks::<4>()
+                .0
+                .iter()
                 .any(|pixel| pixel[0] < 100 && pixel[1] < 100 && pixel[2] < 100 && pixel[3] > 0)
         );
         let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/screenshots");
