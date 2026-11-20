@@ -17,6 +17,12 @@ mod trash;
 mod uml_tools;
 mod whiteboard_editing;
 
+/// Canvas editors start with their inspector closed; open it like a user would.
+pub(super) fn open_inspector(h: &mut Harness<'static, OpenProcessApp>) {
+    h.get_by_label("Inspector").click();
+    h.run_steps(4);
+}
+
 fn harness(dark: bool) -> Harness<'static, OpenProcessApp> {
     harness_sized(dark, [1400.0, 860.0])
 }
@@ -390,6 +396,7 @@ fn bpmn_evaluation_ui() {
     let mut h = harness(false);
     h.state_mut().open_model(Model::Bpmn(examples::evaluation_process()), None, false);
     h.run_steps(4);
+    open_inspector(&mut h);
     h.get_by_label("Evaluation").click();
     h.run_steps(4);
     assert!(h.query_by_label("Process evaluation").is_some());
@@ -1216,6 +1223,10 @@ fn rubber_band_and_group_move() {
     let mut h = harness(false);
     h.state_mut().open_model(Model::Petri(examples::mutual_exclusion()), None, false);
     h.run_steps(4);
+    // Same canvas geometry as with the side inspector; it also lists the selection.
+    open_inspector(&mut h);
+    h.state_mut().docs.last_mut().unwrap().editor.execute(FIT, 0.0);
+    h.run_steps(4);
     // Select everything with a rubber band drawn on empty space
     drag(&mut h, egui::pos2(1000.0, 800.0), egui::pos2(90.0, 95.0));
     let e = petri(&h);
@@ -2032,6 +2043,7 @@ fn whiteboard_group_selection_keeps_mixed_fills_and_pencil_click_draws_a_dot() {
     let mut h = harness(false);
     h.state_mut().open_example("whiteboard.ideas");
     h.run_steps(5);
+    open_inspector(&mut h);
     let fills: Vec<_> = whiteboard(&h).board.elements.iter().map(|e| e.paint.fill).collect();
     let bounds = whiteboard(&h).board.bounds().unwrap();
     // Begin beside the floating palette, while still enclosing the leftmost element.
@@ -2649,7 +2661,11 @@ fn diagram_editors_share_configuration_controls_in_wide_and_narrow_panes() {
             h.get_by_label("Inspector").click();
             h.run_steps(4);
             key(&mut h, Key::Escape);
-            assert_eq!(active_view_settings(&h)["inspector"], width < 1000.0);
+            assert_eq!(
+                active_view_settings(&h)["inspector"],
+                true,
+                "closed by default, opened by the toggle"
+            );
             let zoom = active_view_settings(&h)["camera"]["zoom"].as_f64().unwrap();
             h.get_by_label("Zoom in").click();
             h.run_steps(3);

@@ -44,12 +44,24 @@ pub struct FooterStatus {
 }
 
 impl DiagramLayout {
+    /// Canvas editors keep the inspector closed until it is opened with the
+    /// Inspector toggle; the choice is then kept per view.
     pub fn new(ui: &Ui, uid: u64, inspector: Option<bool>) -> Self {
+        Self::with_default(ui, uid, inspector, false)
+    }
+
+    /// For editors whose inspector holds their main editing tools (Mermaid
+    /// source, DMN clauses): open by default in wide panes.
+    pub fn with_primary_inspector(ui: &Ui, uid: u64, inspector: Option<bool>) -> Self {
+        Self::with_default(ui, uid, inspector, true)
+    }
+
+    fn with_default(ui: &Ui, uid: u64, inspector: Option<bool>, primary: bool) -> Self {
         let wide = ui.available_width() > INSPECTOR_BREAKPOINT;
         Self {
             id: Id::unique(("diagram_layout", uid)),
             wide,
-            inspector_visible: inspector.unwrap_or(wide),
+            inspector_visible: inspector.unwrap_or(primary && wide),
         }
     }
 

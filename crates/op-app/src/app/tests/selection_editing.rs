@@ -116,6 +116,8 @@ fn setup(kind: &'static str) -> Harness<'static, OpenProcessApp> {
             offset: egui::vec2(80.0, 80.0),
         })
         .unwrap();
+        // These tests use the inspector, closed by default in canvas editors.
+        state["inspector"] = serde_json::json!(true);
     }
     h.state_mut().docs[active]
         .editor

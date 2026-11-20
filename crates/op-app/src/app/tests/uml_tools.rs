@@ -152,6 +152,7 @@ fn uml_relation_flyout_supports_hover_keyboard_escape_and_narrow_use_cases() {
 #[test]
 fn uml_arrangement_stays_available_in_the_inspector_and_context_menu() {
     let (mut h, a, b) = pair(DiagramKind::Class, NodeKind::Class, NodeKind::Class, false, 1400.0);
+    super::open_inspector(&mut h);
     let original = h.state().docs[h.state().active].snapshot();
     h.hover_at(uml(&h).node_screen_center(a));
     h.key_press_modifiers(Modifiers::COMMAND, Key::A);

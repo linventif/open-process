@@ -1876,6 +1876,27 @@ delete a middle task with the Delete key, which leaves a single merged flow. The
 also drag a Petri arc's end onto a place (refused, with a status message) and
 then onto a transition. `reconnect_handles.png` was inspected.
 
+## Inspector closed by default — 19 November 2026
+
+`DiagramLayout::new` now keeps the inspector closed until the **Inspector** toggle
+opens it. `DiagramLayout::with_primary_inspector` keeps the former behavior
+(open above 760 px) for Mermaid, whose source editor is in the inspector, and
+DMN, which has no configuration bar and so no toggle. Nine UI tests that used
+inspector fields or its canvas geometry now open it the way a user does, or
+through the saved view state in their setup. The configuration-controls test
+now expects the first toggle to open the inspector at every width.
+
+`cargo fmt --check`, `cargo clippy --workspace --all-targets -D warnings` (Rust
+1.100) and `git diff --check` pass; **282 tests passed** (138 app, 129 core,
+15 integration), none ignored.
+
+After merging `main` on 20 November 2026, the new sales analysis editor also
+keeps its inspector open by default, because its sources and filters live there;
+its location-filter UI test relies on that field. Three clippy 1.100 findings in
+merged code were fixed. Formatting, clippy, the WebAssembly check and
+`git diff --check` passed again; the sequential workspace run passed
+**351 tests** (154 app, 181 core, 16 integration), none ignored.
+
 ## TakeAway completion — 20 November 2026
 
 Application discovery now converts silent routing to BPMN gateways with

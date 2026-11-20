@@ -308,7 +308,7 @@ impl EditorBackend for DmnEditor {
             self.state.result = None;
         }
         let before = self.table.clone();
-        let layout = DiagramLayout::new(ui, self.state.uid, self.state.inspector);
+        let layout = DiagramLayout::with_primary_inspector(ui, self.state.uid, self.state.inspector);
         layout.tools(ui, |ui| {
             if ui.button(tr("dmn.add_input")).clicked() {
                 self.table.add_input();
