@@ -91,8 +91,13 @@ impl BpmnEditor {
         {
             let handle = press_screen.and_then(|p| self.node_resize_at(canvas, p));
             let pool_resize = press_screen.and_then(|p| self.pool_resize_at(canvas, p));
+            let flow_end = self
+                .selected_flow_path(canvas)
+                .and_then(|(flow, path)| Some((flow, canvas::end_at(&path, press_screen?)?)));
             self.drag = if space {
                 Some(Drag::Pan)
+            } else if let Some((flow, end)) = flow_end {
+                Some(Drag::Reconnect { flow, end })
             } else if self.tool == Tool::Select
                 && ui.input(|i| i.modifiers.alt)
                 && matches!(self.hit(w), Some(Sel::Node(_) | Sel::Pool(_) | Sel::Lane(_, _)))
@@ -231,6 +236,14 @@ impl BpmnEditor {
                 (Some(Drag::Connect { from }), Some(w)) => {
                     if let Some(to) = self.hit_node(w) {
                         self.connect(from, to);
+                    }
+                }
+                (Some(Drag::Reconnect { flow, end }), Some(w)) => {
+                    if let Some(node) = self.hit_node(w) {
+                        match self.diagram.reconnect(flow, end, node) {
+                            Ok(()) => self.status.clear(),
+                            Err(e) => self.status = e.into(),
+                        }
                     }
                 }
                 (Some(Drag::Rubber { start }), Some(w)) => {

@@ -1847,6 +1847,35 @@ The site test rejects a JavaScript placeholder word in rendered pages, so two
 sentences merged into `process-discovery.md` were reworded; `bun run build` and
 `bun test` (26 tests) then passed locally.
 
+## Moving connection ends and merging flows on deletion — 19 November 2026
+
+Selected arrows show end handles in the BPMN, Petri, EPC/activity/flowchart and
+UML editors; dragging one calls the notation's `reconnect` in `op-core`.
+Deleting BPMN or flow-diagram elements merges the flows around each deleted
+block through the shared `flow::bridges` helper.
+
+`cargo fmt --check`, `cargo clippy --workspace --all-targets -D warnings` (Rust
+1.100), native/WebAssembly checks and `git diff --check` pass; **289 tests passed**
+(140 app, 129 core, 20 integration), none ignored.
+
+Integration tests (`op-core/tests/connections.rs`) cover:
+
+- BPMN: merging a single in/out pair while keeping the name and flow order;
+  no merge with two incoming flows or when the merge would duplicate a flow;
+  block merges (A→B→C→D without B and C).
+- BPMN reconnect: refused start-event targets and self connections leave the
+  flow unchanged; moving across pools turns it into a message flow without
+  the default marker, and back into a sequence flow.
+- EPC: event → event merges are refused, while a function plus the next event
+  merge as a block; reconnect follows the same rules.
+- Petri: bipartite arcs, inhibitors leaving places and duplicate arcs.
+- UML: inheritance cycles are refused.
+
+UI tests drag a selected BPMN flow's end onto another task (one undo step) and
+delete a middle task with the Delete key, which leaves a single merged flow. They
+also drag a Petri arc's end onto a place (refused, with a status message) and
+then onto a transition. `reconnect_handles.png` was inspected.
+
 ## TakeAway completion — 20 November 2026
 
 Application discovery now converts silent routing to BPMN gateways with

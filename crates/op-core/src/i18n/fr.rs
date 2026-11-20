@@ -379,6 +379,7 @@ pub const TABLE: &[(&str, &str)] = &[
         "canvas.cannot_arrange_invalid_geometry",
         "La disposition automatique exige une géométrie valide.",
     ),
+    ("canvas.cannot_reconnect", "Cette extrémité ne peut pas être reliée à cet élément."),
     ("canvas.center_horizontal", "Centrer horizontalement"),
     ("canvas.center_vertical", "Centrer verticalement"),
     ("canvas.distribute_horizontal", "Répartir horizontalement"),

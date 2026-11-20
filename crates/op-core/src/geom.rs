@@ -88,6 +88,23 @@ impl Rect {
     }
 }
 
+/// One end of a connection, such as the end dragged onto another element.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Endpoint {
+    Source,
+    Target,
+}
+
+impl Endpoint {
+    /// The `(from, to)` pair after moving this end to `node`.
+    pub fn moved<T>(self, (from, to): (T, T), node: T) -> (T, T) {
+        match self {
+            Self::Source => (node, to),
+            Self::Target => (from, node),
+        }
+    }
+}
+
 /// Preferred connector ports: side midpoints on rectangles, vertices on diamonds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Port {

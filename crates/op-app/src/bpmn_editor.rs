@@ -46,13 +46,37 @@ pub enum Sel {
 
 #[derive(Clone, Copy, Debug)]
 enum Drag {
-    Move { node: Id, grab: Pos },
-    MovePool { pool: Id, last: Pos },
-    ResizeNode { node: Id, gesture: canvas::resize::ResizeGesture },
-    ResizePool { pool: Id, target: PoolResize, grab: Pos },
-    Connect { from: Id },
-    MoveGroup { last: Pos },
-    Rubber { start: Pos },
+    Move {
+        node: Id,
+        grab: Pos,
+    },
+    MovePool {
+        pool: Id,
+        last: Pos,
+    },
+    ResizeNode {
+        node: Id,
+        gesture: canvas::resize::ResizeGesture,
+    },
+    ResizePool {
+        pool: Id,
+        target: PoolResize,
+        grab: Pos,
+    },
+    Connect {
+        from: Id,
+    },
+    /// Moves one end of the selected flow to another element.
+    Reconnect {
+        flow: Id,
+        end: op_core::geom::Endpoint,
+    },
+    MoveGroup {
+        last: Pos,
+    },
+    Rubber {
+        start: Pos,
+    },
     Pan,
 }
 
@@ -235,11 +259,10 @@ impl BpmnEditor {
         for id in std::mem::take(&mut self.pool_group) {
             self.diagram.remove_pool(id);
         }
-        for id in std::mem::take(&mut self.group) {
-            self.diagram.remove_node(id);
-        }
+        // Flows around removed elements merge where BPMN allows it.
+        let mut nodes = std::mem::take(&mut self.group);
         match self.selection.take() {
-            Some(Sel::Node(id)) => self.diagram.remove_node(id),
+            Some(Sel::Node(id)) => nodes.push(id),
             Some(Sel::Flow(id)) => self.diagram.remove_flow(id),
             Some(Sel::Pool(id)) => self.diagram.remove_pool(id),
             Some(Sel::Lane(pool, i)) => {
@@ -251,6 +274,20 @@ impl BpmnEditor {
             }
             None => {}
         }
+        self.diagram.remove_nodes_bridging(&nodes);
+    }
+
+    /// Screen path of the selected flow, whose ends can be dragged.
+    pub(crate) fn selected_flow_path(&self, canvas: Rect) -> Option<(Id, Vec<Pos2>)> {
+        let Some(Sel::Flow(id)) = self.selection else { return None };
+        let flow = self.diagram.flow(id)?;
+        Some((
+            id,
+            route(&self.diagram, flow)
+                .into_iter()
+                .map(|p| self.view.to_screen(canvas, p))
+                .collect(),
+        ))
     }
 
     fn snap(&self, p: Pos) -> Pos {

@@ -177,7 +177,24 @@ impl BpmnEditor {
             );
             canvas::connection_ports(painter, v.rect_to_screen(canvas, n.rect()), pointer, pal.select);
         }
-        if (self.tool == Tool::Connect || from.is_some())
+        // Ends of the selected flow: handles, or the dragged end following the pointer.
+        if let Some((_, path)) = self.selected_flow_path(canvas) {
+            match (self.drag, pointer) {
+                (Some(Drag::Reconnect { end, .. }), Some(p)) => {
+                    let fixed = if end == op_core::geom::Endpoint::Target {
+                        path.first()
+                    } else {
+                        path.last()
+                    };
+                    if let Some(&fixed) = fixed {
+                        canvas::reconnect_preview(painter, fixed, p, pal.select);
+                    }
+                }
+                _ => canvas::end_handles(painter, &path, pal.select, pal.fill),
+            }
+        }
+        let reconnecting = matches!(self.drag, Some(Drag::Reconnect { .. }));
+        if (self.tool == Tool::Connect || from.is_some() || reconnecting)
             && let Some(target) = wp.and_then(|w| self.hit_node(w)).and_then(|id| self.diagram.node(id))
         {
             canvas::connection_ports(painter, v.rect_to_screen(canvas, target.rect()), pointer, pal.select);

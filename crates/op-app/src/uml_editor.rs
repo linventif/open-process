@@ -36,10 +36,24 @@ enum Selection {
 
 #[derive(Clone, Debug)]
 enum Drag {
-    Move { start: Pos, origins: Vec<(Id, Pos)> },
-    Resize { id: Id, gesture: canvas::resize::ResizeGesture },
-    Rubber { start: Pos, base: BTreeSet<Id> },
+    Move {
+        start: Pos,
+        origins: Vec<(Id, Pos)>,
+    },
+    Resize {
+        id: Id,
+        gesture: canvas::resize::ResizeGesture,
+    },
+    Rubber {
+        start: Pos,
+        base: BTreeSet<Id>,
+    },
     Connect(Id),
+    /// Moves one end of the selected relation to another element.
+    Reconnect {
+        relation: Id,
+        end: op_core::geom::Endpoint,
+    },
     Pan,
 }
 

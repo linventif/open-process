@@ -534,6 +534,61 @@ impl BpmnDiagram {
         self.flows.retain(|f| f.id != id);
     }
 
+    /// Removes elements. Where removed elements had exactly one incoming and
+    /// one outgoing sequence flow (as a whole, for linked elements), those
+    /// merge: the incoming flow, with its name and default flag, now reaches
+    /// the successor, unless that sequence flow would be invalid or already
+    /// exists. Returns the merged flows.
+    pub fn remove_nodes_bridging(&mut self, ids: &[Id]) -> Vec<Id> {
+        let deleted: std::collections::BTreeSet<Id> = ids.iter().copied().collect();
+        let edges: Vec<_> = self
+            .flows
+            .iter()
+            .filter(|f| f.kind == FlowKind::Sequence && f.from != f.to)
+            .map(|f| (f.id, f.from, f.to))
+            .collect();
+        let mut merged = vec![];
+        for (flow, to) in crate::flow::bridges(&deleted, &edges) {
+            let Some(from) = self.flow(flow).map(|f| f.from) else { continue };
+            let mut trial = self.clone();
+            trial.remove_flow(flow);
+            for &id in &deleted {
+                trial.remove_node(id);
+            }
+            let valid = trial
+                .add_flow(from, to)
+                .is_ok_and(|added| trial.flow(added).is_some_and(|f| f.kind == FlowKind::Sequence));
+            // Retargeting first keeps the merged flow out of the nodes' removal.
+            if valid && let Some(f) = self.flow_mut(flow) {
+                f.to = to;
+                merged.push(flow);
+            }
+        }
+        for id in deleted {
+            self.remove_node(id);
+        }
+        merged
+    }
+
+    /// Moves one end of a flow to `node`, with the same rules as a new
+    /// connection: the flow kind may change (e.g. sequence to message flow
+    /// across pools). Identity, name and, for sequence flows, the default flag stay.
+    pub fn reconnect(&mut self, id: Id, end: crate::geom::Endpoint, node: Id) -> Result<(), &'static str> {
+        let index = self.flows.iter().position(|f| f.id == id).ok_or(tr("bpmn.unknown_element"))?;
+        let (from, to) = end.moved((self.flows[index].from, self.flows[index].to), node);
+        if (from, to) == (self.flows[index].from, self.flows[index].to) {
+            return Ok(());
+        }
+        let mut trial = self.clone();
+        trial.flows.remove(index);
+        let added = trial.add_flow(from, to)?;
+        let kind = trial.flow(added).map(|f| f.kind).ok_or(tr("bpmn.unknown_element"))?;
+        let flow = &mut self.flows[index];
+        (flow.from, flow.to, flow.kind) = (from, to, kind);
+        flow.is_default &= kind == FlowKind::Sequence;
+        Ok(())
+    }
+
     pub fn remove_pool(&mut self, id: Id) {
         self.pools.retain(|p| p.id != id);
     }

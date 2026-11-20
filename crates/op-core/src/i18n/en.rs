@@ -361,6 +361,7 @@ pub const TABLE: &[(&str, &str)] = &[
         "canvas.cannot_arrange_invalid_geometry",
         "Cannot arrange a diagram with invalid geometry.",
     ),
+    ("canvas.cannot_reconnect", "This end cannot connect to that element."),
     ("canvas.center_horizontal", "Center horizontally"),
     ("canvas.center_vertical", "Center vertically"),
     ("canvas.distribute_horizontal", "Distribute horizontally"),
