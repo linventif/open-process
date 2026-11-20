@@ -1839,6 +1839,11 @@ permanent deletion of the files. `saved_diagram_card_trash_button.png` and
 `saved_diagram_trash.png` were inspected. The browser storage path was
 compiled only.
 
+After merging `main` on 20 November 2026, three clippy 1.100 findings in merged
+code were fixed. Formatting, clippy, the WebAssembly check and `git diff --check`
+passed again; the sequential workspace run passed **353 tests** (156 app,
+181 core, 16 integration), none ignored.
+
 ## TakeAway completion — 20 November 2026
 
 Application discovery now converts silent routing to BPMN gateways with
