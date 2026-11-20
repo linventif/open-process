@@ -26,7 +26,7 @@ pub struct Generator {
 /// Increases whenever any notation can store content that older readers
 /// would not keep (a new optional field, kind or model version). A file with a
 /// higher revision comes from a newer Open Process.
-pub const CONTENT_REVISION: u32 = 1;
+pub const CONTENT_REVISION: u32 = 2;
 
 static WRITER_VERSION: std::sync::OnceLock<&'static str> = std::sync::OnceLock::new();
 

@@ -24,6 +24,7 @@ pub mod mermaid;
 pub mod mining;
 pub mod petri;
 pub mod pnml;
+pub mod sales;
 pub mod style;
 pub mod uml;
 pub mod whiteboard;

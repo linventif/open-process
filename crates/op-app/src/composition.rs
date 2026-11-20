@@ -15,6 +15,7 @@ pub fn registry() -> &'static DiagramRegistry {
         crate::whiteboard_editor::register(&mut registry);
         crate::mermaid_editor::register(&mut registry);
         crate::mining_editor::register(&mut registry);
+        crate::sales_editor::register(&mut registry);
         registry.validate().expect("built-in identifiers are unique");
         registry
     })
@@ -30,6 +31,7 @@ pub fn run_background_job(input: &str) -> Result<String, String> {
     let result = match task["task"].as_str() {
         Some("bpmn.evaluation") => crate::bpmn_editor::evaluation_job::compute_json(input.into(), stop),
         Some("mining.discovery") => crate::mining_editor::analysis_job::compute_json(input.into(), stop),
+        Some("sales.analysis") => crate::sales_editor::analysis_job::compute_json(input.into(), stop),
         Some("flowchart.import") => crate::flowchart_editor::import_json(input.into(), stop),
         Some("mermaid.preview") => crate::mermaid_editor::preview::compute_json(input.into(), stop),
         None | Some("petri.analysis") => crate::petri_editor::analysis_job::compute_json(input.into(), stop),

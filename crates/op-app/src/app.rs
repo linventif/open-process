@@ -286,7 +286,7 @@ impl OpenProcessApp {
         let generator = op_core::document::Generator::of(bytes).filter(|_| native);
         // Content of the file that this version cannot keep, or why it cannot open it.
         let mut unsupported = Vec::new();
-        let state = match self.registry.load(bytes) {
+        let state = match self.registry.load_named(&io::file_name(&name), bytes) {
             Ok(d) => match self.registry.open(&d) {
                 Ok(mut editor) => {
                     if ["Imported process", "Imported net", "net1", "Imported log"].contains(&editor.name()) {

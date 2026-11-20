@@ -219,8 +219,10 @@ fn strip_petri_suffix(name: &str) -> String {
 /// Petri net (workflow net) → BPMN translation, used to "deduce the BPMN diagram"
 /// of a discovered net:
 ///
-/// * transition → task; several input (output) flows → parallel join (split);
+/// * visible transition → task; silent transition → routing gateway;
+/// * several input (output) flows → parallel join (split);
 /// * source place → start event, sink place → end event;
+///   place names are kept as documentation, not observed business activities;
 /// * place with one producer and one consumer → plain sequence flow;
 /// * other places → exclusive merge / split;
 /// * **decision clusters**: places sharing consumers (non free-choice, e.g. Alpha's
@@ -238,6 +240,9 @@ pub fn petri_to_bpmn(net: &PetriNet) -> (BpmnDiagram, Vec<String>) {
     let mut warnings = Vec::new();
     if net.arcs.iter().any(|a| a.weight != 1 || a.kind != crate::petri::ArcKind::Normal) {
         warnings.push(tr("conversion.arc_weights_inhibitor_arcs_have_no_bpmn").into());
+    }
+    if net.places.iter().any(|place| place.capacity.is_some()) {
+        warnings.push(tr("conversion.place_capacities_have_no_bpmn").into());
     }
 
     let np = net.places.len();
@@ -445,7 +450,7 @@ pub fn petri_to_bpmn(net: &PetriNet) -> (BpmnDiagram, Vec<String>) {
             (1, 1) => edges.push((Ep::Out(pre[0]), Ep::In(post[0]))),
             (0, _) => {
                 let s = d.add_node(NodeKind::StartEvent(EventTrigger::None), pos);
-                d.node_mut(s).unwrap().name = name;
+                d.node_mut(s).unwrap().documentation = name;
                 let exit = if post.len() > 1 {
                     let x = gw(&mut d, GatewayType::Exclusive, Pos::new(pos.x + 70.0, pos.y));
                     edges.push((Ep::Node(s), Ep::Node(x)));
@@ -459,7 +464,7 @@ pub fn petri_to_bpmn(net: &PetriNet) -> (BpmnDiagram, Vec<String>) {
             }
             (_, 0) => {
                 let e = d.add_node(NodeKind::EndEvent(EventTrigger::None), pos);
-                d.node_mut(e).unwrap().name = name;
+                d.node_mut(e).unwrap().documentation = name;
                 let entry = if pre.len() > 1 {
                     let j = gw(&mut d, GatewayType::Exclusive, Pos::new(pos.x - 70.0, pos.y));
                     edges.push((Ep::Node(j), Ep::Node(e)));
@@ -506,12 +511,23 @@ pub fn petri_to_bpmn(net: &PetriNet) -> (BpmnDiagram, Vec<String>) {
         }
     }
 
-    // ---- tasks (+ parallel gateways when a transition has several inputs / outputs)
+    // ---- activities and silent routing (+ explicit parallel joins / splits)
     let mut t_in = vec![0; nt];
     let mut t_out = vec![0; nt];
+    let mut silent_connectors = Vec::new();
     for (t, tr) in net.transitions.iter().enumerate() {
-        let task = d.add_node(NodeKind::Task(TaskType::Abstract), tpos[t]);
-        d.node_mut(task).unwrap().name = if tr.silent { String::new() } else { tr.name.clone() };
+        let kind = if tr.silent {
+            NodeKind::Gateway(GatewayType::Parallel)
+        } else {
+            NodeKind::Task(TaskType::Abstract)
+        };
+        let task = d.add_node(kind, tpos[t]);
+        if tr.silent {
+            d.node_mut(task).unwrap().documentation = tr.name.clone();
+            silent_connectors.push(task);
+        } else {
+            d.node_mut(task).unwrap().name = tr.name.clone();
+        }
         let ins = edges.iter().filter(|e| e.1 == Ep::In(t)).count();
         let outs = edges.iter().filter(|e| e.0 == Ep::Out(t)).count();
         t_in[t] = task;
@@ -535,10 +551,49 @@ pub fn petri_to_bpmn(net: &PetriNet) -> (BpmnDiagram, Vec<String>) {
     for (a, b) in edges {
         let _ = d.add_flow(resolve(a), resolve(b));
     }
+    contract_silent_connectors(&mut d, &silent_connectors);
     if (0..np).filter(|&p| pre_p[p].is_empty()).count() != 1 {
         warnings.push(tr("conversion.net_has_no_single_source_place_start").into());
     }
     (d, warnings)
+}
+
+/// Remove only transparent routing introduced for a silent transition. Keep a
+/// gateway when the replacement would become a forbidden self-loop or merge
+/// distinct parallel routes into an existing flow. Choice clusters and the
+/// explicit AND joins/splits are deliberately outside this reduction.
+fn contract_silent_connectors(diagram: &mut BpmnDiagram, connectors: &[Id]) {
+    for &id in connectors {
+        let incoming: Vec<_> = diagram.incoming(id).cloned().collect();
+        let outgoing: Vec<_> = diagram.outgoing(id).cloned().collect();
+        let ([before], [after]) = (incoming.as_slice(), outgoing.as_slice()) else {
+            continue;
+        };
+        if before.from == after.to
+            || !before.name.is_empty()
+            || !after.name.is_empty()
+            || before.is_default
+            || after.is_default
+            || diagram.flows.iter().any(|flow| {
+                (flow.from == before.from && flow.to == after.to) || ((flow.from == id || flow.to == id) && flow.kind != FlowKind::Sequence)
+            })
+        {
+            continue;
+        }
+        if diagram.add_flow(before.from, after.to).is_err() {
+            continue;
+        }
+        let documentation = diagram.node(id).map(|node| node.documentation.clone()).unwrap_or_default();
+        diagram.remove_node(id);
+        if !documentation.is_empty()
+            && let Some(target) = diagram.node_mut(after.to)
+        {
+            if !target.documentation.is_empty() {
+                target.documentation.push('\n');
+            }
+            target.documentation.push_str(&documentation);
+        }
+    }
 }
 
 fn spread(j: usize, k: usize) -> f32 {
@@ -559,6 +614,239 @@ mod tests {
     use super::*;
     use crate::analysis::{Soundness, soundness};
     use crate::bpmn::{EventTrigger, TaskType};
+    use std::collections::{BTreeSet, VecDeque};
+
+    /// Compare complete observable words, including rejected interleavings, on
+    /// bounded workflow examples. Silent cycles terminate through state reuse.
+    fn bounded_language(net: &PetriNet, max_word: usize) -> BTreeSet<Vec<String>> {
+        let compiled = net.compile();
+        let sinks: Vec<_> = net
+            .places
+            .iter()
+            .enumerate()
+            .filter(|(_, place)| !net.arcs.iter().any(|arc| arc.from == NodeRef::Place(place.id)))
+            .map(|(index, _)| index)
+            .collect();
+        let initial = (net.initial_marking(), Vec::<String>::new());
+        let mut seen = HashSet::from([initial.clone()]);
+        let mut queue = VecDeque::from([initial]);
+        let mut language = BTreeSet::new();
+        while let Some((marking, word)) = queue.pop_front() {
+            if marking
+                .iter()
+                .enumerate()
+                .all(|(index, &tokens)| tokens == 0 || sinks.contains(&index))
+                && sinks.iter().map(|&index| marking[index]).sum::<u32>() == 1
+            {
+                language.insert(word.clone());
+            }
+            for (index, transition) in net.transitions.iter().enumerate() {
+                if !transition.silent && word.len() == max_word {
+                    continue;
+                }
+                if let Some(marking) = compiled.fire(index, &marking) {
+                    let mut next_word = word.clone();
+                    if !transition.silent {
+                        next_word.push(transition.name.clone());
+                    }
+                    let state = (marking, next_word);
+                    if seen.insert(state.clone()) {
+                        assert!(seen.len() <= 20_000, "conversion example exceeded its state bound");
+                        queue.push_back(state);
+                    }
+                }
+            }
+        }
+        language
+    }
+
+    fn assert_round_trip_language(net: &PetriNet, max_word: usize) -> BpmnDiagram {
+        let original = net.clone();
+        let expected = bounded_language(net, max_word);
+        assert!(!expected.is_empty(), "the original example must have a complete trace");
+        let (diagram, warnings) = petri_to_bpmn(net);
+        assert!(warnings.is_empty(), "{warnings:?}");
+        assert_eq!(net, &original, "conversion must not alter the source document");
+        assert!(
+            diagram
+                .nodes
+                .iter()
+                .filter(|node| matches!(node.kind, NodeKind::Task(_)))
+                .all(|node| !node.name.is_empty())
+        );
+        assert!(
+            diagram
+                .validate()
+                .iter()
+                .all(|issue| issue.severity != crate::bpmn::Severity::Error),
+            "{:?}",
+            diagram.validate()
+        );
+        let converted = bpmn_to_petri(&diagram);
+        assert!(converted.warnings.is_empty(), "{:?}", converted.warnings);
+        assert_eq!(bounded_language(&converted.net, max_word), expected);
+        diagram
+    }
+
+    fn transition(net: &mut PetriNet, name: &str, silent: bool) -> NodeRef {
+        let id = net.add_transition(Pos::new(net.transitions.len() as f32 * 100.0, 100.0));
+        let transition = net.transition_mut(id).unwrap();
+        transition.name = name.into();
+        transition.silent = silent;
+        NodeRef::Transition(id)
+    }
+
+    fn place(net: &mut PetriNet, tokens: u32) -> NodeRef {
+        NodeRef::Place(net.add_place(Pos::new(net.places.len() as f32 * 100.0, 0.0), tokens))
+    }
+
+    #[test]
+    fn projected_routing_and_boundaries_do_not_become_business_tasks() {
+        use crate::mining::{DiscoveryOptions, EventLog, discover_with_options_cancellable};
+        let log = EventLog {
+            traces: vec![
+                vec!["Register".into(), "Vide1".into(), "Empty the oven".into(), "Pay".into()],
+                vec!["Register".into(), "Empty2".into(), "Pay".into()],
+            ],
+        };
+        let discovered = discover_with_options_cancellable(
+            &log,
+            &DiscoveryOptions {
+                normalize_boundaries: true,
+            },
+            &|| false,
+        )
+        .unwrap();
+        let diagram = assert_round_trip_language(&discovered.net, 3);
+        let tasks: BTreeSet<_> = diagram
+            .nodes
+            .iter()
+            .filter(|node| matches!(node.kind, NodeKind::Task(_)))
+            .map(|node| node.name.as_str())
+            .collect();
+        assert_eq!(tasks, BTreeSet::from(["Register", "Empty the oven", "Pay"]));
+        assert!(
+            diagram
+                .nodes
+                .iter()
+                .filter(|node| matches!(node.kind, NodeKind::StartEvent(_) | NodeKind::EndEvent(_)))
+                .all(|node| node.name.is_empty() && !node.documentation.is_empty())
+        );
+        let back = bpmn_to_petri(&diagram).net;
+        for trace in &log.traces {
+            crate::mining::replay(&back, &discovered.project_trace(trace)).unwrap();
+        }
+    }
+
+    #[test]
+    fn normalized_parallel_final_activities_still_require_both_branches() {
+        use crate::mining::{DiscoveryOptions, EventLog, discover_with_options_cancellable};
+        let log = EventLog::parse("AB BA").unwrap();
+        let discovered = discover_with_options_cancellable(
+            &log,
+            &DiscoveryOptions {
+                normalize_boundaries: true,
+            },
+            &|| false,
+        )
+        .unwrap();
+        let diagram = assert_round_trip_language(&discovered.net, 3);
+        let back = bpmn_to_petri(&diagram).net;
+        assert_eq!(
+            bounded_language(&back, 3),
+            BTreeSet::from([vec!["A".to_owned(), "B".to_owned()], vec!["B".to_owned(), "A".to_owned()]])
+        );
+        assert!(matches!(soundness(&back, 10_000), Soundness::Sound));
+    }
+
+    #[test]
+    fn silent_retry_routing_preserves_repeated_business_activity() {
+        let mut net = PetriNet::new("Retry");
+        let input = place(&mut net, 1);
+        let ready = place(&mut net, 0);
+        let cooked = place(&mut net, 0);
+        let output = place(&mut net, 0);
+        let enter = transition(&mut net, "Enter", true);
+        let cook = transition(&mut net, "Cook", false);
+        let retry = transition(&mut net, "Retry route", true);
+        let serve = transition(&mut net, "Serve", false);
+        for (from, to) in [
+            (input, enter),
+            (enter, ready),
+            (ready, cook),
+            (cook, cooked),
+            (cooked, retry),
+            (retry, ready),
+            (cooked, serve),
+            (serve, output),
+        ] {
+            net.add_arc(from, to).unwrap();
+        }
+        let diagram = assert_round_trip_language(&net, 4);
+        let language = bounded_language(&bpmn_to_petri(&diagram).net, 4);
+        assert!(language.contains(&vec!["Cook".into(), "Cook".into(), "Serve".into()]));
+        assert!(!language.contains(&vec!["Serve".into()]));
+    }
+
+    #[test]
+    fn empty_parallel_routes_are_not_collapsed_into_one_flow() {
+        let mut net = PetriNet::new("Parallel routing");
+        let input = place(&mut net, 1);
+        let left = place(&mut net, 0);
+        let right = place(&mut net, 0);
+        let left_done = place(&mut net, 0);
+        let right_done = place(&mut net, 0);
+        let ready = place(&mut net, 0);
+        let output = place(&mut net, 0);
+        let fork = transition(&mut net, "Fork", true);
+        let left_route = transition(&mut net, "Left route", true);
+        let right_route = transition(&mut net, "Right route", true);
+        let join = transition(&mut net, "Join", true);
+        let activity = transition(&mut net, "Finish", false);
+        for (from, to) in [
+            (input, fork),
+            (fork, left),
+            (fork, right),
+            (left, left_route),
+            (left_route, left_done),
+            (right, right_route),
+            (right_route, right_done),
+            (left_done, join),
+            (right_done, join),
+            (join, ready),
+            (ready, activity),
+            (activity, output),
+        ] {
+            net.add_arc(from, to).unwrap();
+        }
+        let diagram = assert_round_trip_language(&net, 2);
+        assert!(
+            diagram
+                .nodes
+                .iter()
+                .any(|node| node.kind == NodeKind::Gateway(GatewayType::Parallel) && diagram.outgoing(node.id).count() == 2)
+        );
+        assert!(
+            diagram
+                .nodes
+                .iter()
+                .any(|node| node.kind == NodeKind::Gateway(GatewayType::Parallel) && diagram.incoming(node.id).count() == 2)
+        );
+    }
+
+    #[test]
+    fn capacities_are_reported_without_modifying_the_original_net() {
+        let mut net = crate::mining::alpha(&crate::mining::EventLog::parse("AB").unwrap()).net;
+        net.places[0].capacity = Some(1);
+        let original = net.clone();
+        let (_, warnings) = petri_to_bpmn(&net);
+        assert!(
+            warnings
+                .iter()
+                .any(|warning| warning == tr("conversion.place_capacities_have_no_bpmn"))
+        );
+        assert_eq!(net, original);
+    }
 
     #[test]
     fn xor_and_process_is_sound() {
@@ -662,5 +950,6 @@ mod tests {
             crate::analysis::soundness(&back.net, 10_000),
             crate::analysis::Soundness::Sound
         ));
+        assert_round_trip_language(&r.net, 4);
     }
 }

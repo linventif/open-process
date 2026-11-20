@@ -7,7 +7,11 @@ impl MiningEditor {
         let pal = Palette::for_ui(ui);
         let exam = crate::editor::exam::active(ui.ctx());
         let Some(Computed {
-            result, soundness: sound, ..
+            result,
+            soundness: sound,
+            replays,
+            report,
+            ..
         }) = &self.computed
         else {
             ui.spinner();
@@ -84,7 +88,7 @@ impl MiningEditor {
                     ui.menu_button(tr("mining.copy"), |ui| {
                         theme::menu_style(ui.style_mut());
                         if ui.button(tr("mining.full_write_up_text")).clicked() {
-                            copy = Some((r.report(log), tr("mining.write_up_copied")));
+                            copy = Some((report.clone(), tr("mining.write_up_copied")));
                         }
                         if ui.button(tr("mining.relation_matrix_latex")).clicked() {
                             copy = Some((f.to_latex(), tr("mining.relation_matrix_copied_latex")));
@@ -95,6 +99,10 @@ impl MiningEditor {
                     });
                 });
             });
+
+            if !r.projected_activities.is_empty() {
+                ui.label(RichText::new(tr("mining.report.projected_markers")).small().weak());
+            }
 
             // ---- 1. traces
             card_section(ui, "1", tr("mining.traces"), tr("mining.distinct_words_log"), |ui| {
@@ -263,11 +271,12 @@ impl MiningEditor {
             // ---- 6. word check
             card_section(ui, "6", tr("mining.word_check"), tr("mining.replay_every_trace_alpha_w"), |ui| {
                 egui::Grid::new("replay").num_columns(2).spacing([14.0, 8.0]).show(ui, |ui| {
-                    for (t, _) in log.variants() {
+                    for (index, (t, _)) in log.variants().into_iter().enumerate() {
                         ui.label(RichText::new(log.format_trace(&t)).monospace());
-                        match replay(&r.net, &t) {
-                            Ok(()) => chip(ui, tr("mining.answer.ok"), pal.ok),
-                            Err(e) => chip(ui, &format!("✖ {e}"), pal.bad),
+                        match replays.get(index) {
+                            Some(Ok(())) => chip(ui, tr("mining.answer.ok"), pal.ok),
+                            Some(Err(e)) => chip(ui, &format!("✖ {e}"), pal.bad),
+                            None => chip(ui, tr("mining.analysis_pending"), pal.warn),
                         };
                         ui.end_row();
                     }
