@@ -1966,3 +1966,38 @@ checked. Optional pinned Python publication packages are isolated from Rust and
 WebAssembly runtime dependencies. The supplied data and existing log/Petri/sales
 study files retain their original bytes. These are local Linux/Firefox checks;
 no remote multi-system CI, release build, upload or deployment is claimed.
+
+## Alpha exercise mode — 24 November 2026
+
+`op_core::mining::exercise` draws random block-structured processes and keeps a
+log only when α(W) is sound and accepts exactly the process traces up to the
+longest trace that repeats each loop at most once. The comparison replays every
+expected trace, then counts the net's complete firing sequences with memoization.
+Unit tests generate 120 seeds per difficulty without the fallback, and check
+activity and trace bounds, single initial and final activities, replay,
+soundness, determinism and variety. A two-activity loop and a parallel start are
+rejected; a three-activity loop is accepted. Removed-pair explanations match
+`|XW| − |YW|`.
+
+A native Windows release timing over 1,000 seeds per level measured generation
+means of 39 µs, 73 µs and 0.41 ms, with worst cases of 0.34 ms, 0.41 ms and
+5.7 ms for Easy, Medium and Hard. WebAssembly timing was not measured.
+
+Three UI tests cover generation through the difficulty menu and button,
+progressive reveal, Previous/Next, Show all/Hide answers, opening α(W) from the
+last step and the single undo. They also cover saved view state, restoration of
+older `null` views and exam-mode isolation. Screenshots of the question,
+YW explanation and final net steps were reviewed.
+
+After review, the full results view also shows **Deduce BPMN**, **Open Petri
+net** and **Copy** under the word check, as in the exercise's last step; the
+header keeps them. A UI test deduces BPMN from the lower button. Tests that
+clicked these buttons by label now select the header copy explicitly.
+
+`cargo fmt --check` and `git diff --check` pass. `cargo clippy --workspace
+--all-targets -D warnings` (Rust 1.100) reports only an existing finding in
+Windows-only test code in `io/atomic.rs` (`permissions_set_readonly_false`), which
+this change does not touch. With that lint allowed, it passes. The sequential
+workspace run passed **367 tests** (159 app, 187 core, 21 integration), none
+ignored. The WebAssembly target is not installed locally, so the
+`wasm32-unknown-unknown` check was not run. No CI run is claimed.

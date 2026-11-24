@@ -10,6 +10,7 @@ use crate::xml;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 
+pub mod exercise;
 pub mod import;
 
 // -------------------------------------------------------------------------

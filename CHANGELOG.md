@@ -9,6 +9,11 @@ does not distinguish the automatic `main-*` releases.
 
 ### Process discovery and sales analysis
 
+- Generate random Alpha exercises at three difficulty levels. Each log is
+  complete for Alpha, and α(W) is checked to be a sound workflow net that
+  accepts exactly the generating process's traces. Reveal the solution step by
+  step, with per-trace working for successions, TI and TO and the removed
+  non-maximal pairs of XW. The walkthrough also works for any log.
 - Import event logs from CSV and XLSX, remove empty trailing CSV columns, and
   optionally normalize case boundaries for parallel starts and ends. Convert
   recorded `Vide`/`Empty` routing markers to silent Petri transitions and replay

@@ -18,10 +18,25 @@ impl EditorBackend for MiningEditor {
             Some(egui::Rect::NOTHING)
         }
     }
-    type ViewState = ();
-    fn capture_view(&self) {}
-    fn restore_view(&mut self, _: &()) {}
-    fn fresh_view(&self) {}
+    type ViewState = exercise::ExerciseView;
+    fn capture_view(&self) -> Self::ViewState {
+        self.exercise
+    }
+    fn restore_view(&mut self, state: &Self::ViewState) {
+        self.exercise = *state;
+    }
+    fn fresh_view(&self) -> Self::ViewState {
+        Self::ViewState::default()
+    }
+    fn save_view(state: &Self::ViewState) -> serde_json::Value {
+        serde_json::to_value(state).unwrap_or_default()
+    }
+    fn load_view(state: &mut Self::ViewState, value: &serde_json::Value) {
+        // Workspaces saved before exercise mode store `null` for event-log views.
+        if let Ok(saved) = serde_json::from_value(value.clone()) {
+            *state = saved;
+        }
+    }
     fn kind(&self) -> &'static str {
         "event-log"
     }

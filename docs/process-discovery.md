@@ -1,8 +1,9 @@
 # Process discovery from event logs
 
 The event-log workspace uses the Alpha algorithm to explain how recorded traces
-lead to a Petri net. It includes a footprint matrix, construction steps, manual
-exercises, trace replay and commands to open the discovered model.
+lead to a Petri net. It includes a footprint matrix, construction steps,
+generated exercises with step-by-step answers, exam answer fields, trace replay
+and commands to open the discovered model.
 
 ## Prepare and import a log
 
@@ -98,10 +99,55 @@ change the inferred choices and preparation loops. The routing connections are
 therefore retained as silent transitions, and replay uses each trace's visible
 projection. This rule is independent of **Normalize process boundaries**.
 
-Manual exercises let you enter relations and construction sets, check answers,
-request hints or fill a step. Copy controls provide supported text, CSV and
-LaTeX representations. Exam mode removes computed assistance and generated
-results without changing the stored event log.
+Copy controls provide supported text, CSV and LaTeX representations. Exam mode
+removes computed assistance and generated results without changing the stored
+event log. Its fields record relations, matrix cells and construction sets; they
+are saved with the log and are not checked.
+
+## Practise with generated exercises
+
+The **Exercise** section of the input panel generates practice logs. Choose a
+difficulty, then click **New exercise**. The log is replaced by one trace per
+line, using one-letter activities. Generation also clears exam answers written
+for the previous log and turns off **Normalize process boundaries**, because
+exercises use classic Alpha. A single **Undo** restores the previous log, its
+answers and its options. The document name is unchanged.
+
+| Difficulty | Activities | Traces | Constructs |
+| --- | --- | --- | --- |
+| Easy | 4–6 | 2–4 | Choice or parallel blocks of single activities, without nesting. |
+| Medium | 6–8 | 2–6 | Exclusive choices and parallel branches, both present, nested up to two levels. |
+| Hard | 7–10 | 2–8 | Blocks nested up to three levels, with a loop of at least three activities and a choice or parallel block. |
+
+Each log comes from a random block-structured process with unique activities.
+Every case starts with `A` and ends with the last letter. The traces cover every
+direct succession of that process, so the log is complete for Alpha. A log is
+kept only when α(W) is a sound workflow net and accepts exactly the process
+traces up to the longest trace that repeats each loop at most once. Otherwise
+another process is drawn. Loops of one or two activities, silent steps,
+duplicate activities and parallel starts or ends, which Alpha cannot rediscover,
+are never generated. The generating process and its random seed are not shown.
+
+**Reveal answers step by step** hides the results behind a statement card. The
+walkthrough has 11 steps: direct successions, relations, the relation matrix,
+TW, TI, TO, XW, YW, PW, FW and α(W). Each card states the rule before its
+answer. Successions, TI and TO list the working for each distinct trace. YW
+lists removed pairs of XW, each with a maximal pair that contains it. The last
+step shows the net, the word check, the soundness verdict and the commands to
+open α(W), deduce BPMN or copy the write-up. Explanations show at most 12 lines
+and count the rest.
+
+Use **Show answer** on the next card, or **Previous** and **Next step** in the
+status bar. **Show all** and **Hide answers** change every step at once. The
+walkthrough also works for logs that you type or import. Opening, BPMN and copy
+commands appear only once every step is revealed. **File → Export** still
+provides the write-up.
+
+The reveal option, the number of revealed steps and the selected difficulty are
+view state. Each view keeps its own state, and session restoration resumes it.
+Saved `.opx` files contain the generated log but not the view state. Exam mode
+hides the exercise controls and the walkthrough; the generated log remains
+available as the exam subject.
 
 ## Replay and continue modelling
 
@@ -114,8 +160,9 @@ with bounded search. An exploration-limit message is inconclusive.
 
 **Open Petri net** creates an editable document for simulation and
 [further analysis](petri-nets.md). **Deduce BPMN** creates the corresponding
-supported process projection. These are separate documents, not synchronized
-views of the original log. **File → Export** provides the Alpha write-up when
+supported process projection. Both commands, and the **Copy** menu, appear in
+the results header and again under the word check. They create separate
+documents, not synchronized views of the original log. **File → Export** provides the Alpha write-up when
 the current results are ready. Save `.opx` to preserve your log and authored work.
 
 Silent Petri routes become BPMN routing gateways rather than unnamed business

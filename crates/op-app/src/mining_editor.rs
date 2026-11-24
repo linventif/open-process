@@ -1,6 +1,7 @@
 //! Process discovery: event log → relation matrix → Alpha algorithm → Petri net → BPMN.
 
 pub(crate) mod analysis_job;
+mod exercise;
 mod results;
 mod session;
 pub(crate) use session::register;
@@ -61,6 +62,8 @@ pub struct MiningEditor {
     pub action: Option<MiningAction>,
     queued_actions: Vec<MiningAction>,
     matrix_rect: egui::Rect,
+    /// View state of the rendered view, restored by the session.
+    exercise: exercise::ExerciseView,
     pub status: String,
     workbooks: crate::io::FileIo,
 }
@@ -91,6 +94,7 @@ impl MiningEditor {
             action: None,
             queued_actions: Vec::new(),
             matrix_rect: egui::Rect::NOTHING,
+            exercise: exercise::ExerciseView::default(),
             status: String::new(),
             workbooks: crate::io::FileIo::default(),
         }
@@ -199,6 +203,9 @@ impl MiningEditor {
                 bottom: 10,
             }))
             .show(ui, |ui| self.input_panel(ui));
+        let stepping = self.exercise.active
+            && !crate::editor::exam::active(ui.ctx())
+            && matches!(self.computed.as_ref().map(|c| &c.result), Some(Ok(MiningOutput::Discovery(..))));
         egui::Panel::bottom("log_status")
             .exact_size(30.0)
             .frame(egui::Frame::new().fill(panel).inner_margin(egui::Margin::symmetric(12, 3)))
@@ -208,6 +215,11 @@ impl MiningEditor {
                         ui.label(RichText::new(e).color(ui.visuals().error_fg_color));
                     }
                     ui.label(RichText::new(&self.status).color(ui.visuals().weak_text_color()));
+                    if stepping {
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            self.exercise_navigation(ui);
+                        });
+                    }
                 });
             });
         egui::CentralPanel::default()
@@ -310,6 +322,9 @@ impl MiningEditor {
             self.pending = None;
             self.computed = None;
             self.preview = None;
+        }
+        if !exam {
+            self.exercise_controls(ui);
         }
         theme::section_title(ui, tr("mining.traces"));
         let lbl = ui.label(RichText::new(tr("mining.one_event_trace_per_line")).small().weak());
