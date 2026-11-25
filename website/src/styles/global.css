@@ -17,3 +17,28 @@
 @media(max-width:760px){.catalogue{padding-top:46px}.catalogue-grid{grid-template-columns:1fr;gap:12px;margin-top:26px}.catalogue-card{padding:23px}.preview-tabs{padding:0}.storage{padding-top:49px}.storage-grid{grid-template-columns:1fr;gap:24px}.storage-grid h3{font-size:23px}.storage-grid p{max-width:500px}.workspace-note{font-size:11px}.preview-tabs button{padding-inline:7px}}
 @media(max-width:480px){.preview-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .site-footer{flex-wrap:wrap}.site-footer>p{flex:1 1 180px}.footer-links{display:flex;flex-wrap:wrap;gap:12px 20px;font-size:10px;line-height:1.8}.footer-links a:hover,.footer-links a[aria-current="page"]{text-decoration:underline;text-underline-offset:4px}
+.nav-github {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--button-radius);
+  background: var(--white);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.nav-github:hover { border-color: var(--ink); }
+@media (max-width: 760px) {
+  .header-inner { flex-wrap: wrap; row-gap: 0; padding-top: 14px; }
+  .site-header nav {
+    display: flex;
+    order: 1;
+    flex-basis: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px 20px;
+    margin-left: 0;
+    padding-block: 12px 14px;
+  }
+}

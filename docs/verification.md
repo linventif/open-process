@@ -2001,3 +2001,26 @@ this change does not touch. With that lint allowed, it passes. The sequential
 workspace run passed **367 tests** (159 app, 187 core, 21 integration), none
 ignored. The WebAssembly target is not installed locally, so the
 `wasm32-unknown-unknown` check was not run. No CI run is claimed.
+
+## Alpha exercise review — 25 November 2026
+
+The walkthrough now includes the actual generated boundary names in its
+per-trace succession, TI and TO explanations when boundary normalization is
+enabled. It displays the existing translated normalization notice and leaves
+the authored log, options and replay input unchanged. A focused UI regression
+covers ordinary normalized logs and source activities named `[start]` and
+`[end]`, which require collision-safe generated names.
+
+The PR's first CI run exposed the pre-existing `url` 2.5.8 vulnerability
+RUSTSEC-2026-0592. The lockfile now selects patched `url` 2.5.9 and its required
+`form_urlencoded` 1.2.3; no dependency manifest changed.
+
+Local Linux checks passed: the focused UI regression, the sequential locked
+workspace suite (370 tests: 162 app, 187 core and 21 integration; none ignored),
+`cargo fmt --all -- --check`,
+`cargo clippy --locked --workspace --all-targets -- -D warnings`,
+native and `wasm32-unknown-unknown` checks for `op-app`, and `git diff --check`.
+`cargo audit --no-yanked` with the installed cargo-audit 0.22.2 found no
+vulnerabilities and retained four allowed unmaintained-package warnings; CI
+uses cargo-audit 0.23.0. These checks do not establish browser latency or
+cross-platform behavior; the PR's CI tracks the broader matrix.

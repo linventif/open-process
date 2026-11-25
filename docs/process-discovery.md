@@ -131,8 +131,11 @@ are never generated. The generating process and its random seed are not shown.
 **Reveal answers step by step** hides the results behind a statement card. The
 walkthrough has 11 steps: direct successions, relations, the relation matrix,
 TW, TI, TO, XW, YW, PW, FW and α(W). Each card states the rule before its
-answer. Successions, TI and TO list the working for each distinct trace. YW
-lists removed pairs of XW, each with a maximal pair that contains it. The last
+answer. Successions, TI and TO list the working for each distinct trace. When
+**Normalize process boundaries** is enabled, these explanations include the
+generated boundary activities used in the construction; the source log stays
+unchanged. YW lists removed pairs of XW, each with a maximal pair that contains
+it. The last
 step shows the net, the word check, the soundness verdict and the commands to
 open α(W), deduce BPMN or copy the write-up. Explanations show at most 12 lines
 and count the rest.

@@ -111,6 +111,9 @@ Alternative families, their palette catalogue and preview images are removed.
   the selected language. Links work without JavaScript; with JavaScript, Escape
   or an outside click closes the menu. Shared `LanguageFlag.astro` uses local
   `public/flags/` SVGs, hidden from screen readers as decoration.
+- A labeled GitHub repository link in the header of presentation, documentation
+  and legal pages in all three languages. On mobile, header navigation occupies
+  its own wrapping row so GitHub remains visible alongside the other links.
 
 Translations live in `src/lib/messages.ts`, content in
 `src/components/Landing.astro`, metadata in `src/layouts/Page.astro`, and behavior

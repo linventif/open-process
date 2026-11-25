@@ -124,6 +124,58 @@ fn generated_exercises_reveal_alpha_step_by_step_and_undo_restores_the_log() {
 }
 
 #[test]
+fn normalized_log_walkthrough_explains_generated_boundaries_without_changing_the_source() {
+    for (text, trace, start, end, successions) in [
+        (
+            "ABC\nADC",
+            "⟨[start], A, B, C, [end]⟩",
+            "[start]",
+            "[end]",
+            "[start]>A, A>B, B>C, C>[end]",
+        ),
+        (
+            "[start] -> A -> [end]",
+            "⟨[start] (2), [start], A, [end], [end] (2)⟩",
+            "[start] (2)",
+            "[end] (2)",
+            "[start] (2)>[start], [start]>A, A>[end], [end]>[end] (2)",
+        ),
+    ] {
+        let mut h = harness(false);
+        let original = LogDocument {
+            name: "Normalized practice".into(),
+            text: text.into(),
+            discovery: DiscoveryOptions {
+                normalize_boundaries: true,
+            },
+            ..Default::default()
+        };
+        open_log(&mut h, original.clone());
+        press_label(&mut h, "Reveal answers step by step");
+        press_label(&mut h, "Show all");
+
+        assert!(h.query_by_label(tr("mining.report.normalized_boundaries")).is_some());
+        for explanation in [
+            format!("• {trace}: {successions}"),
+            format!("• {trace} → {start}"),
+            format!("• {trace} → {end}"),
+        ] {
+            assert!(
+                h.query_by_label(&explanation).is_some(),
+                "missing normalized explanation: {explanation}"
+            );
+        }
+        assert!(
+            h.query_by_label(&format!("{{{start}}}")).is_some(),
+            "TI uses the same generated start"
+        );
+        assert!(h.query_by_label(&format!("{{{end}}}")).is_some(), "TO uses the same generated end");
+        assert_eq!(saved_log(&h), original, "the walkthrough preserves the original log and options");
+        assert!(!h.state().docs[h.state().active].dirty());
+    }
+}
+
+#[test]
 fn exercise_view_state_is_saved_with_the_workspace_and_older_workspaces_open_unchanged() {
     let mut h = harness(false);
     open_log(

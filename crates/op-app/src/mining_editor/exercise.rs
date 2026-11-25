@@ -216,6 +216,9 @@ pub(super) fn exercise_results(ui: &mut Ui, view: &mut ExerciseView, solved: &So
                 }
             });
         });
+        if solved.r.boundary_activities.is_some() {
+            ui.label(RichText::new(tr("mining.report.normalized_boundaries")).small().weak());
+        }
         if !solved.r.projected_activities.is_empty() {
             ui.label(RichText::new(tr("mining.report.projected_markers")).small().weak());
         }
@@ -274,9 +277,23 @@ fn step_answer(ui: &mut Ui, step: Step, solved: &Solved, preview: &mut Option<Pe
     let per_trace = |ui: &mut Ui, separator: &str, describe: &dyn Fn(&[String]) -> String| {
         explanation(
             ui,
-            variants
-                .iter()
-                .map(|(trace, _)| format!("{}{separator}{}", log.format_trace(trace), describe(trace))),
+            variants.iter().map(|(trace, _)| {
+                // Explain the same activities used to construct the footprint,
+                // including collision-safe boundaries, without editing the source.
+                let normalized = r.boundary_activities.as_ref().map(|[start, end]| {
+                    std::iter::once(start.clone())
+                        .chain(trace.iter().cloned())
+                        .chain(std::iter::once(end.clone()))
+                        .collect::<Vec<_>>()
+                });
+                let trace = normalized.as_deref().unwrap_or(trace);
+                let text = if normalized.is_some() {
+                    format!("⟨{}⟩", trace.join(", "))
+                } else {
+                    log.format_trace(trace)
+                };
+                format!("{text}{separator}{}", describe(trace))
+            }),
             variants.len(),
         );
     };
