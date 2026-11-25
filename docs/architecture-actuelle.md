@@ -137,8 +137,10 @@ editor access through `Any` is restricted to UI probes under `cfg(test)`.
 
 `bpmn_editor/` and `petri_editor/` separate interaction, rendering, inspector/panels
 and session adaptation. `uml_editor/` separates interaction, rendering, inspector,
-tools and session. Mining results live in `mining_editor/results.rs`, with
-integration in `mining_editor/session.rs`. Historical module names remain; the target's
+tools and session. Mining results live in `mining_editor/results.rs`, the
+step-by-step exercise walkthrough in `mining_editor/exercise.rs`, with
+integration in `mining_editor/session.rs`. Exercise generation and its
+rediscovery check are domain rules in `op-core/src/mining/exercise.rs`. Historical module names remain; the target's
 logical directory tree did not require renaming public paths.
 
 ## Shared graphical layout

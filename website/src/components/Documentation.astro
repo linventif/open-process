@@ -28,7 +28,10 @@ const searchText = (doc: DocEntry) => `${doc.title} ${doc.description} ${doc.key
   <header class="site-header">
     <div class="container header-inner">
       <a class="brand" href={localizedPath(lang)} aria-label="Open Process"><img src="/assets/logo.svg" width="45" height="45" alt=""><span>Open Process<span class="brand-dot">.</span></span></a>
-      <nav aria-label={messages[lang].navLabel}><a href={docsPath(lang)} aria-current={!entry ? "page" : undefined}>{t.title}</a></nav>
+      <nav aria-label={messages[lang].navLabel}>
+        <a href={docsPath(lang)} aria-current={!entry ? "page" : undefined}>{t.title}</a>
+        <a href={repository} class="nav-github">GitHub</a>
+      </nav>
       <div class="header-actions">
         <ColorModeToggle lang={lang} />
         <LanguageMenu lang={lang} page={page} />

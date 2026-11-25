@@ -52,7 +52,7 @@ fn padded_csv_import_discovers_an_editable_net_and_round_trips() {
     h.run_steps(4);
     assert_eq!(saved_log(&h), log);
     wait_for_discovery(&mut h);
-    h.get_by_label("Open Petri net").click();
+    h.query_all_by_label("Open Petri net").next().unwrap().click();
     h.run_steps(4);
     let active = h.state().active;
     let editor = h.state_mut().docs[active]

@@ -6,6 +6,7 @@ use op_core::geom::Pos;
 mod appearance;
 mod arrange_and_tabs;
 mod connections;
+mod exercise_mode;
 mod image_export;
 mod import_discovery;
 mod mermaid_builder;
@@ -1194,14 +1195,15 @@ fn process_discovery() {
     wait_for_discovery(&mut h);
     shot(&mut h, "mining_top");
     let n = h.state().docs.len();
-    h.get_by_label("Open Petri net").click();
+    // The header button comes first; the word check card repeats it.
+    h.query_all_by_label("Open Petri net").next().unwrap().click();
     h.run_steps(4);
     assert_eq!(h.state().docs.len(), n + 1);
     assert!(h.state().docs.last().unwrap().editor.as_any().is::<PetriEditor>());
     shot(&mut h, "mining_petri");
     h.state_mut().set_active(n - 1);
     h.run_steps(4);
-    h.get_by_label("Deduce BPMN").click();
+    h.query_all_by_label("Deduce BPMN").next().unwrap().click();
     h.run_steps(4);
     assert!(h.state().docs.last().unwrap().editor.as_any().is::<BpmnEditor>());
     if let Some(e) = h

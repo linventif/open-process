@@ -3,7 +3,7 @@ import { messages, type Language } from "../lib/messages";
 import LanguageMenu from "./LanguageMenu.astro";
 import ColorModeToggle from "./ColorModeToggle.astro";
 import SiteFooter from "./SiteFooter.astro";
-import { cloudApp } from "../lib/site";
+import { cloudApp, repository } from "../lib/site";
 import { docsPath, toolGuides } from "../lib/docs-catalogue";
 import { docsMessages } from "../lib/docs-messages";
 interface Props { lang: Language }
@@ -47,7 +47,7 @@ const catalogue = [
       <nav aria-label={t.navLabel}>
         <a href="#explore">{t.navExplore}</a>
         <a href={docsPath(lang)}>{docsMessages[lang].title}</a>
-        <a href="https://github.com/linventif/open-process" class="nav-github">GitHub <span aria-hidden="true">↗</span></a>
+        <a href={repository} class="nav-github">GitHub</a>
       </nav>
       <div class="header-actions">
         <ColorModeToggle lang={lang} />

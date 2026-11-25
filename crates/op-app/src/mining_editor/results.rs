@@ -1,5 +1,6 @@
 //! Results for the MiningEditor notation.
 
+use super::exercise::{Solved, exercise_results};
 use super::*;
 
 impl MiningEditor {
@@ -43,8 +44,26 @@ impl MiningEditor {
                 return;
             }
         };
+        if self.exercise.active {
+            let solved = Solved {
+                name: &self.name,
+                log,
+                r,
+                replays,
+                soundness: sound.as_ref(),
+                report,
+            };
+            let requests = exercise_results(ui, &mut self.exercise, &solved, &mut self.preview);
+            if let Some((text, msg)) = requests.copy {
+                ui.ctx().copy_text(text);
+                self.status = msg.into();
+            }
+            if requests.action.is_some() {
+                self.action = requests.action;
+            }
+            return;
+        }
         let f = &r.footprint;
-        let n = |a: usize| f.activities[a].as_str();
         let mut action = None;
         let mut copy = None;
         let mut export: Option<&str> = None;
@@ -67,36 +86,8 @@ impl MiningEditor {
                     );
                 });
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui
-                        .add(theme::primary_button(ui, tr("mining.deduce_bpmn")))
-                        .on_hover_text(tr("mining.deduce_bpmn_diagram_from_alpha_w"))
-                        .clicked()
-                    {
-                        let (mut d, _) = convert::petri_to_bpmn(&r.net);
-                        d.name = trf("mining.bpmn_name", &[&self.name]);
-                        action = Some(MiningAction::OpenBpmn(d));
-                    }
-                    if ui
-                        .add(theme::primary_button(ui, tr("mining.open_petri_net")))
-                        .on_hover_text(tr("mining.open_alpha_w_petri_net_tab_simulation"))
-                        .clicked()
-                    {
-                        let mut net = r.net.clone();
-                        net.name = trf("mining.net_name", &[&self.name]);
-                        action = Some(MiningAction::OpenPetri(net));
-                    }
-                    ui.menu_button(tr("mining.copy"), |ui| {
-                        theme::menu_style(ui.style_mut());
-                        if ui.button(tr("mining.full_write_up_text")).clicked() {
-                            copy = Some((report.clone(), tr("mining.write_up_copied")));
-                        }
-                        if ui.button(tr("mining.relation_matrix_latex")).clicked() {
-                            copy = Some((f.to_latex(), tr("mining.relation_matrix_copied_latex")));
-                        }
-                        if ui.button(tr("mining.relation_matrix_text")).clicked() {
-                            copy = Some((f.to_text(), tr("mining.relation_matrix_copied")));
-                        }
-                    });
+                    action = open_actions(ui, r, &self.name);
+                    copy = copy_menu(ui, f, report);
                 });
             });
 
@@ -119,56 +110,12 @@ impl MiningEditor {
             });
 
             // ---- 2. relations
-            let list = |pairs: &[(usize, usize)], sym: &str| -> Vec<String> {
-                pairs.iter().map(|&(a, b)| format!("{}{sym}{}", n(a), n(b))).collect()
-            };
-            let par: Vec<(usize, usize)> = f
-                .pairs(Relation::Parallel)
-                .into_iter()
-                .flat_map(|(a, b)| if a == b { vec![(a, b)] } else { vec![(a, b), (b, a)] })
-                .collect();
             card_section(
                 ui,
                 "2",
                 tr("mining.relations_between_activities"),
                 tr("mining.identified_from_direct_successions"),
-                |ui| {
-                    egui::Grid::new("relations").num_columns(2).spacing([16.0, 10.0]).show(ui, |ui| {
-                        for (label, hint, items, color) in [
-                            (
-                                tr("mining.succession_x_y"),
-                                tr("mining.x_directly_followed_y_at_least_one"),
-                                list(&f.successions(), ">"),
-                                pal.muted,
-                            ),
-                            (
-                                tr("mining.causality_x_y"),
-                                tr("mining.x_y_not_y_x"),
-                                list(&f.pairs(Relation::Causal), "→"),
-                                pal.ok,
-                            ),
-                            (tr("mining.parallelism_x_y"), tr("mining.x_y_y_x"), list(&par, "||"), pal.select),
-                            (
-                                tr("mining.independence_x_y"),
-                                tr("mining.not_x_y_not_y_x"),
-                                list(&f.pairs(Relation::Independent), "#"),
-                                pal.muted,
-                            ),
-                        ] {
-                            ui.label(RichText::new(label).font(theme::medium(13.0))).on_hover_text(hint);
-                            ui.horizontal_wrapped(|ui| {
-                                ui.spacing_mut().item_spacing = egui::vec2(4.0, 4.0);
-                                if items.is_empty() {
-                                    ui.label(RichText::new("—").weak());
-                                }
-                                for it in items {
-                                    chip(ui, &it, color);
-                                }
-                            });
-                            ui.end_row();
-                        }
-                    });
-                },
+                |ui| relation_lists(ui, f, &pal),
             );
 
             // ---- 3. matrix
@@ -202,18 +149,7 @@ impl MiningEditor {
                         matrix_rect = relation_table(ui, f, &pal);
                     });
                     ui.add_space(6.0);
-                    ui.horizontal_wrapped(|ui| {
-                        for (sym, txt, c) in [
-                            ("→", tr("mining.causality"), pal.ok),
-                            ("←", tr("mining.reverse_causality"), pal.end),
-                            ("||", tr("mining.parallel"), pal.select),
-                            ("#", tr("mining.independent"), pal.muted),
-                        ] {
-                            ui.label(RichText::new(sym).font(theme::semibold(14.0)).color(c));
-                            ui.label(RichText::new(txt).small().weak());
-                            ui.add_space(8.0);
-                        }
-                    });
+                    matrix_legend(ui, &pal);
                 },
             );
 
@@ -238,13 +174,7 @@ impl MiningEditor {
                         ("FW", tr("mining.arcs_net"), format!("{{{}}}", fw.join(", "))),
                         ("α(W)", tr("mining.discovered_workflow_net"), "(PW, TW, FW)".into()),
                     ] {
-                        let (rect, _) = ui.allocate_exact_size(egui::vec2(44.0, 22.0), egui::Sense::hover());
-                        ui.painter()
-                            .rect_filled(rect, 6.0, pal.select.gamma_multiply(if pal.dark { 0.3 } else { 0.12 }));
-                        ui.painter()
-                            .text(rect.center(), egui::Align2::CENTER_CENTER, label, theme::semibold(12.5), pal.select);
-                        ui.interact(rect, ui.scope_id().with(label), egui::Sense::hover())
-                            .on_hover_text(hint);
+                        step_badge(ui, label, hint, &pal);
                         ui.add(egui::Label::new(RichText::new(value).monospace()).wrap());
                         ui.end_row();
                     }
@@ -270,36 +200,17 @@ impl MiningEditor {
 
             // ---- 6. word check
             card_section(ui, "6", tr("mining.word_check"), tr("mining.replay_every_trace_alpha_w"), |ui| {
-                egui::Grid::new("replay").num_columns(2).spacing([14.0, 8.0]).show(ui, |ui| {
-                    for (index, (t, _)) in log.variants().into_iter().enumerate() {
-                        ui.label(RichText::new(log.format_trace(&t)).monospace());
-                        match replays.get(index) {
-                            Some(Ok(())) => chip(ui, tr("mining.answer.ok"), pal.ok),
-                            Some(Err(e)) => chip(ui, &format!("✖ {e}"), pal.bad),
-                            None => chip(ui, tr("mining.analysis_pending"), pal.warn),
-                        };
-                        ui.end_row();
+                word_check(ui, log, replays, sound.as_ref(), &pal);
+                // Same commands as the header, next to the checked net, as in the exercise's last step.
+                ui.add_space(10.0);
+                ui.horizontal(|ui| {
+                    if let Some(requested) = open_actions(ui, r, &self.name) {
+                        action = Some(requested);
+                    }
+                    if let Some(requested) = copy_menu(ui, f, report) {
+                        copy = Some(requested);
                     }
                 });
-                ui.add_space(8.0);
-                match sound {
-                    Some(Soundness::Sound) => {
-                        chip(ui, tr("mining.sound_workflow"), pal.ok);
-                    }
-                    Some(Soundness::Unsound(why)) => {
-                        chip(ui, tr("mining.unsound_workflow"), pal.bad);
-                        for w in why {
-                            ui.label(RichText::new(format!("• {w}")).weak());
-                        }
-                    }
-                    Some(Soundness::Unknown) => {
-                        chip(ui, tr("mining.soundness_undecided_state_space_too_large"), pal.warn);
-                    }
-                    Some(Soundness::NotWorkflowNet) => {
-                        chip(ui, tr("mining.alpha_w_not_workflow_net"), pal.warn);
-                    }
-                    None => {}
-                }
             });
             ui.add_space(24.0);
         });
@@ -323,4 +234,156 @@ impl MiningEditor {
             self.action = action;
         }
     }
+}
+
+/// Succession, causality, parallelism and independence lists (step 2).
+pub(super) fn relation_lists(ui: &mut Ui, f: &op_core::mining::Footprint, pal: &Palette) {
+    let list = |pairs: &[(usize, usize)], sym: &str| -> Vec<String> {
+        pairs
+            .iter()
+            .map(|&(a, b)| format!("{}{sym}{}", f.activities[a], f.activities[b]))
+            .collect()
+    };
+    let par: Vec<(usize, usize)> = f
+        .pairs(Relation::Parallel)
+        .into_iter()
+        .flat_map(|(a, b)| if a == b { vec![(a, b)] } else { vec![(a, b), (b, a)] })
+        .collect();
+    egui::Grid::new("relations").num_columns(2).spacing([16.0, 10.0]).show(ui, |ui| {
+        for (label, hint, items, color) in [
+            (
+                tr("mining.succession_x_y"),
+                tr("mining.x_directly_followed_y_at_least_one"),
+                list(&f.successions(), ">"),
+                pal.muted,
+            ),
+            (
+                tr("mining.causality_x_y"),
+                tr("mining.x_y_not_y_x"),
+                list(&f.pairs(Relation::Causal), "→"),
+                pal.ok,
+            ),
+            (tr("mining.parallelism_x_y"), tr("mining.x_y_y_x"), list(&par, "||"), pal.select),
+            (
+                tr("mining.independence_x_y"),
+                tr("mining.not_x_y_not_y_x"),
+                list(&f.pairs(Relation::Independent), "#"),
+                pal.muted,
+            ),
+        ] {
+            ui.label(RichText::new(label).font(theme::medium(13.0))).on_hover_text(hint);
+            ui.horizontal_wrapped(|ui| {
+                ui.spacing_mut().item_spacing = egui::vec2(4.0, 4.0);
+                if items.is_empty() {
+                    ui.label(RichText::new("—").weak());
+                }
+                for it in items {
+                    chip(ui, &it, color);
+                }
+            });
+            ui.end_row();
+        }
+    });
+}
+
+pub(super) fn matrix_legend(ui: &mut Ui, pal: &Palette) {
+    ui.horizontal_wrapped(|ui| {
+        for (sym, txt, c) in [
+            ("→", tr("mining.causality"), pal.ok),
+            ("←", tr("mining.reverse_causality"), pal.end),
+            ("||", tr("mining.parallel"), pal.select),
+            ("#", tr("mining.independent"), pal.muted),
+        ] {
+            ui.label(RichText::new(sym).font(theme::semibold(14.0)).color(c));
+            ui.label(RichText::new(txt).small().weak());
+            ui.add_space(8.0);
+        }
+    });
+}
+
+/// Rounded label of an Alpha step, such as `TW`, explained on hover.
+pub(super) fn step_badge(ui: &mut Ui, label: &str, hint: &str, pal: &Palette) {
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(44.0, 22.0), egui::Sense::hover());
+    ui.painter()
+        .rect_filled(rect, 6.0, pal.select.gamma_multiply(if pal.dark { 0.3 } else { 0.12 }));
+    ui.painter()
+        .text(rect.center(), egui::Align2::CENTER_CENTER, label, theme::semibold(12.5), pal.select);
+    ui.interact(rect, ui.scope_id().with(label), egui::Sense::hover())
+        .on_hover_text(hint);
+}
+
+/// Replay outcome of each variant on α(W), followed by the soundness verdict.
+pub(super) fn word_check(ui: &mut Ui, log: &EventLog, replays: &[Result<(), String>], sound: Option<&Soundness>, pal: &Palette) {
+    egui::Grid::new("replay").num_columns(2).spacing([14.0, 8.0]).show(ui, |ui| {
+        for (index, (t, _)) in log.variants().into_iter().enumerate() {
+            ui.label(RichText::new(log.format_trace(&t)).monospace());
+            match replays.get(index) {
+                Some(Ok(())) => chip(ui, tr("mining.answer.ok"), pal.ok),
+                Some(Err(e)) => chip(ui, &format!("✖ {e}"), pal.bad),
+                None => chip(ui, tr("mining.analysis_pending"), pal.warn),
+            };
+            ui.end_row();
+        }
+    });
+    ui.add_space(8.0);
+    match sound {
+        Some(Soundness::Sound) => {
+            chip(ui, tr("mining.sound_workflow"), pal.ok);
+        }
+        Some(Soundness::Unsound(why)) => {
+            chip(ui, tr("mining.unsound_workflow"), pal.bad);
+            for w in why {
+                ui.label(RichText::new(format!("• {w}")).weak());
+            }
+        }
+        Some(Soundness::Unknown) => {
+            chip(ui, tr("mining.soundness_undecided_state_space_too_large"), pal.warn);
+        }
+        Some(Soundness::NotWorkflowNet) => {
+            chip(ui, tr("mining.alpha_w_not_workflow_net"), pal.warn);
+        }
+        None => {}
+    }
+}
+
+/// Primary buttons opening α(W) as a Petri net or its BPMN projection.
+pub(super) fn open_actions(ui: &mut Ui, r: &AlphaResult, name: &str) -> Option<MiningAction> {
+    let mut action = None;
+    if ui
+        .add(theme::primary_button(ui, tr("mining.deduce_bpmn")))
+        .on_hover_text(tr("mining.deduce_bpmn_diagram_from_alpha_w"))
+        .clicked()
+    {
+        let (mut d, _) = convert::petri_to_bpmn(&r.net);
+        d.name = trf("mining.bpmn_name", &[&name]);
+        action = Some(MiningAction::OpenBpmn(d));
+    }
+    if ui
+        .add(theme::primary_button(ui, tr("mining.open_petri_net")))
+        .on_hover_text(tr("mining.open_alpha_w_petri_net_tab_simulation"))
+        .clicked()
+    {
+        let mut net = r.net.clone();
+        net.name = trf("mining.net_name", &[&name]);
+        action = Some(MiningAction::OpenPetri(net));
+    }
+    action
+}
+
+/// Copy menu: full write-up, then the relation matrix as LaTeX or text.
+pub(super) fn copy_menu(ui: &mut Ui, f: &op_core::mining::Footprint, report: &str) -> Option<(String, &'static str)> {
+    let mut copy = None;
+    ui.menu_button(tr("mining.copy"), |ui| {
+        theme::menu_style(ui.style_mut());
+        if ui.button(tr("mining.full_write_up_text")).clicked() {
+            copy = Some((report.to_owned(), tr("mining.write_up_copied")));
+        }
+        if ui.button(tr("mining.relation_matrix_latex")).clicked() {
+            copy = Some((f.to_latex(), tr("mining.relation_matrix_copied_latex")));
+        }
+        if ui.button(tr("mining.relation_matrix_text")).clicked() {
+            copy = Some((f.to_text(), tr("mining.relation_matrix_copied")));
+        }
+    });
+    copy
 }
