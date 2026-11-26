@@ -1,7 +1,0 @@
-Command: cargo check --locked -p op-app --target wasm32-unknown-unknown
-Environment: local Linux
-Exit code: 0
-
-    Checking op-core v0.1.0 (/home/toybox/open-process/crates/op-core)
-    Checking op-app v0.1.0 (/home/toybox/open-process/crates/op-app)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.00s

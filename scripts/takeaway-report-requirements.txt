@@ -1,5 +1,0 @@
-# Optional report tooling; the native/WebAssembly application does not depend on it.
-matplotlib==3.11.2
-reportlab==5.1.0
-CairoSVG==2.9.1
-pypdf==7.1.1
