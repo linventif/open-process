@@ -64,6 +64,19 @@ changes need documented migrations and tests with older files. Use the existing
 translation mechanisms for interface text. Check both native and browser effects.
 Keep changes focused and preserve unrelated work in your checkout.
 
+## Keep personal coursework local
+
+Keep personal course documents, assignment data, reports and their study-specific
+generators under the ignored `cours/` directory. The project's
+[ignore rules](.gitignore) keep that material outside future commits; reusable
+application features remain in the normal source tree.
+
+Application tests and CI must work without these local files. Import regressions
+use the small, hand-authored [event-log fixtures](crates/op-core/tests/fixtures/mining/README.md)
+and [sales fixtures](crates/op-core/tests/fixtures/sales/README.md), which are
+project test data rather than copies of coursework. Keep private publication
+scripts and assignment-specific generators outside the application workspace.
+
 ## Verify your change
 
 Run the checks relevant to what you changed, from the repository root:

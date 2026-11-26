@@ -23,7 +23,10 @@ starts a download. PNG contains the whole diagram, whatever the current zoom or 
 
 BPMN SVG is an image of the full model geometry and routing, independent of the
 current canvas view. It preserves readable BPMN symbols, names, pools, lanes and
-information artifacts as vector shapes/text. It is not a BPMN execution or
+information artifacts as vector shapes/text. SVG and BPMN XML use the same
+symbol-family colors and pale lane backgrounds; XML supplies optional bpmn.io
+DI color attributes for supporting viewers. See the [BPMN file guide](bpmn.md#files-and-limits)
+for the palette and import limitations. It is not a BPMN execution or
 round-trip format; keep `.opx` or BPMN XML for editing. Authored visual exports
 remain available in exam mode; calculated sales/KPI exports follow the generated
 assistance policy.

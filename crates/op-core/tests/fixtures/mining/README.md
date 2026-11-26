@@ -2,8 +2,8 @@
 
 These are hand-authored, synthetic XLSX files assembled from minimal OpenXML
 parts in ZIP archives. They contain small invented examples, not copies of the
-course workbooks. The tests embed them directly and do not require `tp/`, Excel
-or formula evaluation.
+course workbooks. The tests embed them directly and do not require personal
+course files, Excel or formula evaluation.
 
 | Fixture | Case covered |
 | --- | --- |

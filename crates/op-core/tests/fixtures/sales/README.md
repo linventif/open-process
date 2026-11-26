@@ -2,7 +2,7 @@
 
 These are hand-authored, synthetic XLSX files assembled from minimal OpenXML
 parts in ZIP archives. Their invented sale rows exercise the importer without
-depending on the course files in `tp/`, Excel or formula evaluation.
+depending on personal course files, Excel or formula evaluation.
 
 | Fixture | Case covered |
 | --- | --- |

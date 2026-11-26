@@ -69,8 +69,15 @@ PNG capture.
 Mermaid retains the visible process structure but omits structured execution,
 cost, duration, documentation and style data. SVG draws BPMN shapes, wrapped
 labels, routed connections, pools, lanes and data artifacts from the complete
-model, including loop routes outside node bounds. It uses a clean vector style
-and does not reproduce hand-drawn stroke effects. PNG captures the whole diagram.
+model, including loop routes outside node bounds. SVG and BPMN XML exports share
+a presentation palette: blue activities, amber gateways/intermediate events,
+green starts, rose ends and purple information artifacts, with dark borders and
+alternating pale lane backgrounds. Symbols and labels retain their meaning in
+monochrome. BPMN XML writes the [bpmn.io color extension](https://github.com/bpmn-io/bpmn-moddle/blob/main/resources/bpmn-io/json/bioc.json)
+on DI shapes; editors that ignore that extension can still read the process and
+geometry. This fixed export palette is not a custom color property stored in
+`.opx`, and importing arbitrary third-party color choices does not preserve them.
+SVG uses clean vector strokes without hand-drawn effects. PNG captures the whole diagram.
 Keep `.opx` or BPMN XML for subsequent modelling. See the
 [format catalogue](export-formats.md) and [shared controls](interface.md).
 

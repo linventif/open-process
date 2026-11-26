@@ -1637,8 +1637,8 @@ through the new thread and got light (value 0); following a live change was not
 exercised.
 ## CSV/XLSX import and Petri discovery — 19 November 2026
 
-The first TakeAway increment imports event logs into the existing discovery and
-Petri editors. A module-owned binary importer decodes a workbook's sole matching
+This increment imports event logs into the existing discovery and Petri editors.
+A module-owned binary importer decodes a workbook's sole matching
 event-log worksheet with `calamine` 0.38; other sheets, business statistics and
 Excel formula execution are outside this increment. The dependency is justified
 by XLSX decoding, uses no optional features and accepts in-memory bytes on both
@@ -1660,21 +1660,8 @@ a limit is inconclusive. Recorded `Vide*` activities remain unchanged. Existing
 Petri-to-BPMN conversion can still show silent transitions as unnamed tasks;
 that conversion was not extended in this Petri-focused increment.
 
-The corrected CSV files in `tp/clean` were checked with actual Rust import,
-discovery and replay: Counter 33 cases/6 variants, Phone 109/12 and Internet
-185/13. All 327 cases replay with common boundaries; classic Alpha accepts only
-the three Internet cancellation cases, reporting two final tokens for the other
-cases. The clean CSV text is retained byte-for-byte. This establishes observed
-trace replay, not general process correctness or conformance metrics.
-
-The three XLSX files in `tp/clean` are byte-identical to the earlier workbooks.
-Counter and Phone event worksheets differ from the corrected CSVs, so those CSVs
-were the reference for this check. Three event-log and three Petri `.opx` files
-were generated under `tp/results/import-petri`, checked by typed round-trip,
-Petri storage validation and replay; originals were not rewritten.
-
 Regression fixtures are small synthetic workbooks and logs, independent of the
-user-supplied `tp` directory. Checks cover quoted CSV values, sparse padding,
+personal course directories. Checks cover quoted CSV values, sparse padding,
 ambiguous sheets/headers, cached formula values, missing activities, silent
 routing, parallel starts/ends, naming collisions, old files, worker cancellation,
 exam-mode suppression, stale exports and import-setting undo. The UI test opens
@@ -1714,19 +1701,6 @@ are errors. Recorded zero ratings remain distinct from missing ratings. Study
 files retain integer hundredths; ratios and averages are derived. No currency,
 customer identity, transaction identity or dated event series is inferred.
 
-The three clean workbooks contain 463 recorded rows: Counter 67, Phone 132 and
-Internet 264. Actual Rust import/analysis and an independent Decimal-based read
-of the stored worksheet values agree on revenue 6,795.00, costs 5,420.00 and
-profit 1,375.00 in source units. There are 460 recorded ratings totalling 1,258,
-plus three missing ratings. This gives mean satisfaction 2.7347826, revenue per
-record 14.6760259 and profit/revenue 20.235467%. Profit uses the recorded costs
-only. All seven groupings reconcile with the global counts and monetary totals.
-
-The typed study and six grouped CSVs were generated under `tp/results/sales`.
-Their codec round-trip, CSV headers and source preservation were checked. The
-workbooks' event worksheets remain independent of the corrected process CSVs;
-sale IDs were not joined to event-log case IDs.
-
 The complete sequential workspace run passed 304 tests (137 application tests,
 152 core unit tests and 15 integration tests). Targeted sales tests also cover
 filtered worker results, stale exports, duplicate import, undo/redo, source
@@ -1759,20 +1733,8 @@ projects the recorded traces using the result's marker metadata. That metadata
 defaults to empty when reading older derived results and survives net rebuilds.
 No native document schema changed.
 
-All seven markers in the three existing generated TakeAway nets require silent
-routing under conservative local contraction rules: they connect choices to
-merges or synchronize parallel branches. The saved files were updated in place
-without regenerating their layout or identifiers. Two Counter, three Phone and
-two Internet transitions became unnamed/silent; twelve matching generated place
-labels were updated. An explicit old/new isomorphism handled boundary labels
-that had previously been shortened after generation. JSON comparison confirmed
-unchanged positions, IDs, arc endpoints/weights, styles and other properties.
-Backups were retained in a temporary directory. All 25 other TP files, including
-the CSVs, log documents and sales outputs, remained byte-identical.
-
-All 327 corrected cases replay against the visible projections on the updated
-saved nets (Counter 33, Phone 109, Internet 185). Focused regressions cover marker
-matching, meaningful similarly named tasks, preparation loops, source/topology
+Focused regressions cover marker matching, meaningful similarly named tasks,
+preparation loops, source/topology
 preservation, metadata round-trips and cached worker replay. The complete
 sequential workspace suite passed 308 tests: 139 application, 154 core unit and
 15 integration tests. Native all-target compilation, the installed WebAssembly
@@ -1782,7 +1744,7 @@ place labels and successful projected replay. Formatting, local documentation
 links and `git diff --check` passed. No remote CI or publication was performed.
 
 Pre-commit cleanup removed redundant validation after the checked sales codec,
-added TP and synthetic-fixture provenance notes, and preserved supplied CSV
+added source and synthetic-fixture provenance notes, and preserved imported CSV
 bytes with directory-local Git attributes. The repeated sequential workspace
 run passed all 308 unit/integration tests. Its rustdoc step reported unresolved
 `calamine` and `quick_xml` crates with reused build outputs; repeating
@@ -1791,18 +1753,17 @@ run passed all 308 unit/integration tests. Its rustdoc step reported unresolved
 Formatting, 165 local file links across nine documentation pages and the staged
 patch whitespace check passed.
 
-## TP integration with merged main — 19 November 2026
+## Import integration with merged main — 19 November 2026
 
-The TP increment was rebased onto `7da37f7`, retaining the merged writer-version,
-multiple-file opening, whole-diagram PNG, shared arrangement, matrix-header and
+The import and analysis increment was rebased onto `7da37f7`, retaining the merged
+writer-version, multiple-file opening, whole-diagram PNG, shared arrangement,
+matrix-header and
 system-preference changes. Conflict resolution keeps named imports together with
 the newer-file compatibility dialog, all test modules and both verification
 histories. Language documentation now follows the merged system/browser policy.
 
 Content revision 2 identifies the sales document kind and optional event-log
-fields. The seven generated TP `.opx` files now carry a local-build writer header;
-their document payload bytes are unchanged from the pre-rebase commit. The other
-23 TP files are byte-identical. Historical fixtures remain unmodified.
+fields. Historical compatibility fixtures remain unchanged.
 
 The explicit workbook-log importer queues every valid selected file and retains
 batch errors when a later file succeeds. Its new regression covers two valid
@@ -1897,7 +1858,7 @@ merged code were fixed. Formatting, clippy, the WebAssembly check and
 `git diff --check` passed again; the sequential workspace run passed
 **351 tests** (154 app, 181 core, 16 integration), none ignored.
 
-## TakeAway completion — 20 November 2026
+## Process conversion, vector export and sales profiles — 20 November 2026
 
 Application discovery now converts silent routing to BPMN gateways with
 conservative contractions, retains silent generated boundaries on reverse
@@ -1916,39 +1877,16 @@ the target before insertion preserves that editing behavior.
 
 Official OMG BPMN 2.0.2 XSD validation identified process artifacts being emitted
 before later sequence flows. Export now writes flow elements before annotations
-and associations, preserving identities and diagram interchange. The four final
-XML models pass all five normative schemas with libxml2 2.15.2; schema URLs,
-SHA-256 fingerprints, file fingerprints and scope are recorded in
-[`bpmn-xsd.json`](../tp/results/checks/bpmn-xsd.json). XSD grammar validation does
-not certify all BPMN semantics or every external editor.
+and associations, preserving identities and diagram interchange. These checks
+covered the normative OMG BPMN 2.0.2 XML schemas.
+XSD grammar validation does not certify all BPMN semantics or every external
+editor.
 
 Sales analysis now derives weekday/customer-type profiles in the existing
 worker, displays count/revenue/profit/observed-score curves and comparisons, and
 exports series and two explained KPIs. An exact `StructureId` filter can be
 scoped by channel; it does not interpret a sales ID as a case/customer ID.
 Historical view preferences remain readable and no stored model schema changed.
-
-The reproducible TakeAway example produces 17 outputs: four enriched native,
-BPMN XML and SVG models, complementary evidence, case validation, weekday/KPI
-CSVs and a filtered scenario export. All 327 observed cases replay through their
-channel BPMN, the connected global BPMN and XML round-trips. All four converted
-workflow networks return `Sound` within the 20,000-state analysis bound; 15
-selected invalid control/cross-channel traces are rejected. Reproducible geometry
-checks find no node-body overlaps or unrelated-node crossings for sequence,
-association or message routes, using a 3 px inset and excluding endpoints.
-Visual review separately checks labels and channel corridors. Inferred role
-titles, representative information associations and unmeasured task defaults
-are documented; these are not resource-availability or data-execution proofs.
-
-Independent integer/Decimal analysis reconciles eight native summary/series/KPI
-CSVs plus the separate scenario subset. It verifies all 463 stored rows against
-their own workbooks and resolves local template references. Internet rows 18,
-61 and 135 reference cancellation template 7 but retain cached revenue 36 and
-cost 28; they also account for all three missing scores. Recorded totals remain
-463 / 6,795 / 5,420 / 1,375. A clearly conditional exclusion yields
-460 / 6,759 / 5,392 / 1,367; neither actual cash flows nor automatic exclusions
-are asserted. All 31 independent analysis outputs reproduce byte-for-byte,
-including seven SVG/PNG figure pairs and sixteen CSV tables.
 
 The complete sequential workspace suite passes 351 tests: 154 application,
 181 core unit and 16 integration tests; the zero-doctest rustdoc step passes.
@@ -1958,14 +1896,11 @@ check, Trunk `/app/` debug build and Firefox worker smoke pass, including seven
 weekday points, two customer-type series, exact scenario filtering, zero/missing
 scores, existing jobs, cancellation and invalid input.
 
-Final publication checks native/source fingerprints, recorded software results,
-all model/CSV checks and the official-XSD file fingerprints before producing the
-French PDF/HTML report and ZIP. PDF text extraction, required sections, vector
-appendices, ZIP integrity, contained hashes and relative HTML asset paths are
-checked. Optional pinned Python publication packages are isolated from Rust and
-WebAssembly runtime dependencies. The supplied data and existing log/Petri/sales
-study files retain their original bytes. These are local Linux/Firefox checks;
-no remote multi-system CI, release build, upload or deployment is claimed.
+These are historical local Linux/Firefox software checks; no remote
+multi-system CI, release build, upload or deployment is claimed. Personal course
+data, generated models, reports and study-specific publication records are kept
+locally outside the tracked application sources. The application tests use
+synthetic fixtures and do not depend on that material.
 
 ## Alpha exercise mode — 24 November 2026
 

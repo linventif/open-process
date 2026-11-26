@@ -2,6 +2,7 @@
 //! Interoperable with bpmn.io / Camunda Modeler, Bizagi Modeler (BPMN export),
 //! Signavio, Visual Paradigm, etc.
 
+use crate::bpmn::export_style;
 use crate::bpmn::*;
 use crate::geom::Pos;
 use crate::xml::{self, Element, XmlWriter};
@@ -13,6 +14,7 @@ const NS: &[(&str, &str)] = &[
     ("xmlns:dc", "http://www.omg.org/spec/DD/20100524/DC"),
     ("xmlns:di", "http://www.omg.org/spec/DD/20100524/DI"),
     ("xmlns:op", "https://open-process.app/schema/evaluation"),
+    ("xmlns:bioc", "http://bpmn.io/schema/bpmn/biocolor/1.0"),
 ];
 
 fn node_xml_id(n: &Node) -> String {
@@ -260,6 +262,8 @@ pub fn export(d: &BpmnDiagram) -> String {
                 ("id", format!("Participant_{}_di", p.id)),
                 ("bpmnElement", format!("Participant_{}", p.id)),
                 ("isHorizontal", "true".into()),
+                ("bioc:fill", "#ffffff".into()),
+                ("bioc:stroke", export_style::INK.into()),
             ],
         );
         bounds(&mut w, r.x, r.y, r.w, r.h);
@@ -273,6 +277,8 @@ pub fn export(d: &BpmnDiagram) -> String {
                         ("id", format!("Lane_{}_di", l.id)),
                         ("bpmnElement", format!("Lane_{}", l.id)),
                         ("isHorizontal", "true".into()),
+                        ("bioc:fill", export_style::lane(i).into()),
+                        ("bioc:stroke", export_style::INK.into()),
                     ],
                 );
                 bounds(&mut w, r.x, r.y, r.w, r.h);
@@ -283,6 +289,8 @@ pub fn export(d: &BpmnDiagram) -> String {
     for n in &d.nodes {
         let r = n.rect();
         let mut a = vec![("id", format!("{}_di", ids[&n.id])), ("bpmnElement", ids[&n.id].clone())];
+        let colors = export_style::node(n.kind);
+        a.extend([("bioc:fill", colors.fill.into()), ("bioc:stroke", colors.stroke.into())]);
         if n.kind == NodeKind::Gateway(GatewayType::Exclusive) {
             a.push(("isMarkerVisible", "true".into()));
         }
@@ -297,7 +305,11 @@ pub fn export(d: &BpmnDiagram) -> String {
         let pts = route(d, fl);
         w.open(
             "bpmndi:BPMNEdge",
-            &[("id", format!("{}_di", flow_id(fl))), ("bpmnElement", flow_id(fl))],
+            &[
+                ("id", format!("{}_di", flow_id(fl))),
+                ("bpmnElement", flow_id(fl)),
+                ("bioc:stroke", export_style::INK.into()),
+            ],
         );
         for p in pts {
             w.empty("di:waypoint", &[("x", f(p.x)), ("y", f(p.y))]);
@@ -597,6 +609,39 @@ mod tests {
             .find(|n| matches!(n.kind, NodeKind::Task(TaskType::Service)))
             .unwrap();
         assert_eq!(t.pos, Pos::new(450.0, 250.0));
+    }
+
+    #[test]
+    fn vector_and_bpmn_di_share_readable_symbol_colors_without_changing_content() {
+        let mut diagram = sample();
+        diagram.add_node(NodeKind::DataObject, Pos::new(600.0, 250.0));
+        let original = diagram.clone();
+        let xml = export(&diagram);
+        assert!(xml.contains("xmlns:bioc=\"http://bpmn.io/schema/bpmn/biocolor/1.0\""));
+        let di = xml::parse(&xml).unwrap();
+        let svg = xml::parse(&diagram.to_svg()).unwrap();
+        let di_elements = di.descendants();
+        let svg_elements = svg.descendants();
+        for node in &diagram.nodes {
+            let xml_id = node_xml_id(node);
+            let svg_id = format!("node{}", node.id);
+            let shape = di_elements
+                .iter()
+                .find(|element| element.name == "BPMNShape" && element.attr("bpmnElement") == Some(&xml_id))
+                .unwrap();
+            let group = svg_elements.iter().find(|element| element.attr("id") == Some(&svg_id)).unwrap();
+            assert_eq!(shape.attr("fill"), group.attr("fill"));
+            assert_eq!(shape.attr("stroke"), group.attr("stroke"));
+            assert_ne!(shape.attr("fill"), Some("#ffffff"));
+            assert_ne!(shape.attr("fill"), shape.attr("stroke"));
+        }
+        for color in ["#dcfce7", "#ffe4e6", "#dbeafe", "#fef3c7", "#ede9fe"] {
+            assert!(xml.contains(color));
+        }
+        let restored = import(&xml).unwrap();
+        assert_eq!(restored.nodes.len(), diagram.nodes.len());
+        assert_eq!(restored.flows.len(), diagram.flows.len());
+        assert_eq!(diagram, original);
     }
 
     #[test]

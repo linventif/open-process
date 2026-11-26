@@ -1,9 +1,9 @@
 //! Standalone vector rendering of the complete BPMN diagram in world coordinates.
+use super::export_style::{self, INK};
 use super::*;
 use crate::xml::escape;
 use std::fmt::Write;
 
-const INK: &str = "#243342";
 const FONT: f32 = 12.0;
 
 struct Label {
@@ -249,9 +249,11 @@ impl BpmnDiagram {
         for (node, label) in self.nodes.iter().zip(&node_labels) {
             writeln!(
                 svg,
-                "<g id=\"node{}\" data-name=\"{}\"><title>{}</title><desc>{}</desc>",
+                "<g id=\"node{}\" data-name=\"{}\" fill=\"{}\" stroke=\"{}\"><title>{}</title><desc>{}</desc>",
                 node.id,
                 escape(&node.name),
+                export_style::node(node.kind).fill,
+                export_style::node(node.kind).stroke,
                 escape(&node.name),
                 escape(&node.documentation)
             )
@@ -296,13 +298,14 @@ fn draw_pool(svg: &mut String, pool: &Pool) {
         svg,
         Rect::new(pool.pos.x, pool.pos.y, POOL_HEADER, pool.height()),
         false,
-        "fill=\"#edf2f6\"",
+        &format!("fill=\"{}\"", export_style::POOL_HEADER),
     );
     if pool.lanes.len() > 1 {
         for (index, lane) in pool.lanes.iter().enumerate() {
             let rect = pool.lane_rect(index);
             writeln!(svg, "<g id=\"lane{}\" data-name=\"{}\">", lane.id, escape(&lane.name)).unwrap();
-            rectangle(svg, Rect::new(rect.x, rect.y, LANE_HEADER, rect.h), false, "fill=\"#f6f8fa\"");
+            rectangle(svg, rect, false, &format!("fill=\"{}\" stroke=\"none\"", export_style::lane(index)));
+            rectangle(svg, Rect::new(rect.x, rect.y, LANE_HEADER, rect.h), false, "fill=\"#e2e8f0\"");
             if index > 0 {
                 line(svg, Pos::new(rect.x, rect.y), Pos::new(rect.right(), rect.y), "");
             }

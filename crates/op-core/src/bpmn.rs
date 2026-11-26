@@ -3,6 +3,7 @@
 //! sequence flows, message flows, pools and lanes.
 
 pub mod editing;
+pub(crate) mod export_style;
 use crate::geom::{Pos, Rect};
 use crate::i18n::{tr, trf};
 use serde::{Deserialize, Serialize};
